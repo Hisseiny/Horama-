@@ -1,0 +1,16 @@
+Facturo
+Tableau de bord
+Factures
+Compte de démo
+Aujourd'hui : 18/11/2026
+Se déconnecter
+Tableau de bord
+CA du mois
+1 240,00 €
+Factures du mois
+4
+Factures en retard
+3
+Prochaines échéances
+Numéro	Client	Échéance
+F-120	Café Mira	30/11/2026

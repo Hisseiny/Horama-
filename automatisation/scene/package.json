@@ -1,0 +1,9 @@
+{
+  "name": "horama-scene",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "pngjs": "7.0.0"
+  }
+}

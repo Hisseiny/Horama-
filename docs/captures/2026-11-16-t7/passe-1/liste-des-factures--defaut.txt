@@ -1,0 +1,32 @@
+Facturo
+Tableau de bord
+Factures
+Compte de démo
+Aujourd'hui : 18/11/2026
+Se déconnecter
+Factures
+Filtrer : Toutes
+Exporter
+Numéro	Client	Échéance	Montant TTC
+
+F-118
+	
+Atelier Brun
+	05/11/2026	320,00 €
+
+F-119
+	
+Studio Lune
+	12/11/2026	480,00 €
+
+F-120
+	
+Café Mira
+	30/11/2026	180,00 €
+
+F-121
+	
+Garage Vélo
+	10/11/2026	440,00 €
+Total			1 420,00 €
+4 factures

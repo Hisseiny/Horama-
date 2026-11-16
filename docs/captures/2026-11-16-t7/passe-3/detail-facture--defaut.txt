@@ -1,0 +1,15 @@
+Facturo
+Tableau de bord
+Factures
+Compte de démo
+Aujourd'hui : 18/11/2026
+Se déconnecter
+Facture F-119
+Client : Studio Lune
+Échéance : 12/11/2026
+En attente de paiement
+Désignation	Montant
+Maquette de site	300,00 €
+Intégration	180,00 €
+Total TTC	480,00 €
+Retour aux factures
