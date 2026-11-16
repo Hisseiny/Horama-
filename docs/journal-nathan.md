@@ -62,3 +62,55 @@ Orchestrateur : Claude Code (Fable 5.2). Branche : `dev-nathan`. Méthode : `doc
 - 18 h 45 : PR `dev-nathan` vers `dev` ouverte, fusionnable : https://github.com/Hisseiny/Horama-/pull/2
 - Quota Devin : 48 % utilisés (46 % à 18 h 06). Deux points pour la seconde moitié de N2 et le premier quart d'heure de N4 : une tâche de la taille de N2 coûte de l'ordre de 2 à 3 points (estimation sur un seul écart, à affiner après N4).
 - Les 7 captures de Facturo sont copiées dans `interface/public/factice/` du worktree de N4 (les maquettes affichent de vraies captures).
+
+### 19 h 10, N5 : `@horama/memoire`, tenu (fait avant la porte : il ne dépend pas de la direction visuelle)
+- PR #2 fusionnée par Nathan à 18 h 23, `dev` récupéré dans `dev-nathan`. `dev-ali` n'existe pas encore sur le dépôt.
+- Devin : 14 min, sortie 0, 17 fichiers (16 dans `memoire/`, plus `pnpm-lock.yaml`). Rapport écrit dans le worktree (consigne changée après le refus d'écriture de N2).
+- Rejoué par l'orchestrateur : `pnpm --filter @horama/memoire run check` vert (27 tests) ; `vault-horama/` intact ; lecture du vrai vault par le paquet : 6 notes, 13 règles dont 10 testables, les 3 tests C2 écrits à la main passent le lecteur (critère de N3 tenu). Aller-retour C2 sans perte, à l'octet près, couvert par les tests. `accepted-tests.ts` relu.
+- Points laissés ouverts par Devin, à traiter en N9 : F32 ne regarde que les écarts visuels (un bug de règle sur le même écran ne bloque pas la validation d'une référence) ; l'app doit repartir de la décision rendue par `appliquerCorrection`. Le paquet s'importe en `.ts` : l'app doit le mettre dans `transpilePackages`.
+- T4 préparé : le routeur Hugging Face liste 164 modèles ; candidats ouverts à comparer en N6 : `openai/gpt-oss-120b`, `Qwen/Qwen3.8-27B`, réserve `zai-org/GLM-5.3-Flash`.
+
+### 19 h 20, N6a lancé : T4 et génération par Hugging Face (dans `jugement/`, sans l'interface)
+- N6 est coupé en deux pour ne pas toucher `interface/` pendant que N4 s'y code : N6a (mesure de deux modèles, `proposerTests`), puis N6b (écran 11.2 branché, Accepter écrit le fichier) après la porte.
+- Devin lance ses scripts avec `node --env-file=<.env.local du dépôt>` pour appeler le routeur ; consigne : ne jamais lire ni afficher le fichier ou une valeur.
+- Quota Devin : 52 % utilisés à 19 h 15 (46 % à 18 h 06, 48 % à 18 h 45). Rythme constaté : environ 6 points en 70 min avec un à deux Devin actifs. Marge avant le seuil d'arrêt (80 %) : 28 points.
+
+### 19 h 50, N4 : app Horama sur données factices, tenu (direction à valider par Nathan)
+- Devin : 44 min, sortie 0, 51 fichiers (`interface/` et `pnpm-lock.yaml`). Conflit de verrou pnpm avec `dev-nathan` réglé par l'orchestrateur dans la branche (verrou de `dev-nathan` repris, `pnpm install`).
+- Rejoué par l'orchestrateur : `check` vert (8 tests de contraste), `build` vert avec `USE_MOCKS=1`, les 7 routes en 200, `captures.mjs` : 10 captures, sortie 0. Les 10 captures regardées une à une : rien ne déborde, la signature (surlignage d'état) est tenue sur les 8 écrans.
+- Écarts de Devin acceptés : `lireDecisions` ajoutée à `lib/donnees.ts` ; zone du bouton Exporter prise dans `faux-saas/positions.json` (celle de l'exemple du contrat tombe à côté du bouton réel) ; « à calculer » pour le nombre de zones.
+- Incident mineur : Devin a arrêté son serveur par `pkill -f "next dev"` (trop large). Aucun autre serveur de développement ne tournait.
+- **Constat pour le pitch** : sur Facturo, la vue « pixels bruts » ne montre pas « du rouge partout ». Le faux SaaS est déterministe : 1 320 pixels différents sur 1 152 000 pour le bouton déplacé. L'argument « la comparaison de pixels noie l'humain » ne se voit pas sur ce logiciel ; il se verrait sur un logiciel dont les données ou le rendu changent d'une visite à l'autre.
+- Planche de direction : `docs/captures/2026-11-16-porte-direction/index.html`. App servie sur `http://localhost:3000` pour la navigation. Juge aveugle lancé (agent frais, captures seules puis 8 références).
+
+### 20 h 05, PORTE DE DIRECTION : en attente du « go » de Nathan
+- Juge aveugle (agent frais, 10 captures seules puis 8 références) : 6,5 sur 10, aucune source unique (« un composite, pas un clone » ; parenté la plus proche : US Graphics pour la structure, PostHog pour le fond et les titres). Propre au produit : le surlignage sur la phrase de documentation, l'équation en très grand, le passage du jaune au souligné à l'acceptation. Écrans faibles : 4 (passage en direct, sans couleur d'état), 5 (captures minuscules, trois navigations), 1 (petit texte gris, règles répétées). Écran fort : 8.
+- Cinq corrections proposées sur la planche, **non faites** : elles attendent l'avis de Nathan pour ne payer qu'une passe de Devin.
+- Planche ouverte dans Chrome ; app sur `http://localhost:3000`. Étiquette `porte-direction` à poser après le « go ».
+- Quota Devin : 56 % utilisés. Dix points depuis 18 h 06 pour N2 (seconde moitié), N4, N5 et le début de N6a. Reste 24 points avant le seuil d'arrêt ; reste à faire : corrections de N4, fin de N6a, N6b, N7, N8, N9, N10, N11. Estimation : la nuit complète finit entre 75 et 80 %.
+- Pendant l'attente : N6a continue chez Devin (il ne dépend pas de la direction).
+
+### 20 h 20, N6a : génération par Hugging Face, code tenu, T4 NON tenu sur le temps
+- Consigne de Nathan à 20 h 08 : ne plus lancer de tâche, le prévenir quand plus aucun agent ne tourne (il coupe internet puis répond aux questions de la porte).
+- Devin : 19 min, sortie 0, bloqué en fin de tâche : son juge (mode « smart ») lui a refusé 3 fois de lancer le script de T4. Code, consigne et script commités ; vérifications hors réseau rejouées : `jugement` 12 tests, `memoire` 28 tests, verts.
+- **T4 lancé par l'orchestrateur** (`node --env-file=.env.local jugement/scripts/t4-generation.ts`, 357 s, 18 passes) :
+  - `openai/gpt-oss-120b` : format C1 valide et règles justes 8 passes sur 9 (v13 : 3 sur 3, les 2 tests s'écrivent dans le vault et se relisent 3 fois sur 3 ; liste : 3 sur 3 ; règles entre écrans : 2 sur 3, un passage de source mal recopié). Temps médian 16,3 s. Coût rendu par le routeur : 0,0081 $ pour 9 passes.
+  - `Qwen/Qwen3.8-27B` : 2 passes sur 9, 7 délais de 45 s dépassés. Écarté.
+  - Critère de T4 (2 notes sur 3 réussies aux 3 passes ET temps médian sous 10 s) : **non tenu**, à cause du temps seulement pour gpt-oss-120b (16,3 s contre 10 s).
+- Décisions de Devin acceptées : le modèle reçoit les notes d'écran en entier (sans elles il invente le nom de la colonne) ; l'égalité des règles avec la note est imposée par le code.
+- À faire à la reprise, avant d'accepter le repli de la spec (test pré-généré) : remesurer gpt-oss-120b en demandant au routeur son fournisseur le plus rapide (suffixe de fournisseur dans l'identifiant du modèle), et la réserve `zai-org/GLM-5.3-Flash`. Une ligne à changer, 6 minutes de mesure.
+- Fusionné dans `dev-nathan` (conflit de verrou pnpm réglé par `pnpm install`). Plus aucun agent ne tourne. Seul le serveur local de l'app (port 3000) reste actif, il n'a pas besoin d'internet.
+
+### État à la coupure (pour reprendre)
+- Tenus et fusionnés : N0, N1, N2, N3 (PR #2 fusionnée dans `dev`), N4 (direction à valider), N5, N6a (code).
+- En attente de Nathan : le « go » de la porte, le choix des corrections du juge, la marge de quota.
+- Suite, dans l'ordre : corrections de N4 selon l'avis de Nathan ; remesure de T4 ; N6b (écran 11.2 branché sur `proposerTests` et `ecrireTestAccepte`) ; N7 (sonde H, T2, relevé, calcul, `verifierPassage`) ; N8 ; N9 ; N10 dès que `dev-ali` existe ; N11.
+- Pièges : Devin en mode « smart » refuse d'écrire hors de son worktree (rapport à la racine du worktree) et de lancer un script qui appelle un service avec une clé (l'orchestrateur le lance) ; `pnpm-lock.yaml` entre en conflit à chaque fusion de deux branches parallèles (garder celui du couloir, `pnpm install`).
+
+### 21 h 10, PORTE : la direction n'est pas validée, changement de cap décidé par Nathan
+- Verdict de Nathan sur l'app à 8 onglets : « on ne comprend pas trop où ça va », « très vibe codé », le parcours est « en plusieurs fois ». Sa vision : un déploiement Vercel, puis une seule scène où l'on voit le site, le curseur qui bouge et la mascotte Horama qui clique, signale ses doutes sans s'arrêter, et tout se tranche à la fin.
+- Erreur de l'orchestrateur : avoir répondu qu'on ne peut pas montrer le navigateur de l'agent en direct ni faire pointer la mascotte sur le clic exact. Faux en navigateur local. Fouille du vault de Nathan (note Nami, `h-company-agents-api`, `hackathon-mvp-playbook` § 8, `gout-design-nathan` § Panneau Nami) et du dépôt public de Nami (`extension/agent-overlay.js`, `scripts/lancer-demo.sh`) : Chrome local piloté par `holo local browser`, couche dans la page qui suit les vrais clics.
+- Décision écrite : `docs/decisions/2026-11-16-scene-en-direct.md` (déroulé en 6 temps validé par Nathan, ce qui change, pièges mesurés sur Nami, proposition de partage pour Ali). Spec, `couloir-ali.md` et `couloir-nathan.md` mis à jour. PR vers `dev` pour prévenir Ali.
+- Les 5 corrections du juge aveugle sur l'app à 8 onglets ne sont pas faites : la forme change. Le visuel (mascotte, images) viendra après, sur prompts donnés à Nathan.
+- Prochaine tâche : T7 (preuve du navigateur local), code écrit par Devin, mesure lancée par l'orchestrateur. Elle demande d'installer l'outil `holo` de H (retiré du Mac le 8/11) : accord de Nathan demandé avant.
+- T4 reste à remesurer avec un fournisseur plus rapide ; quota Devin à 56 % au dernier relevé (20 h 05).

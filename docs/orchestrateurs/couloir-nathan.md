@@ -6,6 +6,23 @@ Dossiers du couloir : `faux-saas/`, `vault-horama/`, `memoire/`, `jugement/`, `i
 
 Variables `.env.local` utiles : `HAI_API_KEY`, `HF_TOKEN`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, `FAUX_SAAS_URL`, `FACTURO_LOGIN`, `FACTURO_PASSWORD`, `N8N_WEBHOOK_URL` (facultative), `VAULT_PATH=./vault-horama`, `USE_MOCKS`.
 
+## Changement de cap du 16/11 au soir
+
+Décision de Nathan à la porte : `docs/decisions/2026-11-16-scene-en-direct.md` (elle prime sur le tableau ci-dessous). État au moment de la décision : N0 à N5 et N6a tenus (voir `docs/journal-nathan.md`).
+
+Suite, dans l'ordre :
+
+| N° | Tâche | Fini quand |
+|---|---|---|
+| T7 | Preuve du navigateur local : l'agent H joue un parcours sur Facturo dans un Chrome local, un curseur dans la page suit ses clics, captures par CDP | 3 passages de suite : écrans atteints, curseur sur l'élément cliqué, captures identiques au pixel près entre deux passages, durée mesurée ; résultat dans `docs/tests/2026-11-16-t7-navigateur-local.md` |
+| S1 | La scène : lanceur du Chrome local et du pont, couche visuelle (mascotte en attente des images de Nathan, bulle, surlignage), capture par CDP | Un parcours filmé de bout en bout, mascotte comprise |
+| S2 | Vérification pendant la session (remplace N7 et N8 dans leur forme « après la session ») : à chaque `relever`, relevé des valeurs dans la page, calcul des règles, pixels contre la référence, zone surlignée si doute | Sur le parcours v13 : CA du mois et filtre signalés pendant le parcours, bouton Exporter surligné, 3 sur 3 |
+| S3 | Fin de parcours (remplace N9) : on repasse sur les zones surlignées, bug ou voulu, puis décisions et note corrigées d'un coup | Tests d'acceptation 4 et 5 de la spec |
+| S4 | Déclenchement par un déploiement Vercel | Un déploiement de Facturo lance le parcours sans clic |
+| N6b, N10, N11 | Inchangées dans leur but, à replacer après S3 | |
+
+L'app à 8 onglets livrée en N4 n'est plus le chemin de la démo : ses écrans de relecture, de dérive et de rapport servent à S3.
+
 ## Tâches, dans l'ordre
 
 | N° | Tâche | Fini quand (l'orchestrateur le vérifie) |

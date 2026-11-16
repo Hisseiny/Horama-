@@ -1,0 +1,30 @@
+/* Step 5. The images take the width; the verdict of the comparison is one sentence under them. */
+
+.comparaison-tete { display: flex; align-items: end; justify-content: space-between; gap: 40px; margin-bottom: 24px; }
+.comparaison-tete h1 + p { margin-top: 10px; }
+.comparaison-tete nav { display: flex; gap: 22px; white-space: nowrap; }
+.comparaison-tete nav a[aria-current] { font-weight: 700; text-decoration-thickness: 3px; }
+
+.cote-a-cote { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px; }
+
+.rideau { max-width: 1120px; margin: 24px auto 0; }
+.rideau-images { position: relative; }
+.rideau-dessus { position: absolute; inset: 0; }
+.rideau-trait { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1.5px; background: var(--encre); }
+.rideau-curseur { display: grid; grid-template-columns: auto 1fr auto; gap: 16px; align-items: center; margin-top: 12px; font-weight: 700; }
+.rideau-curseur input { width: 100%; accent-color: var(--encre); }
+
+.pixels { margin-top: 24px; }
+.pixels canvas { display: block; width: 100%; height: 100%; border-radius: inherit; }
+
+.comparaison-phrase { margin-top: 28px; padding: 20px 0; font-size: 1.6rem; line-height: 1.3; border-block: 1px solid var(--encre); }
+.comparaison-phrase b { font-weight: 800; }
+
+.ecarts { margin-top: 36px; }
+.ecarts caption { padding-bottom: 8px; text-align: left; font-size: 1.15rem; font-weight: 700; }
+.ecarts td { font-size: 1.1rem; }
+.ecart-numero { font-size: 1.3rem; font-weight: 700; }
+.ecart-mesure { font-weight: 700; white-space: nowrap; }
+
+.vue-seule { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; margin-top: 56px; }
+.vue-seule h2 { margin-bottom: 10px; }
