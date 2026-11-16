@@ -86,7 +86,16 @@ export function comparerImages(png: Uint8Array, reference: Uint8Array): ImageCom
   }
   const roots = boxes.filter((_, zone) => parent[zone] === zone);
   comparison.rawZones = roots.length;
-  comparison.zones = roots
+  // A zone whose box lies inside another zone's box is the same change seen twice (a button's outline and its label):
+  // it is absorbed by the outer one (docs/decisions/2026-11-16-seuil-de-bruit.md, rule 5).
+  const inside = (inner: (typeof boxes)[number], outer: (typeof boxes)[number]) =>
+    inner !== outer && inner.left >= outer.left && inner.right <= outer.right && inner.top >= outer.top && inner.bottom <= outer.bottom;
+  const outer = roots.filter((box) => !roots.some((other) => inside(box, other)));
+  for (const box of roots) {
+    const host = outer.find((candidate) => inside(box, candidate));
+    if (host) host.pixels += box.pixels;
+  }
+  comparison.zones = outer
     .filter((box) => box.pixels >= MIN_PIXELS)
     .map((box) => ({ x: box.left, y: box.top, largeur: box.right - box.left + 1, hauteur: box.bottom - box.top + 1, pixels: box.pixels }))
     .sort((one, other) => one.y - other.y || one.x - other.x);
