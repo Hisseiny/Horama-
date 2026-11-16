@@ -59,3 +59,6 @@ Orchestrateur : Claude Code (Fable 5.2). Branche : `dev-nathan`. Méthode : `doc
 - `docs/decisions/2026-11-16-seuil-de-bruit.md` : seuil provisoire pour T1 (écart de canal de plus de 24, zones à 8 px, au moins 6 pixels), fixé sur Chrome, à refixer sur les captures de H.
 - Captures : `docs/captures/2026-11-16-n2-faux-saas/` (7 PNG et la planche `index.html`).
 - `pnpm -r --if-present run check` à la racine échoue sur `@horama/contrats` (« tsc: command not found » : aucun paquet de la racine ni de `contrats/` n'installe TypeScript). Déjà vrai sur `dev`, fichiers du couloir Ali : signalé dans la PR, non touché. `pnpm --filter @horama/faux-saas run check` : vert.
+- 18 h 45 : PR `dev-nathan` vers `dev` ouverte, fusionnable : https://github.com/Hisseiny/Horama-/pull/2
+- Quota Devin : 48 % utilisés (46 % à 18 h 06). Deux points pour la seconde moitié de N2 et le premier quart d'heure de N4 : une tâche de la taille de N2 coûte de l'ordre de 2 à 3 points (estimation sur un seul écart, à affiner après N4).
+- Les 7 captures de Facturo sont copiées dans `interface/public/factice/` du worktree de N4 (les maquettes affichent de vraies captures).
