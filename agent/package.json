@@ -8,7 +8,8 @@
     "check": "tsc --noEmit && node --test *.test.ts"
   },
   "dependencies": {
-    "@horama/contrats": "workspace:*"
+    "@horama/contrats": "workspace:*",
+    "@horama/memoire": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "26.6.6",

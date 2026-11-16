@@ -171,6 +171,9 @@ importers:
       '@horama/contrats':
         specifier: workspace:*
         version: link:../contrats
+      '@horama/memoire':
+        specifier: workspace:*
+        version: link:../memoire
     devDependencies:
       '@types/node':
         specifier: 26.6.6
