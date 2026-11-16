@@ -1,0 +1,367 @@
+[
+  {
+    "id": "ca-mois",
+    "ecran": "tableau-de-bord",
+    "vue": "defaut",
+    "zone": "valeur-ca-mois",
+    "avant": {
+      "x": 273,
+      "y": 181,
+      "largeur": 274,
+      "hauteur": 36
+    },
+    "apres": {
+      "x": 273,
+      "y": 181,
+      "largeur": 274,
+      "hauteur": 36
+    },
+    "pixels_differents": 387,
+    "boite_pixels": {
+      "x": 295,
+      "y": 189,
+      "largeur": 29,
+      "hauteur": 19
+    }
+  },
+  {
+    "id": "nombre-factures",
+    "ecran": "tableau-de-bord",
+    "vue": "defaut",
+    "zone": "valeur-factures-mois",
+    "avant": {
+      "x": 613,
+      "y": 181,
+      "largeur": 274,
+      "hauteur": 36
+    },
+    "apres": {
+      "x": 613,
+      "y": 181,
+      "largeur": 274,
+      "hauteur": 36
+    },
+    "pixels_differents": 183,
+    "boite_pixels": {
+      "x": 613,
+      "y": 189,
+      "largeur": 15,
+      "hauteur": 20
+    }
+  },
+  {
+    "id": "total-detail",
+    "ecran": "detail-facture",
+    "vue": "defaut",
+    "zone": "total-ttc",
+    "avant": {
+      "x": 1008,
+      "y": 314,
+      "largeur": 240,
+      "hauteur": 45
+    },
+    "apres": {
+      "x": 1008,
+      "y": 314,
+      "largeur": 240,
+      "hauteur": 45
+    },
+    "pixels_differents": 59,
+    "boite_pixels": {
+      "x": 1185,
+      "y": 330,
+      "largeur": 8,
+      "hauteur": 12
+    }
+  },
+  {
+    "id": "filtre-echeance",
+    "ecran": "liste-des-factures",
+    "vue": "filtre-echeance",
+    "zone": "ligne-F-120",
+    "avant": null,
+    "apres": {
+      "x": 252,
+      "y": 318,
+      "largeur": 996,
+      "hauteur": 45
+    },
+    "pixels_differents": 90674,
+    "boite_pixels": {
+      "x": 252,
+      "y": 334,
+      "largeur": 996,
+      "hauteur": 167
+    }
+  },
+  {
+    "id": "total-liste",
+    "ecran": "liste-des-factures",
+    "vue": "defaut",
+    "zone": "total-liste",
+    "avant": {
+      "x": 1008,
+      "y": 408,
+      "largeur": 240,
+      "hauteur": 45
+    },
+    "apres": {
+      "x": 1008,
+      "y": 408,
+      "largeur": 240,
+      "hauteur": 45
+    },
+    "pixels_differents": 71,
+    "boite_pixels": {
+      "x": 1185,
+      "y": 424,
+      "largeur": 8,
+      "hauteur": 12
+    }
+  },
+  {
+    "id": "format-montant",
+    "ecran": "liste-des-factures",
+    "vue": "defaut",
+    "zone": "montant-F-119",
+    "avant": {
+      "x": 1008,
+      "y": 273,
+      "largeur": 240,
+      "hauteur": 45
+    },
+    "apres": {
+      "x": 1008,
+      "y": 273,
+      "largeur": 240,
+      "hauteur": 45
+    },
+    "pixels_differents": 9,
+    "boite_pixels": {
+      "x": 1201,
+      "y": 298,
+      "largeur": 3,
+      "hauteur": 4
+    }
+  },
+  {
+    "id": "format-date",
+    "ecran": "liste-des-factures",
+    "vue": "defaut",
+    "zone": "echeance-F-121",
+    "avant": {
+      "x": 808,
+      "y": 363,
+      "largeur": 200,
+      "hauteur": 45
+    },
+    "apres": {
+      "x": 808,
+      "y": 363,
+      "largeur": 200,
+      "hauteur": 45
+    },
+    "pixels_differents": 534,
+    "boite_pixels": {
+      "x": 824,
+      "y": 379,
+      "largeur": 70,
+      "hauteur": 12
+    }
+  },
+  {
+    "id": "echeance-vide",
+    "ecran": "liste-des-factures",
+    "vue": "defaut",
+    "zone": "echeance-F-118",
+    "avant": {
+      "x": 808,
+      "y": 228,
+      "largeur": 200,
+      "hauteur": 45
+    },
+    "apres": {
+      "x": 808,
+      "y": 228,
+      "largeur": 200,
+      "hauteur": 45
+    },
+    "pixels_differents": 481,
+    "boite_pixels": {
+      "x": 824,
+      "y": 244,
+      "largeur": 69,
+      "hauteur": 12
+    }
+  },
+  {
+    "id": "chevauchement-total",
+    "ecran": "liste-des-factures",
+    "vue": "defaut",
+    "zone": "pied-tableau",
+    "avant": {
+      "x": 252,
+      "y": 465,
+      "largeur": 996,
+      "hauteur": 36
+    },
+    "apres": {
+      "x": 252,
+      "y": 429,
+      "largeur": 996,
+      "hauteur": 36
+    },
+    "pixels_differents": 25099,
+    "boite_pixels": {
+      "x": 252,
+      "y": 429,
+      "largeur": 996,
+      "hauteur": 72
+    }
+  },
+  {
+    "id": "client-tronque",
+    "ecran": "liste-des-factures",
+    "vue": "defaut",
+    "zone": "cellule-client",
+    "avant": {
+      "x": 428,
+      "y": 240,
+      "largeur": 364,
+      "hauteur": 155
+    },
+    "apres": {
+      "x": 428,
+      "y": 240,
+      "largeur": 60,
+      "hauteur": 155
+    },
+    "pixels_differents": 741,
+    "boite_pixels": {
+      "x": 467,
+      "y": 244,
+      "largeur": 40,
+      "hauteur": 147
+    }
+  },
+  {
+    "id": "export-haut",
+    "ecran": "liste-des-factures",
+    "vue": "defaut",
+    "zone": "bouton-exporter",
+    "avant": {
+      "x": 1128,
+      "y": 465,
+      "largeur": 120,
+      "hauteur": 36
+    },
+    "apres": {
+      "x": 1128,
+      "y": 136,
+      "largeur": 120,
+      "hauteur": 36
+    },
+    "pixels_differents": 1320,
+    "boite_pixels": {
+      "x": 1128,
+      "y": 136,
+      "largeur": 120,
+      "hauteur": 365
+    }
+  },
+  {
+    "id": "colonne-renommee",
+    "ecran": "liste-des-factures",
+    "vue": "defaut",
+    "zone": "entete-client",
+    "avant": {
+      "x": 412,
+      "y": 188,
+      "largeur": 396,
+      "hauteur": 40
+    },
+    "apres": {
+      "x": 412,
+      "y": 188,
+      "largeur": 396,
+      "hauteur": 40
+    },
+    "pixels_differents": 355,
+    "boite_pixels": {
+      "x": 428,
+      "y": 202,
+      "largeur": 46,
+      "hauteur": 11
+    }
+  },
+  {
+    "id": "bouton-nouvelle-facture",
+    "ecran": "liste-des-factures",
+    "vue": "defaut",
+    "zone": "bouton-nouvelle-facture",
+    "avant": null,
+    "apres": {
+      "x": 956,
+      "y": 136,
+      "largeur": 160,
+      "hauteur": 36
+    },
+    "pixels_differents": 5514,
+    "boite_pixels": {
+      "x": 956,
+      "y": 136,
+      "largeur": 160,
+      "hauteur": 36
+    }
+  },
+  {
+    "id": "titre-tableau-de-bord",
+    "ecran": "tableau-de-bord",
+    "vue": "defaut",
+    "zone": "titre-page",
+    "avant": {
+      "x": 252,
+      "y": 84,
+      "largeur": 600,
+      "hauteur": 32
+    },
+    "apres": {
+      "x": 252,
+      "y": 84,
+      "largeur": 600,
+      "hauteur": 32
+    },
+    "pixels_differents": 1795,
+    "boite_pixels": {
+      "x": 252,
+      "y": 91,
+      "largeur": 167,
+      "hauteur": 17
+    }
+  },
+  {
+    "id": "badge-statut-detail",
+    "ecran": "detail-facture",
+    "vue": "defaut",
+    "zone": "badge-statut",
+    "avant": {
+      "x": 852,
+      "y": 136,
+      "largeur": 200,
+      "hauteur": 28
+    },
+    "apres": {
+      "x": 852,
+      "y": 136,
+      "largeur": 200,
+      "hauteur": 28
+    },
+    "pixels_differents": 5148,
+    "boite_pixels": {
+      "x": 853,
+      "y": 137,
+      "largeur": 198,
+      "hauteur": 26
+    }
+  }
+]
