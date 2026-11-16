@@ -45,3 +45,17 @@ Orchestrateur : Claude Code (Fable 5.2). Branche : `dev-nathan`. Méthode : `doc
 ### 18 h 06, quota Devin et URL de base
 - Quota Devin lu sur `app.devin.ai/settings/usage` (second profil Chrome de Nathan) : **46 % du quota hebdomadaire utilisés**, remise à zéro dans 6 jours (donc après la démo), aucun solde à la demande. Seuil d'arrêt de la méthode : 80 % utilisés. À ce relevé, T6 et N1 sont finis, N2 et N4 sont en cours : le coût d'une tâche n'est pas encore mesuré. À relire à la fin de N2.
 - Nathan a retiré les crochets de `SUPABASE_DB_URL` : `node --env-file=.env.local base/appliquer.mjs --verifier` passe tel quel (7 tables sur 7, seau présent, RLS partout, code 0).
+
+### 18 h 35, N2 : Facturo, tenu
+- Devin : 20 min, sortie 0, 28 fichiers (27 dans `faux-saas/`, plus `pnpm-lock.yaml` à la racine, généré). Son rapport n'a pas été écrit sur disque (écriture hors du worktree refusée par son juge en fin de tâche) : lu dans sa sortie.
+- Rejoué par l'orchestrateur, en local puis sur l'URL publique : `check` vert (7 tests), `build` vert, `captures.mjs` : 7 captures, 0 pixel différent entre deux visites, aucun défilement à 1280 × 900 ; `verifier-regressions.mjs` : 78 contrôles sur 78 (v13 `r=aucun` identique à v12, chaque changement ne touche que son écran, textes avant et après, `r=defaut,…`, 400 sur identifiant inconnu et sur `suite` hors version). `positions.json` identique en local et en ligne. Captures regardées une à une. Diff relu : pas de clé en dur, connexion par variables d'environnement.
+- Déployé : `https://facturo-demo.vercel.app` (projet Vercel `facturo-demo`). Premier déploiement en échec (projet créé sans framework : « No Output Directory named public ») ; corrigé par `faux-saas/vercel.json` (`"framework": "nextjs"`, correctif de l'orchestrateur). Variables `FACTURO_LOGIN`, `FACTURO_PASSWORD`, `FACTURO_TODAY` envoyées au projet sans être affichées.
+- `vercel link` a créé un `faux-saas/.env.local` et ajouté `.env*` au `.gitignore` du dossier (gardé). Le lien `faux-saas/.env.local -> ../.env.local` de la méthode n'est donc pas en place : sans effet tant que personne ne teste le formulaire `/login` en local.
+- `FAUX_SAAS_URL` ajoutée à la fin de `.env.local` (valeur non secrète).
+- Non testé : le rendu dans le navigateur de H, le texte de page vu par H (T2), les captures après des clics de l'agent.
+
+### 18 h 40, N3 : livraison au couloir Ali
+- `docs/decisions/2026-11-16-url-faux-saas.md` : URL, entrée sans mot de passe, paramètre `r`, table écran, vue, adresse, et une proposition à valider par Ali (jouer un test en v12 en remplaçant `/v13/` par `/v12/` dans `url_depart`).
+- `docs/decisions/2026-11-16-seuil-de-bruit.md` : seuil provisoire pour T1 (écart de canal de plus de 24, zones à 8 px, au moins 6 pixels), fixé sur Chrome, à refixer sur les captures de H.
+- Captures : `docs/captures/2026-11-16-n2-faux-saas/` (7 PNG et la planche `index.html`).
+- `pnpm -r --if-present run check` à la racine échoue sur `@horama/contrats` (« tsc: command not found » : aucun paquet de la racine ni de `contrats/` n'installe TypeScript). Déjà vrai sur `dev`, fichiers du couloir Ali : signalé dans la PR, non touché. `pnpm --filter @horama/faux-saas run check` : vert.
