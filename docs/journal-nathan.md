@@ -89,3 +89,20 @@ Orchestrateur : Claude Code (Fable 5.2). Branche : `dev-nathan`. Méthode : `doc
 - Planche ouverte dans Chrome ; app sur `http://localhost:3000`. Étiquette `porte-direction` à poser après le « go ».
 - Quota Devin : 56 % utilisés. Dix points depuis 18 h 06 pour N2 (seconde moitié), N4, N5 et le début de N6a. Reste 24 points avant le seuil d'arrêt ; reste à faire : corrections de N4, fin de N6a, N6b, N7, N8, N9, N10, N11. Estimation : la nuit complète finit entre 75 et 80 %.
 - Pendant l'attente : N6a continue chez Devin (il ne dépend pas de la direction).
+
+### 20 h 20, N6a : génération par Hugging Face, code tenu, T4 NON tenu sur le temps
+- Consigne de Nathan à 20 h 08 : ne plus lancer de tâche, le prévenir quand plus aucun agent ne tourne (il coupe internet puis répond aux questions de la porte).
+- Devin : 19 min, sortie 0, bloqué en fin de tâche : son juge (mode « smart ») lui a refusé 3 fois de lancer le script de T4. Code, consigne et script commités ; vérifications hors réseau rejouées : `jugement` 12 tests, `memoire` 28 tests, verts.
+- **T4 lancé par l'orchestrateur** (`node --env-file=.env.local jugement/scripts/t4-generation.ts`, 357 s, 18 passes) :
+  - `openai/gpt-oss-120b` : format C1 valide et règles justes 8 passes sur 9 (v13 : 3 sur 3, les 2 tests s'écrivent dans le vault et se relisent 3 fois sur 3 ; liste : 3 sur 3 ; règles entre écrans : 2 sur 3, un passage de source mal recopié). Temps médian 16,3 s. Coût rendu par le routeur : 0,0081 $ pour 9 passes.
+  - `Qwen/Qwen3.8-27B` : 2 passes sur 9, 7 délais de 45 s dépassés. Écarté.
+  - Critère de T4 (2 notes sur 3 réussies aux 3 passes ET temps médian sous 10 s) : **non tenu**, à cause du temps seulement pour gpt-oss-120b (16,3 s contre 10 s).
+- Décisions de Devin acceptées : le modèle reçoit les notes d'écran en entier (sans elles il invente le nom de la colonne) ; l'égalité des règles avec la note est imposée par le code.
+- À faire à la reprise, avant d'accepter le repli de la spec (test pré-généré) : remesurer gpt-oss-120b en demandant au routeur son fournisseur le plus rapide (suffixe de fournisseur dans l'identifiant du modèle), et la réserve `zai-org/GLM-5.3-Flash`. Une ligne à changer, 6 minutes de mesure.
+- Fusionné dans `dev-nathan` (conflit de verrou pnpm réglé par `pnpm install`). Plus aucun agent ne tourne. Seul le serveur local de l'app (port 3000) reste actif, il n'a pas besoin d'internet.
+
+### État à la coupure (pour reprendre)
+- Tenus et fusionnés : N0, N1, N2, N3 (PR #2 fusionnée dans `dev`), N4 (direction à valider), N5, N6a (code).
+- En attente de Nathan : le « go » de la porte, le choix des corrections du juge, la marge de quota.
+- Suite, dans l'ordre : corrections de N4 selon l'avis de Nathan ; remesure de T4 ; N6b (écran 11.2 branché sur `proposerTests` et `ecrireTestAccepte`) ; N7 (sonde H, T2, relevé, calcul, `verifierPassage`) ; N8 ; N9 ; N10 dès que `dev-ali` existe ; N11.
+- Pièges : Devin en mode « smart » refuse d'écrire hors de son worktree (rapport à la racine du worktree) et de lancer un script qui appelle un service avec une clé (l'orchestrateur le lance) ; `pnpm-lock.yaml` entre en conflit à chaque fusion de deux branches parallèles (garder celui du couloir, `pnpm install`).
