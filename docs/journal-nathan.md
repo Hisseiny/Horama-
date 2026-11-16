@@ -69,3 +69,8 @@ Orchestrateur : Claude Code (Fable 5.2). Branche : `dev-nathan`. Méthode : `doc
 - Rejoué par l'orchestrateur : `pnpm --filter @horama/memoire run check` vert (27 tests) ; `vault-horama/` intact ; lecture du vrai vault par le paquet : 6 notes, 13 règles dont 10 testables, les 3 tests C2 écrits à la main passent le lecteur (critère de N3 tenu). Aller-retour C2 sans perte, à l'octet près, couvert par les tests. `accepted-tests.ts` relu.
 - Points laissés ouverts par Devin, à traiter en N9 : F32 ne regarde que les écarts visuels (un bug de règle sur le même écran ne bloque pas la validation d'une référence) ; l'app doit repartir de la décision rendue par `appliquerCorrection`. Le paquet s'importe en `.ts` : l'app doit le mettre dans `transpilePackages`.
 - T4 préparé : le routeur Hugging Face liste 164 modèles ; candidats ouverts à comparer en N6 : `openai/gpt-oss-120b`, `Qwen/Qwen3.8-27B`, réserve `zai-org/GLM-5.3-Flash`.
+
+### 19 h 20, N6a lancé : T4 et génération par Hugging Face (dans `jugement/`, sans l'interface)
+- N6 est coupé en deux pour ne pas toucher `interface/` pendant que N4 s'y code : N6a (mesure de deux modèles, `proposerTests`), puis N6b (écran 11.2 branché, Accepter écrit le fichier) après la porte.
+- Devin lance ses scripts avec `node --env-file=<.env.local du dépôt>` pour appeler le routeur ; consigne : ne jamais lire ni afficher le fichier ou une valeur.
+- Quota Devin : 52 % utilisés à 19 h 15 (46 % à 18 h 06, 48 % à 18 h 45). Rythme constaté : environ 6 points en 70 min avec un à deux Devin actifs. Marge avant le seuil d'arrêt (80 %) : 28 points.
