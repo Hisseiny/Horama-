@@ -114,3 +114,18 @@ Orchestrateur : Claude Code (Fable 5.2). Branche : `dev-nathan`. Méthode : `doc
 - Les 5 corrections du juge aveugle sur l'app à 8 onglets ne sont pas faites : la forme change. Le visuel (mascotte, images) viendra après, sur prompts donnés à Nathan.
 - Prochaine tâche : T7 (preuve du navigateur local), code écrit par Devin, mesure lancée par l'orchestrateur. Elle demande d'installer l'outil `holo` de H (retiré du Mac le 8/11) : accord de Nathan demandé avant.
 - T4 reste à remesurer avec un fournisseur plus rapide ; quota Devin à 56 % au dernier relevé (20 h 05).
+
+### 21 h 50, T7 : preuve du navigateur local, TENUE (3 passages sur 3, du premier coup)
+- Accord de Nathan (« go ») pour installer l'outil `holo` : `hai-agents[cli,browser]` 1.5.1 dans `~/.venvs/holo` (143 Mo). Au premier lancement, Selenium a téléchargé un pilote Chrome dans `~/.cache/selenium` (17 Mo). Profil Chrome de l'agent : `.orchestrateur/chrome-agent` (172 Mo, hors Git).
+- Devin : 23 min, sortie 0, 9 fichiers sous `automatisation/scene/` (paquet autonome, dépendance `pngjs`). Montage sans agent rejoué par l'orchestrateur : zone de page 1280 × 900, densité 1, 0 pixel différent entre deux passes et contre les références de N2.
+- Trouvaille de Devin, à garder : sans `--force-color-profile=srgb`, un Chrome visible convertit les couleurs vers le profil de l'écran et chaque capture diffère des références de 250 000 à 300 000 pixels ; avec, 0.
+- Incident sans suite : Devin a lancé une fois le mode avec agent avec une fausse clé pendant que `holo` venait d'être installé ; H a répondu 403, aucune session créée.
+- **Mesure avec l'agent H**, lancée par l'orchestrateur (`node --env-file=.env.local automatisation/scene/sonde-t7.mjs`, 267 s en tout) sur `https://facturo-demo.vercel.app`, parcours de 4 écrans (tableau de bord, liste, liste filtrée, détail F-119), modèle `holo4-27b`, `settle_s` 0,5 :
+  - écrans atteints : 4 sur 4 aux 3 passes, adresse vérifiée ;
+  - curseur : les 5 clics attendus signalés par la couche avec le bon élément dessous, 3 passes sur 3 ;
+  - captures : 0 pixel différent entre les passes, et 0 contre les références prises sans tête ;
+  - durée du parcours complet : 45,2 s, 59,4 s, 70,5 s (13 étapes à chaque fois) ; coût rendu par H : 0,0316 $, 0,0323 $, 0,0273 $ ;
+  - aucune relance, aucune session muette (3 sessions : cela ne dit rien du taux réel, 3 muettes sur 11 le 8/11).
+- Rapport : `docs/tests/2026-11-16-t7-navigateur-local.md` ; captures : `docs/captures/2026-11-16-t7/`.
+- Non mesuré : le texte de page pour le relevé des valeurs (les `.txt` existent, à exploiter en S2) ; la tenue sur plus de 3 sessions ; l'écran intégré seul du Mac (la fenêtre s'est ouverte sur l'écran externe, l'écran intégré n'a pas 900 px de haut utiles).
+- Conséquence : le plan de `docs/decisions/2026-11-16-scene-en-direct.md` tient. T1 et T2 de la spec sont répondus par ce montage (captures identiques ; le texte se lit dans la page). Suite : S1 (la scène avec la mascotte), S2 (vérification pendant le parcours).
