@@ -1,7 +1,7 @@
 {
   "name": "horama",
   "private": true,
-  "packageManager": "pnpm@10",
+  "packageManager": "pnpm@12.18.0",
   "scripts": {
     "check": "pnpm -r --if-present run check"
   }
