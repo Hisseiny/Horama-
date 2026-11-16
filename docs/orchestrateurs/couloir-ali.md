@@ -8,6 +8,26 @@ Variables `.env.local` utiles : `HAI_API_KEY`, `HAI_API_KEY_DEMO` (jamais en dé
 
 Doc H : https://hub.hcompany.ai (lire `agents-api/agents/create.md`, `sessions/create.md`, `sessions/changes.md`, `sessions/event-object.md`, `sessions/resources.md`, `custom-tools.md`, `sessions/tool-results.md`, `structured-output.md`, `sessions/share.md`). Démo QA de référence : https://github.com/hcompai/agents-api-demos (`examples/software_qa`).
 
+## Changement de cap du 16/11 au soir (à lire avant de continuer)
+
+Décision de Nathan : `docs/decisions/2026-11-16-scene-en-direct.md`. Lis-la en entier, elle prime sur le tableau ci-dessous.
+
+- L'agent tournera dans un **Chrome local** piloté par le pont `holo local browser`, pas dans le navigateur cloud : le public doit voir l'écran et le curseur bouger.
+- **Une seule session** jouera tout le parcours (le pont local n'en sert qu'une à la fois), au lieu d'une session par test en parallèle.
+- La capture et la vérification se feront **pendant** la session, à chaque `relever`, par une fonction fournie par le couloir Nathan.
+- La faisabilité (test T7) est mesurée ce soir par le couloir Nathan : résultat dans `docs/tests/2026-11-16-t7-navigateur-local.md`.
+
+Ce que ça change dans les tâches :
+
+| Tâche | Devient |
+|---|---|
+| A0, A1, A3 | Inchangées : continue. |
+| A2 | La définition de l'agent et de ses outils reste. T1 et T5 sur le navigateur cloud restent utiles (version en ligne pour le jury), mais ne conditionnent plus la suite. |
+| A4 | **En attente du résultat de T7.** Ne construis ni les 3 sessions en parallèle ni le téléchargement de l'image d'observation. Prépare le reste : création et suivi d'une session, réponses aux outils, abandon à 45 s et relance, coût, rapport C6. Prévois que la consigne enchaîne plusieurs tests dans un seul parcours, et que `relever` appelle une fonction passée en paramètre, qui rend la `Capture` et la phrase à renvoyer à l'agent. |
+| A5 à A7 | À revoir après T7. |
+
+Ali : réponds à la proposition de partage (dernière partie de la décision) dans la pull request ou à Nathan.
+
 ## Tâches, dans l'ordre
 
 | N° | Tâche | Fini quand (l'orchestrateur le vérifie) |

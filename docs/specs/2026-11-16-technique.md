@@ -4,6 +4,8 @@ Lundi 16 novembre 2026. Validée par Nathan (reformulation acceptée le 16/11). 
 
 Produit : `docs/cadrage.md`. Règles communes aux IA : `AGENTS.md`.
 
+> **Révision du 16/11 au soir, à lire avant le reste.** Nathan a changé le cap à la porte de direction : l'agent tourne dans un Chrome local qu'on voit bouger, une mascotte suit ses clics, la vérification se fait pendant le parcours, et tout part d'un déploiement Vercel. Le détail est dans `docs/decisions/2026-11-16-scene-en-direct.md`, **qui fait foi partout où il contredit cette spec** : sections 2 (partage des couloirs), 4 (maillons 4, 5 et 8, « simplification assumée », « processus »), 6 (passage de démo, test en direct), 7 (un test T7 s'ajoute, avant tout le reste), 11 (l'app n'a plus de page « passage en direct » ni de barre à 8 étapes) et 12 (critère 2). Les contrats, la base, le vault, Facturo et la génération ne changent pas.
+
 ---
 
 ## 1. Intention
