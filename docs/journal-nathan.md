@@ -33,3 +33,11 @@ Orchestrateur : Claude Code (Fable 5.2). Branche : `dev-nathan`. Méthode : `doc
 - Écrit par l'orchestrateur (ce sont des notes, pas du code) : 5 notes de `produit/`, la note de version v13, 3 tests C2 (`liste-factures-filtre-echeance`, `ca-du-mois-egal-total`, `detail-facture-total-egal-liste`), dossiers `decisions/`, `references/`, `passages/`.
 - Conventions posées, à tenir par N5 à N7 : ligne `regle:` avec les mots exacts du contrat (`condition: < aujourd_hui`) ; champ d'une égalité écrit `<ecran>.<libellé>` ; libellés `Total`, `Nombre de factures`, `Montant TTC de F-119` ; `url` de chaque écran dans l'en-tête de sa note.
 - Non vérifié : les 3 tests n'ont pas encore été lus par le lecteur de C2 (N5) ni joués par l'agent.
+
+### 17 h 52, N2 : Facturo (en cours chez Devin)
+- Brief : `.orchestrateur/briefs/n2-faux-saas.md` (hors Git). Décisions prises dans le brief, à reporter dans `docs/decisions/` à la livraison : routes (`/vXX/tableau-de-bord`, `/vXX/factures`, `/vXX/factures/<numero>`), changements actifs posés par `/vXX/entrer` seulement (`r=aucun`, `r=id1,id2`, mot `defaut`), catalogue de 10 régressions et 5 changements voulus, filtre en menu `<details>` (« Toutes », « À venir », et « Échéance dépassée » en v13), boîtes à dimensions fixes pour que les positions ne dépendent pas de la police.
+- 18 h 02 : Devin actif (journal de la CLI : `pnpm install` à 17 h 58 ; 21 fichiers écrits). Il tourne sans fenêtre : on le suit par `~/.local/share/devin/cli/logs/`.
+
+### 18 h 03, N4 : app Horama sur données factices (lancé en parallèle de N2, dossiers disjoints)
+- Direction posée avec la méthode `taste` avant le brief (note de goût du vault de Nathan lue, 5 références regardées) et annoncée à Nathan : outil de travail à composants standard, une signature (le surlignage d'état : jaune à trancher, lime conforme, corail défaut prouvé, pointillé non testée, mesure en marge), blocs pleins pour les verdicts, valeurs en très grand, Atkinson Hyperlegible Next et Mono, jetons de la spec.
+- À faire avant la porte : déposer les vraies captures de Facturo dans `interface/public/factice/`, passer les 10 captures au juge aveugle (agent frais).
