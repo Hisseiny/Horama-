@@ -82,3 +82,10 @@ Orchestrateur : Claude Code (Fable 5.2). Branche : `dev-nathan`. Méthode : `doc
 - Incident mineur : Devin a arrêté son serveur par `pkill -f "next dev"` (trop large). Aucun autre serveur de développement ne tournait.
 - **Constat pour le pitch** : sur Facturo, la vue « pixels bruts » ne montre pas « du rouge partout ». Le faux SaaS est déterministe : 1 320 pixels différents sur 1 152 000 pour le bouton déplacé. L'argument « la comparaison de pixels noie l'humain » ne se voit pas sur ce logiciel ; il se verrait sur un logiciel dont les données ou le rendu changent d'une visite à l'autre.
 - Planche de direction : `docs/captures/2026-11-16-porte-direction/index.html`. App servie sur `http://localhost:3000` pour la navigation. Juge aveugle lancé (agent frais, captures seules puis 8 références).
+
+### 20 h 05, PORTE DE DIRECTION : en attente du « go » de Nathan
+- Juge aveugle (agent frais, 10 captures seules puis 8 références) : 6,5 sur 10, aucune source unique (« un composite, pas un clone » ; parenté la plus proche : US Graphics pour la structure, PostHog pour le fond et les titres). Propre au produit : le surlignage sur la phrase de documentation, l'équation en très grand, le passage du jaune au souligné à l'acceptation. Écrans faibles : 4 (passage en direct, sans couleur d'état), 5 (captures minuscules, trois navigations), 1 (petit texte gris, règles répétées). Écran fort : 8.
+- Cinq corrections proposées sur la planche, **non faites** : elles attendent l'avis de Nathan pour ne payer qu'une passe de Devin.
+- Planche ouverte dans Chrome ; app sur `http://localhost:3000`. Étiquette `porte-direction` à poser après le « go ».
+- Quota Devin : 56 % utilisés. Dix points depuis 18 h 06 pour N2 (seconde moitié), N4, N5 et le début de N6a. Reste 24 points avant le seuil d'arrêt ; reste à faire : corrections de N4, fin de N6a, N6b, N7, N8, N9, N10, N11. Estimation : la nuit complète finit entre 75 et 80 %.
+- Pendant l'attente : N6a continue chez Devin (il ne dépend pas de la direction).
