@@ -189,7 +189,7 @@ function judge(regle: Regle, screens: Map<string, ScreenValues>, valeurs: Record
 }
 
 // `screens` gives, for each screen of the rule, the values of the capture to read; `current` is the screen just captured.
-export function checkRule(regle: Regle, screens: Map<string, ScreenValues>, current: string): Constat {
+export function checkRule(regle: Regle, screens: Map<string, ScreenValues>, current: string): Omit<Constat, "id" | "ecran" | "vue"> {
   const valeurs: Record<string, string> = {};
   try {
     const { ok, marks, ...said } = judge(regle, screens, valeurs, current);

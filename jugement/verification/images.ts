@@ -12,6 +12,7 @@ export interface ImageZone {
   largeur: number;
   hauteur: number;
   pixels: number; // differing pixels in the zone
+  zone_avant?: { x: number; y: number; largeur: number; hauteur: number }; // a moved element: where it was in the reference
 }
 
 export interface ImageComparison {
@@ -95,9 +96,38 @@ export function comparerImages(png: Uint8Array, reference: Uint8Array): ImageCom
     const host = outer.find((candidate) => inside(box, candidate));
     if (host) host.pixels += box.pixels;
   }
-  comparison.zones = outer
+  const zones: ImageZone[] = outer
     .filter((box) => box.pixels >= MIN_PIXELS)
     .map((box) => ({ x: box.left, y: box.top, largeur: box.right - box.left + 1, hauteur: box.bottom - box.top + 1, pixels: box.pixels }))
     .sort((one, other) => one.y - other.y || one.x - other.x);
+
+  // A moved element: two zones of the same size, and what the reference shows at one place is what the image shows at the other,
+  // within the noise threshold. One zone is kept, at the new place, with the old place in `zone_avant`.
+  // A flat colour is an empty place, not an element: without this, the empty place would « move » the other way.
+  const differs = (one: PNG, i: number, other: PNG, j: number) =>
+    Math.abs(one.data[i] - other.data[j]) > TOLERANCE || Math.abs(one.data[i + 1] - other.data[j + 1]) > TOLERANCE || Math.abs(one.data[i + 2] - other.data[j + 2]) > TOLERANCE;
+  const moved = (from: ImageZone, to: ImageZone) => {
+    const first = (from.y * width + from.x) * 4;
+    let different = 0;
+    let flat = true;
+    for (let dy = 0; dy < from.hauteur; dy++) {
+      for (let dx = 0; dx < from.largeur; dx++) {
+        const i = ((from.y + dy) * width + from.x + dx) * 4;
+        if (differs(b, i, a, ((to.y + dy) * width + to.x + dx) * 4) && ++different >= MIN_PIXELS) return false;
+        if (flat && differs(b, i, b, first)) flat = false;
+      }
+    }
+    return !flat;
+  };
+  const old = new Set<ImageZone>();
+  for (const from of zones) {
+    if (from.zone_avant || old.has(from)) continue;
+    const to = zones.find((zone) => zone !== from && !old.has(zone) && !zone.zone_avant && zone.largeur === from.largeur && zone.hauteur === from.hauteur && moved(from, zone));
+    if (!to) continue;
+    const { pixels, ...place } = from;
+    to.zone_avant = place;
+    old.add(from);
+  }
+  comparison.zones = zones.filter((zone) => !old.has(zone));
   return comparison;
 }

@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { test } from "node:test";
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import type { Decision, Regle } from "@horama/contrats";
-import { lireNotes, lireTestsAcceptes } from "@horama/memoire";
+import { ecrireDecision, lireDecisions, lireNotes, lireTestsAcceptes } from "@horama/memoire";
 import { PNG } from "pngjs";
-import { comparerImages, releverValeurs, verifierReleve } from "../index.ts";
+import { comparerImages, consoliderConstats, formuler, releverValeurs, verifierReleve, versDecision } from "../index.ts";
 import type { Constat, ReleveCapture } from "../index.ts";
 
 // Real data, no network: the 4 screens of Facturo v13 captured during run 1 of T7 (docs/tests/2026-11-16-t7-navigateur-local.md),
@@ -180,18 +182,17 @@ test("presence en défaut : une case vide, et une colonne introuvable est non co
   assert.equal(missing.raison, "colonne Échéance introuvable sur liste-des-factures");
 });
 
-test("visuel, liste des factures : les zones sont celles du bouton Exporter, à son ancienne et à sa nouvelle place", () => {
-  const constats = visual(LIST);
+test("visuel, liste des factures : un seul constat, le bouton Exporter déplacé de son ancienne place à la nouvelle", () => {
+  const [constat, ...others] = visual(LIST);
   const { avant, apres } = position("export-haut");
-  assert.ok(constats.length > 0);
-  for (const constat of constats) {
-    assert.equal(constat.genre, "visuel");
-    assert.equal(constat.statut, "SUSPECTED");
-    assert.equal(constat.description, "Cette zone a changé depuis la version 12.");
-    assert.ok(constat.pixels! >= 6);
-    assert.ok(Math.min(distance(constat.zone!, avant), distance(constat.zone!, apres)) < 40, JSON.stringify(constat.zone));
-  }
-  for (const place of [avant, apres]) assert.ok(constats.some((constat) => distance(constat.zone!, place) < 40));
+  assert.equal(others.length, 0);
+  assert.equal(constat.genre, "visuel");
+  assert.equal(constat.statut, "SUSPECTED");
+  assert.equal(constat.description, "Cette zone a changé depuis la version 12.");
+  assert.ok(constat.pixels! >= 6);
+  assert.equal(constat.nature, "deplacement");
+  assert.deepEqual(constat.zone, apres);
+  assert.deepEqual(constat.zone_avant, avant);
 });
 
 test("visuel : une zone sur la valeur du CA au tableau de bord, aucune sur le détail ni entre deux images identiques", () => {
@@ -207,8 +208,13 @@ test("visuel : une zone sur la valeur du CA au tableau de bord, aucune sur le d�
   assert.deepEqual(verify(LIST).filter((found) => found.genre === "visuel"), []); // no reference, no visual finding
 });
 
-test("visuel : une décision « voulu » sur le bouton neutralise sa zone, une autre zone du même écran reste suspecte", () => {
-  const { avant, apres } = position("export-haut");
+test("visuel : une décision « voulu » sur le bouton neutralise son déplacement, une autre zone du même écran reste suspecte", () => {
+  const { apres } = position("export-haut");
+  // The real capture with a black square painted on it: another change on the same screen.
+  const square = { x: 300, y: 700, largeur: 12, hauteur: 12 };
+  const painted = PNG.sync.read(Buffer.from(LIST.png));
+  for (let y = square.y; y < square.y + square.hauteur; y++) painted.data.fill(0, (y * painted.width + square.x) * 4, (y * painted.width + square.x + square.largeur) * 4);
+  const changed = { ...LIST, png: PNG.sync.write(painted) };
   const decision: Decision = {
     id: "2026-11-16-export-haut",
     passage_id: "passage",
@@ -224,21 +230,18 @@ test("visuel : une décision « voulu » sur le bouton neutralise sa zone, une a
     par: "Nathan",
     le: "2026-11-16T21:00:00.000Z",
   };
-  const constats = visual(LIST, [decision]);
+  const constats = visual(changed, [decision]);
   const neutralised = constats.filter((constat) => constat.statut === "PASS");
   const suspected = constats.filter((constat) => constat.statut === "SUSPECTED");
-  assert.equal(neutralised.length + suspected.length, constats.length);
-  assert.ok(neutralised.length > 0 && suspected.length > 0);
-  for (const constat of neutralised) {
-    assert.equal(constat.decision_id, decision.id);
-    assert.ok(distance(constat.zone!, apres) < 40);
-  }
-  for (const constat of suspected) {
-    assert.equal(constat.decision_id, undefined);
-    assert.ok(distance(constat.zone!, avant) < 40);
-  }
+  assert.deepEqual([neutralised.length, suspected.length, constats.length], [1, 1, 2]);
+  assert.equal(neutralised[0].decision_id, decision.id);
+  assert.equal(neutralised[0].nature, "deplacement");
+  assert.ok(distance(neutralised[0].zone!, apres) < 40);
+  assert.equal(suspected[0].decision_id, undefined);
+  assert.equal(suspected[0].nature, "changement");
+  assert.deepEqual(suspected[0].zone, square);
   // The decision holds for its version only.
-  assert.ok(visual(LIST, [{ ...decision, version: "14" }]).every((constat) => constat.statut === "SUSPECTED"));
+  assert.ok(visual(changed, [{ ...decision, version: "14" }]).every((constat) => constat.statut === "SUSPECTED"));
 });
 
 // A grey image; each [x, y, red] sets the red channel of one pixel.
@@ -291,4 +294,398 @@ test("durée : verifierReleve sur un écran réel, règles et image, en moins de
   verifierReleve({ ...entree, reference: undefined });
   t.diagnostic(`sans image (règles seules) : ${(performance.now() - rulesOnly).toFixed(2)} ms`);
   assert.ok(Math.max(...durations) < 200);
+});
+
+// ---------- Findings a spectator understands: one finding per moved element, plain words, the human decision ----------
+
+const DOUBT_ON_AMOUNT = "tableau-de-bord--defaut--visuel--1";
+const CA_DEFECT = "liste-des-factures--defaut--regle--1";
+const MOVED_BUTTON = "liste-des-factures--defaut--visuel--1";
+const FILTER_DEFECT = "liste-des-factures--filtre-echeance--regle--1";
+// What the scene reads under each zone: the text of the element at its centre, as displayed.
+const TEXTS: Record<string, string> = { [DOUBT_ON_AMOUNT]: nbsp("1 240,00 €"), [MOVED_BUTTON]: "Exporter" };
+
+// The whole run of T7: each capture is verified as it is taken, against the v12 reference of the vault when there is one.
+const run = (decisions: Decision[] = []) =>
+  RUN.flatMap((releve, index) => {
+    const path = `${VAULT}/facturo/references/${releve.ecran}/${releve.vue}--v12.png`;
+    return verifierReleve({ releve, releves: RUN.slice(0, index + 1), regles: TEST_RULES, reference: existsSync(path) ? readFileSync(path) : undefined, version_reference: "12", decisions });
+  });
+const FOUND = run(); // no decision, and before the scene has read the text under the zones
+const withTexts = (constats: Constat[]) => constats.map((constat) => (TEXTS[constat.id] ? { ...constat, texte_zone: TEXTS[constat.id] } : constat));
+const byId = (constats: Constat[], id: string) => constats.find((constat) => constat.id === id)!;
+const said = (constat: Constat): string[] => Object.values(formuler(constat));
+
+test("parcours réel : chaque constat a son identifiant, son écran et sa vue ; le bouton déplacé ne fait qu'un constat", () => {
+  assert.deepEqual(
+    FOUND.map(({ id, ecran, vue, genre, statut, nature }) => [id, ecran, vue, genre, statut, nature]),
+    [
+      [DOUBT_ON_AMOUNT, "tableau-de-bord", "defaut", "visuel", "SUSPECTED", "changement"],
+      [CA_DEFECT, "liste-des-factures", "defaut", "regle", "VERIFIED_FAIL", undefined],
+      [MOVED_BUTTON, "liste-des-factures", "defaut", "visuel", "SUSPECTED", "deplacement"],
+      [FILTER_DEFECT, "liste-des-factures", "filtre-echeance", "regle", "VERIFIED_FAIL", undefined],
+      ["detail-facture--defaut--regle--1", "detail-facture", "defaut", "regle", "PASS", undefined],
+      ["detail-facture--defaut--regle--2", "detail-facture", "defaut", "regle", "PASS", undefined],
+    ],
+  );
+  const button = byId(FOUND, MOVED_BUTTON);
+  assert.deepEqual([button.zone, button.zone_avant], [position("export-haut").apres, position("export-haut").avant]);
+  assert.deepEqual(button.page, { largeur: 1280, hauteur: 900 });
+  assert.equal(byId(FOUND, DOUBT_ON_AMOUNT).zone_avant, undefined);
+  // The same run gives the same identifiers.
+  assert.deepEqual(run().map(({ id }) => id), FOUND.map(({ id }) => id));
+});
+
+// A block drawn on the grey image: an inside and an outline, like a button.
+const block = (place: Box, inside: number, outline = inside): Array<[number, number, number]> =>
+  Array.from({ length: place.largeur * place.hauteur }, (_, i) => {
+    const [dx, dy] = [i % place.largeur, Math.floor(i / place.largeur)];
+    return [place.x + dx, place.y + dy, dx === 0 || dy === 0 || dx === place.largeur - 1 || dy === place.hauteur - 1 ? outline : inside];
+  });
+
+test("comparerImages : un élément déplacé donne une zone, à sa nouvelle place, qui garde l'ancienne", () => {
+  const [from, to] = [{ x: 10, y: 60, largeur: 20, hauteur: 10 }, { x: 90, y: 5, largeur: 20, hauteur: 10 }];
+  const button = (place: Box, inside = 160) => image(120, 80, block(place, inside, 250));
+  const moved = comparerImages(button(to), button(from));
+  assert.deepEqual(moved.zones, [{ ...to, pixels: 200, zone_avant: from }]);
+  assert.deepEqual([moved.rawZones, moved.differentPixels], [2, 400]);
+  // The other way round, the old place is still the one of the reference.
+  assert.deepEqual(comparerImages(button(from), button(to)).zones, [{ ...from, pixels: 200, zone_avant: to }]);
+  // Same size, other content: one element went, another came. Two changes, not a move.
+  assert.deepEqual(comparerImages(button(to, 200), button(from)).zones.map(({ zone_avant }) => zone_avant), [undefined, undefined]);
+  // Another size: two changes.
+  assert.equal(comparerImages(button({ ...to, largeur: 21 }), button(from)).zones.length, 2);
+  // A block of one flat colour cannot be told from an empty place: two changes (known limit).
+  assert.equal(comparerImages(image(120, 80, block(to, 160)), image(120, 80, block(from, 160))).zones.length, 2);
+});
+
+test("consoliderConstats : le doute sur le montant du tableau de bord est expliqué par le défaut du CA du mois", () => {
+  const constats = withTexts(FOUND);
+  const consolidated = consoliderConstats(constats);
+  assert.equal(byId(consolidated, DOUBT_ON_AMOUNT).explique_par, CA_DEFECT);
+  // Nothing is removed, nothing else changes, the input is left as it was.
+  assert.deepEqual(consolidated.map(({ explique_par, ...constat }) => constat), constats);
+  assert.ok(constats.every((constat) => constat.explique_par === undefined));
+  // What is left to show: 2 proven defects and 1 doubt, the button.
+  assert.deepEqual(consolidated.filter((constat) => constat.statut === "VERIFIED_FAIL").map(({ id }) => id), [CA_DEFECT, FILTER_DEFECT]);
+  assert.deepEqual(consolidated.filter((constat) => constat.statut === "SUSPECTED" && !constat.explique_par).map(({ id }) => id), [MOVED_BUTTON]);
+
+  // Without the text of the zone, nothing links the doubt to the defect.
+  assert.ok(consoliderConstats(FOUND).every((constat) => constat.explique_par === undefined));
+  // The text must be a value of the defect on the screen of the doubt: 1 420,00 € is the value of the list, not of the dashboard.
+  const elsewhere = constats.map((constat) => (constat.id === DOUBT_ON_AMOUNT ? { ...constat, texte_zone: nbsp("1 420,00 €") } : constat));
+  assert.equal(byId(consoliderConstats(elsewhere), DOUBT_ON_AMOUNT).explique_par, undefined);
+  // A text that is not an amount is compared as a text: here the due date of the row the filter should not show.
+  const doubt: Constat = { ...byId(constats, MOVED_BUTTON), id: "liste-des-factures--filtre-echeance--visuel--1", vue: "filtre-echeance", texte_zone: " 30/11/2026 " };
+  assert.equal(consoliderConstats([...constats, doubt]).at(-1)!.explique_par, FILTER_DEFECT);
+});
+
+test("formuler : les phrases du parcours réel, telles qu'un spectateur les lit", () => {
+  const constats = consoliderConstats(withTexts(FOUND));
+  assert.deepEqual(
+    constats.map((constat) => ({ id: constat.id, ...formuler(constat) })),
+    [
+      { id: DOUBT_ON_AMOUNT, resultat: "Quelque chose a changé ici, autour de « 1 240 € »." },
+      {
+        id: CA_DEFECT,
+        annonce: "Je vérifie que « CA du mois » correspond à « Total ».",
+        resultat: "Problème : ici 1 420 €, là-bas 1 240 €. Il manque 180 €.",
+        question: "« CA du mois » affiche 1 240 €, « Total » affiche 1 420 €. Bug ou voulu ?",
+      },
+      {
+        id: MOVED_BUTTON,
+        resultat: "« Exporter » a changé de place.",
+        question: "« Exporter » a été déplacé vers le haut, il est maintenant en haut à droite. Bug ou voulu ?",
+      },
+      {
+        id: FILTER_DEFECT,
+        annonce: "Je vérifie que ce filtre ne montre que des dates passées.",
+        resultat: "Problème : F-120 ne devrait pas être ici. Sa date, le 30/11, n'est pas encore passée.",
+        question: "Le filtre « Échéance dépassée » montre F-120 (Échéance : 30/11). Bug ou voulu ?",
+      },
+      {
+        id: "detail-facture--defaut--regle--1",
+        annonce: "Je vérifie que « Total TTC » correspond à « Montant TTC de F-119 ».",
+        resultat: "C'est bon : 480 € des deux côtés.",
+      },
+      { id: "detail-facture--defaut--regle--2", annonce: "Je refais l'addition de « Total TTC ».", resultat: "C'est bon : l'addition fait bien 480 €." },
+    ],
+  );
+  // The exact computation stays in the finding.
+  assert.equal(byId(constats, CA_DEFECT).calcul, "1 240,00 ≠ 1 420,00, écart 180,00");
+
+  // Before the scene has read the text under the zones.
+  assert.deepEqual(formuler(byId(FOUND, DOUBT_ON_AMOUNT)), { resultat: "Quelque chose a changé ici.", question: "Quelque chose a changé ici. Bug ou voulu ?" });
+  assert.deepEqual(formuler(byId(FOUND, MOVED_BUTTON)), {
+    resultat: "Quelque chose a changé de place.",
+    question: "Quelque chose a été déplacé vers le haut, il est maintenant en haut à droite. Bug ou voulu ?",
+  });
+  // Both places in the same third of the page, or no page size: no position words.
+  const button = byId(constats, MOVED_BUTTON);
+  for (const near of [{ ...button, zone_avant: { ...button.zone!, x: 900 } }, { ...button, page: undefined }]) {
+    assert.equal(formuler(near).question, "« Exporter » a changé de place. Bug ou voulu ?");
+  }
+  assert.equal(formuler({ ...button, zone_avant: { x: 20, y: 800, largeur: 120, hauteur: 36 } }).question, "« Exporter » a été déplacé vers la droite, il est maintenant en haut à droite. Bug ou voulu ?");
+  assert.equal(formuler({ ...button, zone_avant: { x: 600, y: 400, largeur: 120, hauteur: 36 } }).question, "« Exporter » a été déplacé vers la droite, il est maintenant en haut à droite. Bug ou voulu ?");
+  // Images of two sizes.
+  assert.deepEqual(formuler(visual(LIST, [], image(60, 30))[0]), { resultat: "Je n'arrive pas à comparer cette page avec l'ancienne. Les deux images n'ont pas la même taille." });
+});
+
+// Another software, made up for the test: the stock of a warehouse. Nothing in the sentences may depend on Facturo.
+const STOCK = `Aujourd'hui : 03/02/2027
+Valeur du stock
+12 500,00 €
+Filtrer : En rupture
+Article\tQuantité\tÉtat\tArrivage\tValeur
+Vis\t40\tEn rupture\t01/02/2027\t2 500,00 €
+Clous\t\tEn stock\t2027-02-20\t9 000,50 €
+Total\t\t\t\t11 500,50 €`;
+const ORDERS = `Client : Atelier Brun
+Montant commandé
+11 500,50 €`;
+const stock = (regles: Regle[], texte = STOCK) => {
+  const releves = [
+    { ecran: "commandes", vue: "defaut", version: "2", png: new Uint8Array(), texte: ORDERS, url: "" },
+    { ecran: "entrepot", vue: "defaut", version: "2", png: new Uint8Array(), texte, url: "" },
+  ];
+  return verifierReleve({ releve: releves[1], releves, regles, decisions: [] }).map((constat) => [constat.statut, formuler(constat)] as const);
+};
+
+test("formuler : un autre logiciel, les cinq types, conformes et en défaut", () => {
+  assert.deepEqual(
+    stock([
+      { type: "egalite", a: { ecran: "entrepot", champ: "Total" }, b: { ecran: "commandes", champ: "Montant commandé" } },
+      { type: "egalite", a: { ecran: "commandes", champ: "Montant commandé" }, b: { ecran: "entrepot", champ: "Valeur du stock" } },
+      { type: "egalite", a: { ecran: "entrepot", champ: "Valeur du stock" }, b: { ecran: "entrepot", champ: "Total" } },
+      { type: "egalite", a: { ecran: "commandes", champ: "Client" }, b: { ecran: "entrepot", champ: "Article de Vis" } },
+      { type: "somme", ecran: "entrepot", colonne: "Valeur", cible: "Total" },
+      { type: "somme", ecran: "entrepot", colonne: "Valeur", cible: "Valeur du stock" },
+      { type: "filtre", ecran: "entrepot", filtre: "En rupture", colonne: "État", condition: "= valeur", valeur: "En rupture" },
+      { type: "filtre", ecran: "entrepot", filtre: "En rupture", colonne: "Arrivage", condition: "<= aujourd_hui" },
+      { type: "format", ecran: "entrepot", colonne: "Valeur", motif: "montant-fr" },
+      { type: "format", ecran: "entrepot", colonne: "Arrivage", motif: "date-fr" },
+      { type: "presence", ecran: "entrepot", colonne: "Article" },
+      { type: "presence", ecran: "entrepot", colonne: "Quantité" },
+    ]),
+    [
+      ["PASS", { annonce: "Je vérifie que « Total » correspond à « Montant commandé ».", resultat: "C'est bon : 11 500,50 € des deux côtés." }],
+      [
+        "VERIFIED_FAIL",
+        {
+          annonce: "Je vérifie que « Montant commandé » correspond à « Valeur du stock ».",
+          resultat: "Problème : ici 12 500 €, là-bas 11 500,50 €. Il manque 999,50 €.",
+          question: "« Montant commandé » affiche 11 500,50 €, « Valeur du stock » affiche 12 500 €. Bug ou voulu ?",
+        },
+      ],
+      [
+        "VERIFIED_FAIL",
+        {
+          annonce: "Je vérifie que « Valeur du stock » correspond à « Total ».",
+          resultat: "Problème : 12 500 € d'un côté, 11 500,50 € de l'autre. Il manque 999,50 €.",
+          question: "« Valeur du stock » affiche 12 500 €, « Total » affiche 11 500,50 €. Bug ou voulu ?",
+        },
+      ],
+      [
+        "VERIFIED_FAIL",
+        {
+          annonce: "Je vérifie que « Client » correspond à « Article de Vis ».",
+          resultat: "Problème : ici Vis, là-bas Atelier Brun.",
+          question: "« Client » affiche Atelier Brun, « Article de Vis » affiche Vis. Bug ou voulu ?",
+        },
+      ],
+      ["PASS", { annonce: "Je refais l'addition de « Total ».", resultat: "C'est bon : l'addition fait bien 11 500,50 €." }],
+      [
+        "VERIFIED_FAIL",
+        {
+          annonce: "Je refais l'addition de « Valeur du stock ».",
+          resultat: "Problème : l'addition fait 11 500,50 €, la page affiche 12 500 €. Il manque 999,50 €.",
+          question: "« Valeur du stock » affiche 12 500 €, l'addition fait 11 500,50 €. Bug ou voulu ?",
+        },
+      ],
+      [
+        "VERIFIED_FAIL",
+        {
+          annonce: "Je vérifie que ce filtre ne montre que « En rupture ».",
+          resultat: "Problème : Clous ne devrait pas être ici. Elle affiche « En stock » au lieu de « En rupture ».",
+          question: "Le filtre « En rupture » montre Clous (État : En stock). Bug ou voulu ?",
+        },
+      ],
+      [
+        "INCONCLUSIVE",
+        { annonce: "Je vérifie que ce filtre ne montre aucune date à venir.", resultat: "Je n'arrive pas à lire cette valeur. Date illisible : Arrivage de Clous affiche « 2027-02-20 »." },
+      ],
+      ["PASS", { annonce: "Je vérifie que les montants de « Valeur » sont bien écrits.", resultat: "C'est bon : tout est bien écrit." }],
+      [
+        "VERIFIED_FAIL",
+        {
+          annonce: "Je vérifie que les dates de « Arrivage » sont bien écrites.",
+          resultat: "Problème : « 2027-02-20 » est mal écrit. J'attendais une date écrite jour/mois/année.",
+          question: "« Arrivage » affiche « 2027-02-20 ». Bug ou voulu ?",
+        },
+      ],
+      ["PASS", { annonce: "Je vérifie que « Article » est rempli partout.", resultat: "C'est bon : rien ne manque." }],
+      [
+        "VERIFIED_FAIL",
+        {
+          annonce: "Je vérifie que « Quantité » est rempli partout.",
+          resultat: "Problème : « Quantité » est vide pour Clous.",
+          question: "« Quantité » est vide pour Clous. Bug ou voulu ?",
+        },
+      ],
+    ],
+  );
+
+  // Dates against today, and several faulty rows.
+  const dated = STOCK.replace("2027-02-20", "20/02/2027").replace("01/02/2027", "03/02/2027");
+  const arrival = (condition: "< aujourd_hui" | "<= aujourd_hui", texte: string) => stock([{ type: "filtre", ecran: "entrepot", filtre: "En rupture", colonne: "Arrivage", condition }], texte)[0];
+  assert.deepEqual(arrival("<= aujourd_hui", dated)[1], {
+    annonce: "Je vérifie que ce filtre ne montre aucune date à venir.",
+    resultat: "Problème : Clous ne devrait pas être ici. Sa date, le 20/02, est après aujourd'hui.",
+    question: "Le filtre « En rupture » montre Clous (Arrivage : 20/02). Bug ou voulu ?",
+  });
+  assert.deepEqual(arrival("< aujourd_hui", dated)[1], {
+    annonce: "Je vérifie que ce filtre ne montre que des dates passées.",
+    resultat: "Problème : 2 lignes ne devraient pas être ici, dont Vis. Sa date, le 03/02, n'est pas encore passée.",
+    question: "Le filtre « En rupture » montre Vis (Arrivage : 03/02). Bug ou voulu ?",
+  });
+  assert.deepEqual(arrival("< aujourd_hui", STOCK.replace("2027-02-20", "02/02/2027")), [
+    "PASS",
+    { annonce: "Je vérifie que ce filtre ne montre que des dates passées.", resultat: "C'est bon : chaque ligne affichée a sa place ici." },
+  ]);
+  // Something that cannot be read: the reason, without the identifier of the screen.
+  assert.equal(stock([{ type: "presence", ecran: "entrepot", colonne: "Fournisseur" }])[0][1].resultat, "Je n'arrive pas à lire cette valeur. Colonne Fournisseur introuvable.");
+});
+
+test("formuler : 90 caractères au plus par phrase, sans jargon ni tiret long, même avec des noms très longs", () => {
+  const long = "Montant total hors taxes de toutes les commandes en cours de livraison ce trimestre";
+  const nail = "Clous de charpentier galvanisés à tête plate, boîte de cinq cents, second choix, lot de mars";
+  const wordy = stock(
+    [
+      { type: "egalite", a: { ecran: "entrepot", champ: long }, b: { ecran: "commandes", champ: "Montant commandé" } },
+      { type: "egalite", a: { ecran: "entrepot", champ: long }, b: { ecran: "entrepot", champ: "Total" } },
+      { type: "somme", ecran: "entrepot", colonne: "Valeur", cible: long },
+      { type: "filtre", ecran: "entrepot", filtre: "En rupture", colonne: "État", condition: "= valeur", valeur: long },
+      { type: "format", ecran: "entrepot", colonne: long, motif: "date-fr" },
+      { type: "format", ecran: "entrepot", colonne: "Arrivage", motif: "date-fr" },
+      { type: "presence", ecran: "entrepot", colonne: "Quantité" },
+      { type: "presence", ecran: "entrepot", colonne: `${long} ${long}` },
+    ],
+    STOCK.replace("Valeur du stock", long).replace("Clous", nail).replace("2027-02-20", `le ${long}`),
+  ).map(([, wording]) => wording);
+  const zone = { ...byId(FOUND, MOVED_BUTTON), texte_zone: long };
+  const all = [
+    ...consoliderConstats(withTexts(FOUND)).flatMap(said),
+    ...FOUND.flatMap(said),
+    ...wordy.flatMap((wording): string[] => Object.values(wording)),
+    ...said(zone),
+    ...said({ ...zone, nature: "changement" }),
+    ...said({ ...zone, statut: "PASS", decision_id: "2026-11-16-liste-des-factures-exporter" }),
+    ...said(visual(LIST, [], image(60, 30))[0]),
+  ];
+  const BANNED = new Set(["règle", "règles", "regle", "regles", "égalité", "egalite", "constat", "constats", "relevé", "relevés", "releve", "releves", "vue", "vues", "zone", "zones"]);
+  for (const field of all) {
+    for (const sentence of field.split(/(?<=[.?!]) /)) assert.ok(sentence.length <= 90, `${sentence.length} caractères : ${sentence}`);
+    assert.deepEqual(field.toLowerCase().split(/[^\p{L}]+/u).filter((word) => BANNED.has(word)), [], field);
+    assert.doesNotMatch(field, /[\u2013\u2014]|\[\[|\]\]/, field);
+    assert.match(field, /[.?]$/, field);
+  }
+  // Names and values too long for a sentence: the sentence does without them.
+  assert.deepEqual(wordy, [
+    {
+      annonce: "Je vérifie que deux valeurs correspondent.",
+      resultat: "Problème : ici 12 500 €, là-bas 11 500,50 €. Il manque 999,50 €.",
+      question: "Deux valeurs devraient correspondre : 12 500 € et 11 500,50 €. Bug ou voulu ?",
+    },
+    {
+      annonce: "Je vérifie que deux valeurs correspondent.",
+      resultat: "Problème : 12 500 € d'un côté, 11 500,50 € de l'autre. Il manque 999,50 €.",
+      question: "Deux valeurs devraient correspondre : 12 500 € et 11 500,50 €. Bug ou voulu ?",
+    },
+    {
+      annonce: "Je refais l'addition.",
+      resultat: "Problème : l'addition fait 11 500,50 €, la page affiche 12 500 €. Il manque 999,50 €.",
+      question: "La page affiche 12 500 €, l'addition fait 11 500,50 €. Bug ou voulu ?",
+    },
+    {
+      annonce: "Je vérifie que ce filtre montre les bonnes lignes.",
+      resultat: "Problème : 2 lignes ne devraient pas être ici, dont Vis.",
+      question: "Le filtre « En rupture » montre Vis (État : En rupture). Bug ou voulu ?",
+    },
+    {
+      annonce: "Je vérifie que tout est bien écrit.",
+      resultat: "Problème : « 12 500,00 € » est mal écrit. J'attendais une date écrite jour/mois/année.",
+      question: "Une valeur est mal écrite. Bug ou voulu ?",
+    },
+    {
+      annonce: "Je vérifie que les dates de « Arrivage » sont bien écrites.",
+      resultat: "Problème : une valeur est mal écrite. J'attendais une date écrite jour/mois/année.",
+      question: "Une valeur est mal écrite. Bug ou voulu ?",
+    },
+    { annonce: "Je vérifie que « Quantité » est rempli partout.", resultat: "Problème : une case est vide.", question: "Une case est vide. Bug ou voulu ?" },
+    { annonce: "Je vérifie qu'il ne manque rien.", resultat: "Je n'arrive pas à lire cette valeur." },
+  ]);
+  assert.deepEqual(said(zone), ["Quelque chose a changé de place.", "Quelque chose a changé de place. Bug ou voulu ?"]);
+});
+
+// The tests never write in the repository: the decisions go to a copy of the vault, removed when the file ends.
+const temporaryVault = () => {
+  const folder = mkdtempSync(join(tmpdir(), "horama-vault-"));
+  cpSync(VAULT, folder, { recursive: true });
+  after(() => rmSync(folder, { recursive: true, force: true }));
+  return folder;
+};
+const CONTEXT = { passage_id: "2026-11-16-21h45-5675", test_id: "ca-du-mois-egal-total", logiciel: "facturo", version: "13", par: "Nathan", le: "2026-11-16T22:10:00.000Z" };
+
+test("versDecision : la décision s'écrit dans le vault, se relit, et « voulu » sur le bouton le neutralise au parcours suivant", () => {
+  const vault = temporaryVault();
+  const constats = consoliderConstats(withTexts(FOUND));
+  const wanted = versDecision(byId(constats, MOVED_BUTTON), "voulu", CONTEXT);
+  const bug = versDecision(byId(constats, CA_DEFECT), "bug", CONTEXT);
+  assert.deepEqual(wanted, {
+    id: "2026-11-16-liste-des-factures-exporter",
+    passage_id: "2026-11-16-21h45-5675",
+    test_id: "ca-du-mois-egal-total",
+    ecart_id: MOVED_BUTTON,
+    decision: "voulu",
+    logiciel: "facturo",
+    ecran: "liste-des-factures",
+    vue: "defaut",
+    ecart: "« Exporter » a changé de place.",
+    zone: position("export-haut").apres,
+    version: "13",
+    portee: "cet ecart, cet ecran, cette version",
+    par: "Nathan",
+    le: "2026-11-16T22:10:00.000Z",
+  });
+  assert.deepEqual(
+    [bug.id, bug.ecart_id, bug.decision, bug.ecart, bug.zone],
+    ["2026-11-16-liste-des-factures-ca-du-mois", CA_DEFECT, "bug", "Problème : ici 1 420 €, là-bas 1 240 €. Il manque 180 €.", undefined],
+  );
+  // One identifier per finding of the run, in kebab-case.
+  assert.deepEqual(constats.map((constat) => versDecision(constat, "bug", CONTEXT).id), [
+    "2026-11-16-tableau-de-bord-1-240-00",
+    "2026-11-16-liste-des-factures-ca-du-mois",
+    "2026-11-16-liste-des-factures-exporter",
+    "2026-11-16-liste-des-factures-filtre-echeance-depassee",
+    "2026-11-16-detail-facture-total-ttc",
+    "2026-11-16-detail-facture-somme-total-ttc",
+  ]);
+  assert.equal(versDecision(byId(FOUND, MOVED_BUTTON), "bug", CONTEXT).id, "2026-11-16-liste-des-factures-deplacement-1");
+
+  assert.equal(ecrireDecision(vault, wanted), "facturo/decisions/2026-11-16-liste-des-factures-exporter.md");
+  ecrireDecision(vault, bug);
+  const decisions = lireDecisions(vault, "facturo");
+  assert.deepEqual(decisions, [bug, wanted]);
+  assert.ok(readFileSync(join(vault, "facturo/decisions/2026-11-16-liste-des-factures-exporter.md"), "utf8").includes("\nÉcart : « Exporter » a changé de place.\nDécision : voulu\n"));
+
+  // Next run, with the memory of the vault: the moved button (new place and old place) is settled, the rest is found again.
+  const next = consoliderConstats(withTexts(run(decisions)));
+  assert.deepEqual(next.map(({ id }) => id), constats.map(({ id }) => id));
+  const button = byId(next, MOVED_BUTTON);
+  assert.deepEqual([button.statut, button.decision_id, button.nature], ["PASS", wanted.id, "deplacement"]);
+  assert.deepEqual(formuler(button), { resultat: "Déjà vu et validé." });
+  assert.deepEqual(next.filter((constat) => constat.statut === "SUSPECTED" && !constat.explique_par), []);
+  assert.deepEqual(next.filter((constat) => constat.statut === "VERIFIED_FAIL").map(({ id }) => id), [CA_DEFECT, FILTER_DEFECT]);
+  // A « bug » neutralises nothing, and a « voulu » holds for its version only.
+  for (const other of [{ ...wanted, decision: "bug" as const }, { ...wanted, version: "14" }]) assert.equal(byId(visual(LIST, [other]), MOVED_BUTTON).statut, "SUSPECTED");
 });
