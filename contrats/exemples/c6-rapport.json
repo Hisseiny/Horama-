@@ -1,0 +1,28 @@
+{
+  "passage": {
+    "id": "2026-11-18-14h02-a1b2",
+    "logiciel": "facturo",
+    "version_testee": "13",
+    "version_reference": "12",
+    "etat": "joue",
+    "debut": "2026-11-18T14:02:00Z",
+    "fin": "2026-11-18T14:05:40Z",
+    "duree_s": 220,
+    "cout_usd": null
+  },
+  "tests": [
+    {
+      "test_id": "ca-du-mois-egal-total",
+      "session_id": "ses_demo_1",
+      "etat": "termine",
+      "ecrans_releves": [
+        "tableau-de-bord",
+        "liste-des-factures"
+      ],
+      "replay_url": "https://platform.hcompany.ai/share/…",
+      "duree_s": 96,
+      "cout_usd": null,
+      "etapes": 10
+    }
+  ]
+}

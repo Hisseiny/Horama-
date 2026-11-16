@@ -1,0 +1,7 @@
+packages:
+  - contrats
+  - agent
+  - jugement
+  - memoire
+  - interface
+  - faux-saas

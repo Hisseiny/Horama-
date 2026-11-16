@@ -1,0 +1,28 @@
+{
+  "id": "2026-11-18-bouton-exporter",
+  "passage_id": "2026-11-18-14h02-a1b2",
+  "test_id": "ca-du-mois-egal-total",
+  "ecart_id": "ecart-1",
+  "decision": "voulu",
+  "logiciel": "facturo",
+  "ecran": "liste-des-factures",
+  "vue": "defaut",
+  "ecart": "Bouton « Exporter » déplacé en haut à droite",
+  "zone": {
+    "x": 1060,
+    "y": 96,
+    "largeur": 140,
+    "hauteur": 44
+  },
+  "version": "13",
+  "portee": "cet ecart, cet ecran, cette version",
+  "pourquoi": "Refonte de la barre d'actions (note de version v13)",
+  "par": "Léa",
+  "le": "2026-11-18T14:09:00Z",
+  "correction_de_note": {
+    "fichier": "produit/liste-des-factures.md",
+    "avant": "Le bouton « Exporter » se trouve en bas du tableau.",
+    "apres": "Le bouton « Exporter » se trouve en haut à droite du tableau (depuis la version 13).",
+    "statut": "proposee"
+  }
+}
