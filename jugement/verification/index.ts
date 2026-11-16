@@ -9,6 +9,8 @@ export { comparerImages } from "./images.ts";
 export type { ImageComparison, ImageZone } from "./images.ts";
 export { releverValeurs } from "./values.ts";
 export type { ScreenValues, Table } from "./values.ts";
+export { formuler } from "./wording.ts";
+export { consoliderConstats, versDecision } from "./review.ts";
 
 export interface ReleveCapture {
   ecran: string;
@@ -28,7 +30,12 @@ export interface EntreeVerification {
   decisions: Decision[]; // memory: decisions already taken
 }
 
+type Zone = EcartVisuel["zone"];
+
 export interface Constat {
+  id: string; // stable within a run: <ecran>--<vue>--<genre>--<n>
+  ecran: string; // the capture the finding comes out on
+  vue: string;
   genre: "regle" | "visuel";
   statut: Statut;
   regle?: Regle;
@@ -36,24 +43,33 @@ export interface Constat {
   calcul?: string; // spelled out, in French
   description: string; // one short French sentence, said by the mascot
   textes_a_surligner: string[]; // texts as displayed on the current screen, to highlight (faulty value, faulty row)
-  zone?: { x: number; y: number; largeur: number; hauteur: number }; // for a visual finding
+  zone?: Zone; // for a visual finding; for a moved element, its new place
   pixels?: number; // differing pixels in the zone
   decision_id?: string; // when a « voulu » decision neutralises the gap
   raison?: string; // for INCONCLUSIVE
+  nature?: "deplacement" | "changement"; // for a visual finding with a zone
+  zone_avant?: Zone; // for a moved element, its old place
+  page?: { largeur: number; hauteur: number }; // size of the compared image, to say where a zone is
+  texte_zone?: string; // filled by the scene: the text of the element at the centre of the zone
+  explique_par?: string; // id of the proven defect that explains this doubt (consoliderConstats)
 }
+
+// Where a finding comes out: the capture just taken, and its rank among the findings of its kind on this capture.
+const situate = ({ ecran, vue }: ReleveCapture, genre: Constat["genre"], n: number) => ({ id: `${ecran}--${vue}--${genre}--${n}`, ecran, vue, genre });
 
 function visualFindings({ releve, reference, version_reference, decisions }: EntreeVerification & { reference: Uint8Array }): Constat[] {
   const { sameSize, size, referenceSize, zones } = comparerImages(releve.png, reference);
   if (!sameSize) {
     const raison = `tailles différentes : ${size.width} × ${size.height} contre ${referenceSize.width} × ${referenceSize.height} pour la référence`;
-    return [{ genre: "visuel", statut: "INCONCLUSIVE", valeurs: {}, description: `Je n'ai pas pu comparer l'image : ${raison}.`, textes_a_surligner: [], raison }];
+    return [{ ...situate(releve, "visuel", 1), statut: "INCONCLUSIVE", valeurs: {}, description: `Je n'ai pas pu comparer l'image : ${raison}.`, textes_a_surligner: [], raison }];
   }
   const description = `Cette zone a changé depuis la version ${version_reference ?? "de référence"}.`;
-  return zones.map(({ pixels, ...zone }, index) => {
-    const ecart: EcartVisuel = { id: `${releve.ecran}--${releve.vue}--${index + 1}`, ecran: releve.ecran, vue: releve.vue, description, zone, statut: "SUSPECTED" };
-    const decision = decisionQuiNeutralise(ecart, releve.version, decisions);
+  return zones.map(({ pixels, zone_avant, ...zone }, index) => {
+    const place = situate(releve, "visuel", index + 1);
+    // One finding for a moved element: a decision on its new place settles the old place with it.
+    const decision = decisionQuiNeutralise({ ...place, description, zone, statut: "SUSPECTED" }, releve.version, decisions);
     return {
-      genre: "visuel",
+      ...place,
       statut: decision ? "PASS" : "SUSPECTED",
       valeurs: {},
       description,
@@ -61,6 +77,9 @@ function visualFindings({ releve, reference, version_reference, decisions }: Ent
       zone,
       pixels,
       ...(decision && { decision_id: decision.id }),
+      nature: zone_avant ? "deplacement" : "changement",
+      ...(zone_avant && { zone_avant }),
+      page: { largeur: size.width, hauteur: size.height },
     };
   });
 }
@@ -91,7 +110,7 @@ export function verifierReleve(entree: EntreeVerification): Constat[] {
   for (const regle of new Map(regles.map((rule) => [JSON.stringify(rule), rule])).values()) {
     const picked = pick(regle, [...before, releve]);
     if (!picked || ![...picked.values()].includes(releve) || pick(regle, before)) continue;
-    constats.push(checkRule(regle, new Map([...picked].map(([ecran, capture]) => [ecran, valuesOf(capture)])), releve.ecran));
+    constats.push({ ...situate(releve, "regle", constats.length + 1), ...checkRule(regle, new Map([...picked].map(([ecran, capture]) => [ecran, valuesOf(capture)])), releve.ecran) });
   }
   if (reference) constats.push(...visualFindings({ ...entree, reference }));
   return constats;
