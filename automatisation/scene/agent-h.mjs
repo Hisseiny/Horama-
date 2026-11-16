@@ -5,6 +5,7 @@
 // quick failures (lib/local-bridge.ts, scripts/lancer-demo.sh); tool calls read from pending_tool_calls and from the
 // awaiting_tool_results events, each answered once (lib/agent-changes.ts); session given up when H never acts
 // (lib/agent-stall.ts); the wording of the rules of a course (lib/agent-task.ts). Never prints the key.
+// The live course asks for settle_s 1.0: its clicks are held while the cursor travels to them (see couche-horama.js).
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { closeSync, existsSync, openSync, readFileSync } from "node:fs";
@@ -124,7 +125,7 @@ export const cancelOpenSession = () => (open ? h(open.key, "DELETE", `/sessions/
 
 // Creates the session on the local browser served on `channel` and follows it to its end. onTool(name, args) answers
 // the custom tools. Returns what was measured; `muted` when H did nothing within MUTE_MS of the start.
-export async function runSession({ key, channel, agent, task, instructions, tools, endTool, bridge, say, onTool }) {
+export async function runSession({ key, channel, agent, task, instructions, tools, endTool, bridge, say, onTool, settleS = SETTINGS.settle_s }) {
   const created = Date.now();
   const session = await h(key, "POST", "/sessions", {
     agent: {
@@ -134,7 +135,7 @@ export async function runSession({ key, channel, agent, task, instructions, tool
       model: SETTINGS.model,
       reasoning_effort: SETTINGS.reasoning_effort,
       instructions,
-      environments: [{ id: "browser", kind: "web", host: "user_device", session_id: channel, settle_s: SETTINGS.settle_s, mode: { type: "visual", markdown: true } }],
+      environments: [{ id: "browser", kind: "web", host: "user_device", session_id: channel, settle_s: settleS, mode: { type: "visual", markdown: true } }],
       tools,
     },
     messages: [{ type: "user_message", message: task }],
@@ -214,7 +215,7 @@ export async function stopAgent() {
 // One course played by H in the Chrome of `port`, with one relaunch when H stays mute. relever(ecran, vue) answers the
 // tool of that name; the course ends with END_TOOL. Fills `pass` (sessions, relances, etapes, etapesH, coutUsd,
 // dureesEtapes, dureeS, etat) and throws when the course did not end well.
-export async function agentPass(pass, { page, holo, port, logFile, agent, task, instructions, tools, relever, say }) {
+export async function agentPass(pass, { page, holo, port, logFile, agent, task, instructions, tools, relever, say, settleS }) {
   for (let attempt = 1; attempt <= 2; attempt++) {
     if (sessions++ > 0) {
       say(`Pause de ${REST_MS / 1000} s avant la session suivante.`);
@@ -229,7 +230,7 @@ export async function agentPass(pass, { page, holo, port, logFile, agent, task, 
     try {
       if (bridge.failed) throw new Error(bridge.failed);
       result = await runSession({
-        key: process.env.HAI_API_KEY, channel, agent, task, instructions, tools, endTool: END_TOOL.name, bridge, say,
+        key: process.env.HAI_API_KEY, channel, agent, task, instructions, tools, endTool: END_TOOL.name, bridge, say, settleS,
         onTool: async (name, args) => {
           if (name === "relever") return relever(args.ecran, args.vue);
           if (name !== END_TOOL.name) return "Outil inconnu.";

@@ -168,7 +168,8 @@ async function scriptedPass(pass) {
 
 try {
   page = await connectTab(PORT);
-  await installLayer(page, (press) => current?.clics.push(press), { passage: new Date().toISOString() });
+  // The probe keeps its own behaviour: clicks are not held (direct), the cursor follows them, and only presses are counted.
+  await installLayer(page, (press) => press.rejoue || current?.clics.push(press), { passage: new Date().toISOString(), direct: true });
   area = await fitViewport(page);
   say(`Zone de page mesurée : ${area.largeur} × ${area.hauteur}, densité de pixels ${area.densite}.`);
   if (area.largeur !== WIDTH || area.hauteur !== HEIGHT || area.densite !== 1) {
