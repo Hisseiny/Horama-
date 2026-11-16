@@ -74,3 +74,11 @@ Orchestrateur : Claude Code (Fable 5.2). Branche : `dev-nathan`. Méthode : `doc
 - N6 est coupé en deux pour ne pas toucher `interface/` pendant que N4 s'y code : N6a (mesure de deux modèles, `proposerTests`), puis N6b (écran 11.2 branché, Accepter écrit le fichier) après la porte.
 - Devin lance ses scripts avec `node --env-file=<.env.local du dépôt>` pour appeler le routeur ; consigne : ne jamais lire ni afficher le fichier ou une valeur.
 - Quota Devin : 52 % utilisés à 19 h 15 (46 % à 18 h 06, 48 % à 18 h 45). Rythme constaté : environ 6 points en 70 min avec un à deux Devin actifs. Marge avant le seuil d'arrêt (80 %) : 28 points.
+
+### 19 h 50, N4 : app Horama sur données factices, tenu (direction à valider par Nathan)
+- Devin : 44 min, sortie 0, 51 fichiers (`interface/` et `pnpm-lock.yaml`). Conflit de verrou pnpm avec `dev-nathan` réglé par l'orchestrateur dans la branche (verrou de `dev-nathan` repris, `pnpm install`).
+- Rejoué par l'orchestrateur : `check` vert (8 tests de contraste), `build` vert avec `USE_MOCKS=1`, les 7 routes en 200, `captures.mjs` : 10 captures, sortie 0. Les 10 captures regardées une à une : rien ne déborde, la signature (surlignage d'état) est tenue sur les 8 écrans.
+- Écarts de Devin acceptés : `lireDecisions` ajoutée à `lib/donnees.ts` ; zone du bouton Exporter prise dans `faux-saas/positions.json` (celle de l'exemple du contrat tombe à côté du bouton réel) ; « à calculer » pour le nombre de zones.
+- Incident mineur : Devin a arrêté son serveur par `pkill -f "next dev"` (trop large). Aucun autre serveur de développement ne tournait.
+- **Constat pour le pitch** : sur Facturo, la vue « pixels bruts » ne montre pas « du rouge partout ». Le faux SaaS est déterministe : 1 320 pixels différents sur 1 152 000 pour le bouton déplacé. L'argument « la comparaison de pixels noie l'humain » ne se voit pas sur ce logiciel ; il se verrait sur un logiciel dont les données ou le rendu changent d'une visite à l'autre.
+- Planche de direction : `docs/captures/2026-11-16-porte-direction/index.html`. App servie sur `http://localhost:3000` pour la navigation. Juge aveugle lancé (agent frais, captures seules puis 8 références).
