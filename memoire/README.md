@@ -9,6 +9,7 @@ Vérifier : `pnpm --filter @horama/memoire run check` (types, puis tests sur une
 **Notes et règles**
 - `lireNotes(vault, logiciel)` : les notes de `produit/` et de `notes-de-version/` (`chemin`, `entete`, `titre`, `texte`, `regles`). Une règle : `{ phrase, regle, ligne }`, `regle` vaut `null` si la puce n'a pas de ligne `regle:`.
 - `analyserLigneRegle(ligne, ecranDeLaNote)` : une ligne `regle: … | cle: valeur` devient une `Regle`.
+- `verifierRegle(regle)` : rend la `Regle` avec les seuls champs du contrat, dans l'ordre du contrat ; lève une erreur qui dit pourquoi si ce n'en est pas une.
 - `urlDepart(vault, logiciel, version, ecran)` : `/v<version>/entrer?suite=/v<version><url de l'écran>`.
 
 **Tests acceptés (C2)**
