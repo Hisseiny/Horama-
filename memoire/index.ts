@@ -1,4 +1,4 @@
-export { analyserLigneRegle } from "./src/rules.ts";
+export { analyserLigneRegle, checkRule as verifierRegle } from "./src/rules.ts";
 export { lireNotes, urlDepart } from "./src/notes.ts";
 export type { Note, NoteRule } from "./src/notes.ts";
 export { ecrireTestAccepte, lireTestAccepte, lireTestsAcceptes } from "./src/accepted-tests.ts";

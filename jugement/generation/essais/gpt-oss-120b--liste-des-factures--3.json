@@ -1,0 +1,129 @@
+{
+  "model": "openai/gpt-oss-120b",
+  "note": "produit/liste-des-factures.md",
+  "pass": 3,
+  "valid": true,
+  "rulesRight": true,
+  "written": null,
+  "ms": 16786,
+  "tries": 1,
+  "inputTokens": 2600,
+  "outputTokens": 1838,
+  "costUsd": 0.0008144,
+  "answered": true,
+  "problems": [],
+  "firstRefusal": [],
+  "calls": [
+    {
+      "model": "openai/gpt-oss-120b",
+      "ms": 16785,
+      "status": 200,
+      "content": "{\n  \"tests\": [\n    {\n      \"id\": \"liste-des-factures-verifications-regles\",\n      \"titre\": \"Liste des factures : total, formats et présence échéance\",\n      \"setup\": \"Connecté avec le compte de démo, sur la liste des factures, sans filtre.\",\n      \"etapes\": [\n        \"Sélectionner le filtre « Toutes ».\"\n      ],\n      \"resultat_attendu\": \"Le tableau affiche le total correct, les montants et les échéances au format attendu, et chaque ligne possède une échéance.\",\n      \"verifications\": [\n        \"FAIL if le total affiché diffère de la somme des montants TTC.\",\n        \"FAIL if un montant n'est pas affiché au format 1 420,00 €.\",\n        \"FAIL if une échéance n'est pas affichée au format JJ/MM/AAAA.\",\n        \"FAIL if une case de la colonne Échéance est vide.\"\n      ],\n      \"releves\": [\n        {\n          \"ecran\": \"liste-des-factures\",\n          \"vue\": \"filtre-toutes\"\n        }\n      ],\n      \"regles_calculables\": [\n        {\n          \"type\": \"somme\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Montant TTC\",\n          \"cible\": \"Total\"\n        },\n        {\n          \"type\": \"format\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Montant TTC\",\n          \"motif\": \"montant-fr\"\n        },\n        {\n          \"type\": \"format\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Échéance\",\n          \"motif\": \"date-fr\"\n        },\n        {\n          \"type\": \"presence\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Échéance\"\n        }\n      ],\n      \"passages_de_la_source\": [\n        \"Le total en bas du tableau est la somme de la colonne « Montant TTC ».\",\n        \"Les montants s'affichent au format 1 420,00 €.\",\n        \"Les échéances s'affichent au format JJ/MM/AAAA.\",\n        \"Chaque facture a une échéance.\"\n      ],\n      \"questions\": []\n    }\n  ]\n}",
+      "inputTokens": 2600,
+      "outputTokens": 1838,
+      "body": {
+        "id": "gen-1794851736-kSniEiqYXQ3c2bzKD3a6",
+        "object": "chat.completion",
+        "created": 1794851736,
+        "model": "openai/gpt-oss-120b",
+        "provider": "Sail Research",
+        "system_fingerprint": null,
+        "service_tier": "asap",
+        "choices": [
+          {
+            "index": 0,
+            "logprobs": null,
+            "finish_reason": "stop",
+            "native_finish_reason": "stop",
+            "message": {
+              "role": "assistant",
+              "content": "{\n  \"tests\": [\n    {\n      \"id\": \"liste-des-factures-verifications-regles\",\n      \"titre\": \"Liste des factures : total, formats et présence échéance\",\n      \"setup\": \"Connecté avec le compte de démo, sur la liste des factures, sans filtre.\",\n      \"etapes\": [\n        \"Sélectionner le filtre « Toutes ».\"\n      ],\n      \"resultat_attendu\": \"Le tableau affiche le total correct, les montants et les échéances au format attendu, et chaque ligne possède une échéance.\",\n      \"verifications\": [\n        \"FAIL if le total affiché diffère de la somme des montants TTC.\",\n        \"FAIL if un montant n'est pas affiché au format 1 420,00 €.\",\n        \"FAIL if une échéance n'est pas affichée au format JJ/MM/AAAA.\",\n        \"FAIL if une case de la colonne Échéance est vide.\"\n      ],\n      \"releves\": [\n        {\n          \"ecran\": \"liste-des-factures\",\n          \"vue\": \"filtre-toutes\"\n        }\n      ],\n      \"regles_calculables\": [\n        {\n          \"type\": \"somme\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Montant TTC\",\n          \"cible\": \"Total\"\n        },\n        {\n          \"type\": \"format\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Montant TTC\",\n          \"motif\": \"montant-fr\"\n        },\n        {\n          \"type\": \"format\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Échéance\",\n          \"motif\": \"date-fr\"\n        },\n        {\n          \"type\": \"presence\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Échéance\"\n        }\n      ],\n      \"passages_de_la_source\": [\n        \"Le total en bas du tableau est la somme de la colonne « Montant TTC ».\",\n        \"Les montants s'affichent au format 1 420,00 €.\",\n        \"Les échéances s'affichent au format JJ/MM/AAAA.\",\n        \"Chaque facture a une échéance.\"\n      ],\n      \"questions\": []\n    }\n  ]\n}",
+              "refusal": null,
+              "reasoning": "We need to produce JSON with tests based on the rules already written in source. The note source includes the same rules as documentation, plus an extra rule about number of invoices displayed (but that rule is not in the \"Règles déjà écrites\" list). The instruction: \"Règles déjà écrites dans la note source :\" lists four rules. The note source also includes a fifth rule about number of invoices displayed, but it's not listed as already written. Since it's in the note source but not in the list of already written rules, does it count as a rule already written? The instruction says: \"Règles déjà écrites dans la note source :\" then lists four. So only those four are considered already written. The fifth rule is not given as a rule object, so we may need to create a test for that change? The note source is a product note, not a version change. It includes the same rules plus an extra line about number of invoices displayed. Since it's not a rule object, we might need to create a test for that change (the count display). However the instruction for case \"Elle porte des règles déjà écrites (elles te sont données avec leur phrase) : écris des tests pour ces règles seulement.\" So we should only write tests for the given rules (the four). Not for the extra line. So we will create tests for each rule, possibly grouping those that share same screen. The rule list:\n\n1. somme on liste-des-factures Montant TTC cible Total.\n2. format montant-fr on liste-des-factures Montant TTC.\n3. format date-fr on liste-des-factures Échéance.\n4. presence on liste-des-factures Échéance.\n\nAll on same screen, so we can group them in one test? The instruction: \"Mets dans un même test les règles qui se vérifient sur les mêmes écrans, sinon un test par règle.\" So we can put all four in one test because same screen. That test will have multiple regles_calculables entries.\n\nNow we need to fill fields:\n\n- id: kebab-case unique. e.g., \"liste-factures-regles-affichage\".\n- titre: one line, name of screen then what's verified. Could be \"Liste des factures : vérification des règles d'affichage\". Or \"Liste des factures : total, format montants, format échéances, présence échéance\". Keep concise.\n\n- setup: starting state: \"Connecté avec le compte de démo, sur la liste des factures, sans filtre.\" (since test starts on that screen). The test starts already connected, on the screen of first relevé, in its state of départ. So we say that.\n\n- etapes: list of actions to bring screen to state needed. Since we need default view (no filter) to capture default view. So maybe no steps needed? But we must provide at least one step? Not required. Could be empty list? The spec says list of phrases; could be empty. But we can include \"Vérifier l'affichage du tableau.\" Not an action. Better to include \"Ne rien faire.\" But that might be weird. Could include \"S'assurer que le filtre « Toutes » est sélectionné.\" That's an action. So we can have one step: \"Sélectionner le filtre « Toutes ».\" That ensures default view.\n\n- resultat_attendu: a phrase summarizing expected result. e.g., \"Le tableau affiche le total correct, les montants et les échéances au bon format, et chaque ligne possède une échéance.\"\n\n- verifications: list of FAIL if statements for each rule. For somme: \"FAIL if le total affiché diffère de la somme des montants TTC.\" For format montant: \"FAIL if un montant n'est pas affiché au format 1 420,00 €.\" For format date: \"FAIL if une échéance n'est pas affichée au format JJ/MM/AAAA.\" For presence: \"FAIL if une case de la colonne Échéance est vide.\"\n\n- releves: need capture states. At least one. Since we have multiple rules, we might capture after steps. The view name: default view after selecting filter \"Toutes\" maybe still default, but we changed filter to \"Toutes\". That's still default? The view could be \"filtre-toutes\". Use kebab-case. So we capture one: { \"ecran\": \"liste-des-factures\", \"vue\": \"filtre-toutes\" }.\n\n- regles_calculables: list of rule objects exactly as given. Must match grammar. Use the objects from the \"Règles déjà écrites\". They are already JSON objects. Ensure they match grammar: type \"somme\", \"format\", \"presence\". Provide them.\n\n- passages_de_la_source: at least one passage of source where test comes from. We need to copy the exact passage(s) character for character. For each rule we can include the line from note source. Could include all four lines. Provide them as separate strings in array. Must be exact, including quotes and spaces. The note source lines are:\n\n- \"Le total en bas du tableau est la somme de la colonne « Montant TTC ».\"\n- \"Les montants s'affichent au format 1 420,00 €.\"\n- \"Les échéances s'affichent au format JJ/MM/AAAA.\"\n- \"Chaque facture a une échéance.\"\n\nMake sure to copy exactly as in note source, including the leading dash? The instruction: \"au moins un passage de la note source d'où vient le test, recopié caractère pour caractère (mêmes guillemets, mêmes accents, mêmes espaces), sans le tiret de la puce\". So we need to copy the text after the dash, without the dash. So each string should be exactly the sentence.\n\n- questions: list empty because no ambiguity.\n\nNow produce JSON.\n\nCheck grammar for regles_calculables: need fields exactly as described. For format rule: {\"type\":\"format\",\"ecran\":\"liste-des-factures\",\"colonne\":\"Montant TTC\",\"motif\":\"montant-fr\"} etc.\n\nFor presence: {\"type\":\"presence\",\"ecran\":\"liste-des-factures\",\"colonne\":\"Échéance\"}\n\nFor somme: {\"type\":\"somme\",\"ecran\":\"liste-des-factures\",\"colonne\":\"Montant TTC\",\"cible\":\"Total\"}\n\nNow produce final JSON with \"tests\": [ { ... } ].\n\nLet's craft.\n\n",
+              "reasoning_details": [
+                {
+                  "type": "reasoning.text",
+                  "text": "We need to produce JSON with tests based on the rules already written in source. The note source includes the same rules as documentation, plus an extra rule about number of invoices displayed (but that rule is not in the \"Règles déjà écrites\" list). The instruction: \"Règles déjà écrites dans la note source :\" lists four rules. The note source also includes a fifth rule about number of invoices displayed, but it's not listed as already written. Since it's in the note source but not in the list of already written rules, does it count as a rule already written? The instruction says: \"Règles déjà écrites dans la note source :\" then lists four. So only those four are considered already written. The fifth rule is not given as a rule object, so we may need to create a test for that change? The note source is a product note, not a version change. It includes the same rules plus an extra line about number of invoices displayed. Since it's not a rule object, we might need to create a test for that change (the count display). However the instruction for case \"Elle porte des règles déjà écrites (elles te sont données avec leur phrase) : écris des tests pour ces règles seulement.\" So we should only write tests for the given rules (the four). Not for the extra line. So we will create tests for each rule, possibly grouping those that share same screen. The rule list:\n\n1. somme on liste-des-factures Montant TTC cible Total.\n2. format montant-fr on liste-des-factures Montant TTC.\n3. format date-fr on liste-des-factures Échéance.\n4. presence on liste-des-factures Échéance.\n\nAll on same screen, so we can group them in one test? The instruction: \"Mets dans un même test les règles qui se vérifient sur les mêmes écrans, sinon un test par règle.\" So we can put all four in one test because same screen. That test will have multiple regles_calculables entries.\n\nNow we need to fill fields:\n\n- id: kebab-case unique. e.g., \"liste-factures-regles-affichage\".\n- titre: one line, name of screen then what's verified. Could be \"Liste des factures : vérification des règles d'affichage\". Or \"Liste des factures : total, format montants, format échéances, présence échéance\". Keep concise.\n\n- setup: starting state: \"Connecté avec le compte de démo, sur la liste des factures, sans filtre.\" (since test starts on that screen). The test starts already connected, on the screen of first relevé, in its state of départ. So we say that.\n\n- etapes: list of actions to bring screen to state needed. Since we need default view (no filter) to capture default view. So maybe no steps needed? But we must provide at least one step? Not required. Could be empty list? The spec says list of phrases; could be empty. But we can include \"Vérifier l'affichage du tableau.\" Not an action. Better to include \"Ne rien faire.\" But that might be weird. Could include \"S'assurer que le filtre « Toutes » est sélectionné.\" That's an action. So we can have one step: \"Sélectionner le filtre « Toutes ».\" That ensures default view.\n\n- resultat_attendu: a phrase summarizing expected result. e.g., \"Le tableau affiche le total correct, les montants et les échéances au bon format, et chaque ligne possède une échéance.\"\n\n- verifications: list of FAIL if statements for each rule. For somme: \"FAIL if le total affiché diffère de la somme des montants TTC.\" For format montant: \"FAIL if un montant n'est pas affiché au format 1 420,00 €.\" For format date: \"FAIL if une échéance n'est pas affichée au format JJ/MM/AAAA.\" For presence: \"FAIL if une case de la colonne Échéance est vide.\"\n\n- releves: need capture states. At least one. Since we have multiple rules, we might capture after steps. The view name: default view after selecting filter \"Toutes\" maybe still default, but we changed filter to \"Toutes\". That's still default? The view could be \"filtre-toutes\". Use kebab-case. So we capture one: { \"ecran\": \"liste-des-factures\", \"vue\": \"filtre-toutes\" }.\n\n- regles_calculables: list of rule objects exactly as given. Must match grammar. Use the objects from the \"Règles déjà écrites\". They are already JSON objects. Ensure they match grammar: type \"somme\", \"format\", \"presence\". Provide them.\n\n- passages_de_la_source: at least one passage of source where test comes from. We need to copy the exact passage(s) character for character. For each rule we can include the line from note source. Could include all four lines. Provide them as separate strings in array. Must be exact, including quotes and spaces. The note source lines are:\n\n- \"Le total en bas du tableau est la somme de la colonne « Montant TTC ».\"\n- \"Les montants s'affichent au format 1 420,00 €.\"\n- \"Les échéances s'affichent au format JJ/MM/AAAA.\"\n- \"Chaque facture a une échéance.\"\n\nMake sure to copy exactly as in note source, including the leading dash? The instruction: \"au moins un passage de la note source d'où vient le test, recopié caractère pour caractère (mêmes guillemets, mêmes accents, mêmes espaces), sans le tiret de la puce\". So we need to copy the text after the dash, without the dash. So each string should be exactly the sentence.\n\n- questions: list empty because no ambiguity.\n\nNow produce JSON.\n\nCheck grammar for regles_calculables: need fields exactly as described. For format rule: {\"type\":\"format\",\"ecran\":\"liste-des-factures\",\"colonne\":\"Montant TTC\",\"motif\":\"montant-fr\"} etc.\n\nFor presence: {\"type\":\"presence\",\"ecran\":\"liste-des-factures\",\"colonne\":\"Échéance\"}\n\nFor somme: {\"type\":\"somme\",\"ecran\":\"liste-des-factures\",\"colonne\":\"Montant TTC\",\"cible\":\"Total\"}\n\nNow produce final JSON with \"tests\": [ { ... } ].\n\nLet's craft.\n\n",
+                  "format": "unknown",
+                  "index": 0
+                }
+              ]
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 2600,
+          "completion_tokens": 1838,
+          "total_tokens": 4438,
+          "cost": 0.0008144,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 2560,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0.0008144,
+            "upstream_inference_prompt_cost": 0.0000792,
+            "upstream_inference_completions_cost": 0.0007352
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 1342,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      },
+      "rejections": []
+    }
+  ],
+  "tests": [
+    {
+      "id": "liste-des-factures-verifications-regles",
+      "logiciel": "facturo",
+      "source": "produit/liste-des-factures.md",
+      "passages_de_la_source": [
+        "Le total en bas du tableau est la somme de la colonne « Montant TTC ».",
+        "Les montants s'affichent au format 1 420,00 €.",
+        "Les échéances s'affichent au format JJ/MM/AAAA.",
+        "Chaque facture a une échéance."
+      ],
+      "releves": [
+        {
+          "ecran": "liste-des-factures",
+          "vue": "filtre-toutes"
+        }
+      ],
+      "test_markdown": "# Liste des factures : total, formats et présence échéance\n\n## Setup\nConnecté avec le compte de démo, sur la liste des factures, sans filtre.\n\n## Task\n1. Sélectionner le filtre « Toutes ».\n\n## Expected Result\nLe tableau affiche le total correct, les montants et les échéances au format attendu, et chaque ligne possède une échéance.\n\n## Verification\n- FAIL if le total affiché diffère de la somme des montants TTC.\n- FAIL if un montant n'est pas affiché au format 1 420,00 €.\n- FAIL if une échéance n'est pas affichée au format JJ/MM/AAAA.\n- FAIL if une case de la colonne Échéance est vide.",
+      "regles_calculables": [
+        {
+          "type": "somme",
+          "ecran": "liste-des-factures",
+          "colonne": "Montant TTC",
+          "cible": "Total"
+        },
+        {
+          "type": "format",
+          "ecran": "liste-des-factures",
+          "colonne": "Montant TTC",
+          "motif": "montant-fr"
+        },
+        {
+          "type": "format",
+          "ecran": "liste-des-factures",
+          "colonne": "Échéance",
+          "motif": "date-fr"
+        },
+        {
+          "type": "presence",
+          "ecran": "liste-des-factures",
+          "colonne": "Échéance"
+        }
+      ],
+      "questions": [],
+      "statut": "propose",
+      "modele": "openai/gpt-oss-120b"
+    }
+  ]
+}

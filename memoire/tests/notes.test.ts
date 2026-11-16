@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { appendFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { analyserLigneRegle, lireNotes, urlDepart } from "../index.ts";
+import { analyserLigneRegle, lireNotes, urlDepart, verifierRegle } from "../index.ts";
 import { temporaryVault } from "./vault.ts";
 
 const vault = temporaryVault();
@@ -88,6 +88,15 @@ test("analyserLigneRegle refuse une ligne hors grammaire en la citant", () => {
   for (const [line, screen, reason] of refused) {
     assert.throws(() => analyserLigneRegle(line, screen), (error: Error) => error.message.includes(`« ${line} »`) && reason.test(error.message), line);
   }
+});
+
+test("verifierRegle rend la règle du contrat sans champ en trop, et dit pourquoi elle en refuse une", () => {
+  assert.deepEqual(verifierRegle({ colonne: "Montant", type: "format", motif: "montant-fr", ecran: "detail-facture", commentaire: "en trop" }), {
+    type: "format", ecran: "detail-facture", colonne: "Montant", motif: "montant-fr",
+  });
+  assert.throws(() => verifierRegle({ type: "filtre", ecran: "liste-des-factures", filtre: "Échéance dépassée", colonne: "Échéance", condition: "< aujourd'hui" }), /condition « < aujourd'hui » hors du contrat/);
+  assert.throws(() => verifierRegle({ type: "egalite", a: { ecran: "tableau-de-bord", champ: "CA du mois" }, b: "liste-des-factures.Total" }), /champ « b.ecran » manquant/);
+  assert.throws(() => verifierRegle("somme"), /type de règle inconnu/);
 });
 
 test("une ligne regle: invalide dans une note nomme le fichier et la ligne", () => {
