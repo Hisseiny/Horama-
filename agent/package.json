@@ -5,7 +5,7 @@
   "type": "module",
   "exports": { ".": "./index.ts" },
   "scripts": {
-    "check": "tsc --noEmit && node --test *.test.ts"
+    "check": "tsc --noEmit && node --test *.test.ts *.test.mjs"
   },
   "dependencies": {
     "@horama/contrats": "workspace:*",

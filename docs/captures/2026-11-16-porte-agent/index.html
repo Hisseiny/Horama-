@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Horama — Porte agent</title><style>
+*{box-sizing:border-box}body{margin:0;background:#f4f6f8;color:#162330;font:16px/1.55 system-ui,sans-serif}main{max-width:1180px;margin:auto;padding:36px 24px}h1{font-size:38px;margin:4px 0}h2{margin-top:34px}h3{margin:0 0 8px;font-size:18px}.eyebrow{font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#38536b}.notice{border-left:5px solid #a8670b;background:#fff2d9;padding:18px 22px;margin:24px 0}.meta,.tests,.captures{display:grid;gap:16px}.meta{grid-template-columns:repeat(4,1fr)}.tests{grid-template-columns:repeat(3,1fr)}.captures{grid-template-columns:repeat(2,1fr)}article,figure,.metric{background:white;border:1px solid #d5dfe7;border-radius:10px;padding:18px;margin:0;min-width:0}article p{margin:7px 0}code{overflow-wrap:anywhere;font-size:13px}.metric strong{display:block;font-size:25px}.muted,figcaption{color:#475b6b;font-size:14px}.pill{display:inline-block;background:#e0f0e8;color:#145b3a;border-radius:5px;padding:2px 9px;font-weight:650}.captures img{display:block;width:100%;height:auto;border:1px solid #d5dfe7;margin:12px 0}summary{cursor:pointer}pre{white-space:pre-wrap;max-height:240px;overflow:auto;font:12px/1.5 monospace}table{width:100%;border-collapse:collapse;background:white}th,td{padding:12px;text-align:left;border-bottom:1px solid #d5dfe7;vertical-align:top}th{background:#e6edf3}.table-wrap{overflow:auto}footer{margin-top:36px;border-top:1px solid #d5dfe7;padding-top:18px}@media(max-width:800px){.tests,.captures{grid-template-columns:1fr}.meta{grid-template-columns:repeat(2,1fr)}h1{font-size:30px}}
+</style></head><body><main>
+<div class="eyebrow">Horama · Porte du couloir Ali</div><h1>Un passage, quatre vues réelles</h1>
+<p>Facturo v13 · <code>2026-11-16-23h15-9c0a</code></p>
+<div class="notice"><strong>Session agent simulée — aucun appel H.</strong><br>Les captures sont réelles : Facturo v13, Chrome headless, 1280 × 900, DPR 1. Le script navigue vers chaque vue ; cela ne prouve pas qu'un agent H sait effectuer le parcours. Aucun verdict métier n'est démontré ici.</div>
+<div class="meta"><div class="metric">État du passage<strong>joue</strong></div><div class="metric">Durée réelle du coureur<strong>2.848 s</strong></div><div class="metric">Coût<strong>inconnu</strong></div><div class="metric">Captures / événements<strong>4 / 4</strong></div></div>
+<p class="muted">Début : 2026-11-16T23:15:36.162+00:00 · Fin : 2026-11-16T23:15:39.01+00:00. Données lues depuis les lignes Supabase locales ; images copiées dans cette planche statique.</p>
+<h2>Les 3 tests du rapport C6</h2><div class="tests"><article><h3>ca-du-mois-egal-total</h3><span class="pill">termine</span><p>Écrans relevés : tableau-de-bord, liste-des-factures</p><p class="muted">Session : <code>simulation-2026-11-16-23h15-9c0a</code><br>4 étapes · 2.848 s · coût inconnu</p></article><article><h3>detail-facture-total-egal-liste</h3><span class="pill">termine</span><p>Écrans relevés : liste-des-factures, detail-facture</p><p class="muted">Session : <code>simulation-2026-11-16-23h15-9c0a</code><br>4 étapes · 2.848 s · coût inconnu</p></article><article><h3>liste-factures-filtre-echeance</h3><span class="pill">termine</span><p>Écrans relevés : liste-des-factures</p><p class="muted">Session : <code>simulation-2026-11-16-23h15-9c0a</code><br>4 étapes · 2.848 s · coût inconnu</p></article></div>
+<h2>Les 4 captures de Facturo v13</h2><p class="muted">Cliquez sur une capture pour l'ouvrir à sa taille d'origine. Un relevé partagé appartient au premier test qui le demande.</p><div class="captures"><figure><h3>tableau-de-bord · defaut</h3><div class="muted"><code>ca-du-mois-egal-total</code></div><a href="capture-1.png" target="_blank" rel="noopener"><img src="capture-1.png" alt="Capture réelle de tableau-de-bord, vue defaut, Facturo v13" width="1280" height="900"></a><figcaption>2026-11-16T23:15:36.902+00:00 · 1280 × 900<br><code>https://facturo-demo.vercel.app/v13/tableau-de-bord</code></figcaption><details><summary>Texte réellement relevé</summary><pre>Facturo
+Tableau de bord
+Factures
+Compte de démo
+Aujourd&#39;hui : 18/11/2026
+Se déconnecter
+Tableau de bord
+CA du mois
+1 240,00 €
+Factures du mois
+4
+Factures en retard
+3
+Prochaines échéances
+Numéro	Client	Échéance
+F-120	Café Mira	30/11/2026</pre></details></figure><figure><h3>liste-des-factures · defaut</h3><div class="muted"><code>ca-du-mois-egal-total</code></div><a href="capture-2.png" target="_blank" rel="noopener"><img src="capture-2.png" alt="Capture réelle de liste-des-factures, vue defaut, Facturo v13" width="1280" height="900"></a><figcaption>2026-11-16T23:15:37.635+00:00 · 1280 × 900<br><code>https://facturo-demo.vercel.app/v13/factures</code></figcaption><details><summary>Texte réellement relevé</summary><pre>Facturo
+Tableau de bord
+Factures
+Compte de démo
+Aujourd&#39;hui : 18/11/2026
+Se déconnecter
+Factures
+Filtrer : Toutes
+Exporter
+Numéro	Client	Échéance	Montant TTC
+
+F-118
+&#9;
+Atelier Brun
+	05/11/2026	320,00 €
+
+F-119
+&#9;
+Studio Lune
+	12/11/2026	480,00 €
+
+F-120
+&#9;
+Café Mira
+	30/11/2026	180,00 €
+
+F-121
+&#9;
+Garage Vélo
+	10/11/2026	440,00 €
+Total			1 420,00 €
+4 factures</pre></details></figure><figure><h3>detail-facture · defaut</h3><div class="muted"><code>detail-facture-total-egal-liste</code></div><a href="capture-3.png" target="_blank" rel="noopener"><img src="capture-3.png" alt="Capture réelle de detail-facture, vue defaut, Facturo v13" width="1280" height="900"></a><figcaption>2026-11-16T23:15:38.309+00:00 · 1280 × 900<br><code>https://facturo-demo.vercel.app/v13/factures/F-119</code></figcaption><details><summary>Texte réellement relevé</summary><pre>Facturo
+Tableau de bord
+Factures
+Compte de démo
+Aujourd&#39;hui : 18/11/2026
+Se déconnecter
+Facture F-119
+Client : Studio Lune
+Échéance : 12/11/2026
+En attente de paiement
+Désignation	Montant
+Maquette de site	300,00 €
+Intégration	180,00 €
+Total TTC	480,00 €
+Retour aux factures</pre></details></figure><figure><h3>liste-des-factures · filtre-echeance</h3><div class="muted"><code>liste-factures-filtre-echeance</code></div><a href="capture-4.png" target="_blank" rel="noopener"><img src="capture-4.png" alt="Capture réelle de liste-des-factures, vue filtre-echeance, Facturo v13" width="1280" height="900"></a><figcaption>2026-11-16T23:15:39.006+00:00 · 1280 × 900<br><code>https://facturo-demo.vercel.app/v13/factures?filtre=echeance-depassee</code></figcaption><details><summary>Texte réellement relevé</summary><pre>Facturo
+Tableau de bord
+Factures
+Compte de démo
+Aujourd&#39;hui : 18/11/2026
+Se déconnecter
+Factures
+Filtrer : Échéance dépassée
+Exporter
+Numéro	Client	Échéance	Montant TTC
+
+F-118
+&#9;
+Atelier Brun
+	05/11/2026	320,00 €
+
+F-119
+&#9;
+Studio Lune
+	12/11/2026	480,00 €
+
+F-120
+&#9;
+Café Mira
+	30/11/2026	180,00 €
+
+F-121
+&#9;
+Garage Vélo
+	10/11/2026	440,00 €
+Total			1 420,00 €
+4 factures</pre></details></figure></div>
+<h2>Fil horodaté du passage simulé</h2><div class="table-wrap"><table><thead><tr><th>Heure (UTC)</th><th>Étape</th><th>Action</th><th>Test / état session</th></tr></thead><tbody><tr><td><time>2026-11-16T23:15:36.18+00:00</time></td><td>1</td><td>Ouvre « tableau-de-bord » (defaut)</td><td><code>ca-du-mois-egal-total</code><br>en_cours</td></tr><tr><td><time>2026-11-16T23:15:36.907+00:00</time></td><td>2</td><td>Ouvre « liste-des-factures » (defaut)</td><td><code>ca-du-mois-egal-total</code><br>en_cours</td></tr><tr><td><time>2026-11-16T23:15:37.639+00:00</time></td><td>3</td><td>Ouvre « detail-facture » (defaut)</td><td><code>detail-facture-total-egal-liste</code><br>en_cours</td></tr><tr><td><time>2026-11-16T23:15:38.314+00:00</time></td><td>4</td><td>Ouvre « liste-des-factures » (filtre-echeance)</td><td><code>liste-factures-filtre-echeance</code><br>en_cours</td></tr></tbody></table></div>
+<footer><strong>Porte non validée : en attente du « go » d'Ali.</strong><p class="muted">Construit et vérifié : lecture des tests, captures navigateur, persistance et rapport. À vérifier avec une clé H : navigation autonome, outils réels, sessions muettes et coût mesuré. Aucun replay H disponible pour cette simulation.</p></footer>
+</main></body></html>
