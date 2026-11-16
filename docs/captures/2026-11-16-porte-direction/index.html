@@ -110,7 +110,32 @@
     passages/                    vide</pre>
 
   <h2>Avis du juge aveugle</h2>
-  <p id="juge" class="soft">En cours : un agent sans contexte regarde les 10 captures, d'abord seules, puis à côté de 8 références.</p>
+  <p class="soft">Un agent sans aucun contexte a regardé les 10 captures seules, puis à côté de 8 références de la banque (celles qui ont servi et d'autres, sans savoir lesquelles). Sa note n'est pas une mesure : c'est ton avis qui tranche.</p>
+  <div class="cols">
+    <div>
+      <h3>Son verdict : 6,5 sur 10, aucune source unique</h3>
+      <ul>
+        <li><strong>Pas un clone.</strong> « Aucune référence n'est la source évidente : c'est un composite. » Parenté la plus proche : US Graphics pour la structure (onglets en boîtes à filet noir, densité), PostHog pour le fond beige et les titres gras.</li>
+        <li><strong>Ce qui est propre au produit.</strong> Le surlignage posé sur la phrase de documentation avec sa ligne <code>regle:</code> dessous ; la preuve par l'équation en très grand ; le passage qui perd son jaune et devient souligné quand le test est accepté (« le meilleur détail de l'ensemble »).</li>
+        <li><strong>Ce qui reste générique.</strong> La coque (bandeau, 8 onglets, crème, boutons noirs) « irait à une quinzaine de produits sur vingt ». Le surligneur redevient banal quand il sert de fond de carte.</li>
+        <li><strong>Écran le plus fort :</strong> le rapport (8), puis l'équation géante de la relecture (6). <strong>Les plus faibles :</strong> le passage en direct (4, aucune couleur d'état, « l'écran vivant est le plus mort »), la comparaison (5, captures minuscules, trois navigations empilées), l'accueil (1, trop de petit texte gris, règles répétées).</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Corrections proposées, pas encore faites</h3>
+      <ol>
+        <li><strong>Captures du logiciel testé</strong> (4, 5, 6) : recadrées sur la zone utile et agrandies, pour que le texte se lise ; vignettes de la relecture sur toute la largeur.</li>
+        <li><strong>Plancher de lisibilité</strong> : rien sous 15 px, gris plus encré, zéro barré gardé seulement dans la chasse fixe.</li>
+        <li><strong>Rationner l'aplat</strong> : en relecture, le corail sur le titre et l'équation seulement ; en direct, ramener la couleur d'état sur l'étape courante et les sessions.</li>
+        <li><strong>Grille</strong> : compteurs alignés sur les titres, note qui suit le défilement (2, 3), rideau et carte de la dérive calés sur la page.</li>
+        <li><strong>Ce qui fait inachevé</strong> : « à choisir (T4) », « à calculer », « coût inconnu » sortis des titres ; règles entre écrans affichées une fois sur l'accueil ; compteurs « règles » et « tests » nommés pour ne plus sembler se contredire.</li>
+      </ol>
+      <p class="soft">Mon avis : l'idée tient et se reconnaît, l'exécution est inégale. Les écrans 6 et 8 sont au niveau, les écrans 4 et 5 ne le sont pas encore.</p>
+    </div>
+  </div>
+
+  <h2>Un constat à trancher pour le pitch</h2>
+  <p>La vue « pixels bruts » ne montre pas « du rouge partout ». Facturo est déterministe : pour le bouton déplacé, 1 320 pixels diffèrent sur 1 152 000. L'argument du cadrage (« la comparaison de pixels voit rouge partout, Horama ne montre que 2 écarts ») ne se voit donc pas sur ce logiciel. Il se verrait sur un logiciel dont les données ou le rendu bougent d'une visite à l'autre, ou sur le SaaS du pilote.</p>
 </main>
 </body>
 </html>
