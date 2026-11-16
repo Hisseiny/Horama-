@@ -25,6 +25,8 @@ Orchestrateur : Claude Code (Fable 5.2). Branche : `dev-nathan`. Méthode : `doc
 ### 17 h 54, N1 : migration Supabase
 - Devin a écrit `base/appliquer.mjs` (paquet `postgres` 3.4.9, installé dans `base/` hors du workspace pour ne pas toucher aux fichiers de la racine) en 232 s, sortie 0. Diff relu : 4 fichiers, tous dans `base/`, `001_init.sql` intact. Le juge du mode « smart » a laissé passer `pnpm install`.
 - **Bloqué sur la clé, pas sur le code.** `node --env-file=.env.local base/appliquer.mjs --verifier` : « Connexion impossible (code 28P01) » (mot de passe refusé). Diagnostic sans afficher la valeur : `SUPABASE_DB_URL` contient encore le texte `[YOUR-PASSWORD]` du modèle de Supabase. Branche `n1-migration` gardée, non fusionnée tant que le comptage n'est pas rejoué.
+- **17 h 57, résultat : tenu.** Mot de passe remplacé par Nathan, mais les crochets du modèle sont restés autour (`[motdepasse]`) : encore 28P01. Essai avec les crochets retirés en mémoire (sans modifier ni afficher la valeur) : connexion bonne, base vide (0 table sur 7). Migration appliquée de la même façon : « 7 tables sur 7, seau captures présent, RLS activée sur les 7 tables », code 0 ; relancée une fois (sans dégât, même sortie) ; `--verifier` seul : même sortie. Contrôle indépendant par l'API REST : lecture publique 200 sur les 7 tables, écriture avec la clé anon refusée (401). `001_init.sql` intact. Fusionné dans `dev-nathan`.
+- Reste à faire par Nathan, sans urgence : retirer les deux crochets dans `SUPABASE_DB_URL`. Plus aucune tâche du couloir ne dépend de cette variable.
 - `N8N_WEBHOOK_URL` est vide : la notification n8n (N11) sera notée « pas de webhook ».
 
 ### 17 h 50, N3 (en avance) : vault de Facturo
