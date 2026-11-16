@@ -156,13 +156,18 @@ export async function fitViewport(page) {
   return area;
 }
 
-// Puts the Horama layer (couche-horama.js) in every page to come; onPress receives what the layer reports at each
-// press. `passage` names the course (the layer forgets what another course left in the tab), `titre` is its banner.
-export async function installLayer(page, onPress, { passage = "", titre = "" } = {}) {
+// Puts the Horama layer (couche-horama.js) in every page to come, with the code of rough-notation beside it (nothing
+// is fetched by the page). onPress receives what the layer reports at each press of the agent, and again when a held
+// click is given back to the page ({ rejoue, retard_ms }); onChoice receives { id, choix } at the end of the course.
+// `passage` names the course (the layer forgets what another course left in the tab), `titre` is its banner, `direct`
+// leaves the clicks alone instead of holding them while the cursor travels.
+export async function installLayer(page, onPress, { passage = "", titre = "", direct = false, onChoice } = {}) {
   await page.send("Runtime.addBinding", { name: "horamaPress" });
-  page.on("Runtime.bindingCalled", ({ name, payload }) => name === "horamaPress" && onPress(JSON.parse(payload)));
+  await page.send("Runtime.addBinding", { name: "horamaChoix" });
+  page.on("Runtime.bindingCalled", ({ name, payload }) => (name === "horamaPress" ? onPress : name === "horamaChoix" ? onChoice : null)?.(JSON.parse(payload)));
+  const read = (file) => readFileSync(new URL(file, import.meta.url), "utf8");
   await page.send("Page.addScriptToEvaluateOnNewDocument", {
-    source: `${readFileSync(new URL("./couche-horama.js", import.meta.url), "utf8")}(${JSON.stringify(passage)}, ${JSON.stringify(titre)});`,
+    source: `(() => {\n${read("./node_modules/rough-notation/lib/rough-notation.iife.js")};\n${read("./couche-horama.js")}(${JSON.stringify(passage)}, ${JSON.stringify(titre)}, ${JSON.stringify({ direct })}, RoughNotation.annotate);\n})();`,
   });
 }
 
