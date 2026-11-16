@@ -135,3 +135,11 @@ Orchestrateur : Claude Code (Fable 5.2). Branche : `dev-nathan`. Méthode : `doc
 - Nathan demande qui fait quoi : tableau publié dans `docs/orchestrateurs/qui-fait-quoi.md` (scène : Nathan et son orchestrateur ; moteur : Ali ; visuel : le groupe). Accord de Nathan pour une mascotte provisoire très simple en attendant le visuel du groupe.
 - Quota Devin : 59 % utilisés.
 - Lancés en parallèle chez Devin (dossiers disjoints) : S1 (`automatisation/scene/` : mascotte, bulle, zones surlignées, parcours unique construit depuis les tests du vault) et S2 (`jugement/verification/` : relevé des valeurs depuis le texte de page, cinq règles, comparaison d'image selon le seuil de bruit). Interface entre les deux fixée dans les briefs : `verifierReleve(entree) → Constat[]`.
+
+### 22 h 40, S2 : vérification d'un écran pendant le parcours, tenu
+- PR #4 fusionnée par Nathan à 20 h 52 (UTC 19 h 52), `dev` récupéré. Toujours pas de branche `dev-ali` sur le dépôt.
+- Devin : 13 min, sortie 0, 10 fichiers (`jugement/` et `pnpm-lock.yaml`). `check` rejoué : 27 tests verts.
+- Sur les 4 écrans réels du parcours T7 (v13) contre les références v12 : CA du mois `VERIFIED_FAIL` à la liste (« 1 240,00 ≠ 1 420,00, écart 180,00 ») ; filtre `VERIFIED_FAIL` sur la vue filtrée (F-120, 30/11/2026, attendu avant le 18/11/2026) ; détail F-119 : égalité et somme `PASS` ; visuel : 1 zone sur la valeur du CA, bouton Exporter sur la liste, aucune zone sur le détail. Durée de `verifierReleve` avec image : 27 à 29 ms.
+- Correctif de l'orchestrateur (10 lignes, `jugement/verification/images.ts`) : une zone contenue dans la boîte d'une autre lui est rattachée. Le bouton Exporter donnait 4 zones (contour et texte, deux emplacements), il en donne 2. Règle ajoutée à `docs/decisions/2026-11-16-seuil-de-bruit.md`.
+- Choix de Devin gardés : une règle autre que `filtre` ne se lit que sur la vue `defaut` (sinon faux défaut dès que le filtre marche) ; compteur de factures contradictoire : `INCONCLUSIVE`.
+- Reste ouvert : l'ancien et le nouvel emplacement du bouton font encore deux doutes pour un seul déplacement (à relier en S3, ou par Holo).
