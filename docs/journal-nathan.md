@@ -164,3 +164,36 @@ Orchestrateur : Claude Code (Fable 5.2). Branche : `dev-nathan`. Méthode : `doc
 - Assemblage vérifié par l'orchestrateur : parcours scripté avec la vraie vérification sur une copie du vault (4 relevés, 3 questions, 3 décisions écrites).
 - **Parcours réel, agent H, vu et terminé par Nathan** (`node --env-file=.env.local automatisation/scene/parcours.mjs --plafond 20`) : 4 relevés sur 4, 13 étapes, parcours en 101,3 s (la mascotte présente chaque écran en 7 à 21 s), clic retenu 0,66 à 0,92 s, aucune relance. Nathan a répondu aux 3 questions à la souris (voulu, bug, voulu) ; 3 décisions écrites dans `vault-horama/facturo/decisions/` (laissées hors Git : ce sont des clics d'essai).
 - Défauts connus, listés par Devin : une règle conforme ne désigne pas ses deux valeurs sur la page ; le doute qui devient problème change de couleur hors champ ; clignotement de 54 à 76 ms de la couche à chaque capture ; pendant une question, les marques des autres constats restent visibles.
+
+### 0 h 30 (mardi 17), CLÔTURE de la session du lundi 16. Reprendre ici.
+**Consigne de Nathan** : clôturer, tout pousser pour qu'Ali puisse travailler dessus, reprendre demain avec le groupe, lui reposer les questions en attente.
+
+**État**
+- Tenus et fusionnés dans `dev-nathan` : N0 à N5, N6a, T7, S1, S2, S3-A, S3-B. Tableau à jour : `docs/orchestrateurs/qui-fait-quoi.md`.
+- Dernier parcours réel (agent H, 0 h 00) : 4 écrans, 101 s, 3 questions tranchées par Nathan à la souris, 3 décisions écrites dans le vault. Ces 3 décisions d'essai ont été **sorties du vault** après coup (`.orchestrateur/decisions-essai-2026-11-16/`, hors Git) pour que le prochain parcours reparte de zéro.
+- Plus rien ne tourne : aucun Devin, aucun pont `holo`, Chrome de l'agent et serveur local arrêtés. Aucun worktree ouvert.
+- Sur le Mac, hors Git : `~/.venvs/holo` (143 Mo), `~/.cache/selenium` (17 Mo), `.orchestrateur/` du dépôt (179 Mo, dont le profil Chrome de l'agent, 172 Mo).
+- Quota Devin : **75 % utilisés**, remise à zéro dans 5 jours (après la démo), aucun solde à la demande. Seuil d'arrêt de la méthode : 80 %.
+
+**Questions à reposer à Nathan à la reprise**
+1. Son avis sur le dernier parcours (curseur, mascotte, rythme, phrases, fin avec les boutons).
+2. Quota : (a) l'orchestrateur code lui-même les ajustements de la scène, (b) Devin gardé pour une ou deux grosses tâches, (c) achat de solde. Recommandation : (a).
+3. La réponse d'Ali sur le partage (`docs/decisions/2026-11-16-scene-en-direct.md`, dernière partie). Sa branche `dev-ali` n'existe toujours pas sur le dépôt.
+4. L'écran de la démo : au moins 900 px de haut utiles.
+
+**Suite, dans l'ordre**
+1. Corrections de la scène selon l'avis de Nathan, et ses défauts connus (voir `qui-fait-quoi.md`).
+2. Correction de la documentation après un « voulu » qui la contredit (le dernier maillon de la boucle, pas encore construit).
+3. Déclenchement par un déploiement Vercel.
+4. Tenue sur 5 à 10 parcours et vidéo de secours.
+5. Jonction avec le coureur d'Ali (écriture en base), remesure de T4, banc.
+
+**Pièges appris aujourd'hui (à relire avant de relancer)**
+- Devin se lance en `--permission-mode smart` (le mode `dangerous` est refusé à l'orchestrateur). Dans ce mode, son juge lui refuse : d'écrire hors de son worktree (rapport à la racine du worktree), de lancer un script qui appelle un service avec une clé (l'orchestrateur le lance), parfois `git commit` en fin de tâche (l'orchestrateur commite).
+- Un worktree neuf n'a pas de `node_modules` : y lancer `pnpm install` (et `pnpm install --ignore-workspace` dans `automatisation/scene/`) avant de lancer Devin.
+- `pnpm-lock.yaml` entre en conflit à chaque fusion de deux branches parallèles : garder celui du couloir, `pnpm install`.
+- Chrome visible : `--force-color-profile=srgb`, sinon 250 000 à 300 000 pixels d'écart avec les références.
+- La zone de page de 1280 × 900 ne tient pas sur l'écran intégré du Mac.
+- Le Chrome de l'agent reste ouvert après un parcours (port 9333) : le fermer avant de lancer un essai de Devin.
+- Ne jamais montrer à Nathan une commande de suppression dans un bloc de code s'il n'a pas à la taper tout de suite.
+- Le coût Devin d'une tâche d'une heure : environ 6 à 8 points de quota hebdomadaire.
