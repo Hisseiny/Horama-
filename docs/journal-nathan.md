@@ -129,3 +129,9 @@ Orchestrateur : Claude Code (Fable 5.2). Branche : `dev-nathan`. Méthode : `doc
 - Rapport : `docs/tests/2026-11-16-t7-navigateur-local.md` ; captures : `docs/captures/2026-11-16-t7/`.
 - Non mesuré : le texte de page pour le relevé des valeurs (les `.txt` existent, à exploiter en S2) ; la tenue sur plus de 3 sessions ; l'écran intégré seul du Mac (la fenêtre s'est ouverte sur l'écran externe, l'écran intégré n'a pas 900 px de haut utiles).
 - Conséquence : le plan de `docs/decisions/2026-11-16-scene-en-direct.md` tient. T1 et T2 de la spec sont répondus par ce montage (captures identiques ; le texte se lit dans la page). Suite : S1 (la scène avec la mascotte), S2 (vérification pendant le parcours).
+
+### 22 h 15, état des lieux et lancement de S1 et S2
+- PR #3 (changement de cap) fusionnée par Nathan. PR #4 ouverte : résultat de T7 pour Ali, lève l'attente sur A4.
+- Nathan demande qui fait quoi : tableau publié dans `docs/orchestrateurs/qui-fait-quoi.md` (scène : Nathan et son orchestrateur ; moteur : Ali ; visuel : le groupe). Accord de Nathan pour une mascotte provisoire très simple en attendant le visuel du groupe.
+- Quota Devin : 59 % utilisés.
+- Lancés en parallèle chez Devin (dossiers disjoints) : S1 (`automatisation/scene/` : mascotte, bulle, zones surlignées, parcours unique construit depuis les tests du vault) et S2 (`jugement/verification/` : relevé des valeurs depuis le texte de page, cinq règles, comparaison d'image selon le seuil de bruit). Interface entre les deux fixée dans les briefs : `verifierReleve(entree) → Constat[]`.
