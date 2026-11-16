@@ -1,0 +1,9 @@
+{
+  "id": "liste-factures-filtre-echeance",
+  "source": "notes-de-version/v13.md",
+  "passages_de_la_source": ["il n'affiche que les factures dont la date d'échéance est passée"],
+  "test_markdown": "contenu du test au format H",
+  "regles_calculables": [{ "type": "filtre", "colonne": "Échéance", "condition": "< aujourd'hui" }],
+  "questions": [{ "texte": "« échéance passée » inclut-elle le jour même ?", "choix": ["Oui", "Non"] }],
+  "statut": "propose"
+}

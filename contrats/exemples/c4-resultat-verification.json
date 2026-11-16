@@ -1,0 +1,16 @@
+{
+  "passage_id": "2026-11-18-14h02",
+  "version_testee": "13",
+  "version_reference": "12",
+  "test_id": "ca-du-mois-egal-total",
+  "statut": "VERIFIED_FAIL",
+  "ecrans": ["tableau-de-bord", "liste-des-factures"],
+  "valeurs": { "a": "1240.00", "b": "1420.00" },
+  "calcul": "1240.00 != 1420.00, écart 180.00",
+  "niveau_de_preuve": "relevé + calcul",
+  "ecarts_visuels": [{ "ecran": "liste-des-factures", "description": "bouton Exporter déplacé", "zone": { "x": 870, "y": 120 }, "statut": "SUSPECTED" }],
+  "captures": ["captures/2026-11-18-14h02/tableau-de-bord.png"],
+  "replay": "lien public de la session",
+  "duree_s": 0,
+  "cout_usd": 0
+}
