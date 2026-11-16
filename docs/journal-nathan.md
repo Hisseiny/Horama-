@@ -41,3 +41,7 @@ Orchestrateur : Claude Code (Fable 5.2). Branche : `dev-nathan`. Méthode : `doc
 ### 18 h 03, N4 : app Horama sur données factices (lancé en parallèle de N2, dossiers disjoints)
 - Direction posée avec la méthode `taste` avant le brief (note de goût du vault de Nathan lue, 5 références regardées) et annoncée à Nathan : outil de travail à composants standard, une signature (le surlignage d'état : jaune à trancher, lime conforme, corail défaut prouvé, pointillé non testée, mesure en marge), blocs pleins pour les verdicts, valeurs en très grand, Atkinson Hyperlegible Next et Mono, jetons de la spec.
 - À faire avant la porte : déposer les vraies captures de Facturo dans `interface/public/factice/`, passer les 10 captures au juge aveugle (agent frais).
+
+### 18 h 06, quota Devin et URL de base
+- Quota Devin lu sur `app.devin.ai/settings/usage` (second profil Chrome de Nathan) : **46 % du quota hebdomadaire utilisés**, remise à zéro dans 6 jours (donc après la démo), aucun solde à la demande. Seuil d'arrêt de la méthode : 80 % utilisés. À ce relevé, T6 et N1 sont finis, N2 et N4 sont en cours : le coût d'une tâche n'est pas encore mesuré. À relire à la fin de N2.
+- Nathan a retiré les crochets de `SUPABASE_DB_URL` : `node --env-file=.env.local base/appliquer.mjs --verifier` passe tel quel (7 tables sur 7, seau présent, RLS partout, code 0).
