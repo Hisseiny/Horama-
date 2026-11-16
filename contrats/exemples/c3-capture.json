@@ -1,0 +1,20 @@
+{
+  "passage_id": "2026-11-18-14h02-a1b2",
+  "test_id": "ca-du-mois-egal-total",
+  "session_id": "ses_demo_1",
+  "ecran": "liste-des-factures",
+  "vue": "defaut",
+  "version": "13",
+  "chemin": "2026-11-18-14h02-a1b2/ca-du-mois-egal-total/liste-des-factures--defaut.png",
+  "url": "https://example.supabase.co/storage/v1/object/public/captures/2026-11-18-14h02-a1b2/ca-du-mois-egal-total/liste-des-factures--defaut.png",
+  "largeur": 1280,
+  "hauteur": 900,
+  "defilement": [
+    0,
+    0
+  ],
+  "texte_page": "| Numéro | Client | Échéance | Montant TTC |\n| F-118 | Atelier Brun | 05/11/2026 | 320,00 € |\n…\n| Total | | | 1 420,00 € |",
+  "url_page": "https://facturo-demo.vercel.app/v13/factures",
+  "etape": 5,
+  "prise_le": "2026-11-18T14:02:41Z"
+}

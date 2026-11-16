@@ -1,0 +1,10 @@
+{
+  "name": "@horama/contrats",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "types.ts",
+  "types": "types.ts",
+  "exports": { ".": "./types.ts", "./exemples": "./exemples.ts" },
+  "scripts": { "check": "tsc -p tsconfig.json" }
+}

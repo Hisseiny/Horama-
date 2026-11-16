@@ -1,0 +1,51 @@
+{
+  "passage_id": "2026-11-18-14h02-a1b2",
+  "test_id": "ca-du-mois-egal-total",
+  "version_testee": "13",
+  "version_reference": "12",
+  "statut": "VERIFIED_FAIL",
+  "regle": {
+    "type": "egalite",
+    "a": {
+      "ecran": "tableau-de-bord",
+      "champ": "CA du mois"
+    },
+    "b": {
+      "ecran": "liste-des-factures",
+      "champ": "Total"
+    }
+  },
+  "ecrans": [
+    "tableau-de-bord",
+    "liste-des-factures"
+  ],
+  "version_reference_capture": "12",
+  "valeurs": {
+    "tableau-de-bord.CA du mois": "1240.00",
+    "liste-des-factures.Total": "1420.00"
+  },
+  "calcul": "1240.00 != 1420.00, écart 180.00",
+  "niveau_de_preuve": "releve + calcul",
+  "ecarts_visuels": [
+    {
+      "id": "ecart-1",
+      "ecran": "liste-des-factures",
+      "vue": "defaut",
+      "description": "Bouton « Exporter » déplacé du bas du tableau vers le haut à droite",
+      "zone": {
+        "x": 1060,
+        "y": 96,
+        "largeur": 140,
+        "hauteur": 44
+      },
+      "statut": "SUSPECTED"
+    }
+  ],
+  "pixels_bruts": {
+    "zones": 0,
+    "image_url": "à calculer"
+  },
+  "captures": [
+    "https://example.supabase.co/storage/v1/object/public/captures/2026-11-18-14h02-a1b2/ca-du-mois-egal-total/liste-des-factures--defaut.png"
+  ]
+}

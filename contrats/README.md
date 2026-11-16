@@ -1,16 +1,20 @@
-# Contrats entre pôles
+# Contrats entre les deux couloirs (v1)
 
-Les formats échangés entre pôles (plan de travail, section 2.3). Brouillon le lundi soir, gel le mardi 10 h (étiquette `contrats-v1`), gardien : Ali.
+La seule surface partagée entre le couloir Ali (agent) et le couloir Nathan (mémoire et preuve). Spec : `docs/specs/2026-11-16-technique.md`.
 
-| N° | Format | Produit par | Utilisé par | Exemple |
+- `types.ts` : les types (C1 à C8, règles calculables, surfaces `CoureurAgent` et `Verificateur`).
+- `exemples.ts` : un exemple typé de chaque contrat (données de démonstration du faux SaaS Facturo) ; `exemples/*.json` en sont les copies.
+- `../base/migrations/001_init.sql` : le schéma Supabase, miroir des types.
+
+| N° | Contrat | Écrit par | Lu par | Exemple |
 |---|---|---|---|---|
-| C1 | Test proposé | B | D, C | `exemples/c1-test-propose.json` |
-| C2 | Test accepté (Markdown au format H) | C | A | cadrage, section 10 |
-| C3 | Événement du fil | A | D | à écrire |
-| C4 | Résultat de vérification | B | D, C, E | `exemples/c4-resultat-verification.json` |
-| C5 | Décision humaine et correction de note | D | C | `exemples/c5-decision-humaine.json` |
-| C6 | Rapport de passage | A | D, C, E | à écrire |
-| C7 | Notification vers n8n | A | E | à écrire |
-| C8 | Ligne de mesure | A et B | C | à écrire |
+| C1 | `TestPropose` | Nathan (génération) | Nathan (écran 11.2) | `c1-test-propose.json` |
+| C2 | Fichier de test accepté, `TestAccepte` | Nathan (vault) | Ali (agent) | `c2-test-accepte.json` |
+| C3 | `Passage`, `EvenementFil`, `Capture` | Ali | Nathan | `c3-*.json` |
+| C4 | `ResultatVerification` | Nathan | Nathan, jury | `c4-resultat.json` |
+| C5 | `Decision` | Nathan | Nathan (vault) | `c5-decision.json` |
+| C6 | `RapportPassage` | Ali | Nathan | `c6-rapport.json` |
+| C7 | `NotificationRelecture` | Nathan | n8n | `c7-notification.json` |
+| C8 | `LigneMesure` | Nathan | banc | `c8-mesure.json` |
 
-Après le gel : aucun champ ajouté, renommé ou supprimé sans pull request approuvée par le producteur et les consommateurs.
+Gel : étiquette Git `contrats-v1`. Après le gel, aucun champ ajouté, renommé ou retypé sans décision écrite dans `docs/decisions/`, acceptée par Nathan et Ali.
