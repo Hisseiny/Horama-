@@ -1,0 +1,27 @@
+{
+  "model": "Qwen/Qwen3.8-27B",
+  "note": "notes-de-version/v13.md",
+  "pass": 1,
+  "valid": false,
+  "rulesRight": false,
+  "written": null,
+  "ms": 45007,
+  "tries": 1,
+  "inputTokens": null,
+  "outputTokens": null,
+  "costUsd": null,
+  "answered": false,
+  "problems": [
+    "Génération impossible (Qwen/Qwen3.8-27B, notes-de-version/v13.md) : délai de 45 s dépassé"
+  ],
+  "firstRefusal": [],
+  "calls": [
+    {
+      "model": "Qwen/Qwen3.8-27B",
+      "ms": 45006,
+      "status": 200,
+      "error": "délai de 45 s dépassé"
+    }
+  ],
+  "tests": []
+}

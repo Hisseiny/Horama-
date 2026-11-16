@@ -1,0 +1,180 @@
+{
+  "model": "openai/gpt-oss-120b",
+  "note": "produit/liste-des-factures.md",
+  "pass": 2,
+  "valid": true,
+  "rulesRight": true,
+  "written": null,
+  "ms": 16260,
+  "tries": 2,
+  "inputTokens": 5704,
+  "outputTokens": 1396,
+  "costUsd": 0.000489396,
+  "answered": true,
+  "problems": [],
+  "firstRefusal": [
+    "test 1 : « etapes » doit être une liste d'au moins 1 élément(s)"
+  ],
+  "calls": [
+    {
+      "model": "openai/gpt-oss-120b",
+      "ms": 10273,
+      "status": 200,
+      "content": "{\n  \"tests\": [\n    {\n      \"id\": \"liste-factures-verifications\",\n      \"titre\": \"Liste des factures : vérifications des règles\",\n      \"setup\": \"Connecté avec le compte de démo, sur la liste des factures, filtre Toutes.\",\n      \"etapes\": [],\n      \"resultat_attendu\": \"Les règles de la liste des factures sont respectées.\",\n      \"verifications\": [\n        \"FAIL if le total affiché est différent de la somme de la colonne Montant TTC.\",\n        \"FAIL if un montant n'est pas au format 1 420,00 €.\",\n        \"FAIL if une échéance n'est pas au format JJ/MM/AAAA.\",\n        \"FAIL if une case de la colonne Échéance est vide.\"\n      ],\n      \"releves\": [\n        {\n          \"ecran\": \"liste-des-factures\",\n          \"vue\": \"defaut\"\n        }\n      ],\n      \"regles_calculables\": [\n        {\n          \"type\": \"somme\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Montant TTC\",\n          \"cible\": \"Total\"\n        },\n        {\n          \"type\": \"format\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Montant TTC\",\n          \"motif\": \"montant-fr\"\n        },\n        {\n          \"type\": \"format\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Échéance\",\n          \"motif\": \"date-fr\"\n        },\n        {\n          \"type\": \"presence\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Échéance\"\n        }\n      ],\n      \"passages_de_la_source\": [\n        \"Le total en bas du tableau est la somme de la colonne « Montant TTC ».\",\n        \"Les montants s'affichent au format 1 420,00 €.\",\n        \"Les échéances s'affichent au format JJ/MM/AAAA.\",\n        \"Chaque facture a une échéance.\"\n      ],\n      \"questions\": []\n    }\n  ]\n}",
+      "inputTokens": 2600,
+      "outputTokens": 905,
+      "body": {
+        "id": "gen-1794851719-c5fWfWFNMtI3V42gej2u",
+        "object": "chat.completion",
+        "created": 1794851719,
+        "model": "openai/gpt-oss-120b",
+        "provider": "PrimeIntellect",
+        "system_fingerprint": "vllm-0.32.0-69704d40",
+        "service_tier": null,
+        "choices": [
+          {
+            "index": 0,
+            "logprobs": null,
+            "finish_reason": "stop",
+            "native_finish_reason": "stop",
+            "message": {
+              "role": "assistant",
+              "content": "{\n  \"tests\": [\n    {\n      \"id\": \"liste-factures-verifications\",\n      \"titre\": \"Liste des factures : vérifications des règles\",\n      \"setup\": \"Connecté avec le compte de démo, sur la liste des factures, filtre Toutes.\",\n      \"etapes\": [],\n      \"resultat_attendu\": \"Les règles de la liste des factures sont respectées.\",\n      \"verifications\": [\n        \"FAIL if le total affiché est différent de la somme de la colonne Montant TTC.\",\n        \"FAIL if un montant n'est pas au format 1 420,00 €.\",\n        \"FAIL if une échéance n'est pas au format JJ/MM/AAAA.\",\n        \"FAIL if une case de la colonne Échéance est vide.\"\n      ],\n      \"releves\": [\n        {\n          \"ecran\": \"liste-des-factures\",\n          \"vue\": \"defaut\"\n        }\n      ],\n      \"regles_calculables\": [\n        {\n          \"type\": \"somme\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Montant TTC\",\n          \"cible\": \"Total\"\n        },\n        {\n          \"type\": \"format\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Montant TTC\",\n          \"motif\": \"montant-fr\"\n        },\n        {\n          \"type\": \"format\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Échéance\",\n          \"motif\": \"date-fr\"\n        },\n        {\n          \"type\": \"presence\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Échéance\"\n        }\n      ],\n      \"passages_de_la_source\": [\n        \"Le total en bas du tableau est la somme de la colonne « Montant TTC ».\",\n        \"Les montants s'affichent au format 1 420,00 €.\",\n        \"Les échéances s'affichent au format JJ/MM/AAAA.\",\n        \"Chaque facture a une échéance.\"\n      ],\n      \"questions\": []\n    }\n  ]\n}",
+              "refusal": null,
+              "reasoning": null
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 2600,
+          "completion_tokens": 905,
+          "total_tokens": 3505,
+          "cost": 0.000263541,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 64,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0.000263541,
+            "upstream_inference_prompt_cost": 0.000150416,
+            "upstream_inference_completions_cost": 0.000113125
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 0,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      },
+      "rejections": [
+        "test 1 : « etapes » doit être une liste d'au moins 1 élément(s)"
+      ]
+    },
+    {
+      "model": "openai/gpt-oss-120b",
+      "ms": 5987,
+      "status": 200,
+      "content": "{\n  \"tests\": [\n    {\n      \"id\": \"liste-factures-verifications\",\n      \"titre\": \"Liste des factures : vérifications des règles\",\n      \"setup\": \"Connecté avec le compte de démo, sur la liste des factures, filtre Toutes.\",\n      \"etapes\": [\n        \"Vérifier l'affichage du tableau.\"\n      ],\n      \"resultat_attendu\": \"Les règles de la liste des factures sont respectées.\",\n      \"verifications\": [\n        \"FAIL if le total affiché est différent de la somme de la colonne Montant TTC.\",\n        \"FAIL if un montant n'est pas au format 1 420,00 €.\",\n        \"FAIL if une échéance n'est pas au format JJ/MM/AAAA.\",\n        \"FAIL if une case de la colonne Échéance est vide.\"\n      ],\n      \"releves\": [\n        {\n          \"ecran\": \"liste-des-factures\",\n          \"vue\": \"defaut\"\n        }\n      ],\n      \"regles_calculables\": [\n        {\n          \"type\": \"somme\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Montant TTC\",\n          \"cible\": \"Total\"\n        },\n        {\n          \"type\": \"format\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Montant TTC\",\n          \"motif\": \"montant-fr\"\n        },\n        {\n          \"type\": \"format\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Échéance\",\n          \"motif\": \"date-fr\"\n        },\n        {\n          \"type\": \"presence\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Échéance\"\n        }\n      ],\n      \"passages_de_la_source\": [\n        \"Le total en bas du tableau est la somme de la colonne « Montant TTC ».\",\n        \"Les montants s'affichent au format 1 420,00 €.\",\n        \"Les échéances s'affichent au format JJ/MM/AAAA.\",\n        \"Chaque facture a une échéance.\"\n      ],\n      \"questions\": []\n    }\n  ]\n}",
+      "inputTokens": 3104,
+      "outputTokens": 491,
+      "body": {
+        "id": "gen-1794851730-dDbikGPSff1pQvdPvtPr",
+        "object": "chat.completion",
+        "created": 1794851730,
+        "model": "openai/gpt-oss-120b",
+        "provider": "PrimeIntellect",
+        "system_fingerprint": "vllm-0.32.0-69704d40",
+        "service_tier": null,
+        "choices": [
+          {
+            "index": 0,
+            "logprobs": null,
+            "finish_reason": "stop",
+            "native_finish_reason": "stop",
+            "message": {
+              "role": "assistant",
+              "content": "{\n  \"tests\": [\n    {\n      \"id\": \"liste-factures-verifications\",\n      \"titre\": \"Liste des factures : vérifications des règles\",\n      \"setup\": \"Connecté avec le compte de démo, sur la liste des factures, filtre Toutes.\",\n      \"etapes\": [\n        \"Vérifier l'affichage du tableau.\"\n      ],\n      \"resultat_attendu\": \"Les règles de la liste des factures sont respectées.\",\n      \"verifications\": [\n        \"FAIL if le total affiché est différent de la somme de la colonne Montant TTC.\",\n        \"FAIL if un montant n'est pas au format 1 420,00 €.\",\n        \"FAIL if une échéance n'est pas au format JJ/MM/AAAA.\",\n        \"FAIL if une case de la colonne Échéance est vide.\"\n      ],\n      \"releves\": [\n        {\n          \"ecran\": \"liste-des-factures\",\n          \"vue\": \"defaut\"\n        }\n      ],\n      \"regles_calculables\": [\n        {\n          \"type\": \"somme\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Montant TTC\",\n          \"cible\": \"Total\"\n        },\n        {\n          \"type\": \"format\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Montant TTC\",\n          \"motif\": \"montant-fr\"\n        },\n        {\n          \"type\": \"format\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Échéance\",\n          \"motif\": \"date-fr\"\n        },\n        {\n          \"type\": \"presence\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Échéance\"\n        }\n      ],\n      \"passages_de_la_source\": [\n        \"Le total en bas du tableau est la somme de la colonne « Montant TTC ».\",\n        \"Les montants s'affichent au format 1 420,00 €.\",\n        \"Les échéances s'affichent au format JJ/MM/AAAA.\",\n        \"Chaque facture a une échéance.\"\n      ],\n      \"questions\": []\n    }\n  ]\n}",
+              "refusal": null,
+              "reasoning": null
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 3104,
+          "completion_tokens": 491,
+          "total_tokens": 3595,
+          "cost": 0.000225855,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 2592,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0.000225855,
+            "upstream_inference_prompt_cost": 0.00016448,
+            "upstream_inference_completions_cost": 0.000061375
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 0,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      },
+      "rejections": []
+    }
+  ],
+  "tests": [
+    {
+      "id": "liste-factures-verifications",
+      "logiciel": "facturo",
+      "source": "produit/liste-des-factures.md",
+      "passages_de_la_source": [
+        "Le total en bas du tableau est la somme de la colonne « Montant TTC ».",
+        "Les montants s'affichent au format 1 420,00 €.",
+        "Les échéances s'affichent au format JJ/MM/AAAA.",
+        "Chaque facture a une échéance."
+      ],
+      "releves": [
+        {
+          "ecran": "liste-des-factures",
+          "vue": "defaut"
+        }
+      ],
+      "test_markdown": "# Liste des factures : vérifications des règles\n\n## Setup\nConnecté avec le compte de démo, sur la liste des factures, filtre Toutes.\n\n## Task\n1. Vérifier l'affichage du tableau.\n\n## Expected Result\nLes règles de la liste des factures sont respectées.\n\n## Verification\n- FAIL if le total affiché est différent de la somme de la colonne Montant TTC.\n- FAIL if un montant n'est pas au format 1 420,00 €.\n- FAIL if une échéance n'est pas au format JJ/MM/AAAA.\n- FAIL if une case de la colonne Échéance est vide.",
+      "regles_calculables": [
+        {
+          "type": "somme",
+          "ecran": "liste-des-factures",
+          "colonne": "Montant TTC",
+          "cible": "Total"
+        },
+        {
+          "type": "format",
+          "ecran": "liste-des-factures",
+          "colonne": "Montant TTC",
+          "motif": "montant-fr"
+        },
+        {
+          "type": "format",
+          "ecran": "liste-des-factures",
+          "colonne": "Échéance",
+          "motif": "date-fr"
+        },
+        {
+          "type": "presence",
+          "ecran": "liste-des-factures",
+          "colonne": "Échéance"
+        }
+      ],
+      "questions": [],
+      "statut": "propose",
+      "modele": "openai/gpt-oss-120b"
+    }
+  ]
+}
