@@ -62,3 +62,10 @@ Orchestrateur : Claude Code (Fable 5.2). Branche : `dev-nathan`. Méthode : `doc
 - 18 h 45 : PR `dev-nathan` vers `dev` ouverte, fusionnable : https://github.com/Hisseiny/Horama-/pull/2
 - Quota Devin : 48 % utilisés (46 % à 18 h 06). Deux points pour la seconde moitié de N2 et le premier quart d'heure de N4 : une tâche de la taille de N2 coûte de l'ordre de 2 à 3 points (estimation sur un seul écart, à affiner après N4).
 - Les 7 captures de Facturo sont copiées dans `interface/public/factice/` du worktree de N4 (les maquettes affichent de vraies captures).
+
+### 19 h 10, N5 : `@horama/memoire`, tenu (fait avant la porte : il ne dépend pas de la direction visuelle)
+- PR #2 fusionnée par Nathan à 18 h 23, `dev` récupéré dans `dev-nathan`. `dev-ali` n'existe pas encore sur le dépôt.
+- Devin : 14 min, sortie 0, 17 fichiers (16 dans `memoire/`, plus `pnpm-lock.yaml`). Rapport écrit dans le worktree (consigne changée après le refus d'écriture de N2).
+- Rejoué par l'orchestrateur : `pnpm --filter @horama/memoire run check` vert (27 tests) ; `vault-horama/` intact ; lecture du vrai vault par le paquet : 6 notes, 13 règles dont 10 testables, les 3 tests C2 écrits à la main passent le lecteur (critère de N3 tenu). Aller-retour C2 sans perte, à l'octet près, couvert par les tests. `accepted-tests.ts` relu.
+- Points laissés ouverts par Devin, à traiter en N9 : F32 ne regarde que les écarts visuels (un bug de règle sur le même écran ne bloque pas la validation d'une référence) ; l'app doit repartir de la décision rendue par `appliquerCorrection`. Le paquet s'importe en `.ts` : l'app doit le mettre dans `transpilePackages`.
+- T4 préparé : le routeur Hugging Face liste 164 modèles ; candidats ouverts à comparer en N6 : `openai/gpt-oss-120b`, `Qwen/Qwen3.8-27B`, réserve `zai-org/GLM-5.3-Flash`.
