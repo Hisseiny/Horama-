@@ -1,0 +1,40 @@
+/* Step 1. The documentation itself, screen by screen, each rule carrying its state. */
+
+.couverture { display: grid; grid-template-columns: 1fr 380px; gap: 64px; align-items: start; }
+.couverture-vault { margin-top: 10px; }
+.couverture-phrase { margin-top: 36px; font-size: 2.5rem; line-height: 1.1; font-weight: 800; letter-spacing: -0.02em; }
+
+/* One cell per rule, drawn like its highlight. */
+.couverture-barre { display: flex; gap: 5px; margin-top: 18px; }
+.case { flex: 1; height: 34px; }
+.case-defaut { background: var(--etat-defaut); }
+.case-conforme { background: var(--etat-conforme); }
+.case-a_trancher { background: var(--etat-a-trancher); }
+.case-acceptee { border-bottom: 3px solid var(--encre); }
+.case-non_testee { border-bottom: 3px dotted var(--encre); }
+
+.couverture-detail { display: flex; flex-wrap: wrap; gap: 6px 22px; margin-top: 14px; font-size: 1.15rem; }
+
+.couverture-actions { display: grid; gap: 16px; }
+.couverture-actions .bouton { width: 100%; padding: 18px 22px; font-size: 1.25rem; }
+.couverture-actions .bloc { display: grid; gap: 6px; }
+
+.lecture { display: flex; flex-wrap: wrap; gap: 6px 22px; margin-top: 40px; padding: 14px 0; font-size: 17px; border-block: 1px solid var(--encre); }
+
+.ecran { display: grid; grid-template-columns: 340px 1fr; gap: 56px; padding: 40px 0; border-bottom: 1px solid var(--encre); }
+.ecran-fiche { display: grid; gap: 14px; align-content: start; }
+.ecran-fiche h3 { margin-top: 10px; }
+.ecran-tests { display: grid; gap: 12px; }
+
+.verdict-titre { font-size: 1.6rem; line-height: 1.15; font-weight: 800; }
+.verdict-mesure { margin-top: 12px; padding-top: 12px; font-size: 1.1rem; font-weight: 700; border-top: 1px solid var(--encre); }
+.bloc-conforme.verdict { padding-block: 14px; }
+.bloc-conforme .verdict-titre { font-size: 1.25rem; }
+
+.ecran-regles { display: grid; gap: 28px; align-content: start; }
+.regle { display: grid; grid-template-columns: 1fr 330px; gap: 32px; padding: 14px 0; border-top: 1px solid var(--filet-leger); }
+.ecran-regles ul { margin-top: 8px; }
+.regle-phrase { font-size: 1.15rem; line-height: 1.55; }
+.regle-ligne { margin-top: 4px; font-size: 16px; }
+.regle-marge { font-size: 17px; color: var(--texte-second); }
+.regle-marge b { font-size: 1.15rem; font-weight: 700; color: var(--encre); white-space: nowrap; }

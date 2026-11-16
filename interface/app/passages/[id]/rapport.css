@@ -1,0 +1,24 @@
+/* Step 8. A report reads top down: the sentence, then one row per test, taller when the verdict is heavier. */
+
+.rapport-tete { display: flex; align-items: end; justify-content: space-between; gap: 40px; }
+.rapport-tete h1 + p { margin-top: 10px; }
+
+.rapport-resume { margin-top: 32px; padding: 28px 0; font-size: 2.6rem; line-height: 1.45; font-weight: 800; letter-spacing: -0.02em; border-block: 1px solid var(--encre); }
+
+.rapport { margin-top: 28px; }
+.rapport td { padding: 20px 16px; border-bottom: 1px solid var(--encre); }
+.rapport td p + p, .rapport li + li { margin-top: 6px; }
+
+.rapport th:nth-child(1) { width: 27%; }
+.rapport th:nth-child(3) { width: 12%; }
+.rapport th:nth-child(4), .rapport th:nth-child(5) { width: 15%; }
+.rapport td:nth-child(n + 3) { font-size: 17px; }
+.rapport-verdict { font-size: 1.25rem; font-weight: 800; }
+.rapport-statut.bloc-defaut { padding-block: 28px 32px; }
+.bloc-defaut .rapport-verdict { font-size: 1.75rem; line-height: 1.15; }
+.rapport-mesure { font-size: 1.05rem; font-weight: 700; }
+.bloc-defaut .rapport-mesure { margin-top: 14px; }
+
+.rapport-regle { font-size: 1.25rem; line-height: 1.6; margin-bottom: 8px; }
+.rapport-ecart { margin-top: 14px !important; }
+.rapport-duree { white-space: nowrap; }

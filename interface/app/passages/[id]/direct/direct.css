@@ -1,0 +1,22 @@
+/* Step 4. The wait is the show: a thread that grows line by line, the capture in progress, no animation. */
+
+.direct-tete { display: flex; align-items: end; justify-content: space-between; gap: 40px; padding-bottom: 24px; border-bottom: 1px solid var(--encre); }
+.direct-tete h1 + p { margin-top: 10px; }
+.direct-compteurs { display: flex; align-items: baseline; gap: 12px; font-size: 1.25rem; white-space: nowrap; }
+.direct-compteurs b { font-size: min(4rem, 4.8vw); line-height: 1; font-weight: 700; letter-spacing: -0.02em; }
+.direct-compteurs b + b, .direct-compteurs b:nth-of-type(2) { margin-left: 28px; }
+
+.direct-colonnes { display: grid; grid-template-columns: 460px 1fr; gap: 56px; align-items: start; margin-top: 32px; }
+.direct-colonnes h2 { margin-bottom: 16px; }
+
+.fil { border-top: 1px solid var(--encre); }
+.fil li { display: grid; grid-template-columns: 76px 1fr; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--filet-leger); }
+.fil li > span { font-size: 1.15rem; padding-top: 1px; }
+.fil-action { font-size: 1.15rem; line-height: 1.35; }
+.fil li[aria-current] { border-bottom-color: var(--encre); }
+.fil li[aria-current] .fil-action, .fil li[aria-current] > span { font-weight: 700; }
+.fil-suite { margin: 16px 0; }
+
+.sessions { margin-top: 28px; }
+.sessions caption { padding-bottom: 6px; text-align: left; font-size: 1.15rem; font-weight: 700; }
+.sessions td:nth-child(n + 3) { white-space: nowrap; }

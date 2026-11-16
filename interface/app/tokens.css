@@ -1,0 +1,19 @@
+/* Jetons provisoires (une designer les remplacera). Aucune couleur n'est écrite ailleurs que dans ce fichier. */
+:root {
+  --fond: #f2eee5; /* crème */
+  --encre: #232629; /* graphite */
+
+  /* Les trois couleurs ne disent qu'un état, jamais un décor. */
+  --etat-conforme: #c9ee63; /* lime */
+  --etat-defaut: #ff6e57; /* corail */
+  --etat-a-trancher: #f4df73; /* jaune */
+
+  /* Nuances dérivées du crème et du graphite. */
+  --surface: #fbf9f4;
+  --filet-leger: #cdc6b6;
+  --texte-second: #565b5f;
+
+  --rayon: 6px;
+  --police-texte: "Atkinson Hyperlegible Next Variable", system-ui, sans-serif;
+  --police-mono: "Atkinson Hyperlegible Mono Variable", ui-monospace, monospace;
+}

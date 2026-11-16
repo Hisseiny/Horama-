@@ -1,0 +1,36 @@
+/* Steps 2 and 3. The note on the left, the tests written from it on the right, the same colour on both sides. */
+
+.note-tete { display: flex; align-items: end; justify-content: space-between; gap: 40px; padding-bottom: 24px; border-bottom: 1px solid var(--encre); }
+.note-tete .mono { margin-top: 10px; }
+.note-bilan { font-size: 2rem; line-height: 1.15; font-weight: 800; letter-spacing: -0.01em; text-align: right; }
+
+.note-colonnes { display: grid; grid-template-columns: 5fr 7fr; gap: 56px; align-items: start; margin-top: 32px; }
+.note-source { position: sticky; top: 24px; display: grid; gap: 12px; }
+
+.note { padding: 28px 32px 32px; font-size: 1.3rem; line-height: 1.75; background: var(--surface); border: 1px solid var(--encre); border-radius: var(--rayon); }
+.note pre { margin: 0 0 20px; padding-bottom: 16px; font-size: 16px; line-height: 1.5; border-bottom: 1px solid var(--filet-leger); }
+.note-titre { margin-bottom: 12px; font-size: 1.75rem; line-height: 1.2; font-weight: 800; }
+.note-section { margin-top: 16px; font-weight: 700; }
+.note-puce { margin-top: 14px; padding-left: 1.1em; text-indent: -1.1em; }
+.note-puce::before { content: "•"; display: inline-block; width: 1.1em; text-indent: 0; }
+.note-regle { font-size: 16px; padding-left: 1.5em; }
+
+.test { display: grid; gap: 12px; }
+.test + .test { margin-top: 48px; padding-top: 40px; border-top: 1px solid var(--encre); }
+.test-source { font-size: 1.15rem; line-height: 1.7; }
+
+.test-h { margin-top: 8px; border-top: 1px solid var(--encre); }
+.test-h > div { display: grid; grid-template-columns: 170px 1fr; gap: 24px; padding: 14px 0; border-bottom: 1px solid var(--filet-leger); }
+.test-h dt { font-weight: 700; }
+.test-h dd { font-size: 17px; line-height: 1.65; white-space: pre-wrap; }
+.test-h dd p + p { margin-top: 6px; }
+.test-edition { width: 100%; margin-top: 8px; padding: 16px; font-size: 17px; line-height: 1.6; color: var(--encre); background: var(--surface); border: 1px solid var(--encre); border-radius: var(--rayon); }
+
+.question { display: grid; gap: 10px; margin-top: 12px; }
+.question-texte { font-size: 1.5rem; line-height: 1.25; font-weight: 700; }
+.question-reponse { font-size: 1.5rem; font-weight: 800; }
+.question .bouton-second { background: var(--surface); }
+
+.test-actions { margin-top: 12px; }
+.test-fichier { display: grid; gap: 6px; margin-top: 4px; border-width: 2px; }
+.test-chemin { font-size: 1.35rem; font-weight: 700; overflow-wrap: anywhere; }
