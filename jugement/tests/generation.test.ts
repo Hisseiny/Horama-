@@ -10,8 +10,9 @@ import { proposerTests } from "../index.ts";
 import { validateAnswer } from "../generation/validation.ts";
 
 // No test reaches the network: the answers are files of tests/reponses/, and fetch is replaced when proposerTests is called.
-// v13.json and v13--choix-invalide.json are answers of openai/gpt-oss-120b recorded on 2026-11-16 (second and first try of the same call);
-// liste-des-factures--ecrite-a-la-main.json is written by hand.
+// v13.json and v13--choix-invalide.json are answers of openai/gpt-oss-120b of 2026-11-16 (second and first try of the same call),
+// transcribed from the trace of the call (same content, JSON layout not guaranteed); liste-des-factures--ecrite-a-la-main.json is written by hand.
+// To be replaced by files of generation/essais/ once T4 has run.
 const VAULT = fileURLToPath(new URL("../../vault-horama", import.meta.url));
 const V13 = "notes-de-version/v13.md";
 const LISTE = "produit/liste-des-factures.md";
