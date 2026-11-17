@@ -1,6 +1,6 @@
 # @horama/jugement
 
-Deux briques : la génération des tests depuis une note du vault (`generation/`, `proposerTests`, voir `generation/comparaison.md`) et la vérification d'un écran pendant le parcours de l'agent (`verification/`, décrite ici).
+Trois briques : la génération des tests depuis une note du vault (`generation/`, `proposerTests`, voir `generation/comparaison.md`), la vérification d'un écran pendant le parcours de l'agent (`verification/`, décrite ici) et la correction de note proposée après un « voulu » (`correction/`, en fin de fichier).
 
 Vérifier : `pnpm --filter @horama/jugement run check` (types, puis tests sans réseau).
 
@@ -81,3 +81,18 @@ Rend la `Decision` du contrat pour un constat tranché « bug » ou « voulu »,
 ### Dépendance
 
 `pngjs` 7.0.0 (lecture des PNG), déjà utilisée par `faux-saas` et `automatisation/scene`. Elle n'a pas de types : `verification/pngjs.d.ts` déclare la partie utilisée.
+
+## Correction de note après un « voulu » (`correction/`, tâche 5.2)
+
+`proposerCorrection(vault, decision, options)` reçoit une `Decision` « voulu » (celle de `versDecision`) et rend `{ decision, raison, modele, duree_ms, essais }`. Quand la note de l'écran est contredite, `decision.correction_de_note` est rempli (`fichier`, `avant`, `apres`, `statut: "proposee"`), prêt pour `appliquerCorrection` (`@horama/memoire`) quand l'humain accepte. Sinon la décision revient sans correction et `raison` dit pourquoi, à montrer à l'humain.
+
+- Ce que voit le modèle : la note de l'écran (`entete.ecran` = `decision.ecran`), la note de version `notes-de-version/v<version>.md` si elle existe, `decision.ecart`, `decision.pourquoi`, et `options.indices`. **La scène doit passer en indice la question de `formuler`** : c'est elle qui porte la nouvelle position (« … il est maintenant en haut à droite »), que `ecart` ne dit pas.
+- Ce que fait le modèle : il recopie la phrase contredite et écrit la nouvelle (routeur Hugging Face, `DEFAULT_MODEL`, température 0).
+- Ce que vérifie le code, sinon un second essai avec les raisons, puis pas de correction :
+  - `avant` apparaît exactement une fois dans la note (la même règle que `appliquerCorrection`), sur une ligne du corps : jamais l'en-tête, un titre, ni la partie « Règles » (une règle ne se corrige pas par une phrase) ;
+  - `apres` est une seule phrase, différente de `avant`, sans version ; chacun de ses libellés entre « » vient de ce que le modèle a reçu (rien d'inventé) ;
+  - « (depuis la version N) » est ajouté par le code, avant le point final.
+- Aucune phrase contredite, ou nouvel état inconnu : pas de correction, ce n'est pas une erreur. Un bug, ou un écran sans note : aucun appel au modèle.
+- Un appel en échec (réseau, délai de 45 s, code HTTP) ne lève rien : la décision revient sans correction, `raison` donne le code et le message du service, jamais le jeton.
+
+Mesure : `node --env-file=.env.local jugement/scripts/t52-correction.ts [modèle …]`, sur les 5 changements « voulu » de `faux-saas/verite.json`, 3 passes chacun ; écrit `docs/tests/2026-11-17-correction.md`.
