@@ -44,10 +44,17 @@ export async function ouvrirNavigateur({ port, scene, findHolo, startBridge }: {
   } catch (error) { page.close(); throw error; }
   return {
     async relever() {
+      // No hover in a capture: H leaves its pointer where it clicked. Out by the side, not the top (« exit intent »
+      // pop-ups watch the top); not put back, H sends the point of each action. Then hover transitions end, 1 s at most.
+      await page.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: -10, y: 450 });
       const seen = await scene.evaluate(page, `(async () => {
         await document.fonts.ready;
         scrollTo(0, 0);
-        await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+        const frames = () => new Promise((done) => { requestAnimationFrame(() => requestAnimationFrame(done)); setTimeout(done, 300); });
+        await frames();
+        const transitions = document.getAnimations().filter((animation) => animation instanceof CSSTransition).map((animation) => animation.finished.catch(() => {}));
+        await Promise.race([Promise.all(transitions), new Promise((done) => setTimeout(done, 1000))]);
+        await frames();
         return { texte: document.body.innerText, url_page: location.href, largeur: innerWidth, hauteur: innerHeight, defilement: [scrollX, scrollY], densite: devicePixelRatio };
       })()`);
       if (seen.largeur !== 1280 || seen.hauteur !== 900 || seen.densite !== 1) throw new Error("Dimensions de capture incompatibles.");
