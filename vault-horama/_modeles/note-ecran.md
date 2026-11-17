@@ -10,6 +10,8 @@ url: /notre-adn
 code: []
 # États nommés de la page atteints par une action (ex. [anglais] après un changement de langue) ; vide si la page n'a que son état par défaut.
 vues: []
+# Zones de la page qui changent à chaque visite (photo qui tourne, vidéo) : non comparées à la référence. Pixels de la page en 1280 × 900.
+zones_ignorees: []
 ---
 
 # Titre de la page, tel que le site l'affiche
@@ -22,4 +24,4 @@ Une puce par règle vérifiable, avec sa ligne `regle:` juste en dessous quand e
 
 - Le chiffre « … » de cette page est le même que celui de la page « … » : voir [[regles-entre-pages]].
 
-Les règles qui portent sur deux pages s'écrivent dans `regles-entre-pages.md` (dans `produit/`), au format des règles `egalite` de `vault-horama/facturo/produit/regles-entre-ecrans.md`.
+Les règles qui portent sur deux pages s'écrivent dans `regles-entre-pages.md` (dans `produit/`), au format des règles `egalite` de `vault-horama/facturo/produit/regles-entre-ecrans.md`. Quand le chiffre est écrit juste au-dessus de son libellé (« 3-5 » puis « HACKATHONS PAR AN »), le champ s'écrit `HACKATHONS PAR AN (chiffre au-dessus)`. Une plage (« 3-5 », « 3 à 5 », « de 3 à 5 ») vaut la même chose quelle que soit son écriture. Exemple : `vault-horama/eugenia/produit/regles-entre-pages.md`.

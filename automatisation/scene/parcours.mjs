@@ -22,7 +22,7 @@ import { join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { BaseMemoire, construireConsigne, creerBaseSupabase, creerCoureur } from "../../agent/index.ts";
 import { libelleAction } from "../../agent/src/session.ts";
-import { appliquerCorrection, ecrireDecision, ecrireReference, lireDecisions, lireReferences, refuserCorrection } from "../../memoire/index.ts";
+import { appliquerCorrection, ecrireDecision, ecrireReference, lireDecisions, lireNotes, lireReferences, refuserCorrection } from "../../memoire/index.ts";
 import { findHolo, startBridge, stopIfMissing } from "./agent-h.mjs";
 import { creerEcrivainMemoire, creerEcrivainSupabase } from "./decisions.mjs";
 import { HEIGHT, WIDTH, capture, clickAt, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, layer, navigate, openChrome, option, say, sleep, waitFor } from "./scene.mjs";
@@ -65,6 +65,9 @@ try {
   missing.push(`La consigne du coureur ne se construit pas : ${error.message}`);
 }
 const tests = consigne?.tests ?? [];
+// Zones of a screen that change at each visit (a rotating photo), declared in its note: not compared to the reference.
+const IGNORED = new Map(lireNotes(VAULT, LOGICIEL).map((note) => [note.entete.ecran, note.entete.zones_ignorees ?? []]));
+const ignored = (ecran) => IGNORED.get(ecran) ?? [];
 const dropped = consigne?.dropped ?? [];
 const course = consigne?.course ?? [];
 
@@ -293,6 +296,7 @@ async function findings(step, releve) {
       regles: tests.flatMap((test) => test.regles),
       ...(reference ? { reference: new Uint8Array(readFileSync(join(VAULT, reference.chemin))), version_reference: REFERENCE } : {}),
       decisions: memory,
+      zones_ignorees: ignored(step.ecran),
     });
   } catch (error) {
     errors.push(`Vérification de ${step.key} : ${error.message}`);

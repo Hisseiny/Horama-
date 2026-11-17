@@ -9,6 +9,7 @@ export interface Table {
 export interface ScreenValues {
   tables: Table[];
   labelled: Record<string, string>; // « CA du mois » then « 1 240,00 € », or « Client : Studio Lune »
+  avant: Record<string, string[]>; // a label whose number is written on the line just before it: « 3-5 » then « HACKATHONS PAR AN » (every occurrence)
   texte: string; // the page text the values were read from (innerText)
   today?: string; // from « Aujourd'hui : JJ/MM/AAAA »
   filter?: string; // from « Filtrer : Toutes »
@@ -24,7 +25,7 @@ const cells = (row: string) => row.split("\t").map((cell) => cell.trim());
 
 export function releverValeurs(texte: string): ScreenValues {
   const lines = texte.split("\n");
-  const values: ScreenValues = { tables: [], labelled: {}, texte };
+  const values: ScreenValues = { tables: [], labelled: {}, avant: {}, texte };
   for (let i = 0; i < lines.length; i++) {
     if (lines[i].includes("\t")) {
       const table: Table = { headers: cells(lines[i]), rows: [] };
@@ -54,8 +55,17 @@ export function releverValeurs(texte: string): ScreenValues {
       if (/^filtrer$/i.test(label)) values.filter = pair[2];
     } else if (counter) values.count = { value: Number(counter[1]), text: line };
     else if (STARTS_WITH_NUMBER.test(line) && previous && !STARTS_WITH_NUMBER.test(previous)) values.labelled[normalize(previous)] = line;
+    // Kept apart, never guessed: a rule asks for it with « <label> (chiffre au-dessus) ».
+    if (line && !STARTS_WITH_NUMBER.test(line) && STARTS_WITH_NUMBER.test(previous)) (values.avant[normalize(line)] ??= []).push(previous);
   }
   return values;
+}
+
+// A range written « 3-5 », « 3 à 5 », « de 3 à 5 », « 3 – 5 » (any dash, any space, any case) becomes « 3 à 5 »;
+// any other text is returned as is (spaces normalized).
+export function plage(text: string): string {
+  const range = /^(?:de\s+)?(\d+)\s*(?:[-‐‑‒–—]|à)\s*(\d+)$/i.exec(normalize(text));
+  return range ? `${range[1]} à ${range[2]}` : normalize(text);
 }
 
 // An amount in whole cents, never a float. null when the text is not an amount.

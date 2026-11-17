@@ -22,11 +22,12 @@ Sur la page du Bachelor, sans être connecté.
 3. Pour chaque relevé listé dans releves, une fois l'écran dans cet état, la page chargée et en haut de page, appelle l'outil relever avec ecran=<id> et vue=<vue>.
 
 ## Expected Result
-La page du MSc s'ouvre.
+La page du MSc s'ouvre. Le nombre de hackathons par an est le même sur la page du Bachelor et sur celle du MSc.
 
 ## Verification
 - FAIL if la page du MSc ne s'ouvre pas.
+- FAIL if le nombre de hackathons par an diffère entre les deux pages.
 
 ```regles
-[]
+[{ "type": "egalite", "a": { "ecran": "bachelor", "champ": "HACKATHONS PAR AN (chiffre au-dessus)" }, "b": { "ecran": "msc", "champ": "HACKATHONS PAR AN (chiffre au-dessus)" } }]
 ```

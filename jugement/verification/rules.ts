@@ -1,6 +1,6 @@
 import type { Regle } from "@horama/contrats";
 import type { Constat } from "./index.ts";
-import { key, normalize, plainCents, readCents, readDate, showCents } from "./values.ts";
+import { key, normalize, plage, plainCents, readCents, readDate, showCents } from "./values.ts";
 import type { ScreenValues } from "./values.ts";
 
 const UNREADABLE = "unreadable";
@@ -44,6 +44,14 @@ function resolve(ecran: string, values: ScreenValues, name: string, kind: "champ
   if (cell && found) {
     const row = found.table.rows.find((candidate) => key(candidate[0]) === key(cell[2])) ?? unreadable(`ligne ${cell[2]} introuvable sur ${ecran}`);
     return [{ name, text: row[found.index], row: row[0] }];
+  }
+  const above = /^(.+?)\s*\(chiffre au-dessus\)$/i.exec(normalize(name));
+  if (above) {
+    const shown = Object.keys(values.avant).find((candidate) => key(candidate) === key(above[1]));
+    const numbers = shown === undefined ? [] : values.avant[shown];
+    // Never guessed: no number right above the label, or the label shown several times, is unreadable.
+    if (numbers.length !== 1) unreadable(numbers.length ? `« ${above[1]} » affiché ${numbers.length} fois avec un chiffre au-dessus sur ${ecran}` : `aucun chiffre juste au-dessus de « ${above[1]} » sur ${ecran}`);
+    return [{ name, text: numbers[0] }];
   }
   const label = Object.keys(values.labelled).find((candidate) => key(candidate) === wanted);
   if (label !== undefined) return [{ name, text: values.labelled[label] }];
@@ -104,7 +112,7 @@ function judge(regle: Regle, screens: Map<string, ScreenValues>, valeurs: Record
       // Amounts are compared in cents (an amount facing a text that is not one is unreadable), anything else as normalized text.
       const [a, b] = cents.some((value) => value !== null)
         ? sides.map(({ ecran, item }) => showCents(amount(ecran, item)))
-        : sides.map(({ ecran, item }) => text(ecran, item) || unreadable(`valeur vide ${shown(ecran, item)}`));
+        : sides.map(({ ecran, item }) => plage(text(ecran, item) || unreadable(`valeur vide ${shown(ecran, item)}`)));
       const ok = a === b;
       const gap = ok || cents[0] === null ? "" : `, écart ${showCents(Math.abs(cents[0] - cents[1]!))}`;
       return {
