@@ -354,3 +354,9 @@ Orchestrateur : Claude Code (Opus 5.5). Mission : J0 à J4 (scène branchée sur
 - **Facturo abandonné**, plus de démo de secours : rien n'est retiré (le mode sombre reste dans `dev-nathan`), plus de temps passé dessus. J6a, J6c (branche `j6c-regle-etat`, non fusionnée) et J6d à J6f s'arrêtent là ; la règle `etat` arrive par `contrats-v2` d'Ali.
 - Ali suit E1 dans l'issue #35 (`contrats-v2` avec la règle `etat`, vues lues dans le vault, site sans version dans l'adresse) et commence par `contrats-v2`. Lien ajouté à `docs/decisions/2026-11-17-coureur-hors-facturo.md`.
 - **Déroulé de démo validé**, écrit tel quel : `docs/decisions/2026-11-17-deroule-demo-eugenia.md`. Feu vert pour le commit v2 une fois E0 tenu, contenu exact en 5 lignes à Nathan d'abord ; texte témoin pour la règle `etat` de la nouveauté ; au moins un test écarté à l'écran ; réveil par un commit local tant que l'école n'a pas dit oui, Vercel après.
+
+### 17 h 57, PAUSE (consigne de Nathan)
+- Nathan ne veut plus de copie des pages du site d'Eugenia : il veut forker le vrai dépôt du site officiel. **E0 arrêté** : la tâche de fond qui portait Devin a été stoppée ; vérifié ensuite : plus aucun processus `devin`, aucun serveur ni Chrome de E0 en écoute (le seul port Chrome ouvert, 9222, n'est pas à la scène).
+- Rien de E0 n'est commité ni poussé : la branche `e0-site-eugenia` n'a aucun commit au-delà de `dev-nathan` et n'existe pas sur le dépôt distant. Le worktree `../horama-wt/e0` contient seulement un dossier `site-eugenia/` non suivi, laissé tel quel sur le disque (rien supprimé).
+- Le brief E0 (`.orchestrateur/briefs/e0-site-eugenia.md`) et la consigne « copie locale » du déroulé ne valent plus pour la partie copie ; le déroulé validé (`docs/decisions/2026-11-17-deroule-demo-eugenia.md`) reste tel que Nathan l'a donné.
+- Plus rien ne tourne. En attente de la prochaine consigne.
