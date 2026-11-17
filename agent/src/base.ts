@@ -1,10 +1,11 @@
-import type { Capture, EvenementFil, Passage, RapportPassage } from "@horama/contrats";
+import type { Capture, EvenementFil, Passage, RapportPassage, ResultatVerification } from "@horama/contrats";
 
 export interface BasePassages {
   insererPassage(passage: Passage): Promise<void>;
   insererEvenement(evenement: EvenementFil): Promise<void>;
   deposerPng(chemin: string, png: Uint8Array): Promise<string>;
   enregistrerCapture(capture: Capture): Promise<void>;
+  enregistrerResultat(resultat: ResultatVerification): Promise<void>;
   terminerPassage(rapport: RapportPassage): Promise<void>;
 }
 
@@ -14,6 +15,9 @@ export class BaseMemoire implements BasePassages {
   captures = new Map<string, Capture>();
   fichiers = new Map<string, Uint8Array>();
   rapports = new Map<string, RapportPassage>();
+  resultats: ResultatVerification[] = [];
+
+  async enregistrerResultat(resultat: ResultatVerification) { this.resultats.push(structuredClone(resultat)); }
 
   async insererPassage(passage: Passage) { this.passages.set(passage.id, structuredClone(passage)); }
   async insererEvenement(evenement: EvenementFil) { this.evenements.push(structuredClone(evenement)); }
@@ -64,6 +68,7 @@ export function creerBaseSupabase({ url = process.env.SUPABASE_URL, key = proces
       return `${origin}/storage/v1/object/public/captures/${path}`;
     },
     enregistrerCapture: (capture) => request("/rest/v1/captures?on_conflict=passage_id,test_id,ecran,vue", "POST", capture, "resolution=merge-duplicates,return=minimal"),
+    enregistrerResultat: (resultat) => request("/rest/v1/resultats", "POST", { passage_id: resultat.passage_id, test_id: resultat.test_id, statut: resultat.statut, payload: resultat }),
     terminerPassage: (rapport) => request(`/rest/v1/passages?id=eq.${encodeURIComponent(rapport.passage.id)}`, "PATCH", { ...rapport.passage, rapport }),
   };
 }
