@@ -1,6 +1,6 @@
 # La scène prend la direction artistique de Horama
 
-> **Rédigé par :** CDO · 17 novembre 2026 · branche `da-scene-oeil-violet`, première version à montrer à l'équipe
+> **Rédigé par :** CDO · 17 novembre 2026 · sur `dev-nathan`, première version à montrer à l'équipe
 
 ## Décision
 
