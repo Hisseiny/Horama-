@@ -201,6 +201,23 @@ test("découverte vide ne crée aucune session", async () => {
   assert.equal(result.etat, "fini"); assert.equal(result.pages.length, 0); assert.equal(base.resultats.length, 0);
 });
 
+test("découverte en échec : rapport interrompu avec raison sans démarrer H", async () => {
+  const logs: string[] = [];
+  const { result, base } = await run({ deps: {
+    fetch: async () => new Response("Indisponible", { status: 503 }),
+    session: async () => { throw new Error("Ne doit pas démarrer"); },
+    log: message => logs.push(message),
+  } });
+  assert.equal(result.format, "horama-exploration-1");
+  assert.equal(result.etat, "interrompu");
+  assert.equal(result.agents[0].etat, "tombe");
+  assert.equal(result.agents[0].session_id, null);
+  assert.match(result.agents[0].raison!, /robots\.txt : HTTP 503/);
+  assert.ok(logs.some(message => /Découverte impossible.*HTTP 503/.test(message)));
+  assert.equal(result.pages.length, 0); assert.equal(base.resultats.length, 0);
+  assert.deepEqual(JSON.parse(readFileSync(join(root, "out/exploration.json"), "utf8")), result);
+});
+
 test("échec de création de session : JSON interrompu et C4 non concluants", async () => {
   const { result, base } = await run({ deps: { session: async () => { throw new Error("Session indisponible"); } } });
   assert.equal(result.etat, "interrompu"); assert.equal(result.totaux.pages_visitees, 0);

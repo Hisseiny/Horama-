@@ -157,7 +157,15 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
     },
   };
   try {
-    if (!consigne) { report.etat = signal?.aborted ? "interrompu" : "fini"; agent.etat = signal?.aborted ? "tombe" : "fini"; return report; }
+    if (!consigne) {
+      const failed = signal?.aborted || discovery.errors.length > 0;
+      report.etat = failed ? "interrompu" : "fini"; agent.etat = failed ? "tombe" : "fini";
+      if (discovery.errors.length) {
+        agent.raison = discovery.errors.map(error => `${error.url} : ${error.message}`).join(" ; ");
+        log(`Découverte impossible : ${agent.raison}`);
+      }
+      return report;
+    }
     const trackedSession: Session = input => session({ ...input, async onTool(name, args) {
       const next = () => pages.find(page => page.etat !== "visitee");
       const remaining = () => {
