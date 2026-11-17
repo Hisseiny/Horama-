@@ -53,9 +53,26 @@ Un autre nouveau commit (`884cb65e695e641c42ebef0a229ec67d5152f8ec` → `be408bf
 
 Vidéo principale et captures de la sélection/récapitulatif jointes à la session de travail et capture de sélection à la PR. La vidéo contient aussi deux tentatives initiales échouées : route Bachelor redirigée avec `/` final, puis redirection en cache Chrome. Le serveur synthétique et le profil d'essai ont été corrigés, **sans changer scène, impact ou agent**. Le passage final visible sort avec 0. Preuves et mesures brutes conservées hors Git ; les fichiers temporaires ne sont pas des dépendances du module.
 
+## Vérification du code corrigé après revue
+
+Code testé : `5fa1e50ca994d0989db22c43e2a56c6f93670f72`. Deux cas corrigés dans le réveil : chaque rejeu dispose d'un dossier neuf pour ne pas conserver les décisions du passage précédent ; le rattrapage Git exclut les commits non descendants de `--depuis` même si celui-ci est le parent secondaire d'une fusion. Ces deux cas ont des tests de régression Node dédiés ; ils n'ont pas été exercés séparément dans le navigateur.
+
+Nouveau passage navigateur avec les mêmes préconditions (surveillant en attente avant commit réel, site synthétique servi), mêmes options sans présentation, `CHROME_BIN=/tmp/horama-reveil-final/chrome-local` et `--temoins /tmp/horama-reveil-final/temoins`. SHA précédent `a120761c7b8947ec9ad678aac82f5153e6497567`, déclencheur `8354f5764cf56de676fe8c48f37d4ea3f713ad20`. Dossier réellement créé : `8354f5764cf56de676fe8c48f37d4ea3f713ad20-W5XiRn`.
+
+| Événement observé | Depuis avant `git commit` | Depuis retour de `git commit` |
+|---|---:|---:|
+| Impact écrit | 596,766984 ms | 591,186427 ms |
+| Processus scène | 616,164321 ms | 610,583764 ms |
+| Chrome prêt (journal) | 1 277,839624 ms | 1 272,259067 ms |
+| Sélection (journal) | 1 301,306167 ms | 1 295,725610 ms |
+| `passage.json` écrit | 3 208,279701 ms | 3 202,699144 ms |
+| Sortie complète, code 0 | **3 218,366696 ms** | **3 212,786139 ms** |
+
+Création du commit : 5,580557 ms ; mesures internes distinctes `scene_lancee_ms = 167.71077700000023`, `total_ms = 2771.771821999999`. Impact réel `horama-impact-1`, un retenu/un écarté, seul le retenu joué, deux relevés, aucune erreur, réveil terminé. Captures finales jointes à la session/PR. Intégrité du vrai dépôt vérifiée avant/après ; trois connexions TCP du Chrome dédié, toutes locales. La vidéo avec bulle appartient au passage antérieur : elle ne représente pas cette révision corrigée.
+
 ## Vérifications et limites
 
-- `node --test automatisation/reveil/*.test.mjs` : 5 tests réussis (commits hors site et successifs, fusion, branche reculée, chaînage/JSON/copie du vault, sélection vide et échecs visibles).
+- `node --test automatisation/reveil/*.test.mjs` : 7 tests réussis (commits hors site et successifs, fusion, branche reculée, rattrapage secondaire, rejeux isolés, chaînage/JSON/copie du vault, sélection vide et échecs visibles).
 - `pnpm install && pnpm -r --if-present run check` : sortie 0 ; relancé après récupération de la branche cible avant ouverture de la PR.
 - Intégrité avant/après le navigateur : sommes SHA-256, statut Git et diff du vrai dépôt identiques. Les rapports et références sont écrits dans le vault privé exporté par le réveil. Les connexions TCP du Chrome dédié sont locales seulement (4 pour le passage sans présentation, 5 pour le passage visible), aucun événement H Company ; services Google de Chrome bloqués par résolution locale.
 - `--ecrire-references` n'a servi que dans la copie privée : **aucune comparaison aux références graphiques historiques n'est prouvée**. Le récapitulatif visuel ne prouve pas la conformité du vrai site.
