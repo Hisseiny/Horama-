@@ -3,7 +3,7 @@ import type { Capture, CoureurAgent, LancementPassage, Passage, RapportPassage }
 import { ecrireRapportPassage } from "@horama/memoire";
 import type { BasePassages } from "./base.ts";
 import { construireConsigne } from "./consigne.ts";
-import type { CourseStep } from "./consigne.ts";
+import type { Consigne, CourseStep } from "./consigne.ts";
 import { creerSessionH } from "./session.ts";
 import type { OptionsSessionH, ResultatSession, Session, SessionEnCours } from "./session.ts";
 import { verifierTest } from "./verification.ts";
@@ -32,6 +32,8 @@ export interface OptionsCoureur {
   identifiant?: () => string;
   signaler?: (message: string) => void;
   writeReport?: typeof ecrireRapportPassage;
+  consigne?: Consigne;
+  verifier?: typeof verifierTest;
 }
 
 function bonneAdresse(step: CourseStep, address: string, start: string): boolean {
@@ -45,13 +47,13 @@ function bonneAdresse(step: CourseStep, address: string, start: string): boolean
   } catch { return false; }
 }
 
-export function creerCoureur({ vault, base, relever, hookTimeoutMs = 30_000, signal, session = creerSessionH(), h, baseUrl, maintenant = Date.now, identifiant = randomUUID, signaler = console.error, writeReport = ecrireRapportPassage }: OptionsCoureur): CoureurAgent {
+export function creerCoureur({ vault, base, relever, hookTimeoutMs = 30_000, signal, session = creerSessionH(), h, baseUrl, maintenant = Date.now, identifiant = randomUUID, signaler = console.error, writeReport = ecrireRapportPassage, consigne: suppliedConsigne, verifier = verifierTest }: OptionsCoureur): CoureurAgent {
   if (!Number.isFinite(hookTimeoutMs) || hookTimeoutMs <= 0 || hookTimeoutMs > 2_147_483_647) throw new Error("hookTimeoutMs doit être un délai positif en millisecondes.");
   const jouer = h ? creerSessionH({ ...h, signaler: h.signaler ?? signaler }) : session;
   const passages = new Map<string, Promise<RapportPassage>>();
   return {
     async lancerPassage(input: LancementPassage) {
-      const consigne = construireConsigne({ vault, logiciel: input.logiciel, version: input.version_testee, ids: input.tests, baseUrl, regressions: input.regressions });
+      const consigne = suppliedConsigne ?? construireConsigne({ vault, logiciel: input.logiciel, version: input.version_testee, ids: input.tests, baseUrl, regressions: input.regressions });
       const debut = maintenant();
       const passage: Passage = { id: identifiant(), logiciel: input.logiciel, version_testee: input.version_testee, version_reference: input.version_reference, etat: "en_cours", debut: new Date(debut).toISOString() };
       const taken = new Map<string, { capture: Capture; phrase: string; png: Uint8Array }>();
@@ -168,12 +170,12 @@ export function creerCoureur({ vault, base, relever, hookTimeoutMs = 30_000, sig
             };
           }),
         };
-        const results = consigne.tests.map((test) => verifierTest({ vault, logiciel: input.logiciel, test,
+        const results = consigne.tests.map((test) => verifier({ vault, logiciel: input.logiciel, test,
           acquired: [...taken.values()], passageId: passage.id, version: input.version_testee, referenceVersion: input.version_reference,
           sessionFailed: !!(cancellation || result.muted || result.erreur || failed || !ended), replayUrl: result.replay_url, passageTests: consigne.tests }));
         for (const verification of results) {
           const reason = report.tests.find((test) => test.test_id === verification.test_id)?.raison;
-          if (cancellation || hookFailures.size && reason) {
+          if (verifier === verifierTest && (cancellation || hookFailures.size && reason)) {
             verification.statut = "INCONCLUSIVE";
             verification.raison = reason;
           }
