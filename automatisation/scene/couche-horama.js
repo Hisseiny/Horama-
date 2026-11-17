@@ -14,31 +14,44 @@
   window.__rno_kf_s = true;
 
   // ---------- The mascot: one block per state, each replaceable by an image (see README) ----------
+  // Art direction (CDO): the winged eye of the logo video, on the violet of the eye. No outline except the stamps and the
+  // graphite line of the eye; square corners everywhere except the eye, the O of the logo and the loupe.
   const M = 96; // side of the box of a state, in px
-  const INK = "#232629";
-  const PAPER = "#F2EEE5";
-  const VIOLET = "#7C3AED";
-  const COLORS = { conforme: "#C9EE63", defaut: "#FF6E57", doute: "#F4DF73" };
-  const svg = (inside) => `<svg viewBox="0 0 64 64"><path d="M32 6C47 6 58 17 58 32S47 58 32 58 6 47 6 32 17 6 32 6Z" fill="${VIOLET}" stroke="#fff" stroke-width="3"/>${inside}</svg>`;
-  // The pupils (class « pupils ») are moved by the layer towards what the mascot looks at.
-  const eyes = (r = 3.2) => `<g fill="#fff"><ellipse cx="23" cy="31" rx="6.2" ry="7.4"/><ellipse cx="41" cy="31" rx="6.2" ry="7.4"/></g>
-    <g class="pupils" fill="${INK}"><g class="scan"><circle cx="23" cy="31" r="${r}"/><circle cx="41" cy="31" r="${r}"/></g></g>`;
-  const lines = (d, colour = "#fff") => `<path d="${d}" fill="none" stroke="${colour}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
-  const badge = (colour, mark) => `<g transform="translate(51 13) scale(1.2) translate(-47 -19)"><circle cx="47" cy="19" r="8.5" fill="${colour}" stroke="#fff" stroke-width="2"/>${lines(mark, INK)}</g>`;
+  const INK = "#2B2B2B"; // line of the eye and the wings
+  const NIGHT = "#2A2163"; // violet of the eye: banner, question, end
+  const BLOCK = "#3A2F86";
+  const PAPER = "#F3EBDD";
+  const IRIS = "#7F77DD"; // iris at rest, and the frame of what the eye reads
+  const WING = "#AFA9EC";
+  const COLORS = { conforme: "#B6E36B", defaut: "#F26B5B", doute: "#AFA9EC" };
+  const STAMPS = { conforme: "OK", defaut: "Défaut prouvé", doute: "À trancher", bug: "Bug noté", voulu: "Voulu" };
+  // Two wings and one eye. The pupils (class « pupils ») are moved by the layer towards what the mascot looks at.
+  const wings = `<g fill="${WING}" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round">
+    <path class="wing wing-l" d="M30 46C24 30 10 24 2 28c6 3 7 7 5 10 5 1 7 5 5 8 5 1 8 5 7 9 5-1 9-4 11-9Z"/>
+    <path class="wing wing-r" d="M66 46C72 30 86 24 94 28c-6 3-7 7-5 10-5 1-7 5-5 8-5 1-8 5-7 9-5-1-9-4-11-9Z"/></g>`;
+  const eye = (iris) => `<g class="eyeball"><circle cx="48" cy="48" r="20" fill="#fff" stroke="${INK}" stroke-width="3"/>
+    <g class="pupils"><g class="scan"><circle cx="48" cy="48" r="10.5" fill="${iris}"/><circle cx="48" cy="48" r="4.6" fill="${INK}"/><circle cx="51.6" cy="44.4" r="2.2" fill="#fff"/></g></g></g>`;
+  const badge = (colour, inside) => `<g class="badge"><rect x="66" y="6" width="22" height="22" fill="${colour}" stroke="${INK}" stroke-width="2.5"/>${inside}</g>`;
+  const sign = (text) => `<text x="77" y="23.5" fill="${INK}" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="800" text-anchor="middle">${text}</text>`;
+  const svg = (inside) => `<svg viewBox="0 0 96 96">${wings}${inside}</svg>`;
   const SPRITES = {
-    repos: svg(eyes() + lines("M27 45q5 3.5 10 0")),
-    verification: svg(eyes() + lines("M28 45.5h8")),
-    interrogation: svg(eyes() + lines("M28 46q4-2.5 8 0") + badge(COLORS.doute, "M44.4 17a2.7 2.7 0 1 1 3.9 2.4c-.9.5-1.2 1-1.2 1.7M47.1 23.6h.01")),
-    defaut: svg(eyes(2.2) + lines("M27 47q5-4 10 0") + badge(COLORS.defaut, "M47 14.2v5.6M47 23.4h.01")),
-    conforme: svg(lines("M17.5 33q5.5-7 11 0M35.5 33q5.5-7 11 0") + lines("M26 44q6 5.5 12 0") + badge(COLORS.conforme, "M43.2 19.2l2.7 2.7 4.9-5.4")),
+    repos: svg(eye(IRIS)),
+    // Reading: the violet frame of what the eye reads closes around it.
+    verification: svg(`<path d="M22 31v-9h9M65 22h9v9M74 65v9h-9M31 74h-9v-9" fill="none" stroke="${IRIS}" stroke-width="4"/>` + eye(IRIS)),
+    interrogation: svg(eye(IRIS) + badge(WING, sign("?"))),
+    defaut: svg(eye(COLORS.defaut) + badge(COLORS.defaut, sign("!"))),
+    conforme: svg(eye(COLORS.conforme) + badge(COLORS.conforme, `<path d="M71 17.5l4 4 7.5-8" fill="none" stroke="${INK}" stroke-width="3"/>`)),
   };
+  const LOGO = `H<span class="o"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6.6" fill="${IRIS}"/><circle cx="12" cy="12" r="2.9" fill="${INK}"/><circle cx="13.7" cy="10.3" r="1.2" fill="#fff"/></svg></span>RAMA`;
 
   // ---------- Sizes and times ----------
   const TIP = { x: 7, y: 5 }; // point of the cursor arrow in its 40 px box
   const PRESS = 120; // ms the arrow stays pressed before the click is given back to the page
   const STROKE = 800; // ms to draw the line around a zone
   const GAP = 16; // between the mascot and its bubble
-  const FONT = '"Avenir Next", "Helvetica Neue", Arial, sans-serif';
+  const FONT = '"Segoe UI", "Avenir Next", Arial, sans-serif';
+  const LENS = 300; // diameter of the loupe, in px
+  const ZOOM = 2.4;
 
   const host = document.createElement("div");
   host.setAttribute("aria-hidden", "true");
@@ -48,81 +61,117 @@
     * { pointer-events: none !important; box-sizing: border-box; }
     [hidden] { display: none !important; }
     .zones { position: absolute; left: 0; top: 0; }
-    .zone { position: absolute; border-radius: 6px; transition: background-color 300ms ease-out, opacity 300ms ease-out; }
-    .zone.done.doute { background: ${COLORS.doute}40; }
-    .zone.done.defaut { background: ${COLORS.defaut}30; }
-    .zone.old { margin: -7px; padding: 7px; box-sizing: content-box; border: 3px dashed ${INK}; background: none !important; opacity: 0; }
+    .zone { position: absolute; transition: background-color 300ms ease-out, opacity 300ms ease-out, outline-color 300ms; }
+    .zone.doute { outline: 4px dashed transparent; outline-offset: 8px; }
+    .zone.done.doute { outline-color: ${COLORS.doute}; background: ${COLORS.doute}33; }
+    .zone.done.defaut { background: ${COLORS.defaut}26; }
+    .zone.old { margin: -7px; padding: 7px; box-sizing: content-box; outline: none; border: 3px dashed ${NIGHT}; background: none !important; opacity: 0; }
     .zone.old.done { opacity: 0.6; }
-    .zone.old::after { content: "avant"; position: absolute; left: 50%; top: 50%; color: ${INK}; font: 600 20px/1 ${FONT}; transform: translate(-50%, -50%); }
-    .zone b { position: absolute; right: 100%; top: 50%; min-width: 34px; height: 34px; margin-right: 16px; padding: 0 8px; border-radius: 17px; box-shadow: 0 0 0 2px ${INK};
-      color: ${INK}; font: 700 21px/34px ${FONT}; text-align: center; opacity: 0; transform: translateY(-50%) scale(0.4); transition: opacity 200ms ease-out, transform 200ms ease-out, background-color 300ms; }
+    .zone.old::after { content: "AVANT"; position: absolute; left: 50%; top: 50%; color: ${NIGHT}; font: 800 16px/1 ${FONT}; letter-spacing: 0.08em; transform: translate(-50%, -50%); }
+    .zone b { position: absolute; right: 100%; top: 50%; min-width: 34px; height: 34px; margin-right: 18px; padding: 0 8px;
+      color: ${INK}; font: 800 21px/34px ${FONT}; text-align: center; opacity: 0; transform: translateY(-50%) scale(0.4); transition: opacity 200ms ease-out, transform 200ms ease-out, background-color 300ms; }
     .zone.inside b { right: auto; left: 0; top: auto; bottom: 100%; margin: 0 0 14px; transform: scale(0.4); }
     .zone.done b { opacity: 1; transform: translateY(-50%); }
     .zone.inside.done b { transform: none; }
     .zone.doute b { background: ${COLORS.doute}; }
     .zone.defaut b { background: ${COLORS.defaut}; }
     .zone.changed b { animation: bump 600ms ease-out; }
-    .rough-annotation { filter: drop-shadow(0 0 0.6px ${INK}) drop-shadow(0 0 0.6px ${INK}); }
+    .stamp { display: inline-block; padding: 3px 9px; border: 3px solid currentColor; font: 800 15px/1.2 ${FONT}; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; transform: rotate(-6deg); }
+    .stamp.conforme, .stamp.voulu { color: ${COLORS.conforme}; }
+    .stamp.defaut, .stamp.bug { color: ${COLORS.defaut}; }
+    .stamp.doute { color: ${COLORS.doute}; }
+    .zone .stamp { position: absolute; right: 0; bottom: 100%; margin: 0 0 12px; background: ${NIGHT}; opacity: 0; }
+    .zone.done .stamp { animation: thunk 350ms cubic-bezier(0.3, 1.6, 0.5, 1) forwards; }
     .dim { position: fixed; left: 0; top: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 400ms ease-out; }
     .dim.on { opacity: 1; }
-    .dim path { fill: ${INK}; fill-opacity: 0.74; transition: d 450ms cubic-bezier(0.2, 0.8, 0.2, 1); }
-    .banner { position: fixed; left: 50%; top: 10px; display: flex; align-items: center; gap: 34px; height: 52px; padding: 0 28px; border-radius: 26px;
-      background: ${INK}; color: ${PAPER}; font: 600 21px/1 ${FONT}; white-space: nowrap; transform: translateX(-50%); box-shadow: 0 3px 10px #23262940; }
-    .banner span { display: inline-flex; align-items: center; gap: 8px; }
-    .banner i { width: 14px; height: 14px; border-radius: 50%; }
-    .banner .changed { animation: bump 700ms ease-out; }
+    .dim path { fill: ${NIGHT}; fill-opacity: 0.8; transition: d 450ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+    .banner { position: fixed; left: 50%; top: 10px; display: flex; align-items: center; gap: 26px; height: 54px; padding: 0 24px;
+      background: ${NIGHT}; color: ${PAPER}; font: 600 19px/1 ${FONT}; white-space: nowrap; transform: translateX(-50%); }
+    .banner .title { opacity: 0.85; }
+    .banner .stamp { font-size: 14px; transform: rotate(-3deg); }
+    .banner .changed { animation: bump-stamp 700ms ease-out; }
+    @keyframes bump-stamp { 30% { transform: rotate(-3deg) scale(1.25); } }
+    .logo { display: inline-flex; align-items: center; color: ${PAPER}; font: 500 24px/1 ${FONT}; letter-spacing: 0.04em; }
+    .logo .o { display: inline-block; width: 26px; height: 26px; margin: 0 1px; border: 3px solid ${PAPER}; border-radius: 50%; background: #E6DAC4; }
+    .logo svg { display: block; width: 100%; height: 100%; }
     .mascot { position: fixed; left: 0; top: 0; width: ${M}px; height: ${M}px; will-change: transform; }
-    .body { width: ${M}px; height: ${M}px; transform-origin: 50% 80%; filter: drop-shadow(0 3px 6px #23262966); animation: breathe 4.2s ease-in-out infinite; }
-    .body > * { display: block; width: ${M}px; height: ${M}px; transform-origin: 50% 80%; }
+    .body { width: ${M}px; height: ${M}px; transform-origin: 50% 80%; animation: hover 3.6s ease-in-out infinite; }
+    .body > * { display: block; width: ${M}px; height: ${M}px; transform-origin: 50% 50%; overflow: visible; }
+    .wing { transform-box: fill-box; animation: flap 520ms ease-in-out infinite alternate; }
+    .wing-l { transform-origin: 100% 60%; }
+    .wing-r { transform-origin: 0 60%; }
+    .verification .wing, .defaut .wing { animation-duration: 220ms; }
+    .eyeball { transform-box: fill-box; transform-origin: 50% 50%; animation: blink 4.8s ease-in-out infinite; }
     .pupils { transform: translate(var(--look-x, 0px), var(--look-y, 0px)); transition: transform 160ms ease-out; }
     .verification .scan { animation: read 1.1s ease-in-out infinite; }
+    .interrogation .scan { transform: translate(4px, -3px); transition: transform 300ms ease-out; }
+    .badge { transform-box: fill-box; transform-origin: 50% 50%; animation: thunk 350ms cubic-bezier(0.3, 1.6, 0.5, 1); }
     .interrogation .body > * { animation: tilt 260ms ease-out forwards; }
-    .defaut .body > * { animation: startle 360ms ease-out; }
-    .conforme .body > * { animation: nod 420ms ease-out; }
-    .bubble { position: absolute; left: 0; top: 0; width: max-content; max-width: 470px; padding: 16px 22px; border-radius: 18px; background: ${INK}; color: ${PAPER};
-      font: 600 26px/1.28 ${FONT}; white-space: normal; box-shadow: 0 6px 20px #23262955; opacity: 0; transform: scale(0.96); transition: opacity 180ms ease-out, transform 180ms ease-out; }
+    .defaut .body > * { animation: shake 420ms ease-in-out; }
+    .conforme .body > * { animation: spin 640ms cubic-bezier(0.3, 1.2, 0.5, 1); }
+    .bubble { position: absolute; left: 0; top: 0; width: max-content; max-width: 470px; padding: 16px 22px; background: ${NIGHT}; color: ${PAPER};
+      font: 600 26px/1.28 ${FONT}; white-space: normal; opacity: 0; transform: scale(0.96); transition: opacity 180ms ease-out, transform 180ms ease-out; }
     .bubble.on { opacity: 1; transform: none; }
-    .bubble::before { content: ""; position: absolute; top: var(--tail); width: 20px; height: 20px; margin-top: -10px; border-radius: 3px; background: inherit; transform: rotate(45deg); }
-    .bubble.right::before { left: -8px; }
-    .bubble.left::before { right: -8px; }
-    .bubble.conforme { background: ${COLORS.conforme}; color: ${INK}; }
-    .bubble.defaut { background: ${COLORS.defaut}; color: ${INK}; }
-    .bubble.doute { background: ${COLORS.doute}; color: ${INK}; }
-    .bubble.ask { max-width: 620px; padding: 24px 28px 28px; font-size: 34px; line-height: 1.2; }
-    .rank { margin-bottom: 10px; font-size: 22px; opacity: 0.7; }
-    .choices { display: flex; gap: 18px; margin-top: 24px; }
-    .choice { flex: 1; padding: 18px 20px; border: 0; border-radius: 16px; color: ${INK}; font: 700 28px/1 ${FONT}; white-space: nowrap; pointer-events: auto !important; cursor: pointer;
-      transition: opacity 200ms ease-out, transform 200ms ease-out, box-shadow 200ms ease-out; }
+    .bubble::before { content: ""; position: absolute; top: var(--tail); width: 0; height: 0; margin-top: -11px; border: 11px solid transparent; }
+    .bubble.right::before { left: -22px; border-right-color: var(--bg, ${NIGHT}); }
+    .bubble.left::before { right: -22px; border-left-color: var(--bg, ${NIGHT}); }
+    .bubble.conforme { --bg: ${COLORS.conforme}; background: ${COLORS.conforme}; color: ${NIGHT}; }
+    .bubble.defaut { --bg: ${COLORS.defaut}; background: ${COLORS.defaut}; color: ${NIGHT}; }
+    .bubble.doute { --bg: ${WING}; background: ${WING}; color: ${NIGHT}; }
+    .bubble.ask { max-width: 640px; padding: 24px 28px 28px; font-size: 32px; line-height: 1.2; }
+    .rank { margin-bottom: 10px; color: ${WING}; font: 800 17px/1 ${FONT}; letter-spacing: 0.1em; text-transform: uppercase; }
+    .choices { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 24px; }
+    .choice { flex: 1; padding: 17px 20px; border: 0; color: ${NIGHT}; font: 800 22px/1 ${FONT}; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; pointer-events: auto !important; cursor: pointer;
+      transition: opacity 200ms ease-out, transform 200ms ease-out; }
     .choice.bug { background: ${COLORS.defaut}; }
     .choice.voulu { background: ${COLORS.conforme}; }
+    .choice.loupe { flex-basis: 100%; padding: 12px 20px; background: ${BLOCK}; color: ${PAPER}; font-size: 17px; }
     .choice:hover { transform: translateY(-2px); }
     .choices.made .choice { opacity: 0.3; pointer-events: none !important; }
-    .choices.made .choice.chosen { opacity: 1; transform: scale(1.04); box-shadow: 0 0 0 5px ${PAPER}; }
-    .end { position: fixed; left: 50%; top: 50%; width: 860px; padding: 40px 48px; border-radius: 24px; background: ${PAPER}; color: ${INK}; font: 600 22px/1.4 ${FONT};
-      box-shadow: 0 10px 40px #23262980; opacity: 0; transform: translate(-50%, -46%); transition: opacity 300ms ease-out, transform 300ms ease-out; }
+    .choices.made .choice.chosen { opacity: 1; }
+    .bubble > .stamp { position: absolute; right: 22px; top: -18px; background: ${NIGHT}; font-size: 22px; animation: thunk 350ms cubic-bezier(0.3, 1.6, 0.5, 1); }
+    .loupe-box { position: fixed; left: 0; top: 0; width: ${LENS}px; height: ${LENS}px; opacity: 0; transform: scale(0.6); transition: opacity 220ms ease-out, transform 260ms cubic-bezier(0.3, 1.4, 0.5, 1); }
+    .loupe-box.on { opacity: 1; transform: none; }
+    .lens { position: absolute; inset: 0; overflow: hidden; border: 7px solid ${INK}; border-radius: 50%; background: #fff; }
+    .handle { position: absolute; left: 50%; top: 100%; width: 16px; height: 86px; margin: -4px 0 0 -8px; background: ${INK}; transform-origin: 50% 0; transform: rotate(var(--handle, -35deg)); }
+    .lens .page { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+    .lens .mark { position: absolute; }
+    .lens .mark.defaut { outline: 3px solid ${COLORS.defaut}; outline-offset: 4px; }
+    .lens .mark.doute { outline: 3px dashed ${IRIS}; outline-offset: 4px; }
+    .end { position: fixed; left: 50%; top: 50%; width: 860px; padding: 40px 48px; background: ${NIGHT}; color: ${PAPER}; font: 600 22px/1.4 ${FONT};
+      opacity: 0; transform: translate(-50%, -46%); transition: opacity 300ms ease-out, transform 300ms ease-out; }
     .end.on { opacity: 1; transform: translate(-50%, -50%); }
+    .end .logo { margin-bottom: 26px; }
+    .end > .stamp { position: absolute; right: 44px; top: 36px; font-size: 26px; padding: 6px 14px; opacity: 0; }
+    .end.on > .stamp { animation: thunk 380ms cubic-bezier(0.3, 1.6, 0.5, 1) 450ms forwards; }
     .end h1 { margin: 0 0 6px; font: 700 48px/1.1 ${FONT}; }
-    .end p { margin: 0 0 26px; font: 600 32px/1.25 ${FONT}; }
-    .end small { display: block; margin-bottom: 8px; font-size: 20px; opacity: 0.7; }
-    .end li { margin: 0 0 6px 22px; font: 500 19px/1.4 ui-monospace, Menlo, monospace; overflow-wrap: anywhere; }
-    .end ul { margin: 0; padding: 0; }
-    .cursor { position: fixed; left: 0; top: 0; width: 40px; height: 40px; will-change: transform; filter: drop-shadow(0 2px 3px #23262980); }
+    .end p { margin: 0 0 26px; font: 600 30px/1.25 ${FONT}; color: ${WING}; }
+    .end small { display: block; margin-bottom: 10px; font-size: 17px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.7; }
+    .end ul { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+    .end li { padding: 6px 10px; background: ${BLOCK}; font: 500 16px/1.3 ui-monospace, Consolas, monospace; overflow-wrap: anywhere; }
+    .cursor { position: fixed; left: 0; top: 0; width: 40px; height: 40px; will-change: transform; }
     .cursor svg { display: block; width: 40px; height: 40px; transform-origin: ${TIP.x}px ${TIP.y}px; transition: transform 90ms ease-out; }
     .cursor.press svg { transform: scale(0.78); }
-    .ripple { position: fixed; width: 28px; height: 28px; margin: -14px; border: 3px solid ${VIOLET}; border-radius: 50%; background: ${VIOLET}33; animation: ripple 460ms ease-out forwards; }
+    .ripple { position: fixed; width: 28px; height: 28px; margin: -14px; border: 3px solid ${IRIS}; border-radius: 50%; animation: ripple 460ms ease-out forwards; }
     @keyframes rough-notation-dash { to { stroke-dashoffset: 0; } }
-    @keyframes breathe { 50% { transform: translateY(-4px) scale(1.035); } }
-    @keyframes read { 0%, 100% { transform: translateX(-2.6px); } 50% { transform: translateX(2.6px); } }
-    @keyframes tilt { to { transform: rotate(10deg); } }
-    @keyframes startle { 35% { transform: translateY(-12px); } }
-    @keyframes nod { 40% { transform: translateY(5px); } }
+    @keyframes hover { 50% { transform: translateY(-5px); } }
+    @keyframes flap { from { transform: rotate(0deg); } to { transform: rotate(-16deg) scaleY(0.88); } }
+    .wing-r { animation-name: flap-r; }
+    @keyframes flap-r { from { transform: rotate(0deg); } to { transform: rotate(16deg) scaleY(0.88); } }
+    @keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(0.12); } }
+    @keyframes read { 0%, 100% { transform: translateX(-4px); } 50% { transform: translateX(4px); } }
+    @keyframes tilt { to { transform: rotate(8deg); } }
+    @keyframes shake { 15%, 55% { transform: translateX(-6px); } 35%, 75% { transform: translateX(6px); } }
+    @keyframes spin { from { transform: rotateY(0deg); } to { transform: rotateY(360deg); } }
+    @keyframes thunk { from { opacity: 0; transform: rotate(-6deg) scale(1.8); } to { opacity: 1; transform: rotate(-6deg) scale(1); } }
     @keyframes ripple { from { transform: scale(0.5); opacity: 1; } to { transform: scale(3); opacity: 0; } }
     @keyframes bump { 30% { transform: scale(1.16); } }
   </style>
   <div class="zones"></div><svg class="dim"><path fill-rule="evenodd"/></svg><div class="banner" hidden></div><div class="end"></div>
+  <div class="loupe-box"><div class="handle"></div><div class="lens"></div></div>
   <div class="mascot" hidden><div class="body"></div><div class="bubble"></div></div>
   <div class="cursor" hidden><svg viewBox="0 0 24 24"><path d="M4.2 3v16.2l4.3-4 2.9 6.6 2.9-1.3-2.9-6.5h6.1Z" fill="${INK}" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg></div>`;
-  const [zonesBox, dim, banner, mascot, body, bubble, end, cursor] = ["zones", "dim", "banner", "mascot", "body", "bubble", "end", "cursor"].map((name) => shadow.querySelector(`.${name}`));
+  const [zonesBox, dim, banner, mascot, body, bubble, end, cursor, loupeBox, lens] = ["zones", "dim", "banner", "mascot", "body", "bubble", "end", "cursor", "loupe-box", "lens"].map((name) => shadow.querySelector(`.${name}`));
   const dimPath = dim.firstChild;
 
   // ---------- State, kept across pages (sessionStorage is refused on about:blank) ----------
@@ -289,6 +338,43 @@
     button.addEventListener("click", (event) => event.isTrusted && window.__horama.choisir(choix));
     choices.append(button);
   }
+  // A third button, under the two others: the loupe, which shows the zone of the finding magnified beside it.
+  const loupeButton = element("button", "choice loupe", "Voir à la loupe");
+  loupeButton.addEventListener("click", (event) => event.isTrusted && window.__horama.loupe(!loupeBox.classList.contains("on")));
+  choices.append(loupeButton);
+
+  // ---------- The loupe: a copy of the page, magnified, in a round lens beside the zone (no blur, no screenshot) ----------
+  function showLoupe(on) {
+    const question = state.bulle?.question;
+    const zone = question && (state.zones[here()] ?? []).find((candidate) => candidate.id === question.id && !candidate.trait);
+    loupeButton.textContent = on && zone ? "Fermer la loupe" : "Voir à la loupe";
+    if (!on || !zone) return void loupeBox.classList.remove("on");
+    const inner = LENS - 14;
+    const page = element("div", "page");
+    const style = getComputedStyle(document.body);
+    page.style.cssText = `width:${document.documentElement.scrollWidth}px;height:${document.documentElement.scrollHeight}px;background:${style.backgroundColor};`;
+    // The page's own styles, then its body (a <body> element, so that its rules still apply), then the mark of the zone.
+    for (const sheet of document.querySelectorAll("style, link[rel=stylesheet]")) page.append(sheet.cloneNode(true));
+    page.append(document.body.cloneNode(true));
+    const mark = element("div", `mark ${zone.genre}`);
+    mark.style.cssText = `left:${zone.x}px;top:${zone.y}px;width:${zone.largeur}px;height:${zone.hauteur}px`;
+    page.append(mark);
+    const cx = zone.x + zone.largeur / 2;
+    const cy = zone.y + zone.hauteur / 2;
+    page.style.transform = `translate(${inner / 2 - cx * ZOOM}px, ${inner / 2 - cy * ZOOM}px) scale(${ZOOM})`;
+    lens.replaceChildren(page);
+    // Beside the question, on the side away from the mascot (else the other side), whole in the screen, under the banner.
+    const card = bubble.getBoundingClientRect();
+    const leftRoom = card.left - LENS - 24 >= 8;
+    const rightRoom = card.right + LENS + 24 <= innerWidth - 8;
+    const mascotRight = goal.x > card.left;
+    const right = mascotRight ? !leftRoom && rightRoom : rightRoom || !leftRoom;
+    const x = right ? card.right + 24 : card.left - LENS - 24;
+    loupeBox.style.left = `${Math.max(8, Math.min(innerWidth - LENS - 8, x))}px`;
+    loupeBox.style.top = `${Math.max(76, Math.min(innerHeight - LENS - 90, card.top + card.height / 2 - LENS / 2))}px`;
+    loupeBox.style.setProperty("--handle", right ? "-35deg" : "35deg");
+    loupeBox.classList.add("on");
+  }
   function layout() {
     const { bulle } = state;
     bulle.spot = place(bulle.cible, bubble.offsetWidth, bubble.offsetHeight, state.revue && !bulle.cible);
@@ -347,13 +433,24 @@
       frameOf.classList.add("done");
       return animate && wait(300);
     }
-    frameOf.append(element("b", "", zone.n));
-    item.annotation = annotate(frameOf, { type: "box", color: COLORS[zone.genre], strokeWidth: 4.5, padding: 7, iterations: 2, animate, animationDuration: STROKE });
-    item.annotation.show();
-    if (animate) await wait(STROKE);
+    frameOf.append(element("b", "", zone.n), element("em", `stamp ${zone.verdict ?? zone.genre}`, STAMPS[zone.verdict ?? zone.genre]));
+    // A proven defect is circled in coral; a doubt gets a lavender dashed frame (drawn by CSS when the zone is done).
+    if (zone.genre === "defaut") ring(item, animate);
+    if (animate) await wait(zone.genre === "defaut" ? STROKE : 300);
     frameOf.classList.add("done");
     if (animate) await wait(250);
   }
+  function ring(item, animate) {
+    item.annotation = annotate(item.element, { type: "circle", color: COLORS.defaut, strokeWidth: 4, padding: 12, iterations: 1, animate, animationDuration: STROKE });
+    item.annotation.show();
+  }
+  const restamp = (item) => {
+    const stamp = item.element.querySelector(".stamp");
+    if (!stamp) return;
+    const kind = item.zone.verdict ?? item.zone.genre;
+    stamp.className = `stamp ${kind}`;
+    stamp.textContent = STAMPS[kind];
+  };
   const follow = () => {
     zonesBox.style.transform = `translate(${-scrollX}px, ${-scrollY}px)`;
     if (state.revue) renderDim();
@@ -362,12 +459,11 @@
   // ---------- Banner ----------
   const renderBanner = (before = state.compteur) => {
     banner.hidden = !TITLE;
-    const words = [["bon", "bons", COLORS.conforme], ["problème", "problèmes", COLORS.defaut], ["doute", "doutes", COLORS.doute]];
-    banner.replaceChildren(element("span", "", TITLE), ...words.map(([one, many, colour], index) => {
+    // The counters are stamps: OK, défauts, à trancher.
+    const words = [["OK", "OK", "conforme"], ["défaut", "défauts", "defaut"], ["à trancher", "à trancher", "doute"]];
+    banner.replaceChildren(Object.assign(element("span", "logo"), { innerHTML: LOGO }), element("span", "title", TITLE), ...words.map(([one, many, genre], index) => {
       const count = state.compteur[index];
-      const item = element("span", count === before[index] ? "" : "changed", ` ${count} ${count > 1 ? many : one}`);
-      item.prepend(Object.assign(element("i"), { style: `background:${colour}` }));
-      return item;
+      return element("span", `stamp ${genre}${count === before[index] ? "" : " changed"}`, `${count} ${count > 1 ? many : one}`);
     }));
   };
 
@@ -378,7 +474,7 @@
     const hole = (zone, k) => {
       const w = (zone.largeur + 32) * k;
       const h = (zone.hauteur + 32) * k;
-      const r = Math.min(12, w / 2, h / 2);
+      const r = 0; // square corners, as everywhere in the art direction
       return `M${zone.x - scrollX + zone.largeur / 2 - w / 2 + r} ${zone.y - scrollY + zone.hauteur / 2 - h / 2}h${w - 2 * r}a${r} ${r} 0 0 1 ${r} ${r}v${h - 2 * r}a${r} ${r} 0 0 1 ${-r} ${r}h${2 * r - w}a${r} ${r} 0 0 1 ${-r} ${-r}v${2 * r - h}a${r} ${r} 0 0 1 ${r} ${-r}Z`;
     };
     const path = (k) => `path("M0 0H${innerWidth}V${innerHeight}H0Z${holes.map((zone) => hole(zone, k)).join("")}")`;
@@ -490,7 +586,13 @@
       save();
       for (const item of drawn.filter((candidate) => candidate.zone.id === id)) {
         item.element.className = `${zoneClass(item.zone)} done changed`;
-        if (item.annotation) item.annotation.color = COLORS[genre];
+        restamp(item);
+        if (item.zone.trait) continue;
+        if (genre === "defaut" && !item.annotation) ring(item, true);
+        if (genre !== "defaut" && item.annotation) {
+          item.annotation.remove();
+          item.annotation = null;
+        }
       }
     },
     // End of the course. revue(true): the page goes dark, the cursor leaves, clicks on the page are ignored.
@@ -513,14 +615,25 @@
       setEtat(etat);
       state.bulle = { question: { id, texte, rang }, genre: "", cible: about, page: here() };
       save();
+      showLoupe(false);
       await wait(450);
       return renderBubble(true);
+    },
+    // The third button: the zone of the question, magnified in a loupe beside it. loupe(false) closes it.
+    loupe(on) {
+      showLoupe(on);
     },
     choisir(choix) {
       const id = state.bulle?.question?.id;
       if (!id || choices.classList.contains("made")) return;
       choices.classList.add("made");
       choices.querySelector(`.${choix}`).classList.add("chosen");
+      showLoupe(false);
+      // The verdict falls as a stamp on the question and on the zone: « BUG NOTÉ » or « VOULU ».
+      bubble.append(element("div", `stamp ${choix}`, STAMPS[choix]));
+      for (const zone of Object.values(state.zones).flat()) if (zone.id === id) zone.verdict = choix;
+      save();
+      for (const item of drawn.filter((candidate) => candidate.zone.id === id)) restamp(item);
       window.horamaChoix?.(JSON.stringify({ id, choix }));
     },
     // Last screen: what was written. { titre, compte, legende, fichiers }.
@@ -528,8 +641,8 @@
       await this.bulle(null);
       this.revue(true);
       const list = element("ul");
-      list.append(...fichiers.map((file) => element("li", "", file)));
-      end.replaceChildren(element("h1", "", titre), element("p", "", compte), element("small", "", legende), list);
+      list.append(...fichiers.map((file) => element("li", "", file.split(/[\\/]/).pop())));
+      end.replaceChildren(Object.assign(element("div", "logo"), { innerHTML: LOGO }), element("div", "stamp conforme", "Tout est tranché"), element("h1", "", titre), element("p", "", compte), element("small", "", legende), list);
       end.classList.add("on");
       setEtat("conforme");
       const panel = end.getBoundingClientRect();

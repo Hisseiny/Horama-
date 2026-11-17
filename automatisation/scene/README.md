@@ -105,9 +105,19 @@ Commandes, appelées par `layer(page, "<commande>", ...)` de `scene.mjs` (`windo
 | `trouver(texte)`, `autour(zone)` | rectangles des éléments dont le texte affiché vaut `texte` ; texte de l'élément au centre d'une zone (40 caractères au plus) et cadre qui contient la zone et ce texte |
 | `revue(oui)` | la page s'assombrit, le curseur de l'agent sort |
 | `question({ id, texte, rang, etat })` | met en lumière les zones du constat `id` et pose la question avec ses deux boutons ; la réponse revient par la liaison CDP `horamaChoix` |
-| `choisir(choix)` | répond à la place de l'humain (`--choix`) |
+| `choisir(choix)` | répond à la place de l'humain (`--choix`) ; le verdict tombe en tampon (« BUG NOTÉ », « VOULU ») sur la question et sur la zone |
+| `loupe(oui)` | troisième bouton de la question, « Voir à la loupe » : la zone du constat, grossie 2,4 fois dans une loupe ronde à côté de la question (copie de la page, sans flou ni capture) |
 | `fin({ titre, compte, legende, fichiers })` | l'écran de fin |
 | `masquer()`, `montrer()` | pour une capture |
+
+### Direction artistique (CDO, 17 novembre)
+
+- La mascotte est l'œil ailé du logo : ailes lavande `#AFA9EC`, trait graphite `#2B2B2B`, iris violet `#7F77DD`. Elle bat des ailes et cligne. `verification` : un cadre violet se ferme autour de l'œil et le regard balaie ; `interrogation` : regard de côté et « ? » ; `defaut` : iris corail `#F26B5B` et secousse ; `conforme` : iris vert `#B6E36B`, coche et tour sur elle-même.
+- Fond violet de l'œil `#2A2163` pour le bandeau, les questions et l'écran de fin. Angles droits partout, sauf l'œil, le O du logo et la loupe. Aucun contour, sauf les tampons (3 px, inclinés de -6°).
+- Bandeau : le logo HORAMA (l'œil dans le O), puis les compteurs en tampons « OK », « DÉFAUTS », « À TRANCHER ».
+- Sur la page : un défaut prouvé est entouré en corail ; un doute a un cadre lavande en pointillé. Chaque zone porte son tampon (« DÉFAUT PROUVÉ », « À TRANCHER », puis « BUG NOTÉ » ou « VOULU » une fois tranché).
+- Fin : « TOUT EST TRANCHÉ » en tampon, et le nom des décisions écrites (sans le chemin complet).
+- Le fonctionnement ne change pas : mêmes commandes, mêmes arguments, mêmes moments. Seule `loupe(oui)` s'ajoute.
 
 ### Remplacer la mascotte provisoire
 
