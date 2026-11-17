@@ -45,6 +45,19 @@ step "   commit $VERS (depuis $DEPUIS), dossier de travail retiré"
 step "3. Réveil : choix des tests"
 node automatisation/impact/impact.mjs --depuis "$DEPUIS" --vers "$VERS" --logiciel eugenia --json > "$OUT/impact.json" || exit 2
 node automatisation/impact/impact.mjs --depuis "$DEPUIS" --vers "$VERS" --logiciel eugenia > /dev/null
+# The scripted course cannot open the burger menu: without the agent, tour-du-site is moved to the dismissed tests.
+if [ -n "$MODE" ]; then
+  node -e '
+    const fs = require("fs");
+    const impact = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+    const out = impact.retenus.filter(({ id }) => id === "tour-du-site");
+    impact.retenus = impact.retenus.filter(({ id }) => id !== "tour-du-site");
+    impact.ids = impact.retenus.map(({ id }) => id);
+    impact.ecartes.push(...out.map(({ id }) => ({ id, raison: "non jouable en scripté" })));
+    fs.writeFileSync(process.argv[1], JSON.stringify(impact, null, 2));
+    if (out.length) console.log("   tour-du-site écarté : non jouable en scripté (menu burger)");
+  ' "$OUT/impact.json"
+fi
 
 step "4. Scène : annonce, parcours, récapitulatif, décision"
 # shellcheck disable=SC2086
