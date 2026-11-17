@@ -14,11 +14,14 @@ import { validateAnswer } from "../generation/validation.ts";
 // transcribed from the trace of the call (same content, JSON layout not guaranteed); liste-des-factures--ecrite-a-la-main.json is written by hand.
 // To be replaced by files of generation/essais/ once T4 has run. Their view of the filter was renamed « filtre-echeance » (the
 // recorded answers said « filtre-echeance-depassee ») when the code started to accept only the views a screen note declares.
-// The tests run on a copy of the vault whose note liste-des-factures declares that view, as Facturo exposes it.
+// The tests run on a copy of the vault whose note liste-des-factures declares that view, as Facturo exposes it (added below
+// only when the vault does not declare it yet).
 const VAULT = mkdtempSync(join(tmpdir(), "horama-generation-"));
 cpSync(fileURLToPath(new URL("../../vault-horama", import.meta.url)), VAULT, { recursive: true });
 const LISTE_FILE = join(VAULT, "facturo", "produit", "liste-des-factures.md");
-writeFileSync(LISTE_FILE, readFileSync(LISTE_FILE, "utf8").replace(/^---\n/, "---\nvues: [filtre-echeance]\n"));
+const liste = readFileSync(LISTE_FILE, "utf8");
+// Only until the vault declares the view itself (Inès, PR #24): a second « vues » key would make the front matter invalid.
+if (!/^vues:/m.test(liste.split("\n---")[0])) writeFileSync(LISTE_FILE, liste.replace(/^---\n/, "---\nvues: [filtre-echeance]\n"));
 after(() => rmSync(VAULT, { recursive: true, force: true }));
 const V13 = "notes-de-version/v13.md";
 const LISTE = "produit/liste-des-factures.md";
