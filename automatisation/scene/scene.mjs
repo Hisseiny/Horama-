@@ -219,9 +219,18 @@ export async function layer(page, command, ...args) {
 export async function capture(page) {
   try {
     await inLayer(page, "window.__horama?.masquer()").catch(() => {});
+    // No hover in a capture: the pointer left on a button (last click, or the real mouse over the window) would colour
+    // it. Outside the page nothing is hovered (checked on the 7 pages of Eugenia on 17/11); left by the side, not the
+    // top, which « exit intent » pop-ups watch. The agent sends the point of each action with it, so the pointer is not
+    // put back. Then the transitions (hover, top of page) run out, 1 s at most, collected once they have started.
+    await page.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: -10, y: 450 }).catch(() => {});
     const seen = await evaluate(page, `(async () => {
       scrollTo(0, 0);
-      await new Promise((done) => { requestAnimationFrame(() => requestAnimationFrame(done)); setTimeout(done, 300); });
+      const frames = () => new Promise((done) => { requestAnimationFrame(() => requestAnimationFrame(done)); setTimeout(done, 300); });
+      await frames();
+      const transitions = document.getAnimations().filter((animation) => animation instanceof CSSTransition).map((animation) => animation.finished.catch(() => {}));
+      await Promise.race([Promise.all(transitions), new Promise((done) => setTimeout(done, 1000))]);
+      await frames();
       return { texte_page: document.body.innerText, url_page: location.href, defilement: [scrollX, scrollY] };
     })()`);
     const { data } = await page.send("Page.captureScreenshot", { format: "png" });

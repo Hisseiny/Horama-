@@ -34,7 +34,7 @@ ecrans_vises: [accueil]
 ne_doit_pas_changer: []
 ---
 
-# Répétition : le bouton « Candidater » de l'accueil passe en anglais
+# Répétition : les boutons « POSTULER → » deviennent « CANDIDATER → »
 EOF
 git -C "$WT" add vault-horama/eugenia/changements/bouton-candidater-anglais.md
 git -C "$WT" -c user.name="Horama répétition" -c user.email="repetition@horama.invalid" commit -q -m "Répétition : fiche de changement" || exit 2
