@@ -5,14 +5,15 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import type { Decision } from "@horama/contrats";
-import { DEFAULT_MODEL, proposerCorrection } from "../index.ts";
+import { proposerCorrection } from "../index.ts";
+import { CORRECTION_MODEL } from "../correction/index.ts";
 import type { ModelCall } from "../index.ts";
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const VAULT = `${ROOT}vault-horama`;
 const OUTPUT = `${ROOT}docs/tests/2026-11-17-correction.md`;
 const PASSES = 3;
-const models = process.argv.slice(2).length ? process.argv.slice(2) : [DEFAULT_MODEL];
+const models = process.argv.slice(2).length ? process.argv.slice(2) : [CORRECTION_MODEL];
 if (!process.env.HF_TOKEN) throw new Error("HF_TOKEN absent : lancer avec node --env-file=.env.local");
 
 interface Truth { id: string; ecran: string; vue: string; nature: string; contredit_la_doc: boolean; texte_apres?: string }

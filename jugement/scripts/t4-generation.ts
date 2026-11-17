@@ -1,5 +1,7 @@
 // T4: can an open model served by the Hugging Face router write the tests of 3 notes of the vault?
-// Run from the root of the repository: node --env-file=<.env.local> jugement/scripts/t4-generation.ts
+// Run from the root of the repository: node --env-file=<.env.local> jugement/scripts/t4-generation.ts [model ...]
+// With models given (a router suffix such as `:fastest` or `:cerebras` included), the run is a new measure: its files get the
+// suffix `-rapide` (or `-$T4_RUN`) and the files of the first T4 run (2026-11-16) are left as they are.
 // Every figure written by this script is measured by this run; the vault is only read (writes go to a temporary copy).
 import { execSync } from "node:child_process";
 import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -12,7 +14,8 @@ import { ecrireTestAccepte, lireNotes, lireTestAccepte, urlDepart } from "@horam
 import { DEFAULT_MODEL, proposerTests } from "../index.ts";
 import type { ModelCall } from "../index.ts";
 
-const MODELS = ["openai/gpt-oss-120b", "Qwen/Qwen3.8-27B"];
+const ASKED = process.argv.slice(2);
+const MODELS = ASKED.length ? ASKED : ["openai/gpt-oss-120b", "Qwen/Qwen3.8-27B"];
 const RESERVE = "zai-org/GLM-5.3-Flash"; // measured only when one of the two never answers
 const V13 = "notes-de-version/v13.md";
 const NOTES = [V13, "produit/liste-des-factures.md", "produit/regles-entre-ecrans.md"];
@@ -24,8 +27,11 @@ const MAX_MEDIAN_MS = 10_000;
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const VAULT = join(ROOT, "vault-horama");
 const OUT = join(ROOT, "jugement/generation");
-const REPORT = "docs/tests/2026-11-16-t4-generation.md";
-const COMMAND = ["node", ...process.execArgv, "jugement/scripts/t4-generation.ts"].join(" ");
+const RUN = process.env.T4_RUN ?? "rapide"; // name of a run with chosen models: T4_RUN=rapide-2 keeps the files of the run « rapide »
+const REPORT = ASKED.length ? `docs/tests/2026-11-17-t4-generation-${RUN}.md` : "docs/tests/2026-11-16-t4-generation.md";
+const ESSAIS = ASKED.length ? `essais-${RUN}` : "essais";
+const COMPARAISON = ASKED.length ? `comparaison-${RUN}.md` : "comparaison.md";
+const COMMAND = ["node", ...process.execArgv, "jugement/scripts/t4-generation.ts", ...ASKED].join(" ");
 
 interface Pass {
   model: string;
@@ -128,7 +134,7 @@ async function runPass(model: string, note: string, pass: number): Promise<Pass>
     problems,
     firstRefusal: (calls.length > 1 && calls[0].rejections) || [],
   };
-  writeFileSync(join(OUT, "essais", `${model.split("/").pop()}--${basename(note, ".md")}--${pass}.json`), `${JSON.stringify({ ...result, calls, tests }, null, 2)}\n`);
+  writeFileSync(join(OUT, ESSAIS, `${model.split("/").pop()!.replace(":", "@")}--${basename(note, ".md")}--${pass}.json`), `${JSON.stringify({ ...result, calls, tests }, null, 2)}\n`);
   console.log(`${model} | ${note} | passe ${pass} : format ${yesNo(valid)}, règles ${yesNo(result.rulesRight)}, ${ms} ms, ${calls.length} essai(s)${problems.length ? ` | ${problems.join(" | ")}` : ""}`);
   return result;
 }
@@ -200,24 +206,25 @@ function verdict(summaries: Summary[]): string {
 }
 
 const startedAt = new Date();
-rmSync(join(OUT, "essais"), { recursive: true, force: true });
-mkdirSync(join(OUT, "essais"), { recursive: true });
+rmSync(join(OUT, ESSAIS), { recursive: true, force: true });
+mkdirSync(join(OUT, ESSAIS), { recursive: true });
 
 const passes = (await Promise.all(MODELS.map(runModel))).flat();
 const silent = MODELS.filter((model) => passes.every((pass) => pass.model !== model || !pass.answered));
-if (silent.length) passes.push(...(await runModel(RESERVE)));
-const models = silent.length ? [...MODELS, RESERVE] : MODELS;
+const reserve = silent.length > 0 && !ASKED.length; // the reserve belongs to the first T4 run only
+if (reserve) passes.push(...(await runModel(RESERVE)));
+const models = reserve ? [...MODELS, RESERVE] : MODELS;
 const summaries = models.map((model) => summarize(model, passes));
 
 const git = (args: string) => execSync(`git ${args}`, { cwd: ROOT, encoding: "utf8" }).trim();
 const uncommitted = git("status --porcelain -- jugement memoire")
   .split("\n")
-  .filter((line) => line && !line.includes("jugement/generation/essais/") && !line.endsWith("jugement/generation/comparaison.md"));
+  .filter((line) => line && !line.includes(`jugement/generation/${ESSAIS}/`) && !line.endsWith(`jugement/generation/${COMPARAISON}`));
 const launch = [
   `- Commande, depuis la racine du repo : \`${COMMAND}\``,
   `- Début : ${startedAt.toISOString()} ; durée totale : ${seconds(Date.now() - startedAt.getTime())}.`,
   `- Code : commit \`${git("rev-parse --short HEAD")}\`, ${uncommitted.length ? `avec ${uncommitted.length} fichier(s) de \`jugement/\` ou \`memoire/\` modifié(s) et non commité(s)` : "sans modification non commitée de `jugement/` ni de `memoire/`"}.`,
-  `- Modèles : ${MODELS.map((model) => `\`${model}\``).join(", ")} ; réserve \`${RESERVE}\` : ${silent.length ? `lancée, car ${silent.map((model) => `\`${model}\``).join(", ")} n'a rendu aucune réponse` : "non lancée (chaque modèle a répondu au moins une fois)"}.`,
+  `- Modèles : ${MODELS.map((model) => `\`${model}\``).join(", ")} ; réserve \`${RESERVE}\` : ${ASKED.length ? "sans objet (modèles choisis à la main)" : silent.length ? `lancée, car ${silent.map((model) => `\`${model}\``).join(", ")} n'a rendu aucune réponse` : "non lancée (chaque modèle a répondu au moins une fois)"}.`,
   `- ${NOTES.length} notes (${NOTES.map((note) => `\`${note}\``).join(", ")}), ${PASSES} passes chacune, température 0, délai d'abandon de 45 s par appel, un second essai au plus après un refus du code.`,
 ].join("\n");
 const definitions = [
@@ -231,8 +238,8 @@ const retries = passes.filter((pass) => pass.firstRefusal.length).map((pass) => 
 const generated = "Fichier écrit par `jugement/scripts/t4-generation.ts` : aucun chiffre n'y est écrit à la main.";
 
 writeFileSync(
-  join(OUT, "comparaison.md"),
-  ["# T4 : comparaison des modèles de génération", "", generated, "", verdict(summaries), "", launch, "", definitions, "", sections, "", `Détail de chaque passe et réponses brutes : \`jugement/generation/essais/\` et \`${REPORT}\`.`, ""].join("\n"),
+  join(OUT, COMPARAISON),
+  ["# T4 : comparaison des modèles de génération", "", generated, "", verdict(summaries), "", launch, "", definitions, "", sections, "", (ASKED.length ? `Détail de chaque passe : \`${REPORT}\` ; réponses brutes gardées en local, hors du dépôt (\`jugement/generation/${ESSAIS}/\`).` : `Détail de chaque passe et réponses brutes : \`jugement/generation/${ESSAIS}/\` et \`${REPORT}\`.`), ""].join("\n"),
 );
 writeFileSync(
   join(ROOT, REPORT),
@@ -270,7 +277,7 @@ writeFileSync(
     "Premiers essais refusés par le code, puis rattrapés ou non au second :",
     retries.length ? retries.join("\n") : "Aucun.",
     "",
-    "Réponses brutes de chaque passe : `jugement/generation/essais/<modele>--<note>--<passe>.json`.",
+    `Réponses brutes de chaque passe : ${ASKED.length ? "gardées en local, hors du dépôt (" : ""}\`jugement/generation/${ESSAIS}/<modele>--<note>--<passe>.json\`${ASKED.length ? ")" : ""}.`,
     "",
   ].join("\n"),
 );

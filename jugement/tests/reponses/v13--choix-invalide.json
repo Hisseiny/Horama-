@@ -15,7 +15,7 @@
       "releves": [
         {
           "ecran": "liste-des-factures",
-          "vue": "filtre-echeance-depassee"
+          "vue": "filtre-echeance"
         }
       ],
       "regles_calculables": [
