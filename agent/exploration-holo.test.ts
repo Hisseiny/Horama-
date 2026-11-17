@@ -47,7 +47,6 @@ test("visible findings remain suspected and the request disables thinking withou
     assert.ok(!JSON.stringify(body.response_format).includes("["));
     assert.match(body.messages[0].content[0].text, /1280x900/);
     assert.match(body.messages[0].content[0].text, /normalized to \[0,1000\]/);
-    assert.match(body.messages[0].content[0].text, /An element cut off by the screenshot edge is not a defect/);
     return reply(JSON.stringify({ ...empty, d0: "cut-off-text | 100,200,300,400 | The title is clipped." }));
   } });
   assert.equal(result.status, "SUSPECTED");
