@@ -36,6 +36,8 @@ export interface PassageOptions {
   port: number;
 }
 
+export class UnknownTestsError extends Error {}
+
 export function lireArguments(args: string[]): PassageOptions | null {
   if (args[0] === "--") args = args.slice(1);
   if (args.length === 1 && args[0] === "--help") return null;
@@ -74,8 +76,11 @@ export async function lancerCommande(options: PassageOptions, dependencies: {
   exit?: (code: number) => void;
 } = {}) {
   const env = dependencies.env ?? process.env;
+  const accepted = lireTestsAcceptes(options.vault, options.logiciel).map(({ id }) => id);
+  const unknown = options.tests?.filter((id) => !accepted.includes(id)) ?? [];
+  if (unknown.length) throw new UnknownTestsError(`Tests acceptés inconnus : ${unknown.join(", ")}.`);
   const input: LancementPassage = { logiciel: options.logiciel, version_testee: options.version, version_reference: options.reference,
-    tests: options.tests ?? lireTestsAcceptes(options.vault, options.logiciel).map(({ id }) => id), regressions: options.regressions, cle: options.cle };
+    tests: options.tests ?? accepted, regressions: options.regressions, cle: options.cle };
   const key = options.cle === "demo" ? env.HAI_API_KEY_DEMO : env.HAI_API_KEY;
   if (!dependencies.session && !key) throw new Error("Clé H absente pour ce passage.");
   const base = dependencies.base ?? creerBaseSupabase({ url: env.SUPABASE_URL, key: env.SUPABASE_SERVICE_ROLE_KEY });
