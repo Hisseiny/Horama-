@@ -123,8 +123,11 @@ export async function navigate(page, url) {
 
 const measure = (page) => evaluate(page, "({ largeur: innerWidth, hauteur: innerHeight, densite: devicePixelRatio })");
 
-// Resizes the real window until the page area is WIDTH x HEIGHT. No screen emulation: it would shift the agent's clicks.
-// A window cannot be taller than its screen: when the area is not reached, the window is moved to a screen that fits.
+// Resizes the real window until the page area is WIDTH x HEIGHT. A window cannot be taller than its screen: when the
+// area is not reached, the window is moved to a screen that fits. Then the area is imposed by
+// Emulation.setDeviceMetricsOverride whatever the screen (the Mac screen alone only gives 1280 x 862), so that every
+// screen gives the same pages and the same captures. The override holds as long as this CDP connection is open, across
+// page changes, and is lost when it closes. Its effect on the clicks of H is still to measure.
 export async function fitViewport(page) {
   const { windowId } = await page.send("Browser.getWindowForTarget");
   const resize = async () => {
@@ -141,7 +144,7 @@ export async function fitViewport(page) {
     return measure(page);
   };
   await page.send("Browser.setWindowBounds", { windowId, bounds: { windowState: "normal" } });
-  let area = await resize();
+  const area = await resize();
   if (area.largeur !== WIDTH || area.hauteur !== HEIGHT) {
     const { bounds } = await page.send("Browser.getWindowForTarget");
     const need = { width: bounds.width + WIDTH - area.largeur, height: bounds.height + HEIGHT - area.hauteur };
@@ -150,10 +153,11 @@ export async function fitViewport(page) {
     if (screen) {
       await page.send("Browser.setWindowBounds", { windowId, bounds: { left: screen.availLeft, top: screen.availTop, ...need } });
       await sleep(600);
-      area = await resize();
+      await resize();
     }
   }
-  return area;
+  await page.send("Emulation.setDeviceMetricsOverride", { width: WIDTH, height: HEIGHT, deviceScaleFactor: 1, mobile: false });
+  return measure(page);
 }
 
 // Puts the Horama layer (couche-horama.js) in every page to come, with the code of rough-notation beside it (nothing

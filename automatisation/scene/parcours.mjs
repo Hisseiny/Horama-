@@ -4,21 +4,26 @@
 // what was found on this screen, one thing at a time, and the agent only gets its answer once it has finished (or at
 // the cap). At the end the course goes back over each defect and each doubt, a human says « bug » or « voulu », and
 // each choice is written in the vault as a decision.
-// Starts from the T7 probe (sonde-t7.mjs): same Chrome, same bridge, same session, same rules given to the agent.
+// The passage is run by Ali's runner (agent/index.ts): it creates the H session (or plays the scripted one), relaunches
+// a mute session, writes passages, evenements and captures in the base and the report in the vault. The scene gives it
+// the Chrome and its bridge (navigateur) and the relevé hook; the Chrome and the bridge come from the T7 probe.
 //
-// Usage: node [--env-file=<.env.local>] automatisation/scene/parcours.mjs [--sans-agent] [--rythme <s>]
-//          [--plafond <s>] [--clic-direct] [--choix bug,voulu,...] [--sans-fin] [--par <nom>]
+// Usage: node [--env-file=<.env.local>] automatisation/scene/parcours.mjs [--sans-agent] [--sans-base | --avec-base]
+//          [--rythme <s>] [--plafond <s>] [--clic-direct] [--choix bug,voulu,...] [--sans-fin] [--par <nom>]
 //          [--vault <dir>] [--logiciel facturo] [--version 13] [--reference 12] [--tests a,b,c] [--r <ids>]
 //          [--verification <file>] [--ecrire-references] [--temoins <dir>] [--film <dir>] [--sortie <dir>]
 //          [--port 9333] [--profil <dir>] [--fermer-chrome]
-// Env: HAI_API_KEY, FAUX_SAAS_URL, CHROME_BIN, HOLO_BIN, HAI_AGENT_MODEL, HAI_AGENT_REASONING.
-// Exit: 0 every relevé taken and nothing failed, 1 otherwise, 2 something is missing, 130 Ctrl+C.
+// Env: HAI_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, FAUX_SAAS_URL, CHROME_BIN, HOLO_BIN, HAI_AGENT_MODEL,
+// HAI_AGENT_REASONING.
+// Exit: 0 every relevé taken, passage played and nothing failed, 1 otherwise, 2 something is missing, 130 Ctrl+C.
 import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { BaseMemoire, construireConsigne, creerBaseSupabase, creerCoureur } from "../../agent/index.ts";
+import { libelleAction } from "../../agent/src/session.ts";
 import { ecrireDecision, ecrireReference, lireDecisions, lireNotes, lireReferences, lireTestsAcceptes } from "../../memoire/index.ts";
-import { COURSE_RULES, END_TOOL, agentPass, findHolo, stopAgent, stopIfMissing } from "./agent-h.mjs";
+import { findHolo, startBridge, stopIfMissing } from "./agent-h.mjs";
 import { HEIGHT, WIDTH, capture, clickAt, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, layer, navigate, openChrome, option, say, sleep, waitFor } from "./scene.mjs";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
@@ -67,7 +72,6 @@ const call = ({ ecran, vue }) => `relever(ecran="${ecran}", vue="${vue}")`;
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const versioned = (test, path) => path.replaceAll(`/v${test.version_cible}/`, `/v${VERSION}/`);
 const section = (test, name) => (new RegExp(`^## ${name}[ \\t]*\\n([\\s\\S]*?)(?=^## |^\`\`\`)`, "m").exec(test.markdown)?.[1] ?? "").trim();
-const title = (test) => /^# (.+)$/m.exec(test.markdown)?.[1] ?? test.id;
 
 // The relevés of every test, in order, each one once; `part` is the first test that asks for it.
 const course = [];
@@ -101,38 +105,33 @@ if (flag("rythme") && !(RYTHME > 0)) missing.push("--rythme doit être un nombre
 if (!(CAP_MS > 0)) missing.push("--plafond doit être un nombre de secondes positif.");
 if (CHOICES.some((choix) => choix !== "bug" && choix !== "voulu")) missing.push("--choix attend une liste de « bug » et de « voulu », séparés par des virgules.");
 for (const name of ["temoins", "film"]) if (flag(name) && !option(name)) missing.push(`--${name} demande un dossier.`);
+// The base the runner writes in: Supabase with the agent, in memory without it (scripted passages stay out of the
+// shared base), unless --sans-base or --avec-base says otherwise.
+if (flag("sans-base") && flag("avec-base")) missing.push("--sans-base et --avec-base s'excluent.");
+let base = null;
+try {
+  base = (SANS_AGENT ? flag("avec-base") : !flag("sans-base")) ? creerBaseSupabase() : new BaseMemoire();
+} catch (error) {
+  missing.push(`${error.message} (sans base partagée : --sans-base).`);
+}
+const REGRESSIONS = flag("r") ? option("r").split(",") : undefined;
+// What the runner gives H (instructions, task, tools): built here too, only to write it in consigne.md.
+let consigne = null;
+try {
+  if (!missing.length) consigne = construireConsigne({ vault: VAULT, logiciel: LOGICIEL, version: VERSION, ids: tests.map((test) => test.id), baseUrl: BASE, regressions: REGRESSIONS });
+} catch (error) {
+  missing.push(`La consigne du coureur ne se construit pas : ${error.message}`);
+}
 const holo = SANS_AGENT ? null : findHolo();
 stopIfMissing({ port: PORT, chromeBin: CHROME_BIN, sansAgent: SANS_AGENT, holo }, missing);
+// Each step of the passage, as the runner writes it in the base, is also said here.
+const writeEvent = base.insererEvenement.bind(base);
+base.insererEvenement = (event) => {
+  say(`étape ${event.etape} : ${event.action}`);
+  return writeEvent(event);
+};
 
 const START = `${BASE}${versioned(tests[0], tests[0].url_depart)}${flag("r") ? `&r=${option("r")}` : ""}`;
-const INSTRUCTIONS = [`Tu joues un parcours de test sur le logiciel ${LOGICIEL}, dans le seul onglet ouvert du navigateur.`, ...COURSE_RULES].join("\n");
-const TASK = [
-  `Ouvre ${START} dans l'onglet courant avec go_to, sans chercher ni changer d'onglet. Puis joue ${tests.length > 1 ? `les ${tests.length} parties ci-dessous, dans l'ordre` : "la partie ci-dessous"}. Ne rouvre jamais cette adresse : on passe d'une partie à la suivante par les menus et les liens du logiciel.`,
-  ...tests.flatMap((test, index) => [
-    "",
-    `Partie ${index + 1} : ${title(test)}`,
-    `État de départ, à atteindre sans recharger la page : ${section(test, "Setup")}`,
-    section(test, "Task"),
-    `Relevés de cette partie : ${test.releves.map((releve) => {
-      const { part } = course.find((step) => step.key === keyOf(releve));
-      return `${call(releve)}${part <= index ? ` (déjà pris en partie ${part} : ne le refais pas)` : ""}`;
-    }).join(" ; ")}.`,
-  ]),
-  "",
-  'Un relevé déjà pris ne se refait pas. Quand tous les relevés sont pris, appelle terminer(etat="reussi"). Si une étape reste impossible après 2 essais, appelle terminer(etat="echec", raison=...).',
-].join("\n");
-const TOOLS = [
-  {
-    name: "relever",
-    description: "Enregistre l'écran affiché (capture et texte), une fois la page chargée. À appeler à chaque écran demandé. Le résultat dit quoi faire ensuite.",
-    input_schema: {
-      type: "object",
-      properties: { ecran: { type: "string", enum: [...new Set(course.map((step) => step.ecran))] }, vue: { type: "string", enum: [...new Set(course.map((step) => step.vue))] } },
-      required: ["ecran", "vue"],
-    },
-  },
-  END_TOOL,
-];
 
 const count = (number, one, many) => `${number} ${number > 1 ? many : one}`;
 // A bubble stays at least this long: 2.5 s, plus 50 ms per character.
@@ -144,16 +143,18 @@ const STROKE_MS = 800; // time the layer takes to draw a line (STROKE in couche-
 // ---------- Scene ----------
 mkdirSync(join(OUT, "releves"), { recursive: true });
 for (const folder of [WITNESSES, FILM]) if (folder) mkdirSync(folder, { recursive: true });
-writeFileSync(join(OUT, "consigne.md"), `# Consigne du passage ${ID}\n\n## Instructions\n\n${INSTRUCTIONS}\n\n## Tâche\n\n${TASK}\n`);
+writeFileSync(join(OUT, "consigne.md"), `# Consigne du passage ${ID}\n\n## Instructions\n\n${consigne.instructions}\n\n## Tâche\n\n${consigne.task}\n`);
 for (const { id, raison } of dropped) say(`Test écarté : ${id} (${raison}).`);
 say(`Passage ${ID} : ${count(tests.length, "test", "tests")} (${tests.map((test) => test.id).join(", ")}), ${count(course.length, "relevé", "relevés")}, version ${VERSION}. Vérification : ${relative(process.cwd(), CHECK_FILE)}.`);
 const chrome = await openChrome({ bin: CHROME_BIN, port: PORT, profile: PROFILE });
 say(chrome.started ? `Chrome dédié lancé (${chrome.version}, port ${PORT}, profil ${PROFILE}).` : `Un Chrome écoute déjà sur le port ${PORT} (${chrome.version}) : réutilisé.`);
 let page = null;
 let filming = false;
+const bridges = new Set(); // the bridges of the sessions not yet ended
+let launched = 0; // H sessions asked by the runner (one more when a mute session is relaunched)
 const stop = async () => {
   filming = false;
-  await stopAgent();
+  for (const bridge of bridges) bridge.stop();
   page?.close();
   if (!flag("fermer-chrome")) return say(`Chrome laissé ouvert (port ${PORT}) : la scène reste à l'écran. Pour le fermer à la fin : --fermer-chrome.`);
   await closeChrome({ port: PORT, pid: chrome.pid });
@@ -166,7 +167,7 @@ process.on("SIGINT", () => {
 
 const started = new Date();
 const errors = [];
-const pass = { sessions: [], relances: 0, dureeS: null, etapes: null, etapesH: null, dureesEtapes: [], coutUsd: null, etat: null };
+let report = null; // the RapportPassage of the runner
 const taken = new Map();
 const clics = [];
 const refus = [];
@@ -333,37 +334,75 @@ async function findings(step, releve) {
   return units;
 }
 
-// Answers the tool relever(ecran, vue): the sentence returned is what the agent reads. It is only sent once the mascot
-// has presented this screen (or at the cap): meanwhile the page does not move and the audience reads.
+// The relevé hook of the runner, for the tool relever(ecran, vue): our capture (a ReleveCapture of agent/src/coureur.ts)
+// and the sentence the agent reads. It is only given once the mascot has presented this screen (or at the cap):
+// meanwhile the page does not move and the audience reads. On another page nothing is checked nor presented: the
+// capture carries the real address and the runner refuses the relevé itself.
 async function relever(ecran, vue) {
   const step = course.find((candidate) => candidate.ecran === ecran && candidate.vue === vue);
-  if (!step) return `Relevé inconnu. Les relevés attendus sont, dans l'ordre : ${course.map(call).join(", ")}.`;
+  if (!step) throw new Error(`relevé hors du parcours de la scène : ${ecran}--${vue}`);
   const next = () => {
     const todo = course.find((candidate) => !taken.has(candidate.key));
     return todo ? `Continue sans recharger la page. Relevé suivant : ${call(todo)} (partie ${todo.part}).` : 'Tous les relevés sont pris : appelle terminer(etat="reussi").';
   };
-  if (taken.has(step.key)) return `Déjà relevé, rien de nouveau. ${next()}`;
-  if (!(await waitFor(page, `document.readyState === "complete" && ${step.here}`, 5000))) {
-    const url = await evaluate(page, "location.href").catch(() => "inconnue");
-    refus.push(`${step.key} refusé, adresse de la page : ${url}`);
-    return `Relevé refusé : la page affichée (${url}) n'est pas cet écran (adresse attendue : ${step.address}). Regarde la page avec wait_web (1 seconde), va sur cet écran par les menus et les liens, puis appelle de nouveau ${call(step)}.`;
-  }
+  const here = await waitFor(page, `document.readyState === "complete" && ${step.here}`, 5000);
   capturing = true;
   const shot = await capture(page).finally(() => (capturing = false));
+  const result = { png: new Uint8Array(shot.png), texte: shot.texte_page, url_page: shot.url_page, largeur: shot.largeur, hauteur: shot.hauteur, defilement: shot.defilement };
+  if (taken.has(step.key)) return { ...result, phrase: `Déjà relevé, rien de nouveau. ${next()}` };
+  if (!here) {
+    refus.push(`${step.key} refusé, adresse de la page : ${shot.url_page}`);
+    return { ...result, phrase: `Relevé refusé : la page affichée (${shot.url_page}) n'est pas cet écran.` };
+  }
   const file = join(OUT, "releves", step.key);
   writeFileSync(`${file}.png`, shot.png);
   writeFileSync(`${file}.txt`, shot.texte_page);
-  const releve = { ecran, vue, version: VERSION, png: new Uint8Array(shot.png), texte: shot.texte_page, url: shot.url_page };
+  const releve = { ecran, vue, version: VERSION, png: result.png, texte: shot.texte_page, url: shot.url_page };
   taken.set(step.key, releve);
   if (WRITE_REFERENCES) say(`Référence écrite : ${ecrireReference(VAULT, LOGICIEL, ecran, vue, VERSION, shot.png)}`);
   await present(step, await findings(step, releve));
-  return `Relevé pris. ${next()}`;
+  return { ...result, phrase: `Relevé pris. ${next()}` };
+}
+
+// The bridge of one H session (NavigateurSession of agent/src/session.ts): the tab back to about:blank, a new bridge
+// on a new channel. The runner asks for one per session, again when it relaunches a mute session.
+async function navigateur() {
+  await navigate(page, "about:blank");
+  const channel = randomUUID();
+  const bridge = startBridge({ holo, port: PORT, channel, logFile: join(OUT, "pont-holo.log") });
+  bridges.add(bridge);
+  launched++;
+  const stopBridge = () => {
+    bridge.stop();
+    bridges.delete(bridge);
+  };
+  if (!(await bridge.ready(20_000)) && !bridge.failed) say("Le pont n'a pas écrit sa ligne de départ en 20 s : la session est créée quand même.");
+  if (bridge.failed) {
+    stopBridge();
+    throw new Error(bridge.failed);
+  }
+  return { channel, stop: stopBridge, failed: () => bridge.failed };
+}
+
+// The session the runner plays without H (Session of agent/src/session.ts): the script makes the gestures and calls
+// the tools as the agent would, each gesture is a step.
+async function scriptedSession({ onCreated, onStep, onTool }) {
+  const id = `script-${ID}`;
+  let etapes = 0;
+  const gesture = (name) => onStep({ horodatage: new Date().toISOString(), etape: ++etapes, action: libelleAction([name]), etat_session: "en_cours" });
+  const end = (erreur) => ({ id, muted: false, cout_usd: null, etapes, ...(erreur ? { erreur } : {}) });
+  await onCreated(id);
+  const fin = scriptedCourse(gesture, onTool).then(() => end(), (error) => {
+    errors.push(error.message);
+    say(`Échec : ${error.message}`);
+    return end(error.message);
+  });
+  return { id, fin };
 }
 
 // The course played by the script through CDP, at the pace of an agent: proof of the scene without H. It reads the
 // tests as the agent would: a step that names its relevé takes it, the quoted labels of the other steps are clicked.
-async function scriptedCourse() {
-  const from = Date.now();
+async function scriptedCourse(gesture, onTool) {
   const pause = () => sleep(RYTHME ? RYTHME * 1000 : 2000 + Math.random() * 2000);
   const norm = '(text) => (text ?? "").replace(/\\s+/g, " ").trim()';
   // Clicks the middle of the text of the first visible element the expression finds, as an agent aims at a label.
@@ -382,6 +421,7 @@ async function scriptedCourse() {
     if (!(await waitFor(page, point, 10_000))) throw new Error(`le script ne trouve pas où cliquer : ${name}`);
     // A held click only reaches the page once the cursor has arrived.
     const given = DIRECT ? null : new Promise((resolve) => (replayed = resolve));
+    await gesture("click");
     await clickAt(page, await evaluate(page, point));
     await Promise.race([given, sleep(2000)]);
     await sleep(300);
@@ -391,10 +431,12 @@ async function scriptedCourse() {
   const take = async ({ ecran, vue }) => {
     if (taken.has(keyOf({ ecran, vue }))) return;
     await pause();
-    const answer = await relever(ecran, vue);
+    await gesture("relever");
+    const answer = await onTool("relever", { ecran, vue });
     say(`relever(${ecran}, ${vue}) : ${answer}`);
     if (!answer.startsWith("Relevé pris")) throw new Error(answer);
   };
+  await gesture("go_to");
   await navigate(page, START);
   for (const test of tests) {
     const start = versioned(test, new URL(test.url_depart, BASE).searchParams.get("suite"));
@@ -412,8 +454,8 @@ async function scriptedCourse() {
       }
     }
   }
-  pass.dureeS = (Date.now() - from) / 1000;
-  pass.etat = "joué par le script";
+  await gesture("terminer");
+  await onTool("terminer", { etat: "reussi" });
 }
 
 try {
@@ -421,18 +463,20 @@ try {
   await installLayer(page, onPress, { passage: ID, titre: "Horama vérifie la nouvelle version", direct: DIRECT, onChoice: (choice) => chosen?.(choice) });
   const area = await fitViewport(page);
   if (area.largeur !== WIDTH || area.hauteur !== HEIGHT || area.densite !== 1) {
-    throw new Error(`zone de page ${area.largeur} × ${area.hauteur} à la densité ${area.densite} au lieu de ${WIDTH} × ${HEIGHT} à la densité 1 (écran trop petit, zoom de page, ou Chrome lancé sans --force-device-scale-factor=1) : parcours non joué`);
+    throw new Error(`zone de page ${area.largeur} × ${area.hauteur} à la densité ${area.densite} au lieu de ${WIDTH} × ${HEIGHT} à la densité 1 (émulation refusée ou zoom de page) : parcours non joué`);
   }
   if (FILM) film();
-  if (SANS_AGENT) await scriptedCourse();
-  else {
-    await agentPass(pass, {
-      page, holo, port: PORT, logFile: join(OUT, "pont-holo.log"), task: TASK, instructions: INSTRUCTIONS, tools: TOOLS, relever, say, settleS: 1.0,
-      agent: { name: "horama-scene", description: `Horama, la scène : joue les tests acceptés de ${LOGICIEL} dans un Chrome local.` },
-    });
+  const coureur = creerCoureur({
+    vault: VAULT, base, relever, baseUrl: BASE, identifiant: () => ID, signaler: say,
+    ...(SANS_AGENT ? { session: scriptedSession } : { h: { navigateur, key: process.env.HAI_API_KEY, signaler: say } }),
+  });
+  const { passage_id } = await coureur.lancerPassage({ logiciel: LOGICIEL, version_testee: VERSION, version_reference: REFERENCE, tests: tests.map((test) => test.id), regressions: REGRESSIONS, cle: "dev" });
+  report = await coureur.attendreFin(passage_id);
+  if (report.passage.etat !== "joue") {
+    const reasons = [...new Set(report.tests.map((test) => test.raison).filter(Boolean))];
+    errors.push(`Le coureur rend le passage en échec${reasons.length ? ` (${reasons.join(", ")})` : ""}.`);
   }
 } catch (error) {
-  pass.etat ??= "échec";
   errors.push(error.message);
   say(`Échec : ${error.message}`);
 }
@@ -503,6 +547,10 @@ if (page) {
 }
 filming = false;
 const delays = clics.map((click) => click.retard_ms).filter((ms) => ms !== undefined);
+// The totals come from rapport.passage; the steps, the session and the replay are repeated in each test entry.
+const { duree_s: dureeS = null, cout_usd: coutUsd = null } = report?.passage ?? {};
+const played = report?.tests[0];
+const stored = base instanceof BaseMemoire ? { passages: base.passages.size, captures: base.captures.size, evenements: base.evenements.length } : "supabase";
 writeFileSync(join(OUT, "passage.json"), `${JSON.stringify({
   id: ID,
   logiciel: LOGICIEL,
@@ -526,20 +574,21 @@ writeFileSync(join(OUT, "passage.json"), `${JSON.stringify({
   film: FILM ? { dossier: FILM, images, duree_s: filmedMs / 1000 } : null,
   debut: started.toISOString(),
   fin: new Date().toISOString(),
-  duree_s: pass.dureeS,
-  etapes: pass.etapes,
-  etapes_h: pass.etapesH,
-  cout_usd: pass.coutUsd,
-  session_h: pass.sessions.at(-1) ?? null,
-  sessions_h: pass.sessions,
-  relances: pass.relances,
-  etat: pass.etat,
+  duree_s: dureeS,
+  etapes: played?.etapes ?? null,
+  cout_usd: coutUsd,
+  session_h: played?.session_id || null,
+  replay_url: played?.replay_url ?? null,
+  relances: Math.max(0, launched - 1),
+  etat: report?.passage.etat ?? "echec",
+  base: stored,
   erreurs: errors,
 }, null, 2)}\n`);
-say(`Passage écrit : ${join(OUT, "passage.json")} (${taken.size} relevé(s) sur ${course.length}, ${clics.length} clic(s) vus, durée ${pass.dureeS === null ? "à mesurer" : `${pass.dureeS.toFixed(1).replace(".", ",")} s`}).`);
+say(`Passage écrit : ${join(OUT, "passage.json")} (${taken.size} relevé(s) sur ${course.length}, ${clics.length} clic(s) vus, durée ${dureeS === null ? "à mesurer" : `${dureeS.toFixed(1).replace(".", ",")} s`}).`);
+if (stored !== "supabase") say(`Base en mémoire : ${count(stored.passages, "passage", "passages")}, ${count(stored.captures, "capture", "captures")}, ${count(stored.evenements, "événement", "événements")}.`);
 for (const { releve, duree_s, dits, sans_phrase } of presentations) say(`Présentation de ${releve} : ${duree_s === null ? "interrompue" : `${duree_s.toFixed(1).replace(".", ",")} s`}, ${count(dits, "constat dit", "constats dits")}${sans_phrase ? `, ${sans_phrase} montré(s) sans phrase (plafond de ${CAP_MS / 1000} s)` : ""}.`);
 if (delays.length) say(`Retard ajouté par clic retenu : de ${Math.min(...delays)} à ${Math.max(...delays)} ms (${delays.length} clics).`);
 if (FILM) say(`Film : ${images} images sur ${(filmedMs / 1000).toFixed(1).replace(".", ",")} s, dans ${FILM}.`);
 for (const line of errors) say(`Erreur : ${line}`);
 await stop();
-process.exit(complete && !errors.length ? 0 : 1);
+process.exit(complete && !errors.length && report?.passage.etat === "joue" ? 0 : 1);
