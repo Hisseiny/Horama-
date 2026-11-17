@@ -29,7 +29,7 @@ Tout est écrit dans `.orchestrateur/repetition/<horodatage>/` : `vault/` (la co
 |---|---|---|
 | (préparation) | 1. Copie du vault, écart planté comme dans la démo (un libellé de bouton change) : la note du Bachelor dit que le bouton du haut s'appelle « POSTULER → », sa référence v1 a ce bouton repeint en gris ; le site en ligne affiche « CANDIDATER → » | `node automatisation/demo/preparer-ecart.mjs <dossier>/vault` |
 | 2. Le changement | 2. Fiche `bouton-candidater-anglais` (`ecrans_vises: [accueil]`) dans un commit détaché, fait dans un dossier de travail jetable (`../horama-wt/repetition-<horodatage>`, retiré aussitôt ; aucune branche créée) | `git worktree add --detach`, `git commit`, `git worktree remove` |
-| 2. Le réveil | 3. Choix des tests entre `HEAD` et ce commit, détail lisible dans le terminal | `node automatisation/impact/impact.mjs --depuis <HEAD> --vers <commit> --logiciel eugenia --json > impact.json` |
+| 2. Le réveil | 3. Choix des tests entre `HEAD` et ce commit, détail lisible dans le terminal. En scripté seulement, `tour-du-site` (accepté le 17/11, il relève les 7 pages, donc toujours retenu) passe dans les écartés avec la raison « non jouable en scripté » : le mode scripté ne sait pas ouvrir le menu burger. Avec `--agent`, la sélection reste entière | `node automatisation/impact/impact.mjs --depuis <HEAD> --vers <commit> --logiciel eugenia --json > impact.json` |
 | 2 à 6 | 4. La scène : annonce de la sélection, parcours, récapitulatif, question, correction de note, décision | `node --env-file=.env.local automatisation/scene/parcours.mjs --sans-agent --avec-base --base-url https://www.eugeniaschool.com --logiciel eugenia --version 1 --reference 1 --impact impact.json --choix voulu --correction-choix accepter --vault <copie> --sortie <dossier>/passage --fermer-chrome` |
 | (contrôle) | 5. Lignes du passage dans la base partagée, décision écrite dans la copie | `node --env-file=.env.local automatisation/demo/compter-base.mjs <passage>` |
 
@@ -85,3 +85,7 @@ Dernière répétition, passage `2026-11-17-18h53-86f7` (formulation gardée, pa
 - La copie et les sorties restent dans `.orchestrateur/repetition/` (hors Git).
 - Le commit de la fiche n'est sur aucune branche : Git l'effacera seul au prochain nettoyage.
 - La ligne du passage reste dans la base partagée, comme celles des autres essais du 17/11.
+
+## Après l'acceptation de `tour-du-site` (19 h 11)
+
+Passage `2026-11-17-19h11` scripté : la bulle dit « Nouvelle version : 1 test rejoué, 2 écartés : page non touchée, non jouable en scripté. » ; code 0, 63 s, correction proposée et acceptée, décision en base, `verifie`. Avant la parade, le tour était retenu et le scripté échouait (`2026-11-17-19h09-5f71`, code 1, « Je n'ai pas pu finir le parcours »).

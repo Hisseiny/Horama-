@@ -1,129 +1,203 @@
 # Horama
 
-**Votre documentation devient vos tests.**
+**Votre documentation devient vos tests. Sans documentation, Horama regarde quand même.**
 
-Horama transforme un vault Obsidian produit — écrans, règles métier, notes de version — en tests proposés puis validés par un humain.
-Un agent H joue les tests acceptés sur le logiciel ; les relevés alimentent une vérification par le calcul et une relecture humaine.
-Les rapports et décisions alimentent la mémoire du vault pour garder documentation et tests cohérents.
+Horama teste un site web comme le ferait une personne : un agent H (Agents API de H Company) le parcourt en direct dans Chrome, le code vérifie ce qui se prouve, un humain tranche le reste, et chaque décision est gardée pour le passage suivant.
 
-Hackathon Eugenia « Build The Future », 16–20 novembre 2026, équipe 11. Horama prolonge la [démo QA de H Company](https://github.com/hcompai/agents-api-demos/tree/main/examples/software_qa), licence MIT, dont il reprend le format de test Markdown. [Cadrage produit](docs/cadrage.md).
+Hackathon Eugenia « Build The Future », 16 au 20 novembre 2026, équipe 11. Horama prolonge la [démo QA de H Company](https://github.com/hcompai/agents-api-demos/tree/main/examples/software_qa) (licence MIT), dont il reprend le format de test Markdown. Produit et fonctionnalités : [cadrage](docs/cadrage.md).
 
-## Architecture et responsabilités
+Ce document décrit l'architecture rendue le 18 novembre à 17 h : ce qui existe, ce qui a été mesuré, ce qui reste à construire. Chaque chiffre renvoie à son rapport dans `docs/tests/` ; une valeur non mesurée est écrite « à mesurer ».
 
-Le schéma décrit les échanges ; les flèches pointillées signalent le raccordement visé, **pas une boucle intégralement validée**. Le SaaS n’écrit pas lui-même dans Supabase : les relevés sont déposés par le coureur/scène.
+## Deux modes
+
+| | Mode développeur | Mode visuel |
+|---|---|---|
+| Pour qui | Une équipe produit qui documente son logiciel | N'importe qui, avec la seule adresse d'un site |
+| Ce qu'Horama reçoit | Un vault Obsidian (une note par écran, des règles), le dépôt Git du site | Une adresse. Ni documentation, ni accès au code |
+| Ce qui déclenche | Un commit ou un déploiement : Horama choisit les tests à rejouer | Une demande : on colle l'adresse |
+| Ce que l'agent H fait | Joue les tests acceptés par un humain, relève les écrans demandés | Visite toutes les pages trouvées (trois agents en parallèle à terme) |
+| Ce qui est prouvé | Règles calculées (égalité, somme, filtre, format, présence, état) et comparaison d'images avec les références | Contrôles mécaniques (page en erreur, image cassée, texte qui déborde, lien mort, texte d'erreur affiché) |
+| Ce qui reste un doute | Un écart d'image | Ce que Holo voit sur la capture, un écart d'image au passage suivant |
+| Ce qui est gardé | Décisions bug ou voulu dans le vault, correction de note proposée par un modèle, PR de documentation | Captures de référence et décisions, pour comparer au passage suivant |
+| État au 17/11 au soir | Construit, joué en réel sur le site d'Eugenia (voir « Chiffres mesurés ») | À construire (issue [#57](https://github.com/Hisseiny/Horama-/issues/57)) ; format de sortie fixé ; rien de mesuré |
+
+Le mode visuel fait entrer un visiteur sans rien lui demander ; à la fin, Horama lui propose le mode développeur pour aller plus loin.
+
+## Le site de la démo : Eugenia School
+
+Facturo (notre faux SaaS de facturation, `faux-saas/`, en ligne sur `facturo-demo.vercel.app`) a servi de banc d'essai jusqu'au 17/11 ; il est abandonné pour la démo. La démo se joue sur le site de l'école : [déroulé validé par Nathan](docs/decisions/2026-11-17-deroule-demo-eugenia.md).
+
+1. **D'abord le site en ligne**, https://www.eugeniaschool.com, en simple visiteur : aucun formulaire touché, un parcours à la fois, aucune écriture sur le site. Le vault `vault-horama/eugenia/` décrit 7 pages (accueil, Bachelor, MSc, processus d'admission, Notre ADN, campus de Paris, FAQ), avec leurs références d'image v1 prises sur le Mac de démo. Un changement du site y est simulé : l'écart est planté dans une copie du vault et la fiche de changement part dans un commit local jetable ([répétition](docs/demo/2026-11-17-repetition.md)).
+2. **Puis le fork**, quand l'école l'accorde ([demandes faites à l'école](docs/decisions/2026-11-17-fork-eugenia.md)) : le vrai code du site, déployé à une adresse de l'équipe non indexée. Un vrai commit (la v2 : une nouveauté et une régression plantée) réveille Horama.
+
+Il n'y a plus de copie locale du site.
+
+## Mode développeur
+
+### Le parcours, comme un spectateur le voit
+
+```mermaid
+flowchart LR
+  V["1. Vault Obsidian<br/>notes, règles, tests acceptés"] --> R["2. Commit ou déploiement<br/>réveil, choix des tests"]
+  R --> A["3. Agent H en direct<br/>Chrome local, mascotte muette"]
+  A --> C["4. Récapitulatif<br/>PASS, défaut prouvé, doute"]
+  C --> I["5. Avant / après<br/>image de chaque écart"]
+  I --> H["6. Humain : bug ou voulu<br/>vault mis à jour, PR de doc"]
+  H --> V
+```
+
+1. **Le vault** (`vault-horama/<logiciel>/`) : une note par écran avec son adresse, les règles écrites dans la note (par exemple le même chiffre réel affiché sur deux pages), les tests au format de la démo QA de H. Un modèle ouvert propose les tests depuis les notes (`jugement/generation`, routeur Hugging Face) ; un humain les accepte ou les refuse.
+2. **Le réveil** (`automatisation/reveil/`) surveille une branche ; à chaque commit, **l'impact** (`automatisation/impact/`) compare les fichiers modifiés aux champs `code:` des notes et aux fiches de changement, et écrit la liste des tests retenus et écartés, avec la raison de chacun (format `horama-impact-1`, [décision](docs/decisions/2026-11-17-format-impact.md)).
+3. **La scène** (`automatisation/scene/`) ouvre Chrome en local, annonce la sélection, puis l'agent H joue les tests. Un curseur suit chaque clic de l'agent ; la mascotte se tait pendant le parcours et dessine des traits sur ce qu'elle voit. À chaque `relever(ecran, vue)`, la scène capture la page (1280 × 900, pointeur écarté pour éviter un survol) et la vérifie aussitôt.
+4. **La vérification** (`jugement/verification`) est du code, sans modèle : chaque règle sort `PASS`, `VERIFIED_FAIL` (défaut prouvé, avec les valeurs lues et le calcul) ou `INCONCLUSIVE` (valeur illisible, avec la raison) ; chaque écart d'image avec la référence sort `SUSPECTED` (doute), avec sa zone. `SUSPECTED` et `INCONCLUSIVE` ne comptent jamais comme des réussites.
+5. **Le récapitulatif** montre chaque écart avec l'image avant et après.
+6. **L'humain tranche** bug ou voulu. La décision s'écrit dans le vault (`decisions/`) et en base ; pour un « voulu », un modèle propose la phrase de la note à corriger (`jugement/correction`), l'humain l'accepte ou la refuse, et une PR de documentation peut partir sur GitHub (`automatisation/pr-doc/`). Au passage suivant, l'écart tranché « voulu » n'est plus un doute.
+
+### Les briques
+
+| Dossier | Rôle | Responsable |
+|---|---|---|
+| `vault-horama/` | Le vault : notes d'écran, règles, tests acceptés, références d'image, décisions, rapports de passage | Inès |
+| `memoire/` | Lire et écrire le vault (notes, règles, tests, décisions), sans base ni réseau | Inès |
+| `base/` | Schéma de la base Supabase partagée : passages, événements, captures, résultats, décisions | Inès |
+| `jugement/` | Génération des tests (Hugging Face), vérification d'un écran (règles et images), correction de note | Leslie |
+| `agent/` | Le coureur : sessions de l'Agents API de H, pont `holo local browser` vers le Chrome local, relevés, écriture en base, rapport C6, lien de replay | Ali |
+| `automatisation/scene/` | La scène en direct : Chrome visible, curseur, mascotte, récapitulatif, questions bug ou voulu | Nathan |
+| `automatisation/impact/`, `automatisation/reveil/` | Choisir les tests à rejouer depuis un diff ; réveiller la scène à chaque commit | Nathan, Ali |
+| `automatisation/pr-doc/` | Ouvrir une PR de documentation pour une correction de note acceptée | Ali |
+| `automatisation/demo/` | Répétition de la démo de bout en bout (`repetition.sh`) | Nathan |
+| `interface/` | L'application web Horama (Next.js) : les 8 étapes de la boucle, encore sur données factices | Axil |
+| `faux-saas/` | Facturo, le faux SaaS du banc d'essai (abandonné pour la démo) | Nathan |
+| `contrats/` | Formats échangés entre les briques, gelés (`contrats-v1`, puis `contrats-v2` pour la règle `etat`) | Ali (gardien) |
+| `pitch/` | Récit de la démonstration | Noé |
+
+### Ce que les briques s'échangent
 
 ```mermaid
 flowchart TD
-  V["Vault Obsidian : notes et règles — Inès"] --> G["jugement : génération Hugging Face — Leslie"]
-  G -->|C1 TestPropose| H["Validation humaine : interface Axil / scène Nathan"]
-  H -->|C2 TestAccepte| T["Tests acceptés dans le vault — Inès"]
-  T --> A["Coureur agent — Ali : H Agents API, Chrome CDP local 1280 × 900 DPR 1, holo"]
-  A --> F["Facturo : facturo-demo.vercel.app — Nathan"]
-  F -->|relevés par le coureur : C3| S["Supabase partagé — Inès : passages, evenements, captures et bucket captures"]
-  A -->|C3 et C6| S
-  S --> R["Rapport C6 et replay H share — Ali"]
-  R --> M["Mémoire / vault — Inès"]
-  M --> V
-  S -->|captures C3| J["jugement : relevés et calcul — Leslie, renfort Nathan"]
-  J -->|C4 ResultatVerification| Q["Relecture humaine — interface Axil / scène Nathan"]
-  Q -->|C5 Decision| M
-  J -.->|raccordement des verdicts| R
-  Q -.->|C7 NotificationRelecture| N["Automatisation n8n — Nathan"]
-  J -.->|C8 LigneMesure| B["Mesures — Inès"]
-  D["Déploiement Vercel"] -.-> SC["D6 option B : réveil scène sur le Mac de démo — Nathan"]
-  SC -.-> DI["Script diff du déploiement / champs code: des notes du vault"]
-  V -.-> DI
-  DI -.->|sélection ciblée et socle : --tests, --base-url| A
+  V["vault-horama<br/>notes, règles, tests C2"] -->|notes| G["jugement/generation<br/>Hugging Face"]
+  G -->|C1 test proposé| HU["Humain : accepte"]
+  HU -->|C2 test accepté| V
+  GIT["Commit / déploiement"] --> RE["reveil + impact<br/>horama-impact-1"]
+  V --> RE
+  RE --> SC["scene<br/>Chrome local, mascotte"]
+  SC --> AG["agent : coureur<br/>Agents API H, holo local browser"]
+  AG -->|relever| SC
+  SC -->|capture + texte| JV["jugement/verification<br/>règles et images"]
+  JV -->|C4 constats| SC
+  AG -->|C3 passage, événements, captures<br/>C6 rapport| DB["Supabase partagé"]
+  SC -->|question| H2["Humain : bug ou voulu"]
+  H2 -->|C5 décision| V
+  H2 -->|C5| DB
+  H2 -->|voulu| JC["jugement/correction<br/>phrase de note proposée"]
+  JC --> PR["pr-doc : PR de documentation"]
 ```
 
-| Pôle | Responsable et périmètre |
-|---|---|
-| A — moteur | **Ali**, `agent/`, racine, gardien de `contrats/` : CLI, sessions H, C3 et C6 |
-| B — écriture/vérification | **Leslie**, `jugement/` : génération C1, calcul et statuts C4 ; Nathan en renfort |
-| C — données/mémoire | **Inès**, vault, mémoire, base, références, décisions C5 et mesures C8 |
-| D — interface | **Axil**, `interface/` : proposition, validation, fil et relecture |
-| E — automatisation | **Nathan**, `automatisation/`, scène, `faux-saas/`, n8n C7 ; renfort moteur et preuve |
-| F — pilote/pitch | **Noé**, `pitch/` : pilote, rendus et récit de démonstration |
+### Contrats
 
-### Contrats gelés C1–C8
-
-Définitions faisant foi : [`contrats/types.ts`](contrats/types.ts), [exemples](contrats/exemples/), gel `contrats-v1`. Les anciens commentaires « Nathan » des types reflètent les deux couloirs initiaux ; les responsabilités produit ci-dessus suivent les missions actuelles.
+Définitions qui font foi : [`contrats/types.ts`](contrats/types.ts), [exemples](contrats/exemples/).
 
 | Contrat | Échange |
 |---|---|
-| **C1** `TestPropose` | Génération → interface/validation humaine : proposition, règles, questions d’ambiguïté |
-| **C2** `TestAccepte` | Validation/mémoire → fichier Markdown du vault → coureur ; contient notamment `url_depart`, relevés et règles |
-| **C3** `Passage`, `EvenementFil`, `Capture` | Coureur → Supabase → fil, vérification et interface |
-| **C4** `ResultatVerification` | Vérification → interface, mémoire et automatisation ; `PASS`, `SUSPECTED`, `VERIFIED_FAIL`, `INCONCLUSIVE` |
-| **C5** `Decision` | Relecture humaine → mémoire/vault : bug ou voulu, portée limitée, éventuelle correction de note |
-| **C6** `RapportPassage` | Coureur → base, interface et Markdown du vault ; `tests[].replay_url` facultatif |
-| **C7** `NotificationRelecture` | Boucle de relecture → webhook n8n |
-| **C8** `LigneMesure` | Résultats → mesures d’Inès ; aucune vérité de cas caché n’est exposée ici |
+| C1 `TestPropose` | Génération vers validation humaine : test proposé, règles, questions d'ambiguïté |
+| C2 `TestAccepte` | Test accepté, fichier Markdown du vault, lu par le coureur |
+| C3 `Passage`, `EvenementFil`, `Capture` | Coureur vers la base : le passage, son fil, ses captures |
+| C4 `ResultatVerification` | Vérification : `PASS`, `SUSPECTED`, `VERIFIED_FAIL`, `INCONCLUSIVE`, avec valeurs, calcul, écarts d'image |
+| C5 `Decision` | Humain vers vault et base : bug ou voulu, portée limitée, correction de note éventuelle |
+| C6 `RapportPassage` | Rapport du passage, avec le lien de replay H facultatif |
+| C7 `NotificationRelecture` | Vers n8n (non construit) |
+| C8 `LigneMesure` | Vers les mesures |
 
-### État réel et D6 option B
+Deux formats de fichier, hors contrats, relient les briques du couloir Nathan : `horama-impact-1` ([décision](docs/decisions/2026-11-17-format-impact.md)) et `horama-exploration-1` pour le mode visuel ([décision](docs/decisions/2026-11-17-format-exploration.md)).
 
-La CLI lit C2, joue une session **chaînée** pour les tests sélectionnés, enregistre C3 et C6 et demande un partage H. Elle ne lance **pas** automatiquement le jugement métier : un passage `joue` et un test `termine` ne sont pas des verdicts `PASS`. Sans C4, le Markdown reste non concluant. Une session silencieuse est abandonnée après le seuil prévu par le coureur, puis relancée une fois ; les limites des essais sont dans les preuves, pas extrapolées.
+## Mode visuel
 
-[D6 option B, commentaire de Nathan sur PR 10](https://github.com/Hisseiny/Horama-/pull/10#issuecomment-6946965917) : Vercel réveille la scène sur le Mac de démo ; un script rapproche le diff des champs `code:` des notes d’écran, sélectionne les tests liés et un socle systématique, puis appelle la CLI. Ce README **ne livre pas ce déclencheur ni ce script**. Pas de GitHub Action pilotant Chrome local pour la démo ; commentaire de PR, mode cloud, graphe d’imports et explication LLM restent en roadmap. La comparaison d’images reste dans le P0.
+Décidé par Nathan le 17/11 au soir. Moteur : issue [#57](https://github.com/Hisseiny/Horama-/issues/57) (Ali, `agent/`) ; affichage : la scène (Nathan). **Rien n'est construit ni mesuré à cette date.**
 
-## Comment tester
+### Le parcours, comme un spectateur le verra (validé par Nathan)
 
-### Installer et vérifier sans H
+1. **L'adresse** : on colle l'adresse d'un site (par exemple eugeniaschool.com). Pas de documentation, pas d'accès au code.
+2. **La visite** : Horama trouve les pages (plan du site, puis liens) ; trois agents H se les partagent et les visitent en direct, chacun dans sa fenêtre Chrome.
+3. **Deux regards sur chaque page** : les contrôles automatiques donnent des défauts prouvés (page en erreur, image cassée, texte qui déborde de son bouton, lien mort, « undefined » affiché ; plus tard l'accessibilité chiffrée, issue [#55](https://github.com/Hisseiny/Horama-/issues/55)) ; Holo regarde la capture comme un humain et donne des doutes.
+4. **Le récapitulatif** : chaque défaut avec sa capture entourée ; l'humain tranche bug ou voulu.
+5. **Le passage suivant** : Horama a gardé les captures ; il compare et signale ce qui a bougé, puis propose le mode développeur (documentation et GitHub) pour aller plus loin.
 
-Prérequis : Node.js avec exécution native TypeScript (environnement vérifié : Node 22.23.5), pnpm selon `packageManager` du dépôt ; shell POSIX pour `dev`. Depuis la racine :
+### Architecture prévue
+
+```mermaid
+flowchart LR
+  U["Adresse du site"] --> P["Pages trouvées<br/>sitemap.xml, puis liens, sans H"]
+  P --> A1["Agent H 1"]
+  P --> A2["Agent H 2"]
+  P --> A3["Agent H 3"]
+  A1 & A2 & A3 -->|capture par page| M["Contrôles mécaniques<br/>CDP : VERIFIED_FAIL"]
+  A1 & A2 & A3 -->|capture par page| HO["Holo (Models API)<br/>SUSPECTED"]
+  M & HO --> X["horama-exploration-1"]
+  X --> SC["scène : récapitulatif, bug ou voulu"]
+  X --> REF["vault-horama, références du site<br/>comparaison au passage suivant"]
+```
+
+- Les pages sont trouvées sans H (sitemap, puis liens internes du même domaine, plafond de 15 par défaut) ; formulaires, PDF et pages de connexion exclus ; `robots.txt` respecté.
+- Les agents H visitent ; c'est le code qui contrôle. Un constat de Holo n'est jamais un défaut prouvé.
+- Le plan gratuit de H permet 3 sessions simultanées par organisation : le moteur vérifie qu'il y a 3 places libres avant de lancer et ferme toutes ses sessions à la fin (contraintes détaillées dans l'issue #57). Pendant la démo, personne d'autre ne lance d'agent sur le compte.
+- La sortie (un fichier `horama-exploration-1`, plus un C4 par page) est fixée dans [`docs/decisions/2026-11-17-format-exploration.md`](docs/decisions/2026-11-17-format-exploration.md) ; aucun contrat ne change.
+
+## Chiffres mesurés
+
+Tous sur le Mac de démo sauf mention, au 17/11. Les durées et coûts de l'agent H sont ceux rendus par l'API pour un passage.
+
+| Mesure | Résultat | Preuve |
+|---|---|---|
+| Tour complet du site d'Eugenia en ligne par l'agent H (7 pages, menu burger compris) | 3 tours sur 3 en code 0 ; 21 relevés sur 21 ; 21 règles `etat` PASS ; 0 pixel d'écart avec les références sur les 7 pages à chaque tour ; 0 relance ; 115 à 152 s par tour ; 0,0716 à 0,0739 $ par tour | [tour du site en réel](docs/tests/2026-11-17-tour-du-site-reel.md) |
+| Premier parcours réel sur Eugenia (accueil, Bachelor, MSc) | Code 0 ; 2 clics sur 2 sur l'élément attendu, dont un lien de pied de page après défilement ; 63,4 s ; 0,0229 $ ; règle « hackathons par an » PASS entre deux pages (« 3-5 » et « 3 À 5 ») | [Eugenia en ligne](docs/tests/2026-11-17-eugenia-en-ligne.md) |
+| Stabilité des captures | Trois captures par page à des moments différents : 0 pixel d'écart sur 6 pages ; la photo du haut de l'accueil change d'une visite à l'autre (252 128 pixels) et est déclarée zone ignorée | [tour du site en réel](docs/tests/2026-11-17-tour-du-site-reel.md) |
+| Répétition de la démo en scripté (sans agent H, gratuit) | Code 0, 54 à 71 s de bout en bout : sélection (1 test retenu, 1 écarté), parcours, doute, question, correction de note proposée et acceptée, décision en base | [mode d'emploi](docs/demo/2026-11-17-repetition.md), journal du 17/11 18 h 27 à 19 h 20 |
+| Génération des tests par un modèle ouvert (`openai/gpt-oss-120b`, Hugging Face) | 9 passes sur 9 au format C1 valide avec les règles justes, temps médian 1,6 s (3 notes de Facturo, 3 passes chacune) | [T4](docs/tests/2026-11-17-t4-generation-rapide-3.md) |
+| Correction de note proposée après un « voulu » | 11 sur 15 justes sur 5 cas de Facturo (un cas raté aux 3 passes) ; sur le cas d'Eugenia, 5 sur 6 avec les textes de la zone donnés au modèle, et le modèle varie d'un appel à l'autre à température 0 | [correction](docs/tests/2026-11-17-correction.md), journal du 17/11 18 h 53 |
+| Réveil par commit | Impact écrit à 0,21 s du commit, scène lancée à 0,23 s (Linux, site d'essai synthétique, sans agent H ni base) | [réveil local](docs/tests/2026-11-17-reveil-local.md) |
+| Coureur seul sur Facturo, 3 passages de suite | 3 sur 3 joués ; 64 à 88 s ; 0,026 à 0,034 $ | [A5](docs/tests/2026-11-17-a5-trois-passages-agent-h.md) |
+| Mode visuel | à mesurer | issue #57 |
+
+Ce qui n'est pas mesuré : le taux de faux constats d'un vrai défaut sur le site d'Eugenia (aucune régression réelle n'y a été jouée par l'agent H ; les doutes de la répétition sont plantés dans une copie du vault), le parcours sur le fork, le mode visuel, l'accessibilité.
+
+## Ce qui n'est pas fait
+
+- **Mode visuel** : moteur et affichage à construire (issues #57 et #55).
+- **Fork du site d'Eugenia** : en attente de l'accord de l'école ; tant qu'il n'est pas là, le changement du site est simulé dans une copie du vault.
+- **Interface web** (`interface/`) : sur données factices ; la démo se joue dans la scène.
+- **n8n** (C7, notification « cas à relire ») : non construit.
+- **Limites connues** : le mode scripté (sans agent H) ne sait pas cliquer un lien hors de l'écran ni ouvrir le menu burger ; un clic humain dans la fenêtre de la scène passe avant les réponses automatiques ; la correction de note varie d'un appel à l'autre.
+
+## Comment lancer
+
+Prérequis : Node 22 avec exécution native de TypeScript, pnpm (version de `packageManager`), Google Chrome, shell POSIX. Pour un passage réel : `holo` (paquet `hai-agents[cli,browser]`, dans un environnement Python à part) et un `.env.local` à la racine avec `HAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `HF_TOKEN`. Les clés ne vont jamais dans Git ; `HAI_API_KEY_DEMO` est réservée à la démo.
+
+Installer et tout vérifier (types, lint et tests sans réseau, n'appelle ni H ni la base) :
 
 ```sh
 pnpm install
+pnpm --dir automatisation/scene install --ignore-workspace
 pnpm -r check
-pnpm --filter @horama/agent passage -- --help
 ```
 
-Le check lance types et tests des paquets, dont le lint TypeScript d’Ali une seule fois. Il n’appelle pas les services H réels.
+Répéter la démo du mode développeur sur le site d'Eugenia en ligne, sans agent H (gratuit, environ 60 s ; écrit dans `.orchestrateur/repetition/`, jamais dans le vault du dépôt) :
 
-### Lancer l’interface et Facturo en mode factice
+```sh
+bash automatisation/demo/repetition.sh
+```
+
+Avec le vrai agent H, ajouter `--agent` (quelques centimes par parcours). Mode d'emploi, ce qu'on voit à chaque seconde et pièges : [répétition](docs/demo/2026-11-17-repetition.md). Tour complet du site en réel : commande dans le [rapport du tour](docs/tests/2026-11-17-tour-du-site-reel.md).
+
+Lancer l'interface en données factices (http://localhost:3000) et Facturo (http://localhost:3100) :
 
 ```sh
 pnpm dev
 ```
 
-Ouvrir l’interface sur `http://localhost:3000` et le faux SaaS sur `http://localhost:3100`. La commande fixe `USE_MOCKS=1`, ne lance ni session H ni Supabase et n’atteste pas les écritures partagées. Arrêter avec Ctrl-C. Pour un passage en ligne ci-dessous, le serveur Facturo local n’est pas nécessaire.
+Le coureur seul, en ligne de commande (couloir Ali) : `pnpm --filter @horama/agent passage -- --help`. Chrome doit écouter en CDP (port 9333 par défaut), lancé avec `--force-device-scale-factor=1` sur un écran Retina, sinon les clics tombent à côté. Commandes vérifiées et lectures de la base : [preuve du coureur](docs/tests/2026-11-17-readme-architecture.md).
 
-### Jouer réellement un test accepté sur Facturo en ligne
+## Pour aller plus loin
 
-Ce passage consomme du quota/crédit H et **écrit dans le projet Supabase configuré**. Obtenir les accès autorisés auprès de l’équipe ; ne pas utiliser la clé de démo. Charger les secrets côté serveur, jamais dans Git, dans le vault ni dans une capture. La CLI lit aussi un éventuel `.env.local` racine (valeurs déjà présentes dans l’environnement prioritaires).
-
-Variables requises : **`HAI_API_KEY`**, **`SUPABASE_URL`**, **`SUPABASE_SERVICE_ROLE_KEY`**. Pont : **`HOLO_BIN`** si `holo` n’est pas dans le PATH ; installer `hai-agents[cli,browser]` dans un environnement Python externe si nécessaire. Variables facultatives : **`FAUX_SAAS_URL`** (remplacée par `--base-url`), **`HAI_AGENT_MODEL`**, **`HAI_AGENT_REASONING`**. Aucun accès SQL direct n’est requis. Pour les lectures REST ci-dessous, **`PASSAGE_ID`** désigne l’identifiant imprimé par la CLI. Aucune valeur de clé n’est fournie ici.
-
-Utiliser un **Chrome dédié**, jamais le navigateur personnel : le raccord garde un seul onglet. Chrome doit déjà écouter en CDP sur 9333, avec `--force-device-scale-factor=1` et une fenêtre permettant une zone de page 1280 × 900/DPR 1. Le coureur ajuste et vérifie ces dimensions, puis démarre `holo local browser` ; `--chrome-port` permet un autre port. Les journaux de pont sont dans `~/.horama/ponts/`. Le processus CLI doit rester vivant pour servir les outils jusqu’à la fin.
-
-Depuis la racine, copier le vault complet hors dépôt **une fois, vers une destination encore absente**, puis jouer :
-
-```sh
-cp -R vault-horama "$HOME/horama-readme-vault"
-pnpm --filter @horama/agent passage -- --logiciel facturo --version 13 --reference 12 --vault "$HOME/horama-readme-vault" --base-url https://facturo-demo.vercel.app --tests detail-facture-total-egal-liste
-```
-
-`--tests` accepte des identifiants séparés par des virgules ; sans option, tous les tests acceptés du logiciel sont sélectionnés. `--base-url` est **l’origine du SaaS**, pas un chemin de départ arbitraire : le chemin `/vXX/entrer?suite=…` provient du C2 et suit `--version`. Cette route établit la session Facturo sans formulaire de connexion. `--reference 12` renseigne le rapport mais ne lance pas à lui seul une comparaison calculée ni une promotion de référence. Les rapports sont écrits dans `<vault>/facturo/passages/` : garder ce vault hors dépôt.
-
-La CLI imprime le passage puis attend la fin : sortie 0 si joué, 1 si échec. Le lien `share` est facultatif ; son absence produit un avertissement. Une URL accessible par curl peut être une trajectoire JSON publique, pas un lecteur HTML.
-
-### Vérifier les lignes du Supabase partagé
-
-Avec les variables serveur déjà chargées et `PASSAGE_ID` repris de la sortie, lectures **seulement** :
-
-```sh
-curl --fail --silent --show-error "${SUPABASE_URL}/rest/v1/passages?id=eq.${PASSAGE_ID}&select=id,etat,duree_s,cout_usd,rapport" -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}"
-curl --fail --silent --show-error "${SUPABASE_URL}/rest/v1/evenements?passage_id=eq.${PASSAGE_ID}&select=test_id,session_id,etape" -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}"
-curl --fail --silent --show-error "${SUPABASE_URL}/rest/v1/captures?passage_id=eq.${PASSAGE_ID}&select=test_id,ecran,vue,url,url_page,largeur,hauteur" -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}"
-```
-
-Attendre une ligne de passage avec C6, uniquement les tests demandés et leurs événements/captures. Vérifier les URL de page, les dimensions, les objets du bucket `captures` et `tests[].replay_url`. Utiliser le coût/durée du passage, **ne pas sommer les métriques répétées par test**. Ne pas afficher la clé dans les logs, l’historique de commande, un lien ou une variable `NEXT_PUBLIC_*`.
-
-## Preuves, limites et documentation
-
-- [Preuve de ce README : commandes et validation Mermaid](docs/tests/2026-11-17-readme-architecture.md).
-- [CLI ciblée et origine explicite](https://github.com/Hisseiny/Horama-/blob/a-tests-adresse-depart/docs/tests/2026-11-17-tests-adresse-depart.md) — branche indépendante, à intégrer séparément.
-- [A6 et cinq A7 en ligne](https://github.com/Hisseiny/Horama-/blob/a7-facturo-en-ligne/docs/tests/2026-11-17-a7-facturo-en-ligne.md) — mesures réelles et limites, pas une promesse de performance.
-- [Règles de contribution](AGENTS.md), [plan et propriétaires](docs/plan-de-travail.md), [missions](docs/missions/), [avancement](docs/checklist.md), [retours API H](docs/retours-api-h.md).
-
-Les références v12 nécessitent une désignation explicite par leur propriétaire. Les tests automatiques ou l’exécution d’un parcours ne remplacent ni la preuve calculée ni la validation humaine de la boucle complète.
+- [Règles communes aux IA de l'équipe](AGENTS.md), [plan de travail](docs/plan-de-travail.md), [avancement](docs/checklist.md), [missions](docs/missions/).
+- [Décisions](docs/decisions/), une par fichier daté ; [rapports de test](docs/tests/), un par mesure.
+- [Retours sur l'API de H](docs/retours-api-h.md).

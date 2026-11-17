@@ -61,4 +61,16 @@ Aucun constat visuel. Relevés du passage contre les références v1 du vault : 
 ## Ce qui reste à savoir
 
 - Deux étapes H « Agit dans le navigateur » (26 et 27) arrivent après « Termine le parcours » (25), à 144 s : origine non cherchée (relance muette du coureur ou réponse finale), sans effet sur les relevés.
-- Un seul passage : la stabilité sur plusieurs tours est à mesurer.
+- Stabilité : voir « Trois tours de suite » ci-dessous (3 passages, à mesurer au-delà).
+
+## Trois tours de suite (19 h 05, 19 h 17, 19 h 19)
+
+Même commande, une copie du vault neuve par tour, un tour à la fois.
+
+| Tour | Passage | Code | Relevés | Durée du coureur | Étapes H | Relances | Coût H | Règles `etat` | Écarts d'image (7 pages) | Base |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | `2026-11-17-19h05-1b54` | 0 | 7 sur 7 | 148,5 s | 27 | 0 | 0,0716 $ | 7 PASS | 0 pixel partout | `verifie`, PASS |
+| 2 | `2026-11-17-19h17-ed38` | 0 | 7 sur 7 | 115,1 s | 27 | 0 | 0,0739 $ | 7 PASS | 0 pixel partout | `verifie`, PASS |
+| 3 | `2026-11-17-19h19-3a77` | 0 | 7 sur 7 | 151,5 s | 26 | 0 | 0,0733 $ | 7 PASS | 0 pixel partout | `verifie`, PASS |
+
+Sur 3 tours : 21 relevés sur 21, dans l'ordre du test à chaque tour ; 21 règles `etat` PASS ; 0 doute, 0 problème ; durée de 115 à 152 s ; coût de 0,0716 à 0,0739 $ par tour (0,2188 $ au total). Clics vus par la couche : 16 à chaque tour, retard ajouté de 768 à 922 ms par clic ; relevé le plus long de 294 à 311 ms. Les étapes « Agit dans le navigateur » après « Termine le parcours » reviennent à chaque tour (2 ou 3), sans effet sur les relevés.
