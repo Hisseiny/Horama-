@@ -295,3 +295,4 @@ Orchestrateur : Claude Code (Opus 5.5). Mission : J0 à J4 (scène branchée sur
 - Rapport : `docs/tests/2026-11-17-j4-jonction.md`. Témoins (10 images du parcours `15h23`, planche `index.html`) : `docs/captures/2026-11-17-jonction/`.
 - Observation sur la DA, sans correction : le bandeau Horama recouvre l'en-tête de Facturo (la date n'est plus lisible).
 - Reste de J4 : le quatrième parcours, tranché par Nathan à la souris. **Porte : arrêt, appel de Nathan.**
+- 15 h 33 : PR #23 (Leslie, génération rapide) fusionnée dans `dev-nathan` à 15 h 27 pendant J4 ; récupérée, check vert (176 tests), `dev-nathan` à e7588cd. En attente : le « go » de Nathan pour le quatrième parcours.
