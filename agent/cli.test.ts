@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { cpSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
 import type { RapportPassage } from "@horama/contrats";
 import { BaseMemoire } from "./src/base.ts";
@@ -64,4 +67,44 @@ test("les tests omis sont lus dans le vault et une erreur de passage ferme le na
   assert.equal(closed, true);
   await assert.rejects(lancerCommande(options, { env: {} }), /Clé H absente/);
   await assert.rejects(lancerCommande(options, { env: { HAI_API_KEY: "factice" } }), /SUPABASE_URL/);
+});
+
+test("le passage v12 rejoue les tests compatibles, dédoublonne les relevés et ne promeut aucune référence", async () => {
+  const options = lireArguments(["--logiciel", "facturo", "--version", "12", "--reference", "12"])!;
+  const temporary = mkdtempSync(join(tmpdir(), "horama-reference-"));
+  cpSync(join(options.vault, "facturo"), join(temporary, "facturo"), { recursive: true });
+  options.vault = temporary;
+  const base = new BaseMemoire();
+  let address = "";
+  let shots = 0;
+  try {
+    const result = await lancerCommande(options, { base, output: () => {},
+      runtime: { navigateur: async () => { throw new Error("Pas de H dans cet essai."); }, close() {},
+        async relever() { shots++; return { png: new Uint8Array([137, 80, 78, 71]), texte: "Facturo v12", url_page: `http://localhost:3100${address}`, largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Continue." }; } },
+      env: { FAUX_SAAS_URL: "http://localhost:3100" },
+      session: async ({ consigne, onCreated, onTool }) => {
+        await onCreated("reference-injectee");
+        assert.match(consigne.start, /\/v12\/entrer\?suite=\/v12\/tableau-de-bord/);
+        assert.deepEqual(consigne.dropped.map(({ id }) => id), ["liste-factures-filtre-echeance"]);
+        assert.equal(consigne.tests.length, 2);
+        return { id: "reference-injectee", fin: Promise.resolve().then(async () => {
+          for (const step of consigne.course) {
+            assert.ok(step.address.startsWith("/v12/"));
+            assert.equal(step.vue, "defaut");
+            address = step.address;
+            await onTool("relever", { ...step });
+            await onTool("relever", { ...step });
+          }
+          await onTool("terminer", { etat: "reussi" });
+          return { id: "reference-injectee", muted: false, cout_usd: null, etapes: 3 };
+        }) };
+      },
+    });
+    assert.equal(result.passage.etat, "joue");
+    assert.equal(result.passage.version_testee, "12");
+    assert.equal(result.tests.length, 2);
+    assert.equal(shots, 3);
+    assert.equal(base.captures.size, 3);
+    assert.ok([...base.captures.values()].every(({ version, largeur, hauteur }) => version === "12" && largeur === 1280 && hauteur === 900));
+  } finally { rmSync(temporary, { recursive: true, force: true }); }
 });

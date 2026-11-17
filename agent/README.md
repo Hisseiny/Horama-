@@ -35,3 +35,34 @@ Le port H ne crée pas de lien de partage ; une session injectée peut rendre
 
 Vérification : `pnpm --filter @horama/agent check` ou `pnpm -r check`.
 Preuves et limites : `docs/tests/2026-11-16-a3-a4-agent.md`.
+
+## Commande de passage et référence v12
+
+```sh
+pnpm --filter @horama/agent passage -- --help
+pnpm --filter @horama/agent passage -- --logiciel facturo --version 13 --reference 12 --tests ca-du-mois-egal-total,detail-facture-total-egal-liste,liste-factures-filtre-echeance --r ca-mois
+pnpm --filter @horama/agent passage -- --logiciel facturo --version 12 --reference 12
+```
+
+La troisième commande est le mode A6 : mêmes tests demandés, routes `/v12`,
+tests nécessitant une vue plus récente exclus par la consigne. Un seul PNG
+par couple écran/vue est stocké, à 1280 × 900, DPR 1, comme pour v13.
+Ces captures ne sont pas promues automatiquement en références validées.
+Sans `--tests`, tous les tests acceptés du logiciel sont sélectionnés.
+
+Le script imprime l’identifiant dès la création, puis attend la fin du
+passage pour continuer à servir les outils. Il sort avec 1 en cas d’échec.
+Il exige les variables serveur Supabase et la clé H ; `--cle demo` seul
+sélectionne la clé réservée, jamais utilisée dans les essais de développement.
+
+Chrome dédié doit déjà écouter en CDP sur 9333 (`--chrome-port` pour changer),
+avec `--force-device-scale-factor=1` et une zone de page ajustable à 1280 × 900.
+Le raccord réutilise `connectTab`, `fitViewport`, `evaluate`, `findHolo` et
+`startBridge`, déjà disponibles dans `automatisation/scene` sur `dev`.
+`connectTab` garde un seul onglet : ne pas utiliser le navigateur personnel.
+Le hook de capture dans `agent/src/browser.ts` ne navigue pas ; H joue le parcours.
+Un nouveau pont `holo local browser` est préparé par tentative, ses journaux
+restent dans `~/.horama/ponts/`. `HOLO_BIN` permet de choisir l’exécutable.
+Les connexions et ponts sont fermés à la fin ; Chrome est laissé ouvert.
+
+Ce câblage n’a pas été joué avec H : attente de la clé Horama autorisée.
