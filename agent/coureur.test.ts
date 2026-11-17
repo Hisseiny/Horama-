@@ -226,6 +226,7 @@ test("erreurs de capture, création, session et finalisation restent explicites"
 });
 
 test("un échec d’écriture du rapport dans le vault reste visible et est persisté en base", async () => {
+  rmSync(join(vault, "facturo", "passages"), { recursive: true, force: true });
   writeFileSync(join(vault, "facturo", "passages"), "Ce fichier empêche de créer le dossier.");
   const base = new BaseMemoire();
   const messages: string[] = [];

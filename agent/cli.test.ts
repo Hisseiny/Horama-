@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import type { RapportPassage } from "@horama/contrats";
+import { lireReferences } from "@horama/memoire";
 import { BaseMemoire } from "./src/base.ts";
 import type { BrowserRuntime } from "./src/browser.ts";
 import { HELP, lancerCommande, lireArguments } from "./src/cli.ts";
@@ -74,6 +75,7 @@ test("le passage v12 rejoue les tests compatibles, dédoublonne les relevés et 
   const temporary = mkdtempSync(join(tmpdir(), "horama-reference-"));
   cpSync(join(options.vault, "facturo"), join(temporary, "facturo"), { recursive: true });
   options.vault = temporary;
+  const references = lireReferences(temporary, "facturo");
   const base = new BaseMemoire();
   let address = "";
   let shots = 0;
@@ -105,6 +107,7 @@ test("le passage v12 rejoue les tests compatibles, dédoublonne les relevés et 
     assert.equal(result.tests.length, 2);
     assert.equal(shots, 3);
     assert.equal(base.captures.size, 3);
+    assert.deepEqual(lireReferences(temporary, "facturo"), references);
     assert.ok([...base.captures.values()].every(({ version, largeur, hauteur }) => version === "12" && largeur === 1280 && hauteur === 900));
   } finally { rmSync(temporary, { recursive: true, force: true }); }
 });
