@@ -53,6 +53,20 @@ Les trois captures ont été ouvertes et regardées après génération. Aucun c
 | [Notre ADN](captures/2026-11-17-a-exploration-holo/notre-adn.png) | Texte blanc lisible sur la photographie assombrie, sans chevauchement ou coupure visible du titre. |
 | [Approche pédagogique](captures/2026-11-17-a-exploration-holo/approche-pedagogique.png) | Bloc principal aligné, titre et boutons lisibles ; section suivante partiellement visible au bord inférieur du viewport, sans preuve de défaut. |
 
+### Témoin avec défauts injectés
+
+Pour vérifier que le modèle regarde bien l'image (réponses vides et rapides sur Eugenia), une page locale avec quatre défauts volontaires ([HTML](captures/2026-11-17-a-exploration-holo/temoin-defauts.html), [capture](captures/2026-11-17-a-exploration-holo/temoin-defauts.png)) : titre et sous-titre qui se chevauchent, texte de bouton coupé (`overflow:hidden`), texte gris clair sur blanc, image cassée remplie d'un dégradé. Même commande Chrome, un appel `askHolo` (script hors dépôt `/home/ubuntu/holo-control.ts`), clé de développement Horama.
+
+Résultat : `holo4-27b`, 530 ms, `SUSPECTED`, 3 constats. Un appel de description libre sur la même image consomme 1 120 jetons d'image (`usage.prompt_tokens_details.multimodal_tokens.image`) : l'image est bien lue.
+
+| Constat de Holo | Zone rendue | Relecture | Verdict |
+|---|---|---|---|
+| overlapping-text : « The title and subtitle overlap each other. » | top | Les deux titres se chevauchent en haut de la page | vrai |
+| unreadable-contrast : « The text is almost invisible due to low contrast. » | middle | Le paragraphe gris clair sur blanc est presque invisible | vrai |
+| distorted-image : « The image is stretched and distorted. » | middle | Le bloc est une image cassée remplie d'un dégradé, pas une image étirée : il y a bien un problème à cet endroit, mais pas celui décrit | faux |
+
+Manqué : le texte coupé du bouton « Télécharger la brochure complète ». Sur ce témoin : 2 constats vrais sur 3, 3 défauts sur 4 désignés (dont un mal nommé). Les zones restent grossières (« top », « middle ») : elles ne suffisent pas pour entourer un défaut sur la capture, à revoir à l'étape 2 (par exemple demander des coordonnées en pixels). Un seul passage : ce n'est pas un taux.
+
 ## Limites
 
-Aucun défaut injecté : rappel et précision restent à mesurer. Pas de test réel du second modèle, de saturation, du coût, de concurrence ni d'intégration au parcours d'exploration. Les délais et erreurs sont couverts uniquement par fetch factice. Aucun défilement, autre taille de fenêtre ou interaction avec les pages. Ces trois réponses vides ne prouvent pas l'absence de défauts visuels.
+Un seul témoin à défauts injectés (ci-dessus) : rappel et précision sur de vraies pages restent à mesurer. Pas de test réel du second modèle, de saturation, du coût, de concurrence ni d'intégration au parcours d'exploration. Les délais et erreurs sont couverts uniquement par fetch factice. Aucun défilement, autre taille de fenêtre ou interaction avec les pages. Ces trois réponses vides ne prouvent pas l'absence de défauts visuels.
