@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { Capture, ResultatVerification, TestAccepte } from "@horama/contrats";
+import type { Capture, EcartVisuel, ResultatVerification, TestAccepte } from "@horama/contrats";
 import { verifierReleve } from "@horama/jugement";
 import type { Constat, ReleveCapture } from "@horama/jugement";
-import { lireDecisions, lireReferences } from "@horama/memoire";
+import { lireDecisions, lireNotes, lireReferences } from "@horama/memoire";
 
 export interface AcquiredCapture { capture: Capture; png: Uint8Array }
 
@@ -24,6 +24,7 @@ export function verifierTest({ vault, logiciel, test, acquired, passageId, versi
   }
   try {
     const decisions = lireDecisions(vault, logiciel);
+    const ignored = new Map(lireNotes(vault, logiciel).map(({ entete }) => [entete.ecran, (entete.zones_ignorees ?? []) as EcartVisuel["zone"][]]));
     const references = lireReferences(vault, logiciel).filter((candidate) => candidate.version === referenceVersion);
     const previous: ReleveCapture[] = [];
     const findings: Constat[] = [];
@@ -31,7 +32,7 @@ export function verifierTest({ vault, logiciel, test, acquired, passageId, versi
       const releve = { ecran: capture.ecran, vue: capture.vue, version: capture.version, png, texte: capture.texte_page, url: capture.url_page };
       previous.push(releve);
       const reference = references.find((candidate) => candidate.ecran === capture.ecran && candidate.vue === capture.vue);
-      const found = verify({ releve, releves: [...previous], regles: test.regles, decisions,
+      const found = verify({ releve, releves: [...previous], regles: test.regles, decisions, zones_ignorees: ignored.get(capture.ecran) ?? [],
         ...(reference ? { reference: new Uint8Array(readFileSync(join(vault, reference.chemin))), version_reference: referenceVersion } : {}) });
       // A visual gap counts for one test only: the first test of the passage that asks for this screen (as the scene's decisions do).
       const owner = passageTests.find(({ releves }) => releves.some(({ ecran, vue }) => ecran === capture.ecran && vue === capture.vue));
