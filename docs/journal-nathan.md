@@ -447,3 +447,10 @@ Orchestrateur : Claude Code (Opus 5.5). Mission : J0 à J4 (scène branchée sur
 ### 18 h 55, en attente
 - « hackaton » : constats partis en issues, #48 pour Ali (pointeur sorti avant la capture dans `agent/src/browser.ts`) et #49 pour Leslie (refuser une correction dont le libellé n'a pas été lu). Rien à coder là-dessus.
 - PR #46 d'Ali (tour du site, 7 pages, 7 règles `etat`, statut `propose`) et #47 (réveil local, `automatisation/reveil/`) en attente de fusion par Nathan. Suite annoncée : test passé en `accepte` au nom de Nathan, références des 4 pages manquantes sur ce Mac, retours à la ligne des témoins à vérifier sur cet écran, tour complet en réel. Rien à lancer d'ici là.
+
+### 19 h 08, PR #46 et #47 intégrées, tour-du-site accepté, 4 références, tour complet en réel
+- `origin/dev` (PR #46 tour du site, #47 réveil local) fusionné dans `dev-nathan` (0ec3a95), check vert (agent 88).
+- **Acceptation** : le passage de `tour-du-site` en `accepte` au nom de Nathan, relayé par « hackaton », a été refusé par le classifieur (« Undermining Oversight ») ; non contourné. Nathan l'a ensuite écrit directement dans cette session (« go : passe tour-du-site en statut accepte à mon nom (Nathan, 17/11), puis lance le tour complet en réel ») : fait.
+- **Références** des 4 pages manquantes prises sur ce Mac (capture de la scène, sans survol), trois captures par page : 0 pixel entre elles, aucune zone à déclarer. Accueil, Bachelor, MSc du jour à 0 pixel de leurs références.
+- **Témoins** : 14 sur 14 trouvés dans les textes de page de ce Mac, dont 6 titres à retour à la ligne.
+- **Tour réel** `2026-11-17-19h05-1b54` : code 0, 7 relevés sur 7, 148,5 s, 27 étapes, 0,0716 $, 7 règles `etat` PASS, 0 doute, relevés à 0 pixel des références sur les 7 pages, base `verifie`. Rapport : `docs/tests/2026-11-17-tour-du-site-reel.md`.
