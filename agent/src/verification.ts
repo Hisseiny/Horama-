@@ -43,10 +43,12 @@ export function verifierTest({ vault, logiciel, test, acquired, passageId, versi
     output.niveau_de_preuve = calculations.length ? "releve + calcul" : captures.length ? "releve" : "aucun";
     output.ecarts_visuels = findings.flatMap((finding) => finding.genre === "visuel" && finding.zone && (finding.statut === "PASS" || finding.statut === "SUSPECTED")
       ? [{ id: finding.id, ecran: finding.ecran, vue: finding.vue, description: finding.description, zone: finding.zone, statut: finding.statut, ...(finding.decision_id ? { decision_id: finding.decision_id } : {}) }] : []);
+    if (rules.some((finding) => finding.statut === "VERIFIED_FAIL" && finding.calcul && Object.keys(finding.valeurs).length)) {
+      return { ...output, statut: "VERIFIED_FAIL" };
+    }
     const incomplete = findings.find((finding) => finding.statut === "INCONCLUSIVE");
     if (missing || incomplete) return { ...output, raison: incomplete?.raison ?? "Une règle du test n’a pas été évaluée." };
-    if (rules.some((finding) => finding.statut === "VERIFIED_FAIL")) output.statut = "VERIFIED_FAIL";
-    else if (findings.some((finding) => finding.statut === "SUSPECTED")) output.statut = "SUSPECTED";
+    if (findings.some((finding) => finding.statut === "SUSPECTED")) output.statut = "SUSPECTED";
     else if (test.regles.length && rules.every((finding) => finding.statut === "PASS" && finding.calcul && Object.keys(finding.valeurs).length)) output.statut = "PASS";
     else output.raison = "Aucune preuve calculée complète pour ce test.";
     return output;
