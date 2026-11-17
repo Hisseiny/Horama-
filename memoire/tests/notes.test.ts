@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { appendFileSync, readFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { analyserLigneRegle, lireNotes, urlDepart, verifierRegle } from "../index.ts";
@@ -126,4 +126,13 @@ test("urlDepart compose l'entrée authentifiée depuis l'url de la note de l'éc
   assert.equal(urlDepart(vault, "facturo", "13", "liste-des-factures"), "/v13/entrer?suite=/v13/factures");
   assert.equal(urlDepart(vault, "facturo", "12", "tableau-de-bord"), "/v12/entrer?suite=/v12/tableau-de-bord");
   assert.throws(() => urlDepart(vault, "facturo", "13", "ecran-inconnu"), /« ecran-inconnu »/);
+});
+
+test("urlDepart sans entrée déclarée rend l'url de la note telle quelle (site public)", () => {
+  const site = temporaryVault();
+  mkdirSync(join(site, "site-public", "produit"), { recursive: true });
+  writeFileSync(join(site, "site-public", "produit", "faq.md"), "---\necran: faq\nurl: /faq\n---\n\n# FAQ\n");
+  assert.equal(urlDepart(site, "site-public", "1", "faq"), "/faq");
+  writeFileSync(join(site, "site-public", "logiciel.md"), "---\nentree: 42\n---\n");
+  assert.throws(() => urlDepart(site, "site-public", "1", "faq"), /« entree » doit être un texte/);
 });
