@@ -16,7 +16,7 @@ export function changesSince(root, previous, ref) {
   if (current === previous) return [];
   execFileSync("git", ["merge-base", "--is-ancestor", previous, current], { cwd: root });
   let before = previous;
-  return git(root, ["rev-list", "--first-parent", "--reverse", `${previous}..${current}`]).split("\n").filter(Boolean).map((after) => {
+  return git(root, ["rev-list", "--first-parent", "--ancestry-path", "--reverse", `${previous}..${current}`]).split("\n").filter(Boolean).map((after) => {
     const changed = git(root, ["diff", "--name-only", before, after, "--", "site-eugenia/"]);
     const change = { before, after, siteChanged: changed.length > 0 };
     before = after;

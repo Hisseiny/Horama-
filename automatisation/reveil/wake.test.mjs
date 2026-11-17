@@ -51,6 +51,21 @@ const impactFor = (retained = [{ id: "accueil-vers-bachelor", raisons: ["relève
   ecartes: [{ id: "bachelor-vers-msc", raison: "page non touchée" }],
 });
 
+test("un rattrapage depuis un parent secondaire ne rejoue pas les anciens commits de la branche principale", (t) => {
+  const { root, git, commit } = fixture(t);
+  git("checkout", "-b", "site");
+  const deployed = commit("site-eugenia/index.html", "version déjà déployée");
+  git("checkout", "demo");
+  commit("site-eugenia/bachelor.html", "changement avant la fusion");
+  git("merge", "--no-ff", "site", "-m", "Fusion d'essai");
+  const merged = git("rev-parse", "HEAD");
+  const after = commit("site-eugenia/index.html", "version suivante");
+  assert.deepEqual(changesSince(root, deployed, "demo"), [
+    { before: deployed, after: merged, siteChanged: true },
+    { before: merged, after, siteChanged: true },
+  ]);
+});
+
 test("écrit le JSON intact avant la scène, transmet sélection/cible et protège le vault", async (t) => {
   const { root, commit, before, output } = fixture(t);
   const after = commit("site-eugenia/index.html", "v2");
