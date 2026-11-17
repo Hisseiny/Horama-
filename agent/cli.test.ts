@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { cpSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -48,7 +49,8 @@ test("arguments du banc, listes, valeurs par défaut et aide sans dépendances",
 
 for (const cle of ["dev", "demo"] as const) {
   test(`câblage du coureur et sélection explicite de la clé ${cle}`, async () => {
-    const options = lireArguments([...args, "--cle", cle, "--tests", "a,b", "--r", "ca-mois"])!;
+    const selectedTests = ["ca-du-mois-egal-total", "detail-facture-total-egal-liste"];
+    const options = lireArguments([...args, "--cle", cle, "--tests", selectedTests.join(","), "--r", "ca-mois", "--base-url", "https://facturo-demo.vercel.app"])!;
     const base = new BaseMemoire();
     const output: string[] = [];
     let closed = false;
@@ -60,11 +62,11 @@ for (const cle of ["dev", "demo"] as const) {
       createSession(settings) { selected = settings!.key!; return async () => { throw new Error("Non appelée dans ce test de câblage."); }; },
       createRunner(settings) {
         assert.equal(settings.base, base);
-        assert.equal(settings.baseUrl, "http://localhost:3100");
+        assert.equal(settings.baseUrl, "https://facturo-demo.vercel.app");
         assert.equal(settings.vault, options.vault);
         assert.match(settings.identifiant!(), /^\d{4}-\d{2}-\d{2}-\d{2}h\d{2}-[a-f0-9]{4}$/);
         return { async lancerPassage(input) {
-          assert.deepEqual(input, { logiciel: "facturo", version_testee: "13", version_reference: "12", tests: ["a", "b"], regressions: ["ca-mois"], cle });
+          assert.deepEqual(input, { logiciel: "facturo", version_testee: "13", version_reference: "12", tests: selectedTests, regressions: ["ca-mois"], cle });
           assert.equal(await settings.relever("ecran", "defaut"), capture);
           return { passage_id: "p1" };
         }, async attendreFin(id) { assert.equal(id, "p1"); assert.deepEqual(output, ["p1"]); waited = true; return report; } };
@@ -76,6 +78,16 @@ for (const cle of ["dev", "demo"] as const) {
     assert.equal(closed, true);
   });
 }
+
+test("un test inconnu échoue explicitement avant les clés, le navigateur, la base et H", async () => {
+  const options = lireArguments([...args, "--tests", "ca-du-mois-egal-total,introuvable"])!;
+  await assert.rejects(lancerCommande(options, { env: {}, createSession() { assert.fail("H ne doit pas démarrer."); } }), /Tests acceptés inconnus : introuvable\./);
+  const result = spawnSync(process.execPath, ["passage.ts", ...args, "--tests", "introuvable"], { cwd: import.meta.dirname, encoding: "utf8", env: { PATH: process.env.PATH } });
+  assert.equal(result.status, 1);
+  assert.equal(result.stdout, "");
+  assert.match(result.stderr, /Tests acceptés inconnus : introuvable\./);
+  assert.doesNotMatch(result.stderr, /Clé|Supabase|Chrome/);
+});
 
 test("les tests omis sont lus dans le vault et une erreur de passage ferme le navigateur", async () => {
   let closed = false;
