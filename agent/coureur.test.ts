@@ -41,10 +41,13 @@ test("un parcours, quatre captures uniques, attribution au premier test et rappo
     for (const [index, step] of consigne.course.entries()) {
       await onStep({ etape: index + 1, horodatage: "2026-11-16T12:00:00Z", action: "Ouvre une page", etat_session: "en_cours" });
       assert.equal(await onTool("relever", { ...step }), "Continue le parcours.");
-      assert.equal(await onTool("relever", { ...step }), "Continue le parcours.");
+      const next = consigne.course[index + 1];
+      const repeated = next ? `Déjà relevé. Relevé suivant : ecran=${next.ecran}, vue=${next.vue}.` : 'Déjà relevé. Tous les relevés sont pris. Appelle terminer(etat="reussi").';
+      assert.equal(await onTool("relever", { ...step }), repeated);
+      assert.equal(await onTool("relever", { ...consigne.course[0] }), repeated);
     }
     assert.equal(await onTool("terminer", { etat: "reussi" }), "Parcours terminé. N'effectue plus aucune action.");
-  });
+  }, { replay_url: "https://agp.eu.hcompany.ai/share/replay" });
   const coureur = creerCoureur({ vault, base, session, baseUrl: "http://localhost:3100", identifiant: () => "passage-test", maintenant: () => clock++ * 1000, relever: async (ecran, vue) => { shots++; return fixture(ecran, vue); } });
   const { passage_id } = await coureur.lancerPassage(input);
   const report = await coureur.attendreFin(passage_id);
@@ -52,6 +55,8 @@ test("un parcours, quatre captures uniques, attribution au premier test et rappo
   assert.equal(report.passage.cout_usd, 0.02);
   assert.ok(report.passage.duree_s! > 0);
   assert.deepEqual(report.tests.map(({ etat, session_id }) => [etat, session_id]), Array(3).fill(["termine", "session-1"]));
+  assert.ok(report.tests.every(({ replay_url }) => replay_url === "https://agp.eu.hcompany.ai/share/replay"));
+  assert.ok(report.tests.every(({ raison }) => raison === undefined));
   assert.equal(shots, 4);
   assert.equal(base.captures.size, 4);
   assert.equal(base.fichiers.size, 4);
@@ -66,9 +71,66 @@ test("un parcours, quatre captures uniques, attribution au premier test et rappo
   assert.match(markdown, /# Passage passage-test/);
   assert.match(markdown, /version_testee: "13"/);
   assert.match(markdown, /version_reference: "12"/);
-  assert.match(markdown, /Aucun résultat de vérification/);
+  assert.match(markdown, /INCONCLUSIVE/);
   assert.match(markdown, /Réussites : 0/);
+  assert.equal(markdown.split("[session H](https://agp.eu.hcompany.ai/share/replay)").length - 1, 3);
   for (const id of input.tests) assert.ok(markdown.includes(`## ${id}`));
+  assert.equal(base.resultats.length, 3);
+});
+
+for (const complete of [false, true]) {
+  test(`raison de session conservée dans C6 avec captures ${complete ? "complètes" : "absentes"}`, async () => {
+    const base = new BaseMemoire();
+    const erreur = "Le pont du navigateur est interrompu.";
+    const session = fakeSession(async ({ consigne, onTool }) => {
+      if (complete) for (const step of consigne.course) await onTool("relever", { ...step });
+      await onTool("terminer", { etat: "reussi" });
+    }, { erreur });
+    const runner = creerCoureur({ vault, base, session, baseUrl: "http://localhost:3100", relever: async (ecran, vue) => fixture(ecran, vue) });
+    const { passage_id } = await runner.lancerPassage(input);
+    const report = await runner.attendreFin(passage_id);
+    assert.equal(report.passage.etat, "echec");
+    assert.ok(report.tests.every(({ etat, raison }) => etat === "non_concluant" && raison === erreur));
+    assert.deepEqual(Object.keys(report).sort(), ["passage", "tests"]);
+    assert.deepEqual(base.rapports.get(passage_id), report);
+    assert.ok(base.resultats.every(({ statut }) => statut === "INCONCLUSIVE"));
+    assert.match(readFileSync(join(vault, "facturo/passages", `${passage_id}.md`), "utf8"), /Le pont du navigateur est interrompu\./);
+  });
+}
+
+test("terminer en échec sans raison exploitable conserve une raison de repli", async () => {
+  for (const raison of [undefined, "   "]) {
+    const base = new BaseMemoire();
+    const session = fakeSession(async ({ onTool }) => { await onTool("terminer", { etat: "echec", raison }); });
+    const runner = creerCoureur({ vault, base, session, relever: async (ecran, vue) => fixture(ecran, vue) });
+    const { passage_id } = await runner.lancerPassage(input);
+    const report = await runner.attendreFin(passage_id);
+    assert.ok(report.tests.every(({ etat, raison }) => etat === "non_concluant" && raison === "Parcours terminé en échec."));
+  }
+});
+
+test("les C4 et le Markdown précèdent le PATCH, un refus C4 ne bloque pas la fin", async () => {
+  const base = new BaseMemoire();
+  const order: string[] = [];
+  const messages: string[] = [];
+  base.enregistrerResultat = async (verification) => {
+    order.push(`C4:${verification.test_id}`);
+    assert.equal(verification.statut, "INCONCLUSIVE");
+    throw new Error("refus distant");
+  };
+  base.terminerPassage = async () => { order.push("PATCH"); };
+  const session = fakeSession(async ({ consigne, onTool }) => {
+    for (const step of consigne.course) await onTool("relever", { ...step });
+    await onTool("terminer", { etat: "reussi" });
+  });
+  const runner = creerCoureur({ vault, base, session, baseUrl: "http://localhost:3100", relever: async (ecran, vue) => fixture(ecran, vue),
+    signaler: (message) => messages.push(message), writeReport: (_vault, _report, results) => {
+      assert.equal(results.length, 3); order.push("Markdown"); return "rapport.md";
+    } });
+  const { passage_id } = await runner.lancerPassage(input);
+  assert.equal((await runner.attendreFin(passage_id)).passage.etat, "joue");
+  assert.deepEqual(order, [...input.tests.map((id) => `C4:${id}`), "Markdown", "PATCH"]);
+  assert.equal(messages.filter((message) => message.includes("C4 non enregistré")).length, 3);
 });
 
 test("la création rend la main avant la fin de session", async () => {
@@ -160,7 +222,7 @@ test("adresses incorrectes et outils inconnus ne produisent aucune capture", asy
   const report = await coureur.attendreFin(passage_id);
   assert.equal(base.captures.size, 0);
   assert.equal(report.passage.etat, "echec");
-  assert.ok(report.tests.every(({ raison }) => raison === "ecran non atteint"));
+  assert.ok(report.tests.every(({ raison }) => raison === "navigation impossible"));
 });
 
 test("une erreur réseau de base est visible sans interrompre les outils", async () => {
@@ -241,4 +303,22 @@ test("un échec d’écriture du rapport dans le vault reste visible et est pers
   assert.equal(base.rapports.get(passage_id)!.passage.etat, "echec");
   assert.equal(messages.length, 1);
   assert.match(messages[0], /rapport dans le vault impossible/);
+});
+
+test("une vue déclarée dans la note, sans adresse propre, est relevée quel que soit le filtre", async () => {
+  const testFile = join(vault, "facturo/tests/ca-du-mois-egal-total.md");
+  writeFileSync(testFile, readFileSync(testFile, "utf8").replace("{ ecran: tableau-de-bord, vue: defaut }", "{ ecran: tableau-de-bord, vue: langue-en }"));
+  const noteFile = join(vault, "facturo/produit/tableau-de-bord.md");
+  writeFileSync(noteFile, readFileSync(noteFile, "utf8").replace(/^url: .*$/m, "$&\nvues: [langue-en]"));
+  const base = new BaseMemoire();
+  const session = fakeSession(async ({ consigne, onTool }) => {
+    const step = consigne.course.find(({ vue }) => vue === "langue-en")!;
+    assert.equal(await onTool("relever", { ...step }), "Continue le parcours.");
+    assert.match(await onTool("relever", { ecran: "liste-des-factures", vue: "defaut" }), /écran non atteint/);
+    await onTool("terminer", { etat: "echec" });
+  });
+  const runner = creerCoureur({ vault, base, session, baseUrl: "http://localhost:3100", relever: async (ecran, vue) => ({ ...fixture(ecran, vue), url_page: `${fixture(ecran, vue).url_page}?filtre=payees` }) });
+  const { passage_id } = await runner.lancerPassage({ ...input, tests: ["ca-du-mois-egal-total"] });
+  await runner.attendreFin(passage_id);
+  assert.equal(base.captures.size, 1);
 });

@@ -1,6 +1,6 @@
 import type { Regle } from "@horama/contrats";
 import type { Constat } from "./index.ts";
-import { normalize, readCents, showCents } from "./values.ts";
+import { key, normalize, readCents, showCents } from "./values.ts";
 
 // What the mascot says about a finding, for someone who knows nothing of the software under test.
 // Every sentence is built from the rule, its values and the zones. Nothing here knows Facturo.
@@ -44,6 +44,8 @@ function announce(regle: Regle): string {
       );
     case "presence":
       return fit(`Je vérifie que ${quote(regle.colonne)} est rempli partout.`, "Je vérifie qu'il ne manque rien.");
+    case "etat":
+      return fit(`Je vérifie qu'après l'action, la page affiche ${quote(regle.texte_present?.[0] ?? "")}.`, "Je vérifie que la page affiche le bon texte.");
   }
 }
 
@@ -59,6 +61,8 @@ function conforming(regle: Regle, valeurs: Record<string, string>): string {
       return "C'est bon : tout est bien écrit.";
     case "presence":
       return "C'est bon : rien ne manque.";
+    case "etat":
+      return fit(`C'est bon : ${quote(regle.texte_present?.[0] ?? "")} s'affiche.`, "C'est bon : l'état attendu s'affiche.");
   }
 }
 
@@ -129,6 +133,14 @@ function broken(regle: Regle, { ecran, valeurs, textes_a_surligner }: Constat): 
         ),
         question: ask(`${quote(regle.colonne)} est vide pour ${first}.`, "Une case est vide."),
       };
+    case "etat": {
+      const banned = new Set((regle.texte_absent ?? []).map(key));
+      const detail = textes_a_surligner.map((item) => (banned.has(key(item)) ? `${quote(item)} est encore affiché` : `${quote(item)} n'apparaît pas`));
+      return {
+        resultat: fit(`Problème : ${detail.join(" et ")}.`, "Problème : la page n'affiche pas le bon texte."),
+        question: ask(`${detail[0] ?? "le texte attendu n'y est pas"}.`, "La page n'affiche pas le bon texte."),
+      };
+    }
   }
 }
 
@@ -166,5 +178,10 @@ export function formuler(constat: Constat): Wording {
   // The reason, without the identifiers of the screens.
   const screens = regle.type === "egalite" ? [regle.a.ecran, regle.b.ecran] : [regle.ecran];
   const reason = screens.reduce((text, ecran) => text.replaceAll(` sur ${ecran}`, ""), constat.raison ?? "");
+  // An « etat » rule that found no expected text does not say « unreadable »: the state may never have been reached.
+  if (regle.type === "etat") {
+    if (reason.startsWith("état non atteint")) return { annonce, resultat: "Je ne vois pas la nouveauté : l'action n'a peut-être pas été faite." };
+    return { annonce, resultat: reason ? fit(`${reason[0].toUpperCase()}${reason.slice(1)}.`, "L'état attendu n'a pas été atteint.") : "L'état attendu n'a pas été atteint." };
+  }
   return { annonce, resultat: join("Je n'arrive pas à lire cette valeur.", reason && fit(`${reason[0].toUpperCase()}${reason.slice(1)}.`, "")) };
 }

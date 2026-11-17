@@ -2,6 +2,7 @@
 ecran: detail-facture
 chemin: Menu > Factures > numéro de la facture
 url: /factures/<numero>
+code: ["faux-saas/app/[version]/factures/[numero]/page.tsx", "faux-saas/lib/data.ts", "faux-saas/lib/session.ts", "faux-saas/app/shell.tsx", "faux-saas/app/layout.tsx", "faux-saas/app/styles.ts", "faux-saas/regressions.ts"]
 ---
 
 # Détail d'une facture

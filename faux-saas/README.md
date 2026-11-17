@@ -49,6 +49,10 @@ Sans cookie (connexion par `/login`), les pages appliquent les changements par d
 
 Le catalogue est dans `regressions.ts` (source unique : 13 bugs, dont 3 presque invisibles à l'œil, et 5 changements voulus). `verite.json` en est la copie JSON. Chaque élément touché porte un attribut `data-zone` ; la zone `cellule-client` désigne les quatre cases de la colonne Client, sa boîte dans `positions.json` est leur union.
 
+## Bouton « Mode sombre »
+
+L'en-tête de chaque écran, en v12 comme en v13, se termine à droite par un bouton « Mode sombre ». Un clic passe toute l'interface en thème sombre (couleurs fixes, aucune transition, indifférent à `prefers-color-scheme`) et le libellé devient « Revenir au mode clair » ; un second clic revient au thème clair. L'état n'est gardé nulle part : ni cookie, ni `localStorage`, ni `sessionStorage`, ni paramètre d'adresse. Chaque chargement de page repart donc en thème clair, pour qu'un parcours qui active le mode sombre ne modifie pas les relevés du parcours suivant.
+
 ## Scripts
 
 Les scripts de preuve pilotent le Chrome installé (`channel: "chrome"`, sans tête, 1280 × 900) et demandent une application lancée. Paramètre commun : `--base <url>` (défaut `http://localhost:3100`).
