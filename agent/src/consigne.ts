@@ -7,6 +7,9 @@ const VIEWS: Record<string, { filtre: string | null; since?: number }> = {
   "filtre-echeance": { filtre: "echeance-depassee", since: 13 },
 };
 
+const declaredViews = (value: unknown) => (Array.isArray(value) ? value : typeof value === "string" ? value.split(",") : [])
+  .filter((name): name is string => typeof name === "string").map((name) => name.trim()).filter(Boolean);
+
 export const COURSE_RULES = [
   "Travaille uniquement dans cet onglet : n'ouvre jamais d'onglet ni de fenêtre, n'utilise aucun raccourci clavier.",
   "Ne recharge et ne rafraîchis jamais la page (jamais refresh_web). Il n'existe pas d'action de capture d'écran : pour regarder la page, appelle wait_web (1 seconde).",
@@ -65,12 +68,14 @@ export function construireConsigne({ vault, logiciel, version, ids, baseUrl = pr
   tests.forEach((test, index) => {
     for (const { ecran, vue } of test.releves) {
       if (course.some((step) => step.ecran === ecran && step.vue === vue)) continue;
-      const url = notes.find((note) => note.entete.ecran === ecran)?.entete.url;
+      const entete = notes.find((note) => note.entete.ecran === ecran)?.entete;
+      const url = entete?.url;
       if (typeof url !== "string") missing.push(`Aucune note de ${logiciel} ne donne l'adresse de l'écran « ${ecran} » (champ url de son en-tête).`);
-      if (!VIEWS[vue]) missing.push(`Vue « ${vue} » inconnue : son adresse est à ajouter dans VIEWS (parcours.mjs).`);
+      if (!VIEWS[vue] && !declaredViews(entete?.vues).includes(vue)) missing.push(`Vue « ${vue} » inconnue : à déclarer dans le champ vues de la note de l'écran « ${ecran} ».`);
       const numbers = [...new Set(test.markdown.match(/\bF-\d+\b/g) ?? [])];
       const versioned = /^\/v\d+\//.test(test.url_depart);
-      const address = new URL(`${versioned ? `/v${version}` : ""}${url}`.replaceAll("<numero>", numbers.length === 1 ? numbers[0] : "<numero>"), baseUrl);
+      const screenUrl = `${versioned ? `/v${version}` : ""}${url}`.replaceAll("<numero>", numbers.length === 1 ? numbers[0] : "<numero>");
+      const address = new URL(!versioned && screenUrl.startsWith("/") && !screenUrl.startsWith("//") ? `${baseUrl.replace(/\/$/, "")}${screenUrl}` : screenUrl, baseUrl);
       const departure = new URL(test.url_depart, baseUrl);
       if (!versioned && address.origin === departure.origin) {
         departure.searchParams.forEach((value, key) => {
@@ -82,11 +87,11 @@ export function construireConsigne({ vault, logiciel, version, ids, baseUrl = pr
       const path = decodeURI(address.pathname);
       const pattern = `^${path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/<[^>]+>/g, "[^/]+")}$`;
       const query = [...address.searchParams].map(([key, value]) => `new URLSearchParams(location.search).get(${JSON.stringify(key)}) === ${JSON.stringify(value)}`);
-      if (!address.searchParams.has("filtre")) query.push('new URLSearchParams(location.search).get("filtre") === null');
+      if (VIEWS[vue] && !address.searchParams.has("filtre")) query.push('new URLSearchParams(location.search).get("filtre") === null');
       course.push({
         ecran, vue, key: keyOf({ ecran, vue }), part: index + 1, test_id: test.id,
         address: `${address.origin === new URL(baseUrl).origin ? "" : address.origin}${path}${address.search}`,
-        here: `new RegExp(${JSON.stringify(pattern)}).test(location.pathname) && ${query.join(" && ")}`,
+        here: [`new RegExp(${JSON.stringify(pattern)}).test(location.pathname)`, ...query].join(" && "),
       });
     }
   });
