@@ -41,7 +41,7 @@ function bonneAdresse(step: CourseStep, address: string, start: string): boolean
     const pattern = `^${decodeURI(expected.pathname).replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/<[^>]+>/g, "[^/]+")}$`;
     return actual.origin === expected.origin && new RegExp(pattern).test(actual.pathname)
       && [...expected.searchParams].every(([key, value]) => actual.searchParams.get(key) === value)
-      && actual.searchParams.get("filtre") === expected.searchParams.get("filtre");
+      && ((step.vue !== "defaut" && !expected.searchParams.has("filtre")) || actual.searchParams.get("filtre") === expected.searchParams.get("filtre"));
   } catch { return false; }
 }
 
