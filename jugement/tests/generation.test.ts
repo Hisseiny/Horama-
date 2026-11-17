@@ -114,6 +114,8 @@ test("une réponse invalide de chaque sorte est refusée, avec sa raison", () =>
     [changed("v13", (tests) => (tests[0].verifications = ["Le filtre doit marcher."])), /^test 1 : la vérification « Le filtre doit marcher\. » ne commence pas par « FAIL if »$/],
     [changed("v13", (tests) => delete tests[1].etapes), /^test 2 : « etapes » doit être une liste d'au moins 1 élément\(s\)$/],
     [changed("v13", (tests) => (tests[1].titre = "Liste des factures\n## Task")), /^test 2 : « titre » doit être un texte d'une seule ligne$/],
+    [changed("v13", (tests) => ((tests[1].releves as Array<{ vue: string }>)[0].vue = "exporter-en-haut")), /^test 2 : la vue « exporter-en-haut » n'est pas « defaut » alors qu'aucune étape ne choisit/],
+    [changed("v13", (tests) => (tests[0].questions = [])), /^test 1 : la règle de filtre \(« < aujourd_hui »\) a une limite dont la note ne dit pas si elle compte : ajoute la question$/],
   ];
   for (const [answer, reason] of invalid) {
     const { reasons } = validateAnswer(answer, source(V13));

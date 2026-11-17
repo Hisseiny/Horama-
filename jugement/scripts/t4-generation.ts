@@ -1,7 +1,7 @@
 // T4: can an open model served by the Hugging Face router write the tests of 3 notes of the vault?
 // Run from the root of the repository: node --env-file=<.env.local> jugement/scripts/t4-generation.ts [model ...]
 // With models given (a router suffix such as `:fastest` or `:cerebras` included), the run is a new measure: its files get the
-// suffix `-rapide` and the files of the first T4 run (2026-11-16) are left as they are.
+// suffix `-rapide` (or `-$T4_RUN`) and the files of the first T4 run (2026-11-16) are left as they are.
 // Every figure written by this script is measured by this run; the vault is only read (writes go to a temporary copy).
 import { execSync } from "node:child_process";
 import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -27,9 +27,10 @@ const MAX_MEDIAN_MS = 10_000;
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const VAULT = join(ROOT, "vault-horama");
 const OUT = join(ROOT, "jugement/generation");
-const REPORT = ASKED.length ? "docs/tests/2026-11-17-t4-generation-rapide.md" : "docs/tests/2026-11-16-t4-generation.md";
-const ESSAIS = ASKED.length ? "essais-rapide" : "essais";
-const COMPARAISON = ASKED.length ? "comparaison-rapide.md" : "comparaison.md";
+const RUN = process.env.T4_RUN ?? "rapide"; // name of a run with chosen models: T4_RUN=rapide-2 keeps the files of the run « rapide »
+const REPORT = ASKED.length ? `docs/tests/2026-11-17-t4-generation-${RUN}.md` : "docs/tests/2026-11-16-t4-generation.md";
+const ESSAIS = ASKED.length ? `essais-${RUN}` : "essais";
+const COMPARAISON = ASKED.length ? `comparaison-${RUN}.md` : "comparaison.md";
 const COMMAND = ["node", ...process.execArgv, "jugement/scripts/t4-generation.ts", ...ASKED].join(" ");
 
 interface Pass {

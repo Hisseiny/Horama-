@@ -3,6 +3,7 @@ import { verifierRegle } from "@horama/memoire";
 import type { Note } from "@horama/memoire";
 
 const KEBAB = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+const CHOICE = /\b(choisir|sélectionner|selectionner|filtrer|trier|onglet|cocher|appliquer)/i; // a step that changes the state of the screen
 
 export interface Source {
   logiciel: string;
@@ -90,6 +91,16 @@ function buildTest(raw: unknown, { logiciel, note, screens, modele }: Source): T
   for (const ecran of cited) {
     // releves is empty when it was refused above: no second reason for the same fault
     if (releves.length && !releves.some((releve) => releve.ecran === ecran)) reasons.push(`l'écran « ${ecran} », cité par une règle, n'est pas dans releves`);
+  }
+  // The prompt asks for both; faster providers forget them (measure of 2026-11-17), so the code checks them.
+  const views = releves.filter(({ vue }) => vue !== "defaut").map(({ vue }) => vue);
+  if (views.length && etapes.length && !etapes.some((step) => CHOICE.test(step))) {
+    reasons.push(`la vue « ${views[0]} » n'est pas « defaut » alors qu'aucune étape ne choisit un filtre, un tri ou un onglet : la vue est alors « defaut »`);
+  }
+  const limit = regles.find((rule) => rule.type === "filtre" && /[<>]/.test(rule.condition));
+  // slots.questions, not questions: a list refused above is not « no question »
+  if (limit?.type === "filtre" && Array.isArray(slots.questions) && !slots.questions.length && !/inclu|strictement|compris/i.test(note.texte)) {
+    reasons.push(`la règle de filtre (« ${limit.condition} ») a une limite dont la note ne dit pas si elle compte : ajoute la question`);
   }
   if (reasons.length) throw new Error(reasons.join(" ; "));
 
