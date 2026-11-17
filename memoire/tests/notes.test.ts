@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { appendFileSync } from "node:fs";
+import { appendFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { analyserLigneRegle, lireNotes, urlDepart, verifierRegle } from "../index.ts";
@@ -62,7 +62,7 @@ test("une puce sans ligne regle: est rendue avec null, avec sa phrase et sa lign
   assert.deepEqual(untested, [
     ["produit/detail-facture.md", 17, "Le « Total TTC » doit être égal au montant de la facture dans la liste : voir [[regles-entre-ecrans]]."],
     ["produit/liste-des-factures.md", 24,"Sous le tableau, le nombre de factures affichées est indiqué (« 4 factures »)."],
-    ["produit/tableau-de-bord.md", 17,"Le « CA du mois » et le nombre de « Factures du mois » doivent correspondre à la liste des factures : voir [[regles-entre-ecrans]]."],
+    ["produit/tableau-de-bord.md", 18,"Le « CA du mois » et le nombre de « Factures du mois » doivent correspondre à la liste des factures : voir [[regles-entre-ecrans]]."],
   ]);
   const first = lireNotes(vault, "facturo")[2].regles[0];
   assert.equal(first.phrase, "Le total en bas du tableau est la somme de la colonne « Montant TTC ».");
@@ -115,8 +115,11 @@ test("verifierRegle rend la règle du contrat sans champ en trop, et dit pourquo
 
 test("une ligne regle: invalide dans une note nomme le fichier et la ligne", () => {
   const broken = temporaryVault();
-  appendFileSync(join(broken, "facturo/produit/tableau-de-bord.md"), "- Règle mal écrite.\n  regle: somme | colonne: CA\n");
-  assert.throws(() => lireNotes(broken, "facturo"), /facturo\/produit\/tableau-de-bord\.md, ligne 19 :.*champ « cible » manquant/);
+  const note = join(broken, "facturo/produit/tableau-de-bord.md");
+  // The broken rule line comes right after the appended bullet: its number follows the length of the real note.
+  const line = readFileSync(note, "utf8").split("\n").length + 1;
+  appendFileSync(note, "- Règle mal écrite.\n  regle: somme | colonne: CA\n");
+  assert.throws(() => lireNotes(broken, "facturo"), new RegExp(`facturo/produit/tableau-de-bord\\.md, ligne ${line} :.*champ « cible » manquant`));
 });
 
 test("urlDepart compose l'entrée authentifiée depuis l'url de la note de l'écran", () => {
