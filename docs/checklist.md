@@ -52,7 +52,7 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | 3.1 | Génération : une note du vault devient un test proposé (C1) avec ses questions d'ambiguïté | Leslie | à faire |  |
 | 3.2 | Écran 11.2 : note à gauche, test à droite, règle surlignée, Accepter, Modifier, Refuser | Axil | à faire |  |
 | 3.3 | Écriture du test accepté dans `vault-horama/…/tests/` (C2) | Inès | à faire |  |
-| 3.4 | Orchestrateur : une session H par test accepté, événements du fil (C3) en base, lien de replay, abandon d'une session muette après 45 s et une relance | Ali | en cours | A3/A4 et commande A5 câblés : consigne chaînée, session unique, Supabase et CDP, relance après silence. A6 v12 contrôlé avec session injectée. Aucun nouveau passage H ; refus entreprise documenté, replay public non créé. [Preuve A5/A6](tests/2026-11-17-a5-a6-rapport-vault.md). |
+| 3.4 | Orchestrateur : une session H par test accepté, événements du fil (C3) en base, lien de replay, abandon d'une session muette après 45 s et une relance | Ali | en cours | A3/A4 et commande A5 câblés : consigne chaînée, session unique, Supabase et CDP, relance après silence. A6 v12 contrôlé avec session injectée. Replay public codé et testé automatiquement dans C6 sans modifier les contrats ; aucune validation en session réelle ni curl d’un lien réel. [Preuve replay](tests/2026-11-17-3.4-replay-public.md). [Preuve A5/A6](tests/2026-11-17-a5-a6-rapport-vault.md). |
 | 3.5 | Vérification : relevé des valeurs, calcul, statut (C4) pour une règle d'un écran | Leslie, Nathan en renfort | à faire |  |
 | 3.6 | Écran 11.3 : le fil en direct se remplit à partir de la base | Axil | à faire |  |
 | 3.7 | Point technique H (15 h) : ce qui bloque 3.4 et 3.5 | Ali, Nathan | à faire |  |
