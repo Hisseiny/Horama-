@@ -63,7 +63,7 @@ test("une puce sans ligne regle: est rendue avec null, avec sa phrase et sa lign
   assert.deepEqual(untested, [
     ["produit/detail-facture.md", 17, "Le « Total TTC » doit être égal au montant de la facture dans la liste : voir [[regles-entre-ecrans]]."],
     ["produit/liste-des-factures.md", 24,"Sous le tableau, le nombre de factures affichées est indiqué (« 4 factures »)."],
-    ["produit/tableau-de-bord.md", 18,"Le « CA du mois » et le nombre de « Factures du mois » doivent correspondre à la liste des factures : voir [[regles-entre-ecrans]]."],
+    ["produit/tableau-de-bord.md", 17,"Le « CA du mois » et le nombre de « Factures du mois » doivent correspondre à la liste des factures : voir [[regles-entre-ecrans]]."],
   ]);
   const first = lireNotes(vault, "facturo")[2].regles[0];
   assert.equal(first.phrase, "Le total en bas du tableau est la somme de la colonne « Montant TTC ».");
