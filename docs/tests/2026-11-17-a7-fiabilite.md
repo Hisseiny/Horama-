@@ -2,6 +2,8 @@
 
 Branche `a7-fiabilite`, créée depuis `origin/dev` à jour (`a22f812001881504f1b0305464e4734b9f4e8aef`). Aucun chiffre des trois passages A5 n’est réutilisé comme mesure A7.
 
+Après séparation des tickets, cette branche ne contient que cette preuve, les retours API et la note de checklist A7. Le code de replay et ses tests sont retirés par un nouveau commit, sans réécriture d’historique, et isolés sur `3.4-replay-public`. Les résultats de checks ci-dessous décrivent la préparation initiale avant cette séparation, pas une livraison de code dans A7.
+
 ## Montage et commandes
 
 - `pnpm --filter @horama/faux-saas dev` : Facturo v13 prêt sur `http://localhost:3100`.
@@ -57,19 +59,19 @@ Lecture directe de Supabase par `docker exec … psql` : passage `echec`, `duree
 
 Médiane sur cinq passages : **à mesurer**. Cible < 90 s : **non évaluée**, pas un dépassement mesuré. Durée et coût d’un passage complet : **à mesurer**. Aucun résultat `PASS` revendiqué.
 
-## API de partage et implémentation
+## API de partage : code isolé au ticket 3.4
 
 Source consultée : <https://hub.hcompany.ai/agents-api/sessions/share.md>. SDK installé : `hai_agents/sessions/raw_client.py`, méthode `share_session`, confirme un `POST api/v2/sessions/{id}/share`. Réponse documentée : `{"share_url":"/share/api/v1/trajectories/{id}"}`, chemin relatif à l’hôte API régional et accessible sans clé.
 
 C6 possède déjà `tests[].replay_url?: string` dans `contrats/types.ts` : aucun champ manquant ni changement de contrat.
 
-`agent/src/session.ts` appelle ce POST après le suivi et l’arrêt du pont, normalise le lien sur `https://agp.eu.hcompany.ai` et le retourne dans `ResultatSession.replay_url`. Le coureur propage déjà ce champ aux trois tests de la session unique et le lecteur mémoire l’écrit dans le Markdown. Les métriques de session répétées par test ne doivent pas être additionnées.
+L’implémentation de ce POST appartient désormais à la branche séparée `3.4-replay-public`, pas à A7. Elle accepte toute URL absolue HTTPS et résout les chemins relatifs contre l’origine API ; l’hôte public réel n’est pas vérifié et ne doit pas être supposé identique à celui de l’API. Le coureur propage déjà `ResultatSession.replay_url` aux trois tests de la session unique et le lecteur mémoire l’écrit dans le Markdown. Les métriques de session répétées par test ne doivent pas être additionnées.
 
-Un partage HTTP/réseau en échec, une réponse vide ou un lien invalide produisent un avertissement explicite et aucun lien ; ils ne réécrivent pas l’état d’exécution d’une session. C’est une métadonnée optionnelle du rapport, pas une preuve de conformité métier. Les tests couvrent les URL relatives et absolues, les réponses nulles/vides, les schémas/hôtes refusés, HTTP 404, erreur réseau, absence de fuite de clé et propagation aux trois tests C6/Markdown.
+Sur cette branche séparée, un partage HTTP/réseau en échec, une réponse vide ou un lien invalide produisent un avertissement explicite et aucun lien ; ils ne réécrivent pas l’état d’exécution d’une session. C’est une métadonnée optionnelle du rapport, pas une preuve de conformité métier. Les tests du ticket 3.4 couvrent notamment les URL relatives et HTTPS absolues sur des hôtes différents ; aucun de ces tests n’est conservé dans A7.
 
 **Aucun POST de partage réel ni contrôle curl des cinq liens n’a pu être fait : la création de session est refusée.** La validité réelle des liens et la fiabilité du parcours restent à vérifier après rétablissement des droits de la référence Horama fournie.
 
-## Vérifications locales
+## Vérifications locales historiques avant séparation
 
 `pnpm --filter @horama/agent check` :
 
@@ -100,3 +102,15 @@ agent check: Done
 ```
 
 Cette branche part de `dev` sans reprendre l’outillage de la branche 1.4 : aucun lint dédié n’y est encore intégré. Aucun rapport dans le vault du dépôt, aucun contrat modifié, aucun accès au banc. Aucun contrôle visuel de parcours possible en l’absence de session H. La ligne 3.4 est marquée bloquée, pas terminée ; la répétition de démo 5.8 reste à faire.
+
+## Contrôle après retrait du code
+
+`pnpm --filter @horama/agent check`, code de sortie 0, après restauration des trois fichiers agent à leur contenu d’`origin/dev` :
+
+```text
+# tests 39
+# pass 39
+# fail 0
+```
+
+Le diff final d’A7 contre `origin/dev` ne contient que `docs/retours-api-h.md`, `docs/tests/2026-11-17-a7-fiabilite.md` et la note Ali dans `docs/checklist.md`.

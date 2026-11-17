@@ -35,7 +35,6 @@ export interface OptionsSessionH {
   requete?: typeof fetch;
   maintenant?: () => number;
   pause?: (ms: number) => Promise<void>;
-  signaler?: (message: string) => void;
 }
 
 const TERMINAL = ["completed", "failed", "timed_out", "interrupted"];
@@ -46,7 +45,7 @@ export function libelleAction(names: string[]): string {
   return (names.length ? names.map((name) => labels[name] ?? "Agit dans le navigateur").join(", ") : "Agit dans le navigateur").slice(0, 100);
 }
 
-export function creerSessionH({ navigateur, key, requete = fetch, maintenant = Date.now, pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), signaler = console.error }: OptionsSessionH = {}): Session {
+export function creerSessionH({ navigateur, key, requete = fetch, maintenant = Date.now, pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms)) }: OptionsSessionH = {}): Session {
   let previous = false;
   return async (input) => {
     const secret = key ?? (input.cle === "demo" ? process.env.HAI_API_KEY_DEMO : process.env.HAI_API_KEY);
@@ -142,17 +141,7 @@ export function creerSessionH({ navigateur, key, requete = fetch, maintenant = D
         await browser.stop();
       }
       if (status === "failed") erreur ??= "La session H a échoué.";
-      let replay_url: string | undefined;
-      try {
-        const shared = await h("POST", `/sessions/${id}/share`);
-        if (typeof shared?.share_url !== "string" || !shared.share_url.trim()) throw new Error("Lien absent.");
-        const link = new URL(shared.share_url, new URL(API).origin);
-        if (link.protocol !== "https:" || link.origin !== new URL(API).origin) throw new Error("Lien invalide.");
-        replay_url = link.href;
-      } catch {
-        signaler(`Session ${id} : replay public indisponible ; aucun lien ajouté au rapport.`);
-      }
-      return { id, muted, cout_usd: metrics?.total_cost ?? null, etapes, ...(erreur ? { erreur } : {}), ...(replay_url ? { replay_url } : {}) };
+      return { id, muted, cout_usd: metrics?.total_cost ?? null, etapes, ...(erreur ? { erreur } : {}) };
     })();
     return { id, fin };
   };

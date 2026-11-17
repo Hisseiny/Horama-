@@ -26,15 +26,15 @@ Faits rapportés dans [`AGENTS.md`](../AGENTS.md), section « Ce qu’on sait d�
 
 [T7 du 16 novembre](tests/2026-11-16-t7-navigateur-local.md), disponible sur `dev` : trois passages H, quatre relevés par passage, 1280 × 900, DPR 1. Durées rapportées : 45,2 s, 59,4 s et 70,5 s ; coûts : 0,0316 $, 0,0323 $ et 0,0273 $. Ce montage est celui de Nathan, pas une validation réelle du coureur Ali.
 
-## A7 du 17 novembre : replay implémenté, mesures bloquées
+## A7 du 17 novembre : mesures bloquées
 
 Source : [preuve A7 et commande réelle](tests/2026-11-17-a7-fiabilite.md). La [preuve A5](tests/2026-11-17-a5-trois-passages-agent-h.md) documente déjà trois passages réels avec une clé Horama ; elle ne constitue pas les cinq essais demandés ici.
 
 - Avec la référence Horama fournie pour A7, liée uniquement à `HAI_API_KEY` dans l’environnement du processus, `GET /sessions/quota` et la création réelle `POST /sessions` renvoient HTTP 403 : `{"message":"User is not authorized to access this resource with an explicit deny in an identity-based policy"}`. Aucun recours à la clé Nami ni à la clé de démo. Ce refus n’est pas le message « enterprise » de l’essai antérieur ; sa cause précise côté autorisation n’est pas vérifiée.
 - La commande de passage échoue avant toute session H : zéro étape, zéro capture, aucune session figée ou relancée à observer. Le passage local d’échec dure 1,485 s et son coût est inconnu ; ce n’est pas la durée d’un parcours complet. Arrêt après ce refus de création, sans quatre tentatives supplémentaires identiques.
 - Montage recréé : Facturo local v13, Supabase local avec la migration gelée, Chrome 1280 × 900 et DPR 1, SDK `hai-agents` 1.5.1. Vault de travail externe : aucun rapport écrit dans le vault du dépôt.
-- Documentation et SDK concordent : `POST /sessions/{id}/share` rend `share_url`, relatif à l’hôte API régional. C6 possède déjà `tests[].replay_url` : aucun changement de contrat nécessaire. L’agent crée désormais ce lien après le suivi de session, le normalise sur `https://agp.eu.hcompany.ai` et le transmet à chaque test de la session partagée. En cas de lien absent, invalide ou de refus réseau/HTTP, avertissement explicite et aucun lien inventé ; l’état d’exécution n’est pas transformé en échec pour ce seul manque optionnel de replay.
-- Tests automatiques : 47/47 pour agent, dont partage relatif/absolu, réponse vide, lien invalide, HTTP 404, erreur réseau sans fuite de clé et propagation aux trois tests C6 ainsi qu’au Markdown. Aucun lien réel disponible pour une vérification curl.
+- Documentation et SDK concordent : `POST /sessions/{id}/share` rend `share_url`, relatif à l’hôte API régional. C6 possède déjà `tests[].replay_url` : aucun changement de contrat nécessaire. Le code de partage et ses tests ont été retirés d’A7 par un nouveau commit, sans réécriture d’historique : ils sont isolés sur `3.4-replay-public`. Cette branche accepte les URL HTTPS absolues sur tout hôte et résout les liens relatifs contre l’origine API ; le véritable hôte public reste à vérifier.
+- Les 47 tests agent de la préparation initiale incluaient le replay, avant séparation des tickets. Ils ne décrivent pas le contenu actuel d’A7, désormais documentaire uniquement. Aucun lien réel disponible pour une vérification curl. La validation du code de replay appartient au ticket 3.4, sans prouver la fiabilité A7.
 
 ## À mesurer
 
