@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import type { LancementPassage } from "@horama/contrats";
 import { lireTestsAcceptes } from "@horama/memoire";
-import { creerBaseSupabase } from "./base.ts";
+import { BaseMemoire, creerBaseSupabase } from "./base.ts";
 import type { BasePassages } from "./base.ts";
 import { navigateurLocal } from "./browser.ts";
 import type { BrowserRuntime } from "./browser.ts";
@@ -16,6 +16,7 @@ export const HELP = `Usage : pnpm --filter @horama/agent passage -- --logiciel f
   --r ca-mois         Régressions à activer, séparées par des virgules
   --cle dev|demo      Clé H (dev par défaut ; demo sélectionne seule la clé de démo)
   --vault chemin      Vault (vault-horama du dépôt par défaut)
+  --sans-base         Base en mémoire seulement ; aucune écriture Supabase
   --base-url URL      Origine du SaaS (FAUX_SAAS_URL ou Facturo déployé)
   --chrome-port 9333  Chrome dédié déjà lancé, CDP local, 1280 × 900 et DPR 1
   --help              Afficher cette aide sans démarrer de session
@@ -34,6 +35,7 @@ export interface PassageOptions {
   vault: string;
   baseUrl?: string;
   port: number;
+  sansBase?: boolean;
 }
 
 export class UnknownTestsError extends Error {}
@@ -43,11 +45,18 @@ export function lireArguments(args: string[]): PassageOptions | null {
   if (args.length === 1 && args[0] === "--help") return null;
   const values = new Map<string, string>();
   const allowed = ["logiciel", "version", "reference", "tests", "r", "cle", "vault", "base-url", "chrome-port"];
-  for (let i = 0; i < args.length; i += 2) {
+  for (let i = 0; i < args.length;) {
     const name = args[i].slice(2);
+    if (args[i] === "--sans-base") {
+      if (values.has(name)) throw new Error("Option répétée : --sans-base.");
+      values.set(name, "true");
+      i++;
+      continue;
+    }
     if (!args[i].startsWith("--") || !allowed.includes(name) || values.has(name)) throw new Error("Option inconnue ou répétée ; utiliser --help.");
     if (!args[i + 1] || args[i + 1].startsWith("--")) throw new Error(`Valeur requise pour --${name}.`);
     values.set(name, args[i + 1]);
+    i += 2;
   }
   for (const name of ["logiciel", "version", "reference"]) if (!values.has(name)) throw new Error(`Option --${name} requise.`);
   const logiciel = values.get("logiciel")!;
@@ -67,7 +76,7 @@ export function lireArguments(args: string[]): PassageOptions | null {
   const baseUrl = values.get("base-url");
   if (baseUrl && !/^https?:$/.test(new URL(baseUrl).protocol)) throw new Error("--base-url attend une URL HTTP(S).");
   return { logiciel, version: values.get("version")!, reference: values.get("reference")!, tests: list("tests"), regressions: list("r"), cle,
-    vault: values.get("vault") ?? fileURLToPath(new URL("../../vault-horama", import.meta.url)), baseUrl, port };
+    vault: values.get("vault") ?? fileURLToPath(new URL("../../vault-horama", import.meta.url)), baseUrl, port, sansBase: values.has("sans-base") };
 }
 
 export async function lancerCommande(options: PassageOptions, dependencies: {
@@ -83,7 +92,8 @@ export async function lancerCommande(options: PassageOptions, dependencies: {
     tests: options.tests ?? accepted, regressions: options.regressions, cle: options.cle };
   const key = options.cle === "demo" ? env.HAI_API_KEY_DEMO : env.HAI_API_KEY;
   if (!dependencies.session && !key) throw new Error("Clé H absente pour ce passage.");
-  const base = dependencies.base ?? creerBaseSupabase({ url: env.SUPABASE_URL, key: env.SUPABASE_SERVICE_ROLE_KEY });
+  if (options.sansBase) console.warn("Attention : --sans-base actif, aucune donnée écrite dans Supabase ; rapport conservé dans le vault uniquement.");
+  const base = options.sansBase ? new BaseMemoire() : dependencies.base ?? creerBaseSupabase({ url: env.SUPABASE_URL, key: env.SUPABASE_SERVICE_ROLE_KEY });
   const runtime = dependencies.runtime ?? await navigateurLocal(options.port);
   let closed = false;
   const close = () => { if (!closed) { closed = true; runtime.close(); } };

@@ -13,6 +13,26 @@ import { HELP, lancerCommande, lireArguments } from "./src/cli.ts";
 const args = ["--logiciel", "facturo", "--version", "13", "--reference", "12"];
 const report: RapportPassage = { passage: { id: "p1", logiciel: "facturo", version_testee: "13", version_reference: "12", etat: "joue", debut: "2026-11-17T12:00:00Z" }, tests: [] };
 
+test("sans-base est explicite, refuse les doublons et conserve le coureur du vault", async (t) => {
+  assert.equal(lireArguments(args)!.sansBase, false);
+  assert.throws(() => lireArguments([...args, "--sans-base", "--sans-base"]));
+  assert.throws(() => lireArguments([...args, "--sans-base", "true"]));
+  const warnings: string[] = [];
+  t.mock.method(console, "warn", (line: string) => warnings.push(line));
+  const options = lireArguments(["--sans-base", ...args])!;
+  const result = await lancerCommande(options, { env: {}, output() {},
+    session: async () => { throw new Error("Non appelée."); },
+    runtime: { relever: async () => { throw new Error(); }, navigateur: async () => { throw new Error(); }, close() {} },
+    createRunner(settings) {
+      assert.ok(settings.base instanceof BaseMemoire);
+      assert.equal(settings.vault, options.vault);
+      return { async lancerPassage() { return { passage_id: "p1" }; }, async attendreFin() { return report; } };
+    },
+  });
+  assert.equal(result, report);
+  assert.match(warnings.join("\n"), /aucune donnée écrite dans Supabase/);
+});
+
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   test(`${signal} ferme le runtime avant de sortir et retire les écouteurs`, async () => {
     const before = [process.listenerCount("SIGINT"), process.listenerCount("SIGTERM")];
