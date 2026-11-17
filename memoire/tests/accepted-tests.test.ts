@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import type { TestAccepte, TestPropose } from "@horama/contrats";
+import type { Regle, TestAccepte, TestPropose } from "@horama/contrats";
 import { c1TestPropose, c2TestAccepte } from "@horama/contrats/exemples";
 import { ecrireTestAccepte, lireTestAccepte, lireTestsAcceptes } from "../index.ts";
 import { splitFrontMatter } from "../src/files.ts";
@@ -123,6 +123,15 @@ test("le bloc regles du texte proposé est remplacé par celui du code", () => {
   assert.equal(written.markdown.split("```regles").length, 2);
   assert.deepEqual(written.regles, bare.regles_calculables);
   assert.ok(!written.markdown.includes('"presence"'));
+});
+
+test("une règle etat s'écrit en JSON dans le test accepté et se relit à l'identique", () => {
+  const etat: Regle = { type: "etat", ecran: "tableau-de-bord", vue: "mode-sombre", texte_present: ["Revenir au mode clair"], texte_absent: ["Mode sombre"] };
+  const copy = temporaryVault();
+  const written = ecrireTestAccepte(copy, { ...bare, id: "tableau-de-bord-mode-sombre", regles_calculables: [etat] }, options);
+  assert.ok(written.markdown.includes('{ "type": "etat", "ecran": "tableau-de-bord", "vue": "mode-sombre", "texte_present": ["Revenir au mode clair"], "texte_absent": ["Mode sombre"] }'));
+  assert.deepEqual(lireTestAccepte(copy, "facturo", "tableau-de-bord-mode-sombre").regles, [etat]);
+  assert.throws(() => ecrireTestAccepte(temporaryVault(), { ...bare, id: "etat-sans-temoin", regles_calculables: [{ type: "etat", ecran: "tableau-de-bord", vue: "mode-sombre", texte_absent: ["Mode sombre"] }] }, options), /règle 1 invalide, une règle etat exige au moins un « texte_present » témoin/);
 });
 
 test("les 3 tests écrits à la main dans le vault se lisent", () => {

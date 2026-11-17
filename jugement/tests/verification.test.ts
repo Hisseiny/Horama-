@@ -34,7 +34,7 @@ const RUN = [DASHBOARD, LIST, FILTERED, DETAIL];
 const TEST_RULES = lireTestsAcceptes(VAULT, "facturo").flatMap((accepted) => accepted.regles);
 const NOTE_RULES = lireNotes(VAULT, "facturo").flatMap((note) => note.regles.flatMap(({ regle }) => regle ?? []));
 const noteRule = (type: Regle["type"], ecran: string, colonne: string) =>
-  NOTE_RULES.find((rule) => rule.type === type && rule.type !== "egalite" && rule.ecran === ecran && rule.colonne === colonne)!;
+  NOTE_RULES.find((rule) => rule.type === type && rule.type !== "egalite" && rule.type !== "etat" && rule.ecran === ecran && rule.colonne === colonne)!;
 
 type Box = { x: number; y: number; largeur: number; hauteur: number };
 const POSITIONS = JSON.parse(file("faux-saas/positions.json").toString()) as Array<{ id: string; avant: Box; apres: Box }>;
@@ -180,6 +180,79 @@ test("presence en défaut : une case vide, et une colonne introuvable est non co
   const missing = listRule(changedList("Client\tÉchéance\t", "Client\tDate limite\t"), "presence", "Échéance");
   assert.equal(missing.statut, "INCONCLUSIVE");
   assert.equal(missing.raison, "colonne Échéance introuvable sur liste-des-factures");
+});
+
+// The real innerText of Facturo's dashboard, captured locally on 2026-11-17 (docs/tests/2026-11-17-j6c-etat.md):
+// the T7 capture, plus « Mode sombre » in the header (added by J6a). In dark mode the button reads « Revenir au mode clair ».
+const DASHBOARD_LIGHT = DASHBOARD.texte.replace("Se déconnecter\n", "Se déconnecter\nMode sombre\n");
+const DASHBOARD_DARK = DASHBOARD_LIGHT.replace("Mode sombre", "Revenir au mode clair");
+const etatRule = (rule: Partial<Extract<Regle, { type: "etat" }>>): Regle => ({ type: "etat", ecran: "tableau-de-bord", vue: "mode-sombre", ...rule });
+const LIGHT = { ...DASHBOARD, texte: DASHBOARD_LIGHT };
+const DARK = { ...DASHBOARD, vue: "mode-sombre", texte: DASHBOARD_DARK };
+
+test("etat : jugé sur le texte de sa vue, conforme ou en défaut selon les textes attendus et interdits", () => {
+  const rule = etatRule({ texte_present: ["Revenir au mode clair"], texte_absent: ["Mode sombre"] });
+  // Nothing on the « defaut » view: the rule waits for a capture of its own view, and is judged once.
+  assert.deepEqual(verify(LIGHT, [rule], [LIGHT]), []);
+  const [constat, ...others] = verify(DARK, [rule], [LIGHT, DARK]);
+  assert.equal(others.length, 0);
+  assert.deepEqual(verify(LIGHT, [rule], [LIGHT, DARK, LIGHT]), []);
+
+  assert.equal(constat.genre, "regle");
+  assert.equal(constat.id, "tableau-de-bord--mode-sombre--regle--1");
+  assert.equal(constat.statut, "PASS");
+  assert.equal(constat.calcul, "« Revenir au mode clair » affiché ; « Mode sombre » absent");
+  assert.deepEqual(constat.valeurs, {
+    "tableau-de-bord.attendu « Revenir au mode clair »": "affiché",
+    "tableau-de-bord.interdit « Mode sombre »": "absent",
+  });
+  assert.deepEqual(constat.textes_a_surligner, []);
+  assert.deepEqual(formuler(constat), {
+    annonce: "Je vérifie qu'après l'action, la page affiche « Revenir au mode clair ».",
+    resultat: "C'est bon : « Revenir au mode clair » s'affiche.",
+  });
+});
+
+test("etat : défaut prouvé quand un attendu manque ou qu'un interdit s'affiche, tant qu'un autre attendu prouve l'état", () => {
+  // « Thème sombre » manque, mais « Revenir au mode clair » prouve que l'état est atteint.
+  const [missing] = verify(DARK, [etatRule({ texte_present: ["Revenir au mode clair", "Thème sombre"] })], [LIGHT, DARK]);
+  assert.equal(missing.statut, "VERIFIED_FAIL");
+  assert.equal(missing.calcul, "« Thème sombre » attendu, absent");
+  assert.equal(missing.valeurs["tableau-de-bord.attendu « Thème sombre »"], "absent");
+  assert.deepEqual(missing.textes_a_surligner, ["Thème sombre"]);
+  assert.deepEqual(formuler(missing), {
+    annonce: "Je vérifie qu'après l'action, la page affiche « Revenir au mode clair ».",
+    resultat: "Problème : « Thème sombre » n'apparaît pas.",
+    question: "« Thème sombre » n'apparaît pas. Bug ou voulu ?",
+  });
+
+  // Le bouton n'a pas basculé : « Mode sombre » s'affiche encore (le libellé « Revenir… » est resté ailleurs).
+  const stuck = { ...DARK, texte: DARK.texte.replace("Revenir au mode clair", "Revenir au mode clair\nMode sombre") };
+  const [shown] = verify(stuck, [etatRule({ texte_present: ["Revenir au mode clair"], texte_absent: ["Mode sombre"] })], [LIGHT, stuck]);
+  assert.equal(shown.statut, "VERIFIED_FAIL");
+  assert.equal(shown.calcul, "« Mode sombre » interdit, affiché");
+  assert.deepEqual(shown.textes_a_surligner, ["Mode sombre"]);
+  assert.deepEqual(formuler(shown).question, "« Mode sombre » s'affiche alors qu'il ne devrait pas. Bug ou voulu ?");
+
+  // Manquant et interdit en même temps, les deux sont nommés.
+  const both = verify(stuck, [etatRule({ texte_present: ["Revenir au mode clair", "Thème sombre"], texte_absent: ["Mode sombre"] })], [LIGHT, stuck])[0];
+  assert.equal(both.calcul, "« Thème sombre » attendu, absent ; « Mode sombre » interdit, affiché");
+});
+
+test("etat : non concluant tant qu'aucun texte attendu n'apparaît, la comparaison ignore espaces et casse", () => {
+  // Le libellé n'a jamais basculé : rien ne prouve que le clic a eu lieu.
+  const [unreached] = verify(DARK, [etatRule({ texte_present: ["Relance envoyée"] })], [LIGHT, DARK]);
+  assert.equal(unreached.statut, "INCONCLUSIVE");
+  assert.equal(unreached.raison, "état non atteint : aucun texte attendu n'apparaît sur tableau-de-bord");
+  assert.deepEqual(formuler(unreached), {
+    annonce: "Je vérifie qu'après l'action, la page affiche « Relance envoyée ».",
+    resultat: "État non atteint : aucun texte attendu n'apparaît.",
+  });
+
+  // Sous-chaîne, insécables, espaces multiples, retours à la ligne et casse : tout est ignoré des deux côtés.
+  const messy = { ...DARK, texte: DARK.texte.replace("Revenir au mode clair", "REVENIR AU\n  MODE\u00a0CLAIR") };
+  const [normalised] = verify(messy, [etatRule({ texte_present: ["revenir  au mode clair"] })], [LIGHT, messy]);
+  assert.equal(normalised.statut, "PASS");
 });
 
 test("visuel, liste des factures : un seul constat, le bouton Exporter déplacé de son ancienne place à la nouvelle", () => {

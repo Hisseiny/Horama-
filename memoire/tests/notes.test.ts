@@ -39,7 +39,7 @@ test("les 6 notes du vault sont lues avec leur en-tête et leur titre", () => {
   assert.deepEqual(notes[5].regles, []);
 });
 
-test("les 10 lignes regle: du vault ont le bon type et le bon écran", () => {
+test("les 11 lignes regle: du vault ont le bon type et le bon écran", () => {
   const rules = lireNotes(vault, "facturo").flatMap((note) => note.regles.flatMap(({ regle }) => regle ?? []));
   assert.deepEqual(rules, [
     { type: "somme", ecran: "detail-facture", colonne: "Montant", cible: "Total TTC" },
@@ -52,6 +52,7 @@ test("les 10 lignes regle: du vault ont le bon type et le bon écran", () => {
     { type: "egalite", a: { ecran: "tableau-de-bord", champ: "Factures du mois" }, b: { ecran: "liste-des-factures", champ: "Nombre de factures" } },
     { type: "egalite", a: { ecran: "detail-facture", champ: "Total TTC" }, b: { ecran: "liste-des-factures", champ: "Montant TTC de F-119" } },
     { type: "format", ecran: "tableau-de-bord", colonne: "CA du mois", motif: "montant-fr" },
+    { type: "etat", ecran: "tableau-de-bord", vue: "mode-sombre", texte_present: ["Revenir au mode clair"] },
   ]);
 });
 
@@ -69,7 +70,13 @@ test("une puce sans ligne regle: est rendue avec null, avec sa phrase et sa lign
   assert.equal(first.ligne, 16);
 });
 
-test("analyserLigneRegle lit les cinq types", () => {
+test("analyserLigneRegle lit les six types", () => {
+  assert.deepEqual(analyserLigneRegle("  regle: etat | vue: mode-sombre | present: Revenir au mode clair", "tableau-de-bord"), {
+    type: "etat", ecran: "tableau-de-bord", vue: "mode-sombre", texte_present: ["Revenir au mode clair"],
+  });
+  assert.deepEqual(analyserLigneRegle("regle: etat | vue: mode-sombre | present: Revenir au mode clair ; Thème sombre | absent: Mode sombre", "tableau-de-bord"), {
+    type: "etat", ecran: "tableau-de-bord", vue: "mode-sombre", texte_present: ["Revenir au mode clair", "Thème sombre"], texte_absent: ["Mode sombre"],
+  });
   assert.deepEqual(analyserLigneRegle("  regle: filtre | filtre: Échéance dépassée | colonne: Échéance | condition: < aujourd_hui", "liste-des-factures"), {
     type: "filtre", ecran: "liste-des-factures", filtre: "Échéance dépassée", colonne: "Échéance", condition: "< aujourd_hui",
   });
@@ -98,6 +105,10 @@ test("analyserLigneRegle refuse une ligne hors grammaire en la citant", () => {
     ["regle: egalite | a: tableau-de-bord.CA du mois", undefined, /champ « b.ecran » manquant/],
     ["regle: egalite | a: CA du mois | b: liste-des-factures.Total", undefined, /champ « a.ecran » manquant/],
     ["regle: egalite | a: tableau-de-bord. | b: liste-des-factures.Total", undefined, /champ « a.champ » manquant/],
+    ["regle: etat | present: Revenir au mode clair", "tableau-de-bord", /champ « vue » manquant/],
+    ["regle: etat | vue: mode-sombre | absent: Mode sombre", "tableau-de-bord", /au moins un « texte_present » témoin/],
+    ["regle: etat | vue: mode-sombre", "tableau-de-bord", /au moins un « texte_present » témoin/],
+    ["regle: etat | vue: mode-sombre | present:", "tableau-de-bord", /« texte_present » attendu comme liste de textes/],
   ];
   for (const [line, screen, reason] of refused) {
     assert.throws(() => analyserLigneRegle(line, screen), (error: Error) => error.message.includes(`« ${line} »`) && reason.test(error.message), line);
@@ -111,6 +122,10 @@ test("verifierRegle rend la règle du contrat sans champ en trop, et dit pourquo
   assert.throws(() => verifierRegle({ type: "filtre", ecran: "liste-des-factures", filtre: "Échéance dépassée", colonne: "Échéance", condition: "< aujourd'hui" }), /condition « < aujourd'hui » hors du contrat/);
   assert.throws(() => verifierRegle({ type: "egalite", a: { ecran: "tableau-de-bord", champ: "CA du mois" }, b: "liste-des-factures.Total" }), /champ « b.ecran » manquant/);
   assert.throws(() => verifierRegle("somme"), /type de règle inconnu/);
+  assert.deepEqual(verifierRegle({ type: "etat", ecran: "tableau-de-bord", vue: "mode-sombre", texte_present: ["Revenir au mode clair"], texte_absent: ["Mode sombre"], commentaire: "en trop" }), {
+    type: "etat", ecran: "tableau-de-bord", vue: "mode-sombre", texte_present: ["Revenir au mode clair"], texte_absent: ["Mode sombre"],
+  });
+  assert.throws(() => verifierRegle({ type: "etat", ecran: "tableau-de-bord", vue: "mode-sombre", texte_absent: ["Mode sombre"] }), /au moins un « texte_present » témoin/);
 });
 
 test("une ligne regle: invalide dans une note nomme le fichier et la ligne", () => {
