@@ -197,3 +197,14 @@ Orchestrateur : Claude Code (Fable 5.2). Branche : `dev-nathan`. Méthode : `doc
 - Le Chrome de l'agent reste ouvert après un parcours (port 9333) : le fermer avant de lancer un essai de Devin.
 - Ne jamais montrer à Nathan une commande de suppression dans un bloc de code s'il n'a pas à la taper tout de suite.
 - Le coût Devin d'une tâche d'une heure : environ 6 à 8 points de quota hebdomadaire.
+
+## Mardi 17 novembre 2026 : la jonction avec le coureur d'Ali
+
+Orchestrateur : Claude Code (Opus 5.5). Mission : J0 à J4 (scène branchée sur `@horama/agent`, résultats et décisions en base, captures comparables aux références v12, trois parcours réels puis un tranché par Nathan).
+
+### 14 h 12, J0 : mise en place
+- `origin/dev-nathan` avait avancé depuis la clôture (1a1f678, PR #11 « correction de note » fusionnée dedans) : `dev-nathan` local avancé d'abord (`git merge --ff-only`).
+- `git merge --no-ff origin/dev` (33 commits) : aucun conflit. Commit b176839, poussé.
+- `pnpm install` à la racine et `pnpm install --ignore-workspace` dans `automatisation/scene/` : le verrou de la racine reçoit une entrée `@pnpm/exe` (artefact de la version locale de pnpm), remise à celle de `dev` par `git checkout pnpm-lock.yaml`. Même chose après chaque `pnpm -r run` : à rétablir avant tout commit.
+- `pnpm -r --if-present run check` : code 0. faux-saas 7, memoire 28, interface 8, jugement 51, agent 49 tests, aucun échec.
+- Quota Devin (app.devin.ai, Chrome) : **75 % utilisés**, remise à zéro dans 5 jours, aucun solde à la demande. La page n'affiche que des points entiers et l'onglet « Usage history » est vide : la mesure de SWE-2 (avant et après J2) ne verra qu'un écart d'au moins 1 point.
