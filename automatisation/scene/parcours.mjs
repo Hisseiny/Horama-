@@ -586,7 +586,7 @@ if (page) {
             // give the model the state since the change. Texts the note already cites say nothing new (a colour changed).
             const noteText = (lireNotes(VAULT, LOGICIEL).find(({ entete }) => entete.ecran === constat.ecran)?.texte ?? "").toUpperCase();
             const shown = (zoneTexts.get(constat.id) ?? []).filter((text) => !noteText.includes(text.toUpperCase()));
-            const indices = [question, ...(shown.length ? [`Textes affichés aujourd'hui dans la zone qui a changé, lus sur la page : ${shown.map((text) => `« ${text} »`).join(", ")}. La note ne les cite nulle part : la phrase de la note qui décrit l'élément de cette zone porte encore le texte d'avant le changement.`] : [])];
+            const indices = [...(question ? [question] : []), ...(shown.length ? [`Textes affichés aujourd'hui dans la zone qui a changé, lus sur la page : ${shown.map((text) => `« ${text} »`).join(", ")}. La note ne les cite nulle part : la phrase de la note qui décrit l'élément de cette zone porte encore le texte d'avant le changement.`] : [])];
             if (shown.length) say(`Textes de la zone donnés au modèle de correction : ${shown.join(" | ")}`);
             proposal = await proposerCorrection(VAULT, decision, { indices });
             decision = proposal.decision;
