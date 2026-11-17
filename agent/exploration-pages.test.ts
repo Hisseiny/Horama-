@@ -226,6 +226,14 @@ test("sitemap mal formé et redirection robots externe ne sont pas des réussite
   assert.equal(blocked.calls.length, 1);
 });
 
+test("sitemap redirigé vers l'accueil HTML ne consomme pas la lecture de la page et de ses liens", async () => {
+  const setup = fixture({ "/sitemap.xml": redirect("/"), "/": link("/second"), "/second": "" });
+  const result = await discoverPages(origin, setup);
+  assert.deepEqual(result.pages, [origin + "/", origin + "/second"]);
+  assert.equal(result.errors.length, 1);
+  assert.equal(setup.calls.filter((url) => url === origin + "/").length, 2);
+});
+
 test("borne les tentatives de pages et d'index de sitemaps", async () => {
   const setup = fixture({ "/sitemap.xml": sitemap(...Array.from({ length: 20 }, (_, i) => `/missing-${i}`)) });
   const result = await discoverPages(origin, { ...setup, max: 2 });

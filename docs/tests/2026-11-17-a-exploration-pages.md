@@ -43,6 +43,10 @@ Raisons d'exclusion : `form`, `login`, `file`, `external`, `scheme`, `credential
 
 Les réponses factices couvrent : robots et arrêt fermé, sitemap XML, index imbriqués avec cycle/namespace/CDATA, liens sans sitemap, exclusions, normalisation, ordre stable, plafond, erreurs HTTP/réseau et types non HTML, redirections sûres et slash/www, base HTML, absence de requêtes concurrentes. Aucun appel réseau dans ces tests.
 
+### Correctifs de revue après la PR #61
+
+Régression reproduite hors réseau : `/sitemap.xml` redirigé vers `/`, dont le HTML lie `/second`, donnait une liste vide. Le dédoublonnage des lectures distingue maintenant robots, sitemap et page : l'accueil reste lisible comme page, avec ses liens, après le rejet du HTML comme sitemap. La boucle de redirection reste bornée par rôle. Le test passe après correction ; aucun nouvel essai réel.
+
 ## Essai réel unique — Eugenia School
 
 Appel : `await discoverPages("https://www.eugeniaschool.com", { max: 15 })`, avec un wrapper de `fetch` pour journaliser les réponses, sans modifier leur contenu.

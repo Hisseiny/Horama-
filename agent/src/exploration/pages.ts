@@ -122,8 +122,9 @@ export async function discoverPages(url: string, { max = 15, fetch: request = gl
 
   async function read(address: string, kind: "robots" | "sitemap" | "page"): Promise<{ body: string; url: string } | undefined> {
     for (let hop = 0; hop <= 5; hop++) {
-      if (fetched.has(address)) { if (hop > 0) exclude(address, "redirect"); return; }
-      fetched.add(address);
+      const key = `${kind}\n${address}`;
+      if (fetched.has(key)) { if (hop > 0) exclude(address, "redirect"); return; }
+      fetched.add(key);
       try {
         const response = await request(address, { redirect: "manual", signal: AbortSignal.timeout(10_000), headers: { "User-Agent": "Horama/1.0", Accept: kind === "page" ? "text/html,application/xhtml+xml" : "text/plain,application/xml,text/xml" } });
         if (response.status >= 300 && response.status < 400) {
