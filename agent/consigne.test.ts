@@ -102,5 +102,8 @@ Voir Admissions.
       assert.equal(here(`${prefix}/admissions.html`, "?lang=en"), false);
     }
     assert.throws(() => construireConsigne({ vault: temporary, logiciel: "school", version: "2", baseUrl: "invalid" }), /Invalid URL/);
+    writeFileSync(join(temporary, "school/produit/home.md"), "---\necran: home\nurl: //autre.example/page\n---\n# Admissions\n");
+    const external = construireConsigne({ vault: temporary, logiciel: "school", version: "2", baseUrl: "https://school.example/site/" });
+    assert.equal(external.course[0].address, "https://autre.example/page");
   } finally { rmSync(temporary, { recursive: true, force: true }); }
 });

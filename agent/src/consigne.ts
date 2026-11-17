@@ -71,7 +71,7 @@ export function construireConsigne({ vault, logiciel, version, ids, baseUrl = pr
       const numbers = [...new Set(test.markdown.match(/\bF-\d+\b/g) ?? [])];
       const versioned = /^\/v\d+\//.test(test.url_depart);
       const screenUrl = `${versioned ? `/v${version}` : ""}${url}`.replaceAll("<numero>", numbers.length === 1 ? numbers[0] : "<numero>");
-      const address = new URL(!versioned && screenUrl.startsWith("/") ? `${baseUrl.replace(/\/$/, "")}${screenUrl}` : screenUrl, baseUrl);
+      const address = new URL(!versioned && screenUrl.startsWith("/") && !screenUrl.startsWith("//") ? `${baseUrl.replace(/\/$/, "")}${screenUrl}` : screenUrl, baseUrl);
       const departure = new URL(test.url_depart, baseUrl);
       if (!versioned && address.origin === departure.origin) {
         departure.searchParams.forEach((value, key) => {
