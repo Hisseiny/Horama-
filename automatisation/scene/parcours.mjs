@@ -22,7 +22,7 @@ import { join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { BaseMemoire, construireConsigne, creerBaseSupabase, creerCoureur } from "../../agent/index.ts";
 import { libelleAction } from "../../agent/src/session.ts";
-import { appliquerCorrection, ecrireDecision, ecrireReference, lireDecisions, lireNotes, lireReferences, lireTestsAcceptes, refuserCorrection } from "../../memoire/index.ts";
+import { appliquerCorrection, ecrireDecision, ecrireReference, lireDecisions, lireReferences, refuserCorrection } from "../../memoire/index.ts";
 import { findHolo, startBridge, stopIfMissing } from "./agent-h.mjs";
 import { creerEcrivainMemoire, creerEcrivainSupabase } from "./decisions.mjs";
 import { HEIGHT, WIDTH, capture, clickAt, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, layer, navigate, openChrome, option, say, sleep, waitFor } from "./scene.mjs";
@@ -50,51 +50,29 @@ const CHECK_FILE = resolve(option("verification", join(HERE, "../../jugement/ver
 const CORRECTION_FILE = resolve(option("correction", join(HERE, "../../jugement/correction/index.ts")));
 const CORRECTION_CHOICE = option("correction-choix");
 const CHROME_BIN = process.env.CHROME_BIN || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-const BASE = (process.env.FAUX_SAAS_URL || "https://facturo-demo.vercel.app").replace(/\/$/, "");
+const BASE = option("base-url", process.env.FAUX_SAAS_URL || "https://facturo-demo.vercel.app").replace(/\/$/, "");
 
-// The named views of a screen: value of the `filtre` parameter of the address, and first version that has the view
-// (docs/decisions/2026-11-16-url-faux-saas.md). The path of a screen comes from its note in the vault (field `url`).
-const VIEWS = { defaut: { filtre: null }, "filtre-echeance": { filtre: "echeance-depassee", since: 13 } };
-
-// ---------- The course, from the accepted tests of the vault ----------
+// ---------- The course: the one the runner gives H ----------
+// construireConsigne (agent/) turns the accepted tests of the vault into one course: screens, named views, addresses
+// and how to recognise each page. The scene plays that same course, so what is particular to the tested software
+// (views, version in the address, entrance) is written in one place only.
 const missing = [];
-const notes = lireNotes(VAULT, LOGICIEL);
-const accepted = lireTestsAcceptes(VAULT, LOGICIEL);
-const wanted = flag("tests") ? option("tests").split(",") : accepted.map((test) => test.id);
-const unknown = wanted.filter((id) => !accepted.some((test) => test.id === id));
-if (unknown.length) missing.push(`Test accepté introuvable dans ${join(VAULT, LOGICIEL, "tests")} : ${unknown.join(", ")}.`);
-const dropped = [];
-const tests = wanted.flatMap((id) => accepted.filter((test) => test.id === id)).filter((test) => {
-  const late = test.releves.find(({ vue }) => VIEWS[vue]?.since > Number(VERSION));
-  if (late) dropped.push({ id: test.id, raison: `la vue « ${late.vue} » n'existe pas en version ${VERSION}` });
-  return !late;
-});
-if (!unknown.length && !tests.length) missing.push("Aucun test à jouer.");
+const REGRESSIONS = flag("r") ? option("r").split(",") : undefined;
+let consigne = null;
+try {
+  consigne = construireConsigne({ vault: VAULT, logiciel: LOGICIEL, version: VERSION, ids: flag("tests") ? option("tests").split(",") : undefined, baseUrl: BASE, regressions: REGRESSIONS });
+} catch (error) {
+  missing.push(`La consigne du coureur ne se construit pas : ${error.message}`);
+}
+const tests = consigne?.tests ?? [];
+const dropped = consigne?.dropped ?? [];
+const course = consigne?.course ?? [];
 
 const keyOf = ({ ecran, vue }) => `${ecran}--${vue}`;
 const call = ({ ecran, vue }) => `relever(ecran="${ecran}", vue="${vue}")`;
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const versioned = (test, path) => path.replaceAll(`/v${test.version_cible}/`, `/v${VERSION}/`);
 const section = (test, name) => (new RegExp(`^## ${name}[ \\t]*\\n([\\s\\S]*?)(?=^## |^\`\`\`)`, "m").exec(test.markdown)?.[1] ?? "").trim();
-
-// The relevés of every test, in order, each one once; `part` is the first test that asks for it.
-const course = [];
-tests.forEach((test, index) => {
-  for (const { ecran, vue } of test.releves) {
-    if (course.some((step) => step.ecran === ecran && step.vue === vue)) continue;
-    const url = notes.find((note) => note.entete.ecran === ecran)?.entete.url;
-    if (typeof url !== "string") missing.push(`Aucune note de ${LOGICIEL} ne donne l'adresse de l'écran « ${ecran} » (champ url de son en-tête).`);
-    if (!VIEWS[vue]) missing.push(`Vue « ${vue} » inconnue : son adresse est à ajouter dans VIEWS (parcours.mjs).`);
-    const path = `/v${VERSION}${url}`;
-    const pattern = `^${path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/<[^>]+>/g, "[^/]+")}$`;
-    const filtre = VIEWS[vue]?.filtre ?? null;
-    course.push({
-      ecran, vue, key: keyOf({ ecran, vue }), part: index + 1,
-      address: `${path}${filtre ? `?filtre=${filtre}` : ""}`,
-      here: `new RegExp(${JSON.stringify(pattern)}).test(location.pathname) && new URLSearchParams(location.search).get("filtre") === ${JSON.stringify(filtre)}`,
-    });
-  }
-});
 
 // The check, its sentences and its decisions all come from one module (interface: see README).
 let check = {};
@@ -127,14 +105,6 @@ try {
 } catch (error) {
   missing.push(`${error.message} (sans base partagée : --sans-base).`);
 }
-const REGRESSIONS = flag("r") ? option("r").split(",") : undefined;
-// What the runner gives H (instructions, task, tools): built here too, only to write it in consigne.md.
-let consigne = null;
-try {
-  if (!missing.length) consigne = construireConsigne({ vault: VAULT, logiciel: LOGICIEL, version: VERSION, ids: tests.map((test) => test.id), baseUrl: BASE, regressions: REGRESSIONS });
-} catch (error) {
-  missing.push(`La consigne du coureur ne se construit pas : ${error.message}`);
-}
 const holo = SANS_AGENT ? null : findHolo();
 stopIfMissing({ port: PORT, chromeBin: CHROME_BIN, sansAgent: SANS_AGENT, holo }, missing);
 // Each step of the passage, as the runner writes it in the base, is also said here.
@@ -144,7 +114,7 @@ base.insererEvenement = (event) => {
   return writeEvent(event);
 };
 
-const START = `${BASE}${versioned(tests[0], tests[0].url_depart)}${flag("r") ? `&r=${option("r")}` : ""}`;
+const START = consigne.start;
 
 const count = (number, one, many) => `${number} ${number > 1 ? many : one}`;
 // A bubble stays at least this long: 2.5 s, plus 50 ms per character.
@@ -459,7 +429,9 @@ async function scriptedCourse(gesture, onTool) {
   await gesture("go_to");
   await navigate(page, START);
   for (const test of tests) {
-    const start = versioned(test, new URL(test.url_depart, BASE).searchParams.get("suite"));
+    // The page the test starts from: after the entrance of Facturo (?suite=), else the departure address itself.
+    const departure = new URL(test.url_depart, BASE);
+    const start = versioned(test, departure.searchParams.get("suite") ?? `${departure.pathname}${departure.search}`);
     if ((await evaluate(page, "location.pathname + location.search")) !== start) {
       await click(`le lien vers ${start}`, `(seen) => seen.find((element) => element.getAttribute("href") === ${JSON.stringify(start)})`);
     }

@@ -69,6 +69,7 @@ Options :
 | `--correction <fichier>` | module exportant `proposerCorrection`, défaut `../../jugement/correction/index.ts` ; chemin relatif au dossier courant, comme `--verification` |
 | `--correction-choix accepter\|refuser` | répond automatiquement à chaque proposition de correction, après un temps de lecture ; sans cette option, attend un vrai clic |
 | `--logiciel`, `--version 13`, `--reference 12`, `--tests a,b,c`, `--r <ids>` | quoi jouer (défaut : tous les tests, par ordre d'identifiant) |
+| `--base-url <adresse>` | origine du logiciel testé (défaut : `FAUX_SAAS_URL`, sinon Facturo en ligne). Le parcours (écrans, vues, adresses, page de départ) est celui que `construireConsigne` d'`agent/` donne à H : la scène n'a plus sa propre copie des vues ni des adresses |
 | `--ecrire-references` | range chaque capture par `ecrireReference` |
 | `--temoins <dossier>` | captures avec la couche visible, nommées par ce qu'elles montrent (`curseur-a-mi-trajet`, `trait-pendant-agent` : un trait au tiers de son dessin, après la réponse du relevé à l'agent, le délai est dit dans le terminal ; `trait-defaut`, `trait-doute-deplacement`, `mascotte-defaut-sans-bulle`, `recapitulatif`, `annonce-1`, `resultat-1`, `question-1`, `reponse-1`, `rangement`, `correction-proposee`, `correction-acceptee`, `correction-refusee`, `correction-absente`, `correction-impossible`, `fin`…) |
 | `--film <dossier>` | une capture avec la couche toutes les 200 ms, du début à l'écran de fin (`<n>-<ms depuis le début>ms.jpg`) |
