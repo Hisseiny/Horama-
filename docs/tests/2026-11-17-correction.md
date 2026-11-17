@@ -66,3 +66,38 @@ Fichier écrit par `jugement/scripts/t52-correction.ts` : aucun chiffre n'y est 
 | `openai/gpt-oss-120b` | `badge-statut-detail` | non | 1 | oui | 1 | 3141 | 820 | Pas de correction proposée : Le badge « En attente de paiement » a changé, rendant la phrase actuelle inexacte. |
 | `openai/gpt-oss-120b` | `badge-statut-detail` | non | 2 | oui | 1 | 2760 | 820 | Pas de correction proposée : Le texte mentionne le badge « En attente de paiement » qui a changé, mais la nouvelle valeur n’est pas précisée. |
 | `openai/gpt-oss-120b` | `badge-statut-detail` | non | 3 | oui | 1 | 3357 | 820 | Pas de correction proposée : Le badge a été modifié mais la nouvelle libellé n’est pas précisée. |
+
+---
+
+## Lancement du 2026-11-17T13:11:50.538Z
+
+### Ce qui a été lancé
+
+- Commande, depuis la racine : `node --env-file=.env.local jugement/scripts/t52-correction.ts openai/gpt-oss-120b`
+- Début : 2026-11-17T13:11:50.538Z ; code : commit `55470aa`.
+- Indices donnés : la question de la mascotte pour `export-haut` ; le texte de la même zone dans la version de référence pour `colonne-renommee` (à fournir par la scène, demandé à Nathan).
+- Cas : les 5 changements « voulu » de `faux-saas/verite.json`, 3 passes chacun, température 0, un second essai au plus après un refus du code.
+- Juste : pour un changement qui contredit la doc, la phrase remplacée est la bonne phrase de la note et la nouvelle dit le nouvel état ; pour un changement qui ne la contredit pas, aucune correction n'est proposée.
+
+### Ce qui en est sorti
+
+- `openai/gpt-oss-120b` : **14 sur 15** propositions justes ; temps médian 2,2 s.
+- Critère de la tâche 5.2 : correction juste 3 cas sur 3 (ici, toutes les passes des cas qui contredisent la doc).
+
+| Modèle | Cas | Contredit la doc | Passe | Juste | Essais | Temps (ms) | Jetons en entrée | Proposition ou raison |
+|---|---|---|---|---|---|---|---|---|
+| `openai/gpt-oss-120b` | `export-haut` | oui | 1 | oui | 1 | 1785 | 901 | Le bouton « Exporter » se trouve en bas du tableau. → Le bouton « Exporter » se trouve en haut à droite (depuis la version 13). |
+| `openai/gpt-oss-120b` | `export-haut` | oui | 2 | oui | 1 | 4041 | 901 | Le bouton « Exporter » se trouve en bas du tableau. → Le bouton « Exporter » se trouve en haut à droite (depuis la version 13). |
+| `openai/gpt-oss-120b` | `export-haut` | oui | 3 | oui | 1 | 3786 | 901 | Le bouton « Exporter » se trouve en bas du tableau. → Le bouton « Exporter » se trouve en haut à droite (depuis la version 13). |
+| `openai/gpt-oss-120b` | `colonne-renommee` | oui | 1 | oui | 1 | 1693 | 894 | Le tableau a quatre colonnes : « Numéro », « Client », « Échéance », « Montant TTC ». → Le tableau a quatre colonnes : « Numéro », « Société », « Échéance », « Montant TTC » (depuis la version 13). |
+| `openai/gpt-oss-120b` | `colonne-renommee` | oui | 2 | oui | 1 | 1462 | 894 | Le tableau a quatre colonnes : « Numéro », « Client », « Échéance », « Montant TTC ». → Le tableau a quatre colonnes : « Numéro », « Société », « Échéance », « Montant TTC » (depuis la version 13). |
+| `openai/gpt-oss-120b` | `colonne-renommee` | oui | 3 | non | 1 | 1294 | 894 | Pas de correction proposée : Aucune phrase de la note ne mentionne « Société » ou le changement, donc rien à corriger. |
+| `openai/gpt-oss-120b` | `bouton-nouvelle-facture` | non | 1 | oui | 2 | 2818 | 879+1011 | Pas de correction proposée : Aucune phrase de la note de l'écran ne concerne le changement autour de « Nouvelle facture ». |
+| `openai/gpt-oss-120b` | `bouton-nouvelle-facture` | non | 2 | oui | 1 | 2104 | 879 | Pas de correction proposée : Aucune phrase de la note ne concerne le changement autour de « Nouvelle facture ». |
+| `openai/gpt-oss-120b` | `bouton-nouvelle-facture` | non | 3 | oui | 2 | 2902 | 879+1015 | Pas de correction proposée : Aucune phrase de la note d'écran ne mentionne « Nouvelle facture », donc aucune correction n'est nécessaire. |
+| `openai/gpt-oss-120b` | `titre-tableau-de-bord` | non | 1 | oui | 1 | 1101 | 801 | Pas de correction proposée : Aucune phrase de la note d'écran ne porte sur « Vue d'ensemble », donc rien à corriger. |
+| `openai/gpt-oss-120b` | `titre-tableau-de-bord` | non | 2 | oui | 1 | 2530 | 801 | Pas de correction proposée : Aucune phrase de la note de l'écran ne porte sur « Vue d'ensemble », donc rien à corriger. |
+| `openai/gpt-oss-120b` | `titre-tableau-de-bord` | non | 3 | oui | 1 | 2294 | 801 | Pas de correction proposée : Aucune phrase de la note ne concerne le changement autour de « Vue d'ensemble » |
+| `openai/gpt-oss-120b` | `badge-statut-detail` | non | 1 | oui | 1 | 1221 | 820 | Pas de correction proposée : Aucune information précise sur le nouvel état de « En attente de paiement » n'est fournie |
+| `openai/gpt-oss-120b` | `badge-statut-detail` | non | 2 | oui | 1 | 2559 | 820 | Pas de correction proposée : Le changement mentionne « En attente de paiement » mais ne précise pas le nouveau libellé à afficher. |
+| `openai/gpt-oss-120b` | `badge-statut-detail` | non | 3 | oui | 1 | 2158 | 820 | Pas de correction proposée : Le changement porte sur le badge « En attente de paiement » mais la note ne décrit pas le nouvel état |
