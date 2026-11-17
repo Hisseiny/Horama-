@@ -3,7 +3,12 @@ import { test } from "node:test";
 import { askHolo } from "./src/exploration/holo.ts";
 
 const empty = { d0: "", d1: "", d2: "", d3: "", d4: "" };
-const png = Buffer.from("png");
+const png = Buffer.alloc(33);
+Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).copy(png);
+png.writeUInt32BE(13, 8);
+png.write("IHDR", 12);
+png.writeUInt32BE(1280, 16);
+png.writeUInt32BE(900, 20);
 const options = { url: "https://example.org", apiKey: "test-key" };
 const reply = (content: string) => Response.json({ choices: [{ message: { content } }] });
 
@@ -18,12 +23,14 @@ test("visible findings remain suspected and the request disables thinking withou
     assert.equal(body.chat_template_kwargs.enable_thinking, false);
     assert.equal(body.messages[0].content[1].image_url.url, `data:image/png;base64,${png.toString("base64")}`);
     assert.ok(!JSON.stringify(body.response_format).includes("["));
-    return reply(JSON.stringify({ ...empty, d0: "cut-off-text | header | The title is clipped." }));
+    assert.match(body.messages[0].content[0].text, /1280x900/);
+    assert.match(body.messages[0].content[0].text, /normalized to \[0,1000\]/);
+    return reply(JSON.stringify({ ...empty, d0: "cut-off-text | 100,200,300,400 | The title is clipped." }));
   } });
   assert.equal(result.status, "SUSPECTED");
   assert.equal(result.model, "holo4-27b");
   assert.ok(result.durationMs >= 0);
-  assert.deepEqual(result.findings, [{ status: "SUSPECTED", kind: "cut-off-text", zone: "header", sentence: "The title is clipped." }]);
+  assert.deepEqual(result.findings, [{ status: "SUSPECTED", kind: "cut-off-text", zone: { x: 128, y: 180, width: 384, height: 360 }, sentence: "The title is clipped." }]);
 });
 
 test("empty keys report no findings without being inconclusive", async () => {
@@ -32,13 +39,51 @@ test("empty keys report no findings without being inconclusive", async () => {
   assert.deepEqual(result.findings, []);
 });
 
-for (const content of ["not json", "{}", JSON.stringify({ ...empty, d0: 1 }), JSON.stringify({ ...empty, d0: "invented | top | Bad." }), JSON.stringify({ ...empty, d0: "cut-off-text | | Bad." })]) {
+for (const content of ["not json", "{}", JSON.stringify({ ...empty, d0: 1 }), JSON.stringify({ ...empty, d0: "invented | top | Bad." })]) {
   test(`non-conforming output: ${content}`, async () => {
     const result = await askHolo(png, { ...options, fetch: async () => reply(content) });
     assert.equal(result.status, "INCONCLUSIVE");
     assert.deepEqual(result.findings, []);
   });
 }
+
+for (const box of ["900,0,101,100", "0,990,100,20", "top", "", "1,2,3", "1,2,3,4,5", "1.5,2,3,4", "-1,0,20,20", "0,0,0,20", "0,0,20,0", "0,0,9007199254740992,1"]) {
+  test(`invalid box preserves finding without inventing a zone: ${box}`, async () => {
+    const result = await askHolo(png, { ...options, fetch: async () => reply(JSON.stringify({ ...empty,
+      d0: `cut-off-text | ${box} | The title is clipped.`,
+      d1: "overlapping-text | 0,0,1000,1000 | Titles overlap.",
+    })) });
+    assert.equal(result.status, "SUSPECTED");
+    assert.equal(result.findings[0].status, "INCONCLUSIVE");
+    assert.equal(result.findings[0].zone, null);
+    assert.equal(result.findings[0].sentence, "The title is clipped.");
+    if (result.findings[0].status === "INCONCLUSIVE") assert.match(result.findings[0].message, /Invalid box/);
+    assert.deepEqual(result.findings[1].zone, { x: 0, y: 0, width: 1280, height: 900 });
+    assert.equal(result.findings[1].status, "SUSPECTED");
+  });
+}
+
+test("pixel rounding preserves shared edges and rejects boxes rounded to zero", async () => {
+  const small = Buffer.from(png);
+  small.writeUInt32BE(10, 16);
+  small.writeUInt32BE(10, 20);
+  const result = await askHolo(small, { ...options, fetch: async () => reply(JSON.stringify({ ...empty,
+    d0: "cut-off-text | 150,150,150,150 | Clipped.", d1: "cut-off-text | 0,0,1,1 | Tiny.",
+  })) });
+  assert.deepEqual(result.findings[0].zone, { x: 2, y: 2, width: 1, height: 1 });
+  assert.equal(result.findings[1].status, "INCONCLUSIVE");
+  assert.equal(result.findings[1].zone, null);
+});
+
+test("invalid PNG header or dimensions fail before fetch", async () => {
+  const zero = Buffer.from(png);
+  zero.writeUInt32BE(0, 16);
+  for (const invalid of [Buffer.from("png"), zero]) {
+    const result = await askHolo(invalid, { ...options, fetch: async () => { assert.fail("fetch must not run"); } });
+    assert.equal(result.status, "INCONCLUSIVE");
+    assert.deepEqual(result.findings, []);
+  }
+});
 
 test("first timeout aborts and retries once with the second model", async () => {
   const models: string[] = [];
