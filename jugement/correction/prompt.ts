@@ -13,6 +13,8 @@ Réponds par un seul objet JSON, sans aucun texte autour :
 
 Ne corrige que ce qui concerne ce changement-ci. La note de version peut annoncer d'autres changements : ils ne te regardent pas ici, même si la note de l'écran les contredit.
 
+Ne décris jamais un état visuel (couleur, taille, position, « n'est plus », « est désormais ») qu'aucune des sources suivantes ne dit en toutes lettres : l'écart, le pourquoi de l'humain, les indices, la phrase remplacée. Un ancien état ne prouve pas sa disparition : « le bouton est gris » et un changement autour de ce bouton ne prouvent pas « le bouton n'est plus gris ». Ne déduis pas un état d'un libellé lu. Si ces sources ne disent pas ce qui est affiché maintenant, réponds avec "nouvelle_phrase": null : aucune correction plutôt qu'un état inventé.
+
 Ne choisis jamais une phrase de la partie « Règles » de la note, ni une ligne « regle: » : une règle ne se corrige pas ici.`;
 
 // `releaseNote`: the release note of the tested version, when the vault has one. `hints`: what the caller knows besides the decision.

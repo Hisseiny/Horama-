@@ -8,6 +8,7 @@ import type { Decision } from "@horama/contrats";
 import { appliquerCorrection, lireDecisions, lireNotes, ecrireDecision } from "@horama/memoire";
 import { proposerCorrection } from "../index.ts";
 import { validateAnswer, withVersion } from "../correction/validation.ts";
+import { buildMessages } from "../correction/prompt.ts";
 
 // No test reaches the network: fetch is replaced. The model answers below are written by hand, to pin what the code accepts
 // and refuses; the measure with a real model goes to docs/tests/.
@@ -52,6 +53,24 @@ function router(...answers: Array<string | Response>) {
 }
 
 // ---------- validateAnswer: what the code accepts and refuses ----------
+
+test("la consigne interdit les états visuels déduits et prescrit le repli sans correction", () => {
+  const [system] = buildMessages(EXPORTER, LISTE, undefined, []);
+  assert.match(system.content, /couleur, taille, position, « n'est plus », « est désormais »/);
+  assert.match(system.content, /l'écart, le pourquoi de l'humain, les indices, la phrase remplacée/);
+  assert.match(system.content, /Un ancien état ne prouve pas sa disparition/);
+  assert.match(system.content, /"nouvelle_phrase": null : aucune correction plutôt qu'un état inventé/);
+});
+
+test("le contrôle du changement normalise la casse et les espaces sans accepter une sous-chaîne", () => {
+  const before = "Le bouton ouvre le formulaire.";
+  const note = { ...LISTE, texte: before };
+  const correction = answer(before, "Le bouton « Candidater → » ouvre le formulaire.");
+  const sources = "« CANDIDATER\u00a0  → »";
+  assert.deepEqual(validateAnswer(correction, note, "13", sources, sources).reasons, []);
+  const unrelated = validateAnswer(correction, note, "13", sources, "« Recandidater → »");
+  assert.match(unrelated.reasons.join(" ; "), /ne parle pas de ce changement/);
+});
 
 test("la version est ajoutée par le code, avant le point final", () => {
   assert.equal(withVersion("Le bouton est en haut.", "13"), "Le bouton est en haut (depuis la version 13).");

@@ -56,8 +56,8 @@ export function validateAnswer(content: string, note: Note, version: Version, so
   // The note is contradicted but nothing says the new state: no correction, and the caller says why.
   if (after === null) return { raison: why, reasons };
   const named = labels(change);
-  const touched = new Set([...labels(avant), ...(typeof after === "string" ? labels(after) : [])]);
-  if (named.size && ![...named].some((label) => touched.has(label))) {
+  const touched = new Set([...labels(avant), ...(typeof after === "string" ? labels(after) : [])].map(key));
+  if (named.size && ![...named].some((label) => touched.has(key(label)))) {
     reasons.push(`la correction ne parle pas de ce changement (${[...named].map((label) => `« ${label} »`).join(", ")}) : ne corrige que ce qui concerne ce changement, sinon réponds null`);
   }
   if (typeof after !== "string" || !after.trim()) return { raison: why, reasons: [...reasons, "« nouvelle_phrase » doit être une phrase, ou null"] };
