@@ -52,6 +52,8 @@ pnpm --filter @horama/agent passage -- --logiciel eugenia --version 1 --referenc
 
 Les identifiants Supabase n'étant pas disponibles, **cette commande pnpm n'a pas été exécutée telle quelle**. L'essai a appelé les mêmes `lireArguments` et `lancerCommande` depuis un harness TypeScript externe au dépôt, en injectant la `BaseMemoire` existante, avec le vrai `creerSessionH` et le vrai `navigateurLocal`. Aucun remplacement de la session H ou des captures par des mocks. La consigne produite par `construireConsigne` n'a pas été modifiée. Le harness bloque une éventuelle seconde création de session pour respecter le parcours unique autorisé.
 
+Le passage réel a utilisé le moteur de `dev` au commit `6366c8c`. La synchronisation finale avec `dev` (`f543b1d`) a apporté l'option `--sans-base` : elle permet désormais de rejouer la commande pnpm ci-dessus sans Supabase en ajoutant ce drapeau. Aucun second passage H n'a été lancé. La vérification finale des sept PNG et textes du passage existant avec ce moteur synchronisé donne encore un C4 global `PASS` et sept C4 par règle `PASS`.
+
 ```ts
 const options = lireArguments([
   "--logiciel", "eugenia", "--version", "1", "--reference", "1",
@@ -101,7 +103,7 @@ Les URL réelles acquises correspondent aux sept chemins du tableau de navigatio
 
 ## Vérification du dépôt
 
-`pnpm install && pnpm -r --if-present run check` : vert avant le passage H. Vérification finale après récupération de `dev` : à mesurer.
+`pnpm install && pnpm -r --if-present run check` : vert avant le passage H, puis vert après récupération et intégration de `origin/dev` (`f543b1d`). Lint et types passent ; aucun test en échec. Les contrôles des textes exacts, de l'exclusion du test proposé et des cas de témoin manquant/page vide ont aussi été rejoués localement après synchronisation, sans nouvelle visite du site.
 
 ## Limites et suite humaine
 
