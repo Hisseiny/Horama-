@@ -162,6 +162,26 @@ test("proposerCorrection : une correction d'un autre changement est refusée, le
   assert.match(requests[1].messages[3].content, /ne parle pas de ce changement/);
 });
 
+test("proposerCorrection : un null alors que la note cite l'ancien libellé repart une fois au modèle", async () => {
+  const before = "Le tableau a quatre colonnes : « Numéro », « Client », « Échéance », « Montant TTC ».";
+  const renamed = answer(before, "Le tableau a quatre colonnes : « Numéro », « Société », « Échéance », « Montant TTC ».");
+  const decision: Decision = { ...EXPORTER, ecart: "Quelque chose a changé ici, autour de « Société »." };
+  const indices = ["Dans la version de référence, à cet endroit : « Client »."];
+  const requests = router(answer(null, null, "La note ne cite pas « Société »."), renamed);
+  const proposal = await proposerCorrection(VAULT, decision, { indices });
+  assert.equal(proposal.essais, 2);
+  assert.equal(proposal.decision.correction_de_note?.avant, before);
+  assert.match(requests[1].messages[3].content, /la note cite « Client »/);
+  assert.ok(requests[0].messages[1].content.includes("Indice : Dans la version de référence"));
+
+  mock.restoreAll();
+  const nulls = router(answer(null, null, "Le style du badge n'est pas décrit."), answer(null, null, "La note ne décrit pas le style du badge."), GOOD);
+  const badge: Decision = { ...EXPORTER, ecran: "detail-facture", ecart: "Quelque chose a changé ici, autour de « En attente de paiement »." };
+  const kept = await proposerCorrection(VAULT, badge);
+  assert.deepEqual({ correction: kept.decision.correction_de_note, essais: kept.essais, appels: nulls.length }, { correction: undefined, essais: 2, appels: 2 }, "un second null est accepté, sans troisième appel");
+  assert.equal(kept.raison, "Pas de correction proposée : La note ne décrit pas le style du badge.");
+});
+
 test("proposerCorrection : une réponse refusée repart au modèle avec la raison, pour un second essai", async () => {
   const requests = router(answer("Le bouton Exporter est en bas du tableau.", "Le bouton « Exporter » est en haut à droite."), GOOD);
   const proposal = await proposerCorrection(VAULT, EXPORTER);
@@ -181,11 +201,12 @@ test("proposerCorrection : deux réponses refusées, pas de correction, la raiso
 });
 
 test("proposerCorrection : le modèle ne trouve aucune phrase contredite, la décision reste sans correction", async () => {
-  router(answer(null, null, "La note ne dit pas où se trouve la carte « Factures en retard »."));
-  const decision: Decision = { ...EXPORTER, ecran: "tableau-de-bord", ecart: "« Factures en retard » a changé de place.", ecart_id: "tableau-de-bord--defaut--visuel--1" };
+  const requests = router(answer(null, null, "La note ne dit pas où se trouve la bouton « Aide »."));
+  const decision: Decision = { ...EXPORTER, ecran: "tableau-de-bord", ecart: "« Aide » a changé de place.", ecart_id: "tableau-de-bord--defaut--visuel--1" };
   const proposal = await proposerCorrection(VAULT, decision);
   assert.equal(proposal.decision, decision);
-  assert.equal(proposal.raison, "Pas de correction proposée : La note ne dit pas où se trouve la carte « Factures en retard ».");
+  assert.equal(proposal.raison, "Pas de correction proposée : La note ne dit pas où se trouve la bouton « Aide ».");
+  assert.equal(requests.length, 1, "la note ne cite pas ce libellé : pas de relance");
 });
 
 test("proposerCorrection : un appel en échec ne casse rien, la raison est dite (jamais le jeton), pas de nouvel essai", async () => {
