@@ -30,8 +30,18 @@ de 35 secondes du port H. Les erreurs d'écriture sont signalées, sans
 interrompre les outils ; le rapport du passage finit alors en échec.
 Le coût et la durée partagés sont répétés dans chaque entrée de test :
 utiliser `rapport.passage` pour les totaux, ne pas sommer les entrées.
-Le port H ne crée pas de lien de partage ; une session injectée peut rendre
-`replay_url`, qui sera conservé dans le rapport.
+Le port H demande un lien public par `POST /sessions/{id}/share` et conserve
+`replay_url` dans le rapport. Si le partage échoue, il le signale et n'ajoute
+aucun lien. Une session injectée peut également fournir `replay_url`.
+
+La scène peut régler le délai d'observation après action avec
+`h: { navigateur, settle_s: 1.0 }` (secondes, 0,5 par défaut, nombre fini
+positif ou nul). Un relevé déjà acquis répond « Déjà relevé. » avec le prochain
+relevé manquant, ou l'instruction de terminer si tous sont acquis.
+Une erreur de session est conservée dans le champ C6 existant
+`tests[].raison` ; les tests concernés deviennent `non_concluant`, même si
+leurs captures ont déjà été prises. La raison de `terminer(etat="echec")`
+est conservée aussi. Aucun champ de passage ou de rapport n'est ajouté.
 
 La fin du passage écrit aussi le rapport via `@horama/memoire` dans
 `<vault>/<logiciel>/passages/<id>.md` (cadrage, section 10).
