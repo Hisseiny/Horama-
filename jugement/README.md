@@ -96,3 +96,15 @@ Rend la `Decision` du contrat pour un constat tranché « bug » ou « voulu »,
 - Un appel en échec (réseau, délai de 45 s, code HTTP) ne lève rien : la décision revient sans correction, `raison` donne le code et le message du service, jamais le jeton.
 
 Mesure : `node --env-file=.env.local jugement/scripts/t52-correction.ts [modèle …]`, sur les 5 changements « voulu » de `faux-saas/verite.json`, 3 passes chacun ; écrit `docs/tests/2026-11-17-correction.md`.
+
+## Test d'une nouveauté depuis une fiche de changement (`generation/fiche.ts`, décision D7)
+
+`proposerTestDepuisFiche(vault, logiciel, fiche, options)` écrit **un** test de la nouveauté à partir de la phrase « Ce qui change : » d'une fiche de changement (`vault-horama/<logiciel>/changements/<id>.md`, modèle dans `vault-horama/_modeles/`). La fiche est lue par l'appelant (couloir Nathan) et passée ainsi : `{ chemin, texte, ecrans_vises }`.
+
+- Le test porte exactement une règle `etat` (D7, section 3) : `{ type: "etat", ecran, vue, texte_present, texte_absent? }`, jugée sur le texte de la page après l'action.
+- Ce que vérifie le code, sinon un second essai avec les raisons, puis une erreur visible :
+  - chaque texte, présent ou absent, est un libellé écrit entre « » dans la phrase « Ce qui change » (rien d'inventé), sans « ; » (le séparateur des textes dans le vault) ;
+  - au moins un `texte_present` témoin, et aucun texte à la fois présent et absent ;
+  - l'écran fait partie de `ecrans_vises`, la vue vaut `defaut` ou est déclarée dans l'en-tête de la note de l'écran (`vues`), et ce relevé est dans `releves` ;
+  - le reste du test est contrôlé comme pour une note (`validateAnswer`) : passages recopiés de la fiche, au moins une étape.
+- **Type `etat`** : celui de `contrats/types.ts` (`contrats-v2`), repris dans `fiche.ts` sous le nom `RegleEtat`.
