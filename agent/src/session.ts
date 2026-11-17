@@ -34,6 +34,7 @@ export interface NavigateurSession {
 }
 export interface OptionsSessionH {
   navigateur?: () => Promise<NavigateurSession>;
+  settle_s?: number;
   key?: string;
   requete?: typeof fetch;
   maintenant?: () => number;
@@ -49,7 +50,8 @@ export function libelleAction(names: string[]): string {
   return (names.length ? names.map((name) => labels[name] ?? "Agit dans le navigateur").join(", ") : "Agit dans le navigateur").slice(0, 100);
 }
 
-export function creerSessionH({ navigateur, key, requete = fetch, maintenant = Date.now, pause = (ms, signal) => delay(ms, undefined, { signal }), signaler = console.error }: OptionsSessionH = {}): Session {
+export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch, maintenant = Date.now, pause = (ms, signal) => delay(ms, undefined, { signal }), signaler = console.error }: OptionsSessionH = {}): Session {
+  if (!Number.isFinite(settle_s) || settle_s < 0) throw new Error("settle_s doit être un nombre positif ou nul de secondes.");
   let previous = false;
   return async (input) => {
     const secret = key ?? (input.cle === "demo" ? process.env.HAI_API_KEY_DEMO : process.env.HAI_API_KEY);
@@ -98,7 +100,7 @@ export function creerSessionH({ navigateur, key, requete = fetch, maintenant = D
           name: "horama-testeur", description: "Horama : joue un parcours sur le logiciel cible dans un Chrome local.",
           model: process.env.HAI_AGENT_MODEL || "holo4-27b", reasoning_effort: process.env.HAI_AGENT_REASONING || "medium",
           instructions: input.consigne.instructions,
-          environments: [{ id: "browser", kind: "web", host: "user_device", session_id: browser.channel, settle_s: 0.5, mode: { type: "visual", markdown: true } }],
+          environments: [{ id: "browser", kind: "web", host: "user_device", session_id: browser.channel, settle_s, mode: { type: "visual", markdown: true } }],
           tools: input.consigne.tools,
         },
         messages: [{ type: "user_message", message: input.consigne.task }], queue: false, max_time_s: 240, max_steps: 40,

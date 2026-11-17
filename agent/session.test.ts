@@ -8,6 +8,32 @@ const consigne: Consigne = { tests: [], dropped: [], course: [], start: "http://
 const json = (value: unknown) => new Response(JSON.stringify(value));
 const defaults = (): SessionInput => ({ consigne, cle: "dev", onCreated: async () => {}, onStep: async () => {}, onTool: async () => "Continue." });
 
+for (const settle_s of [undefined, 0, 1, 1.25]) {
+  test(`settle_s transmis à H : ${settle_s ?? "défaut 0,5"}`, async () => {
+    let observed: number | undefined;
+    let stopped = false;
+    const session = creerSessionH({ settle_s, key: "factice", navigateur: async () => ({ channel: "channel", stop() { stopped = true; } }),
+      requete: async (url, init) => {
+        if (String(url).endsWith("/sessions")) {
+          observed = JSON.parse(String(init!.body)).agent.environments[0].settle_s;
+          return json({ id: "settle-test", status: { status: "completed" } });
+        }
+        if (String(url).endsWith("/share")) return json({ share_url: "/share/settle-test" });
+        return new Response(null, { status: 204 });
+      },
+    });
+    await (await session(defaults())).fin;
+    assert.equal(observed, settle_s ?? 0.5);
+    assert.equal(stopped, true);
+  });
+}
+
+test("settle_s négatif ou non fini refusé avant toute session", () => {
+  for (const settle_s of [-1, NaN, Infinity, -Infinity]) {
+    assert.throws(() => creerSessionH({ settle_s }), /settle_s/);
+  }
+});
+
 test("session locale : corps, étapes, appels dédoublonnés, résultats et métriques tardives", async () => {
   const requests: Array<{ url: string; body: any; method: string }> = [];
   const steps: EtapeSession[] = [];
