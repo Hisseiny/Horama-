@@ -25,7 +25,13 @@ H POST /api/v2/sessions HTTP 403
 Error: H a répondu 403 sur POST /sessions.
 ```
 
-L'exécution du runner se termine avec le code 1. Le quota indique trois places disponibles immédiatement avant le refus ; aucun HTTP 429 observé. La lecture du quota fonctionne, mais cela ne prouve pas le droit de créer une session avec ce modèle. Le corps de la réponse 403 n'a pas été conservé : sa cause précise reste inconnue. Aucune seconde création tentée, aucun changement de clé, de modèle ou de région pour contourner le refus.
+L'exécution du runner se termine avec le code 1. Le quota indique trois places disponibles immédiatement avant le refus ; aucun HTTP 429 observé. Le corps de la réponse n'avait pas été conservé par le runner. L'utilisateur a ensuite identifié et communiqué le message exact de H :
+
+```text
+Only enterprise organizations can start sessions and trajectories.
+```
+
+Cette explication est rapportée par l'utilisateur, sans nouvelle requête de vérification : la clé Nami ne permet pas la création de sessions. Aucune seconde création tentée, aucun changement de clé, de modèle ou de région pour contourner le refus.
 
 ## Preuves Supabase
 
@@ -109,4 +115,4 @@ La durée mesure l'essai du coureur refusé, pas une navigation H. La raison con
 - Chrome dédié reste ouvert. Le serveur 8080 sert toujours l'ancienne planche simulée ; il n'a pas été présenté comme un passage réel.
 - Journaux hors dépôt : `/home/ubuntu/horama-a4-local/passage-h.log`, `/home/ubuntu/horama-a4-local/facturo-h.log` et `/home/ubuntu/horama-a4-local/h-quota.json`.
 - Pas de nouvelle planche `2026-11-17-porte-agent-h`, pas de capture d'écran de réussite, pas de coût H mesuré, pas de navigation autonome démontrée.
-- Faire vérifier par le responsable de l'organisation H les droits de création de sessions et l'accès au modèle `holo4-27b` sur l'API EU. Après résolution du refus, relancer le runner, vérifier les quatre captures et les événements, puis produire la nouvelle planche.
+- Ne plus réessayer avec la clé Nami. Attendre la clé Horama, annoncée comme futur secret de session `HAI_API_KEY_HORAMA`, à lier à `HAI_API_KEY` lorsqu'elle sera disponible. Après autorisation de reprise, relancer le runner, vérifier les quatre captures et les événements, puis produire la nouvelle planche.
