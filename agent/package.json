@@ -5,6 +5,7 @@
   "type": "module",
   "exports": { ".": "./index.ts" },
   "scripts": {
+    "passage": "node passage.ts",
     "check": "tsc --noEmit && node --test *.test.ts *.test.mjs"
   },
   "dependencies": {
