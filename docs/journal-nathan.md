@@ -443,3 +443,7 @@ Orchestrateur : Claude Code (Opus 5.5). Mission : J0 à J4 (scène branchée sur
 - Sondes rejouées : à (-10, 450), rien de survolé sur les 7 pages ; pointeur posé exprès sur un bouton : 0 pixel sur accueil, Bachelor, MSc.
 - **Le modèle de correction varie d'un appel à l'autre** (température 0). Répétition de 18 h 49 : pas de correction (« aucune phrase ne mentionne « CANDIDATER → » ») ; contre-épreuve : « n'est plus gris » proposé sans indice. Banc d'appels directs (`proposerCorrection`, même décision) : première formulation de l'indice 0 sur 6 ; formulation « la note ne les cite nulle part : la phrase … porte encore le texte d'avant le changement » 5 sur 6 ; bouton gris sans indice 0 sur 6. Formulation gardée. Le « n'est plus gris » vient de `jugement/correction` (Leslie), signalé à « hackaton ».
 - Répétition finale `2026-11-17-18h53-86f7` : code 0, 62 s, correction proposée et acceptée, décision « voulu » en base, `verifie`. `pnpm -r check` vert.
+
+### 18 h 55, en attente
+- « hackaton » : constats partis en issues, #48 pour Ali (pointeur sorti avant la capture dans `agent/src/browser.ts`) et #49 pour Leslie (refuser une correction dont le libellé n'a pas été lu). Rien à coder là-dessus.
+- PR #46 d'Ali (tour du site, 7 pages, 7 règles `etat`, statut `propose`) et #47 (réveil local, `automatisation/reveil/`) en attente de fusion par Nathan. Suite annoncée : test passé en `accepte` au nom de Nathan, références des 4 pages manquantes sur ce Mac, retours à la ligne des témoins à vérifier sur cet écran, tour complet en réel. Rien à lancer d'ici là.
