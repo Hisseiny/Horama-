@@ -163,10 +163,19 @@ const stop = async () => {
   await closeChrome({ port: PORT, pid: chrome.pid });
   say("Chrome fermé.");
 };
-process.on("SIGINT", () => {
-  say("Interrompu : arrêt du pont.");
+// Ctrl+C aborts the runner (PR #22): it stops the bridge and deletes the H session. The scene waits for that, 10 s
+// at most, before closing.
+const arret = new AbortController();
+let pending = null; // lancerPassage, then attendreFin
+process.on("SIGINT", async () => {
+  say("Interrompu : annulation de la session H et arrêt du pont.");
+  arret.abort("Ctrl+C");
+  await Promise.race([pending?.catch(() => {}), sleep(10_000)]);
   stop().finally(() => process.exit(130));
 });
+// The hook bound by the runner (PR #22): 45 s, well above the longest presentation measured (21,1 s on 2026-11-17).
+const HOOK_TIMEOUT_MS = 45_000;
+const releverMs = []; // duration of each relever, from the tool call to the answer given to the agent
 
 const started = new Date();
 const errors = [];
@@ -470,11 +479,15 @@ try {
   }
   if (FILM) film();
   const coureur = creerCoureur({
-    vault: VAULT, base, relever, baseUrl: BASE, identifiant: () => ID, signaler: say,
+    vault: VAULT, base, baseUrl: BASE, identifiant: () => ID, signaler: say, hookTimeoutMs: HOOK_TIMEOUT_MS, signal: arret.signal,
+    relever: async (ecran, vue) => {
+      const from = Date.now();
+      try { return await relever(ecran, vue); } finally { releverMs.push({ releve: `${ecran}--${vue}`, ms: Date.now() - from }); }
+    },
     ...(SANS_AGENT ? { session: scriptedSession } : { h: { navigateur, key: process.env.HAI_API_KEY, signaler: say } }),
   });
-  const { passage_id } = await coureur.lancerPassage({ logiciel: LOGICIEL, version_testee: VERSION, version_reference: REFERENCE, tests: tests.map((test) => test.id), regressions: REGRESSIONS, cle: "dev" });
-  report = await coureur.attendreFin(passage_id);
+  const { passage_id } = await (pending = coureur.lancerPassage({ logiciel: LOGICIEL, version_testee: VERSION, version_reference: REFERENCE, tests: tests.map((test) => test.id), regressions: REGRESSIONS, cle: "dev" }));
+  report = await (pending = coureur.attendreFin(passage_id));
   if (report.passage.etat !== "joue") {
     const reasons = [...new Set(report.tests.map((test) => test.raison).filter(Boolean))];
     errors.push(`Le coureur rend le passage en échec${reasons.length ? ` (${reasons.join(", ")})` : ""}.`);
@@ -598,6 +611,9 @@ writeFileSync(join(OUT, "passage.json"), `${JSON.stringify({
   clic_retenu: !DIRECT,
   retard_par_clic_ms: delays.length ? { min: Math.min(...delays), max: Math.max(...delays), moyenne: Math.round(delays.reduce((sum, ms) => sum + ms, 0) / delays.length) } : null,
   plafond_s: CAP_MS / 1000,
+  relever_ms: releverMs,
+  relever_max_ms: releverMs.length ? Math.max(...releverMs.map(({ ms }) => ms)) : null,
+  delai_crochet_ms: HOOK_TIMEOUT_MS,
   presentations,
   film: FILM ? { dossier: FILM, images, duree_s: filmedMs / 1000 } : null,
   debut: started.toISOString(),
@@ -615,6 +631,7 @@ writeFileSync(join(OUT, "passage.json"), `${JSON.stringify({
 say(`Passage écrit : ${join(OUT, "passage.json")} (${taken.size} relevé(s) sur ${course.length}, ${clics.length} clic(s) vus, durée ${dureeS === null ? "à mesurer" : `${dureeS.toFixed(1).replace(".", ",")} s`}).`);
 if (stored !== "supabase") say(`Base en mémoire : ${count(stored.passages, "passage", "passages")}, ${count(stored.captures, "capture", "captures")}, ${count(stored.evenements, "événement", "événements")}, ${count(stored.decisions, "décision", "décisions")}, état « ${stored.etat} ».`);
 for (const { releve, duree_s, dits, sans_phrase } of presentations) say(`Présentation de ${releve} : ${duree_s === null ? "interrompue" : `${duree_s.toFixed(1).replace(".", ",")} s`}, ${count(dits, "constat dit", "constats dits")}${sans_phrase ? `, ${sans_phrase} montré(s) sans phrase (plafond de ${CAP_MS / 1000} s)` : ""}.`);
+if (releverMs.length) say(`Relevé le plus long : ${Math.max(...releverMs.map(({ ms }) => ms))} ms (délai du crochet : ${HOOK_TIMEOUT_MS} ms).`);
 if (delays.length) say(`Retard ajouté par clic retenu : de ${Math.min(...delays)} à ${Math.max(...delays)} ms (${delays.length} clics).`);
 if (FILM) say(`Film : ${images} images sur ${(filmedMs / 1000).toFixed(1).replace(".", ",")} s, dans ${FILM}.`);
 for (const line of errors) say(`Erreur : ${line}`);
