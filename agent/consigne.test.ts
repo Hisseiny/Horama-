@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -58,6 +58,54 @@ test("liste vide, identifiant absent et version sans test signalent une erreur",
   assert.throws(() => construireConsigne({ ...options, ids: [] }), /Aucun test à jouer/);
   assert.throws(() => construireConsigne({ ...options, ids: ["absent"] }), /Test accepté introuvable/);
   assert.throws(() => construireConsigne({ ...options, version: "12", ids: ["liste-factures-filtre-echeance"] }), /Aucun test à jouer/);
+});
+
+test("un site non versionné conserve le préfixe, les requêtes et les chemins sans facture", () => {
+  const temporary = mkdtempSync(join(tmpdir(), "horama-static-"));
+  try {
+    mkdirSync(join(temporary, "school/produit"), { recursive: true });
+    mkdirSync(join(temporary, "school/tests"));
+    writeFileSync(join(temporary, "school/produit/home.md"), "---\necran: home\nurl: /admissions.html\n---\n# Admissions\n");
+    writeFileSync(join(temporary, "school/tests/visit.md"), `---
+id: visit
+logiciel: school
+source: produit/home.md
+releves: [{ ecran: home, vue: defaut }]
+url_depart: /admissions.html?lang=fr
+version_cible: "1"
+timeout_s: 60
+statut: accepte
+---
+# Admissions F-119
+## Setup
+Page publique.
+## Task
+Lire la page.
+## Verification
+Voir Admissions.
+\`\`\`regles
+[]
+\`\`\`
+`);
+    for (const prefix of ["", "/site"]) for (const trailing of ["", "/"]) {
+      const baseUrl = `http://localhost:8000${prefix}${trailing}`;
+      const result = construireConsigne({ vault: temporary, logiciel: "school", version: "2", baseUrl });
+      const expected = `http://localhost:8000${prefix}/admissions.html?lang=fr`;
+      assert.equal(result.start, expected);
+      assert.equal(new URL(result.course[0].address, result.start).href, expected);
+      assert.ok(!result.start.includes("r="));
+      assert.ok(!result.course[0].address.includes("F-119"));
+      const here = (pathname: string, search: string) => new Function("location", `return ${result.course[0].here}`)({ pathname, search });
+      assert.equal(here(`${prefix}/admissions.html`, "?lang=fr"), true);
+      assert.equal(here(`${prefix}/other.html`, "?lang=fr"), false);
+      assert.equal(here(`${prefix}/admissions.html`, ""), false);
+      assert.equal(here(`${prefix}/admissions.html`, "?lang=en"), false);
+    }
+    assert.throws(() => construireConsigne({ vault: temporary, logiciel: "school", version: "2", baseUrl: "invalid" }), /Invalid URL/);
+    writeFileSync(join(temporary, "school/produit/home.md"), "---\necran: home\nurl: //autre.example/page\n---\n# Admissions\n");
+    const external = construireConsigne({ vault: temporary, logiciel: "school", version: "2", baseUrl: "https://school.example/site/" });
+    assert.equal(external.course[0].address, "https://autre.example/page");
+  } finally { rmSync(temporary, { recursive: true, force: true }); }
 });
 
 test("une vue déclarée dans le champ vues de la note est jouée, sans filtre dans le contrôle", () => {

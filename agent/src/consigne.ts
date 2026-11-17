@@ -74,7 +74,8 @@ export function construireConsigne({ vault, logiciel, version, ids, baseUrl = pr
       if (!VIEWS[vue] && !declaredViews(entete?.vues).includes(vue)) missing.push(`Vue « ${vue} » inconnue : à déclarer dans le champ vues de la note de l'écran « ${ecran} ».`);
       const numbers = [...new Set(test.markdown.match(/\bF-\d+\b/g) ?? [])];
       const versioned = /^\/v\d+\//.test(test.url_depart);
-      const address = new URL(`${versioned ? `/v${version}` : ""}${url}`.replaceAll("<numero>", numbers.length === 1 ? numbers[0] : "<numero>"), baseUrl);
+      const screenUrl = `${versioned ? `/v${version}` : ""}${url}`.replaceAll("<numero>", numbers.length === 1 ? numbers[0] : "<numero>");
+      const address = new URL(!versioned && screenUrl.startsWith("/") && !screenUrl.startsWith("//") ? `${baseUrl.replace(/\/$/, "")}${screenUrl}` : screenUrl, baseUrl);
       const departure = new URL(test.url_depart, baseUrl);
       if (!versioned && address.origin === departure.origin) {
         departure.searchParams.forEach((value, key) => {
