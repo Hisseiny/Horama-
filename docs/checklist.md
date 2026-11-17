@@ -23,14 +23,14 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | 1.4 | Squelette du code : `package.json`, lint, vérification des types, tests, `npm run dev`, `npm run check`, un dossier par pôle | Ali | en cours | Socle A1 terminé : installation et `pnpm -r check` (types et tests) sur clone neuf ; lint et commande dev non livrés par A1. [Preuve](tests/2026-11-16-a1-outillage.md). |
 | 1.5 | Clés : H (Ali, Leslie, Nathan, plus la clé de démo), Hugging Face (Leslie, coupon de 50 €), projet Vercel (Ali), projet Supabase (Inès), crédits v0 (Axil) | Chacun pour les siennes | à faire |  |
 | 1.6 | Envoyer au collègue les prérequis du pilote (cadrage, section 17) : environnement de test, compte de test avec données fictives, accord écrit, connexion sans captcha, documentation et notes de version, chiffres | Noé | à faire |  |
-| 1.7 | Brouillon des contrats C1 à C8 avec un exemple factice chacun | Ali (gardien), avec Leslie et Inès | à faire |  |
-| 1.8 | Preuve 1 : l'agent H se connecte au SaaS (pilote si l'accès existe, sinon le faux SaaS ou un site de démonstration) et atteint 2 écrans | Ali, Nathan en renfort | à faire |  |
+| 1.7 | Brouillon des contrats C1 à C8 avec un exemple factice chacun | Ali (gardien), avec Leslie et Inès | codé non testé | Étiquette `contrats-v1` publiée ; [types et exemples C1 à C8](../contrats/). Validation humaine du brouillon non attestée ici. |
+| 1.8 | Preuve 1 : l'agent H se connecte au SaaS (pilote si l'accès existe, sinon le faux SaaS ou un site de démonstration) et atteint 2 écrans | Ali, Nathan en renfort | testé | [T7 de Nathan, sur dev](tests/2026-11-16-t7-navigateur-local.md) : trois passages H sur Facturo v13, quatre relevés chacun. Preuve produite par Nathan, distincte du coureur Ali. |
 | 1.9 | Preuve 2 : un modèle Hugging Face écrit un test au format H à partir de la note d'exemple du cadrage (section 10) ; deux modèles comparés | Leslie | à faire |  |
 | 1.10 | Preuve 3 : Holo (Models API) relève un montant sur une capture | Nathan | à faire |  |
 | 1.11 | Vault de départ : structure, 3 notes d'écran, 1 note de règles entre écrans, 1 note de version (factices tant que la doc du pilote n'est pas arrivée) | Inès | à faire |  |
 | 1.12 | Maquettes rapides des écrans prioritaires : 11.2 (note vers test), 11.3 (passage en direct), 11.6 (relecture) | Axil | à faire |  |
 | 1.13 | Faux SaaS, première version : tableau de bord, liste des factures, détail d'une facture, données fictives, déployé sur Vercel | Nathan | à faire |  |
-| 1.14 | Ouvrir `docs/retours-api-h.md` (ce qui marche, ce qui casse, ce qui surprend) | Ali | à faire |  |
+| 1.14 | Ouvrir `docs/retours-api-h.md` (ce qui marche, ce qui casse, ce qui surprend) | Ali | codé non testé | [Retours API H](retours-api-h.md) : sources de l’équipe, quota 200 et refus entreprise 403 ; mesures restantes explicites. Relecture humaine à faire. |
 | 1.15 | Peer review du soir | Tous | à faire |  |
 
 ## Phase 2. Mardi matin : contrats gelés, versions factices, points H
@@ -38,7 +38,7 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | N° | Tâche | Qui | État | Preuve |
 |---|---|---|---|---|
 | 2.1 | Point de 9 h 30 : état des preuves 1.8 à 1.10, réponse du pilote | Tous | à faire |  |
-| 2.2 | Gel des contrats C1 à C8 | Ali | à faire |  |
+| 2.2 | Gel des contrats C1 à C8 | Ali | codé non testé | Étiquette distante `contrats-v1` : `42a349108f062e0fe58fe926678199f8866305f5` ; [contrats gelés](../contrats/README.md). Pas de nouvelle attestation humaine ici. |
 | 2.3 | Versions factices : A (fil et rapport), B (test proposé et verdict), C (vault et base remplis de données factices) | Ali, Leslie, Inès | à faire |  |
 | 2.4 | Tables Supabase et stockage des captures, selon C3, C4, C6, C8 | Inès | à faire |  |
 | 2.5 | Point technique H (11 h) : questions du cadrage section 18, bugs de la veille avec capture | Ali, Nathan | à faire |  |
