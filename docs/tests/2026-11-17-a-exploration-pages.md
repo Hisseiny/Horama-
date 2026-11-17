@@ -39,7 +39,7 @@ Raisons d'exclusion : `form`, `login`, `file`, `external`, `scheme`, `credential
 
 - `node --test exploration-pages.test.ts` depuis `agent/` : 18 tests, 18 réussites, aucun échec.
 - `pnpm --filter @horama/agent lint` : vert.
-- `git fetch origin dev && git merge --no-edit origin/dev`, puis `pnpm install && pnpm -r --if-present run check` : vert sur `dev` actualisé (`a746341fa5ba83ca2ff220be6bf8cf6371d0e73f`) ; les 106 tests d'`agent/` passent, dont les 18 nouveaux.
+- `git fetch origin dev && git merge --no-edit origin/dev`, puis `pnpm install && pnpm -r --if-present run check` : vert sur `dev` actualisé (`62a62545b40338b911e1e3384b3d76898e073bd9`, incluant la brique Holo arrivée entre-temps) ; les 129 tests d'`agent/` passent, dont les 18 nouveaux.
 
 Les réponses factices couvrent : robots et arrêt fermé, sitemap XML, index imbriqués avec cycle/namespace/CDATA, liens sans sitemap, exclusions, normalisation, ordre stable, plafond, erreurs HTTP/réseau et types non HTML, redirections sûres et slash/www, base HTML, absence de requêtes concurrentes. Aucun appel réseau dans ces tests.
 
