@@ -245,6 +245,81 @@
     }
   },
   {
+    "id": "centime-detail",
+    "ecran": "detail-facture",
+    "vue": "defaut",
+    "zone": "total-ttc",
+    "avant": {
+      "x": 1008,
+      "y": 314,
+      "largeur": 240,
+      "hauteur": 45
+    },
+    "apres": {
+      "x": 1008,
+      "y": 314,
+      "largeur": 240,
+      "hauteur": 45
+    },
+    "pixels_differents": 69,
+    "boite_pixels": {
+      "x": 1213,
+      "y": 330,
+      "largeur": 7,
+      "hauteur": 12
+    }
+  },
+  {
+    "id": "arrondi-total-liste",
+    "ecran": "liste-des-factures",
+    "vue": "defaut",
+    "zone": "total-liste",
+    "avant": {
+      "x": 1008,
+      "y": 408,
+      "largeur": 240,
+      "hauteur": 45
+    },
+    "apres": {
+      "x": 1008,
+      "y": 408,
+      "largeur": 240,
+      "hauteur": 45
+    },
+    "pixels_differents": 227,
+    "boite_pixels": {
+      "x": 1185,
+      "y": 424,
+      "largeur": 35,
+      "hauteur": 12
+    }
+  },
+  {
+    "id": "echeance-decalee",
+    "ecran": "liste-des-factures",
+    "vue": "defaut",
+    "zone": "echeance-F-119",
+    "avant": {
+      "x": 808,
+      "y": 273,
+      "largeur": 200,
+      "hauteur": 45
+    },
+    "apres": {
+      "x": 808,
+      "y": 273,
+      "largeur": 200,
+      "hauteur": 45
+    },
+    "pixels_differents": 58,
+    "boite_pixels": {
+      "x": 832,
+      "y": 289,
+      "largeur": 7,
+      "hauteur": 12
+    }
+  },
+  {
     "id": "export-haut",
     "ecran": "liste-des-factures",
     "vue": "defaut",

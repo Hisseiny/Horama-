@@ -2,7 +2,7 @@
 // writes them as JSON into contrats/exemples/. Each lane builds its mocks from these, never from its own copy.
 import type {
   TestPropose, TestAccepte, Passage, EvenementFil, Capture, RapportPassage,
-  ResultatVerification, Decision, NotificationRelecture, LigneMesure,
+  ResultatVerification, Decision, NotificationRelecture, LigneMesure, Regle,
 } from "./types";
 
 const TEST_MD = `---
@@ -186,4 +186,12 @@ export const c8Mesure: LigneMesure = {
   cout_usd: null,
   etapes: 10,
   le: "2026-11-18T14:05:40Z",
+};
+
+// D7 section 3 ("etat" rule, contrats-v2): the dark-mode toggle of the demo scenario, judged on the texte_page of (ecran, vue).
+export const regleEtat: Regle = {
+  type: "etat",
+  ecran: "tableau-de-bord",
+  vue: "mode-sombre",
+  texte_present: ["Revenir au mode clair", "Thème sombre"],
 };

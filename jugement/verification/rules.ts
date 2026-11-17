@@ -185,6 +185,39 @@ function judge(regle: Regle, screens: Map<string, ScreenValues>, valeurs: Record
         marks: bad.map((item) => item.row ?? item.name),
       };
     }
+    case "etat": {
+      const { ecran } = regle;
+      const expected = regle.texte_present ?? [];
+      const forbidden = regle.texte_absent ?? [];
+      // A substring of the page text, after normalisation of spaces (no-break ones included) and case.
+      const page = key(screens.get(ecran)!.texte);
+      const missing = expected.filter((wanted) => !page.includes(key(wanted)));
+      const shown = forbidden.filter((banned) => page.includes(key(banned)));
+      const quote = (wanted: string) => `« ${normalize(wanted)} »`;
+      for (const wanted of expected) valeurs[`${ecran}.attendu ${quote(wanted)}`] = missing.includes(wanted) ? "absent" : "affiché";
+      for (const banned of forbidden) valeurs[`${ecran}.interdit ${quote(banned)}`] = shown.includes(banned) ? "affiché" : "absent";
+      // The state is not proven while none of the expected texts appears: the action may never have happened.
+      // A rule without a witness text never passes (memoire refuses it when reading; checked again here).
+      if (!expected.length) unreadable(`règle etat sans texte témoin sur ${ecran}`);
+      if (missing.length === expected.length) unreadable(`état non atteint en vue ${regle.vue} sur ${ecran} : aucun des textes attendus (${expected.map(quote).join(", ")}) n'apparaît`);
+      const ok = !missing.length && !shown.length;
+      const parts = [...missing.map((wanted) => `${quote(wanted)} attendu, absent`), ...shown.map((banned) => `${quote(banned)} interdit, affiché`)];
+      return {
+        ok,
+        calcul: ok
+          ? [
+              expected.length && `${expected.map(quote).join(", ")} affiché${expected.length > 1 ? "s" : ""}`,
+              forbidden.length && `${forbidden.map(quote).join(", ")} absent${forbidden.length > 1 ? "s" : ""}`,
+            ]
+              .filter(Boolean)
+              .join(" ; ")
+          : parts.join(" ; "),
+        description: ok
+          ? `Après l'action, ${expected.length > 1 ? "les textes attendus s'affichent" : `${quote(expected[0])} s'affiche`}.`
+          : `Après l'action, ${[missing.length && `${missing.map(quote).join(", ")} n'apparaît pas`, shown.length && `${shown.map(quote).join(", ")} s'affiche encore`].filter(Boolean).join(" et ")}.`,
+        marks: [...missing, ...shown].map(normalize),
+      };
+    }
   }
 }
 

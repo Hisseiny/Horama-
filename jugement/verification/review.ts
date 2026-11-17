@@ -32,6 +32,7 @@ function word({ regle, texte_zone, nature, id }: Constat): string {
   if (regle?.type === "filtre") return `filtre ${regle.filtre}`;
   if (regle?.type === "format") return `format ${regle.colonne}`;
   if (regle?.type === "presence") return `${regle.colonne} vide`;
+  if (regle?.type === "etat") return `etat ${regle.vue}`;
   return kebab(texte_zone ?? "") ? texte_zone! : `${nature ?? "image"} ${id.split("--").at(-1)}`;
 }
 

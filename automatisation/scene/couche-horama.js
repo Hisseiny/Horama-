@@ -5,6 +5,8 @@
 // From the cursor layer of the T7 probe (itself from Nami, extension/agent-overlay.js): the closed Shadow DOM, the
 // trusted presses followed and reported through the CDP binding horamaPress, the layer hidden for a capture.
 // Everything drawn lives in that Shadow DOM, and the whole state lives in sessionStorage: it survives a change of page.
+// The script runs in the isolated world « horama » of the page: the page's own code reaches neither window.__horama
+// nor the bindings horamaPress and horamaChoix, which only exist in that world.
 // This file is one function expression: installLayer calls it with the id of the course (a new id forgets what an
 // earlier course left), the title of the banner ("" in the probe: the cursor alone, shown at the first click), the
 // options ({ direct }: the click is not held) and `annotate` of rough-notation.
@@ -109,6 +111,7 @@
     .interrogation .body > * { animation: tilt 260ms ease-out forwards; }
     .defaut .body > * { animation: shake 420ms ease-in-out; }
     .conforme .body > * { animation: spin 640ms cubic-bezier(0.3, 1.2, 0.5, 1); }
+    .jolt .body { animation: jolt 420ms cubic-bezier(0.3, 1.6, 0.5, 1); }
     .bubble { position: absolute; left: 0; top: 0; width: max-content; max-width: 470px; padding: 16px 22px; background: ${NIGHT}; color: ${PAPER};
       font: 600 26px/1.28 ${FONT}; white-space: normal; opacity: 0; transform: scale(0.96); transition: opacity 180ms ease-out, transform 180ms ease-out; }
     .bubble.on { opacity: 1; transform: none; }
@@ -119,6 +122,10 @@
     .bubble.defaut { --bg: ${COLORS.defaut}; background: ${COLORS.defaut}; color: ${NIGHT}; }
     .bubble.doute { --bg: ${WING}; background: ${WING}; color: ${NIGHT}; }
     .bubble.ask { max-width: 640px; padding: 24px 28px 28px; font-size: 32px; line-height: 1.2; }
+    .bubble.correction { font-size: 24px; }
+    .correction-file { margin-bottom: 18px; overflow-wrap: anywhere; font-size: 17px; }
+    .correction-before { display: block; opacity: 0.7; text-decoration-thickness: 2px; }
+    .correction-after { margin: 18px 0 0; color: ${COLORS.conforme}; }
     .rank { margin-bottom: 10px; color: ${WING}; font: 800 17px/1 ${FONT}; letter-spacing: 0.1em; text-transform: uppercase; }
     .choices { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 24px; }
     .choice { flex: 1; padding: 17px 20px; border: 0; color: ${NIGHT}; font: 800 22px/1 ${FONT}; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; pointer-events: auto !important; cursor: pointer;
@@ -166,6 +173,7 @@
     @keyframes thunk { from { opacity: 0; transform: rotate(-6deg) scale(1.8); } to { opacity: 1; transform: rotate(-6deg) scale(1); } }
     @keyframes ripple { from { transform: scale(0.5); opacity: 1; } to { transform: scale(3); opacity: 0; } }
     @keyframes bump { 30% { transform: scale(1.16); } }
+    @keyframes jolt { 35% { transform: translateY(-14px) scale(1.06); } 70% { transform: translateY(2px); } }
   </style>
   <div class="zones"></div><svg class="dim"><path fill-rule="evenodd"/></svg><div class="banner" hidden></div><div class="end"></div>
   <div class="loupe-box"><div class="handle"></div><div class="lens"></div></div>
@@ -203,7 +211,12 @@
 
   // ---------- Where things are, each frame: the cursor along its path, the mascot on its spring, its eyes ----------
   if (TITLE && !state.cursor) state.cursor = { x: Math.round(innerWidth * 0.52), y: Math.round(innerHeight * 0.62) };
-  let goal = state.mascot ?? { x: innerWidth - M - 70, y: innerHeight - M - 70 };
+  // While the agent runs the mascot says nothing and waits in a corner of the page, under the banner.
+  const corners = () => {
+    const [left, right, top, bottom] = [24, innerWidth - M - 24, (TITLE ? 72 : 8) + 16, innerHeight - M - 24];
+    return [{ x: right, y: bottom }, { x: left, y: bottom }, { x: right, y: top }, { x: left, y: top }];
+  };
+  let goal = state.mascot ?? corners()[0];
   const at = { ...goal, vx: 0, vy: 0 };
   let cursorAt = state.cursor;
   let frame = 0;
@@ -329,6 +342,11 @@
     }
     return best;
   }
+  // The corner that hides the least of these boxes; the nearest one when several hide nothing.
+  const corner = (boxes) => corners().reduce((best, spot) => {
+    const cost = hidden(spot.x, spot.y, M, M, boxes) + 0.01 * Math.hypot(spot.x - goal.x, spot.y - goal.y);
+    return !best || cost < best.cost ? { ...spot, cost } : best;
+  }, null);
 
   // ---------- Bubble: tied to the mascot, one at a time; the mascot moves first, then the bubble appears ----------
   let turn = 0;
@@ -342,6 +360,12 @@
   const loupeButton = element("button", "choice loupe", "Voir à la loupe");
   loupeButton.addEventListener("click", (event) => event.isTrusted && window.__horama.loupe(!loupeBox.classList.contains("on")));
   choices.append(loupeButton);
+  const correctionChoices = element("div", "choices");
+  for (const [choice, label, color] of [["accepter", "Accepter", "voulu"], ["refuser", "Refuser", "bug"]]) {
+    const button = element("button", `choice ${color} ${choice}`, label);
+    button.addEventListener("click", (event) => event.isTrusted && window.__horama.chooseCorrection(choice));
+    correctionChoices.append(button);
+  }
 
   // ---------- The loupe: a copy of the page, magnified, in a round lens beside the zone (no blur, no screenshot) ----------
   function showLoupe(on) {
@@ -389,8 +413,14 @@
       if (mine !== turn) return;
     }
     if (!bulle) return void bubble.classList.remove("on");
-    bubble.className = `bubble ${bulle.genre}${bulle.question ? " ask" : ""}`;
-    if (bulle.question) {
+    bubble.className = `bubble ${bulle.genre}${bulle.question || bulle.correction ? " ask" : ""}${bulle.correction ? " correction" : ""}`;
+    if (bulle.correction) {
+      const correction = bulle.correction;
+      correctionChoices.className = `choices${correction.choice ? " made" : ""}`;
+      for (const button of correctionChoices.children) button.classList.toggle("chosen", button.classList.contains(correction.choice));
+      bubble.replaceChildren(element("div", "rank", "Corriger la note"), element("div", "correction-file", correction.file), element("del", "correction-before", correction.before), element("p", "correction-after", correction.after), correctionChoices);
+      if (correction.status) bubble.append(element("div", "stamp conforme", correction.status === "acceptee" ? "Correction acceptée" : "Correction refusée"));
+    } else if (bulle.question) {
       choices.className = "choices";
       for (const button of choices.children) button.classList.remove("chosen");
       bubble.replaceChildren(element("div", "rank", bulle.question.rang), element("div", "", typo(bulle.question.texte)), choices);
@@ -409,11 +439,15 @@
     if (live) await wait(200);
   }
   // The mascot steps aside when it or its bubble hides one of these boxes: where the cursor is about to land, or what
-  // a page shows once it has opened or reacted.
+  // a page shows once it has opened or reacted. Without a bubble (all along the course) it only leaves its corner for
+  // the cursor or a zone, and goes to the corner that hides the least.
   const stepAside = (boxes) => {
     const spot = state.bulle?.spot;
-    if (hidden(goal.x, goal.y, M, M, boxes) + (spot ? hidden(goal.x + spot.left, goal.y + spot.top, bubble.offsetWidth, bubble.offsetHeight, boxes) : 0) === 0) return;
-    if (!spot) return goTo(place(null, 0, 0, true));
+    if (!spot) {
+      if (hidden(goal.x, goal.y, M, M, boxes.filter(({ weight }) => weight >= 60)) > 0) goTo(corner(busy()));
+      return;
+    }
+    if (hidden(goal.x, goal.y, M, M, boxes) + hidden(goal.x + spot.left, goal.y + spot.top, bubble.offsetWidth, bubble.offsetHeight, boxes) === 0) return;
     layout();
     renderBubble(false);
   };
@@ -469,6 +503,7 @@
 
   // ---------- End of the course: the page goes dark except the zones of one finding ----------
   let holes = [];
+  let lit = null; // id of the finding in the light
   function renderDim(opening) {
     dim.classList.toggle("on", state.revue);
     const hole = (zone, k) => {
@@ -518,8 +553,11 @@
 
   // ---------- Commands called by the script (CDP Runtime.evaluate; a promise is awaited) ----------
   window.__horama = {
-    // repos, verification, interrogation, defaut, conforme.
-    etat: setEtat,
+    // repos, verification, interrogation, defaut, conforme. sursaut: the mascot jumps once as it takes this state.
+    etat(name, sursaut) {
+      setEtat(name);
+      if (sursaut) mascot.classList.add("jolt");
+    },
     // One bubble at a time, null to hide it. genre: "", "conforme", "defaut" or "doute" (its colour). cible: the rectangle
     // of the page the mascot talks about and stands beside; none: the cursor. Resolves once the bubble is shown.
     bulle(texte, genre = "", cible = null) {
@@ -571,9 +609,9 @@
       save();
       if (adresse !== here()) return n;
       attach();
-      // The mascot moves away first when it stands on what is about to be drawn.
+      // The mascot moves away first when it stands on what is about to be drawn: to another corner.
       if (hidden(goal.x, goal.y, M, M, zones.map((zone) => box(zone, 14))) > 0) {
-        goTo(place(zones[0], 0, 0));
+        goTo(corner(busy()));
         await arrived();
       }
       await Promise.all(zones.filter((zone) => !zone.trait).map((zone) => drawZone(zone, true)));
@@ -599,24 +637,56 @@
     revue(on) {
       state.revue = on;
       holes = [];
+      lit = null;
       save();
       cursor.hidden = on || !state.cursor;
       renderDim();
     },
-    // One finding in the light, its question in large with the two buttons. rang: « 1 sur 3 ». The answer comes back
-    // through the CDP binding horamaChoix, from a real click on a button or from choisir().
-    async question({ id, texte, rang, etat }) {
+    // One finding in the light: the page goes dark except its zones. Returns the zone the mascot talks about.
+    async lumiere({ id, etat }) {
       const mine = (state.zones[here()] ?? []).filter((zone) => zone.id === id);
       const about = mine.find((zone) => !zone.trait) ?? null;
       if (about) scrollTo(0, Math.max(0, about.y - innerHeight / 2));
       this.revue(true);
       holes = mine;
+      lit = id;
       renderDim(true);
+      setEtat(etat);
+      await wait(450);
+      return about;
+    },
+    // The finding in the light (lumiere, unless it already is), its question in large with the two buttons. rang:
+    // « 1 sur 3 ». The answer comes back through the CDP binding horamaChoix, from a real click on a button or from choisir().
+    async question({ id, texte, rang, etat }) {
+      const about = lit === id ? (state.zones[here()] ?? []).find((zone) => zone.id === id && !zone.trait) ?? null : await this.lumiere({ id, etat });
       setEtat(etat);
       state.bulle = { question: { id, texte, rang }, genre: "", cible: about, page: here() };
       save();
       showLoupe(false);
-      await wait(450);
+      return renderBubble(true);
+    },
+    async correction({ id, file, before, after }) {
+      this.revue(true);
+      showLoupe(false);
+      setEtat("interrogation");
+      state.bulle = { correction: { id, file, before, after }, genre: "", cible: null, page: here() };
+      save();
+      return renderBubble(true);
+    },
+    chooseCorrection(choice, id) {
+      const correction = state.bulle?.correction;
+      if (!correction || correction.choice || (id && correction.id !== id) || !["accepter", "refuser"].includes(choice)) return;
+      correction.choice = choice;
+      correctionChoices.classList.add("made");
+      correctionChoices.querySelector(`.${choice}`).classList.add("chosen");
+      save();
+      window.horamaChoix?.(JSON.stringify({ id: correction.id, choix: choice }));
+    },
+    async correctionResult(status) {
+      if (!state.bulle?.correction) return;
+      state.bulle.correction.status = status;
+      setEtat(status === "acceptee" ? "conforme" : "repos");
+      save();
       return renderBubble(true);
     },
     // The third button: the zone of the question, magnified in a loupe beside it. loupe(false) closes it.

@@ -1,15 +1,15 @@
 // The live scene (docs/decisions/2026-11-16-scene-en-direct.md): the accepted tests of the vault become one course on
 // the tested software, in a visible local Chrome. The H agent clicks: a cursor travels to each click, held until it
-// arrives. At each relever: our capture (layer hidden), the check (jugement/verification), then the mascot presents
-// what was found on this screen, one thing at a time, and the agent only gets its answer once it has finished (or at
-// the cap). At the end the course goes back over each defect and each doubt, a human says « bug » or « voulu », and
+// arrives. At each relever: our capture (layer hidden) and the check (jugement/verification), then the agent gets its
+// answer at once. Meanwhile, without a word, the mascot reacts and the lines are drawn on the page. At the end the
+// mascot sums up: it goes back over each defect and each doubt, explains it, a human says « bug » or « voulu », and
 // each choice is written in the vault as a decision, then in the base, then the passage is marked « verifie ».
 // The passage is run by Ali's runner (agent/index.ts): it creates the H session (or plays the scripted one), relaunches
 // a mute session, writes passages, evenements and captures in the base and the report in the vault. The scene gives it
 // the Chrome and its bridge (navigateur) and the relevé hook; the Chrome and the bridge come from the T7 probe.
 //
 // Usage: node [--env-file=<.env.local>] automatisation/scene/parcours.mjs [--sans-agent] [--sans-base | --avec-base]
-//          [--rythme <s>] [--plafond <s>] [--clic-direct] [--choix bug,voulu,...] [--sans-fin] [--par <nom>]
+//          [--rythme <s>] [--sans-presentation] [--clic-direct] [--choix bug,voulu,...] [--sans-fin] [--par <nom>]
 //          [--vault <dir>] [--logiciel facturo] [--version 13] [--reference 12] [--tests a,b,c] [--r <ids>]
 //          [--verification <file>] [--ecrire-references] [--temoins <dir>] [--film <dir>] [--sortie <dir>]
 //          [--port 9333] [--profil <dir>] [--fermer-chrome]
@@ -22,7 +22,7 @@ import { join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { BaseMemoire, construireConsigne, creerBaseSupabase, creerCoureur } from "../../agent/index.ts";
 import { libelleAction } from "../../agent/src/session.ts";
-import { ecrireDecision, ecrireReference, lireDecisions, lireNotes, lireReferences, lireTestsAcceptes } from "../../memoire/index.ts";
+import { appliquerCorrection, ecrireDecision, ecrireReference, lireDecisions, lireReferences, refuserCorrection } from "../../memoire/index.ts";
 import { findHolo, startBridge, stopIfMissing } from "./agent-h.mjs";
 import { creerEcrivainMemoire, creerEcrivainSupabase } from "./decisions.mjs";
 import { HEIGHT, WIDTH, capture, clickAt, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, layer, navigate, openChrome, option, say, sleep, waitFor } from "./scene.mjs";
@@ -42,56 +42,37 @@ const OUT = resolve(option("sortie", `/Users/nathan/Code/projet/horama/.orchestr
 const WITNESSES = option("temoins") ? resolve(option("temoins")) : null;
 const FILM = option("film") ? resolve(option("film")) : null;
 const DIRECT = flag("clic-direct");
-const CAP_MS = Number(option("plafond", 12)) * 1000;
+// For continuous integration: the same course, without the spoken summary nor the reading pauses of the end.
+const SANS_PRESENTATION = flag("sans-presentation");
 const CHOICES = flag("choix") ? option("choix").split(",") : [];
 const PAR = option("par", "Nathan");
 const CHECK_FILE = resolve(option("verification", join(HERE, "../../jugement/verification/index.ts")));
+const CORRECTION_FILE = resolve(option("correction", join(HERE, "../../jugement/correction/index.ts")));
+const CORRECTION_CHOICE = option("correction-choix");
 const CHROME_BIN = process.env.CHROME_BIN || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-const BASE = (process.env.FAUX_SAAS_URL || "https://facturo-demo.vercel.app").replace(/\/$/, "");
+const BASE = option("base-url", process.env.FAUX_SAAS_URL || "https://facturo-demo.vercel.app").replace(/\/$/, "");
 
-// The named views of a screen: value of the `filtre` parameter of the address, and first version that has the view
-// (docs/decisions/2026-11-16-url-faux-saas.md). The path of a screen comes from its note in the vault (field `url`).
-const VIEWS = { defaut: { filtre: null }, "filtre-echeance": { filtre: "echeance-depassee", since: 13 } };
-
-// ---------- The course, from the accepted tests of the vault ----------
+// ---------- The course: the one the runner gives H ----------
+// construireConsigne (agent/) turns the accepted tests of the vault into one course: screens, named views, addresses
+// and how to recognise each page. The scene plays that same course, so what is particular to the tested software
+// (views, version in the address, entrance) is written in one place only.
 const missing = [];
-const notes = lireNotes(VAULT, LOGICIEL);
-const accepted = lireTestsAcceptes(VAULT, LOGICIEL);
-const wanted = flag("tests") ? option("tests").split(",") : accepted.map((test) => test.id);
-const unknown = wanted.filter((id) => !accepted.some((test) => test.id === id));
-if (unknown.length) missing.push(`Test accepté introuvable dans ${join(VAULT, LOGICIEL, "tests")} : ${unknown.join(", ")}.`);
-const dropped = [];
-const tests = wanted.flatMap((id) => accepted.filter((test) => test.id === id)).filter((test) => {
-  const late = test.releves.find(({ vue }) => VIEWS[vue]?.since > Number(VERSION));
-  if (late) dropped.push({ id: test.id, raison: `la vue « ${late.vue} » n'existe pas en version ${VERSION}` });
-  return !late;
-});
-if (!unknown.length && !tests.length) missing.push("Aucun test à jouer.");
+const REGRESSIONS = flag("r") ? option("r").split(",") : undefined;
+let consigne = null;
+try {
+  consigne = construireConsigne({ vault: VAULT, logiciel: LOGICIEL, version: VERSION, ids: flag("tests") ? option("tests").split(",") : undefined, baseUrl: BASE, regressions: REGRESSIONS });
+} catch (error) {
+  missing.push(`La consigne du coureur ne se construit pas : ${error.message}`);
+}
+const tests = consigne?.tests ?? [];
+const dropped = consigne?.dropped ?? [];
+const course = consigne?.course ?? [];
 
 const keyOf = ({ ecran, vue }) => `${ecran}--${vue}`;
 const call = ({ ecran, vue }) => `relever(ecran="${ecran}", vue="${vue}")`;
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const versioned = (test, path) => path.replaceAll(`/v${test.version_cible}/`, `/v${VERSION}/`);
 const section = (test, name) => (new RegExp(`^## ${name}[ \\t]*\\n([\\s\\S]*?)(?=^## |^\`\`\`)`, "m").exec(test.markdown)?.[1] ?? "").trim();
-
-// The relevés of every test, in order, each one once; `part` is the first test that asks for it.
-const course = [];
-tests.forEach((test, index) => {
-  for (const { ecran, vue } of test.releves) {
-    if (course.some((step) => step.ecran === ecran && step.vue === vue)) continue;
-    const url = notes.find((note) => note.entete.ecran === ecran)?.entete.url;
-    if (typeof url !== "string") missing.push(`Aucune note de ${LOGICIEL} ne donne l'adresse de l'écran « ${ecran} » (champ url de son en-tête).`);
-    if (!VIEWS[vue]) missing.push(`Vue « ${vue} » inconnue : son adresse est à ajouter dans VIEWS (parcours.mjs).`);
-    const path = `/v${VERSION}${url}`;
-    const pattern = `^${path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/<[^>]+>/g, "[^/]+")}$`;
-    const filtre = VIEWS[vue]?.filtre ?? null;
-    course.push({
-      ecran, vue, key: keyOf({ ecran, vue }), part: index + 1,
-      address: `${path}${filtre ? `?filtre=${filtre}` : ""}`,
-      here: `new RegExp(${JSON.stringify(pattern)}).test(location.pathname) && new URLSearchParams(location.search).get("filtre") === ${JSON.stringify(filtre)}`,
-    });
-  }
-});
 
 // The check, its sentences and its decisions all come from one module (interface: see README).
 let check = {};
@@ -102,8 +83,15 @@ try {
   missing.push(`La vérification ne se charge pas (${CHECK_FILE}) : ${error.message.split("\n")[0]}`);
 }
 const { verifierReleve, consoliderConstats, formuler, versDecision } = check;
+let proposerCorrection;
+try {
+  ({ proposerCorrection } = await import(pathToFileURL(CORRECTION_FILE)));
+  if (typeof proposerCorrection !== "function") throw new Error("le fichier n'exporte pas proposerCorrection");
+} catch (error) {
+  missing.push(`La correction ne se charge pas (${CORRECTION_FILE}) : ${error.message.split("\n")[0]}`);
+}
+if (flag("correction-choix") && !["accepter", "refuser"].includes(CORRECTION_CHOICE)) missing.push("--correction-choix attend accepter ou refuser.");
 if (flag("rythme") && !(RYTHME > 0)) missing.push("--rythme doit être un nombre de secondes positif.");
-if (!(CAP_MS > 0)) missing.push("--plafond doit être un nombre de secondes positif.");
 if (CHOICES.some((choix) => choix !== "bug" && choix !== "voulu")) missing.push("--choix attend une liste de « bug » et de « voulu », séparés par des virgules.");
 for (const name of ["temoins", "film"]) if (flag(name) && !option(name)) missing.push(`--${name} demande un dossier.`);
 // The base the runner writes in: Supabase with the agent, in memory without it (scripted passages stay out of the
@@ -117,14 +105,6 @@ try {
 } catch (error) {
   missing.push(`${error.message} (sans base partagée : --sans-base).`);
 }
-const REGRESSIONS = flag("r") ? option("r").split(",") : undefined;
-// What the runner gives H (instructions, task, tools): built here too, only to write it in consigne.md.
-let consigne = null;
-try {
-  if (!missing.length) consigne = construireConsigne({ vault: VAULT, logiciel: LOGICIEL, version: VERSION, ids: tests.map((test) => test.id), baseUrl: BASE, regressions: REGRESSIONS });
-} catch (error) {
-  missing.push(`La consigne du coureur ne se construit pas : ${error.message}`);
-}
 const holo = SANS_AGENT ? null : findHolo();
 stopIfMissing({ port: PORT, chromeBin: CHROME_BIN, sansAgent: SANS_AGENT, holo }, missing);
 // Each step of the passage, as the runner writes it in the base, is also said here.
@@ -134,11 +114,13 @@ base.insererEvenement = (event) => {
   return writeEvent(event);
 };
 
-const START = `${BASE}${versioned(tests[0], tests[0].url_depart)}${flag("r") ? `&r=${option("r")}` : ""}`;
+const START = consigne.start;
 
 const count = (number, one, many) => `${number} ${number > 1 ? many : one}`;
 // A bubble stays at least this long: 2.5 s, plus 50 ms per character.
 const reading = (text) => 2500 + 50 * text.length;
+// A pause for the audience: none with --sans-presentation.
+const hold = (ms) => (SANS_PRESENTATION ? null : sleep(ms));
 // State of the mascot and colour of its bubble, per status of a finding.
 const KIND = { PASS: ["conforme", "conforme"], VERIFIED_FAIL: ["defaut", "defaut"], SUSPECTED: ["interrogation", "doute"], INCONCLUSIVE: ["repos", ""] };
 const STROKE_MS = 800; // time the layer takes to draw a line (STROKE in couche-horama.js)
@@ -173,12 +155,15 @@ process.on("SIGINT", async () => {
   await Promise.race([pending?.catch(() => {}), sleep(10_000)]);
   stop().finally(() => process.exit(130));
 });
-// The hook bound by the runner (PR #22): 45 s, well above the longest presentation measured (21,1 s on 2026-11-17).
+// The hook bound by the runner (PR #22): 45 s. Relever no longer waits for the mascot; the bound stays for a page that
+// does not answer.
 const HOOK_TIMEOUT_MS = 45_000;
 // Time H waits after a gesture before its next observation (PR #26): the scene holds each click 620 to 922 ms (measured
 // on 2026-11-17), and at 0,5 s the agent clicked « Factures » twice on the course of 15 h 11.
 const SETTLE_S = 1.2;
 const releverMs = []; // duration of each relever, from the tool call to the answer given to the agent
+const answered = new Map(); // per relevé, when relever answered the agent
+let answeredAt = null; // when the last relever answered the agent
 
 const started = new Date();
 const errors = [];
@@ -194,7 +179,6 @@ const queued = new Set(); // ids of the findings given to the mascot
 const revealed = new Set(); // ids of the findings the mascot has shown
 const marks = new Map(); // per finding id, what is drawn on the page: { address, rects, genre, avant }
 const frames = new Map(); // per visual finding id, the rectangle that holds its zone and the text at its centre
-const presentations = []; // per screen, how long the mascot took and what it said
 const decisions = [];
 let capturing = false;
 
@@ -236,7 +220,9 @@ function onPress(press) {
 let chosen = null;
 
 const mascot = (command, ...args) => layer(page, command, ...args);
+// The mascot only speaks at the end of the course.
 async function speak(text, genre, cible, label) {
+  if (SANS_PRESENTATION) return;
   await mascot("bulle", text, genre, cible);
   await witness(label);
   await sleep(reading(text));
@@ -261,49 +247,37 @@ async function reveal(constat) {
   await mascot("compteur", bons, problemes, doutes);
 }
 
-// One finding, one thing at a time: what is checked, the line drawn around what was found, then the result.
-// `quiet`: the cap of this screen is passed, the finding is drawn and counted without a word (the end comes back to it).
-async function play(constat, quiet) {
-  const mark = marks.get(constat.id);
-  const { annonce, resultat } = formuler(constat);
-  const cible = mark?.rects[0] ?? constat.zone ?? null;
-  const [etat, genre] = KIND[constat.statut];
-  say(`Mascotte, ${constat.id} : ${quiet ? `montré sans phrase (plafond de ${CAP_MS / 1000} s)` : [annonce, resultat].filter(Boolean).join(" ")}`);
-  await mascot("etat", "verification");
-  if (annonce && !quiet) await speak(annonce, "", cible, "annonce");
-  if (mark) {
-    const drawing = mascot("surligner", mark.address, mark.rects, mark.genre, constat.id, mark.avant);
-    await sleep(STROKE_MS * 0.3);
-    await witness(`trait-a-moitie-${mark.genre}`);
-    await drawing;
-    await witness(`trait-${mark.genre}${mark.avant ? "-deplacement" : ""}`);
-  }
-  await mascot("etat", etat);
-  await reveal(constat);
-  if (!quiet) await speak(resultat, genre, cible, `resultat-${genre || "sans-conclusion"}`);
-}
-
-// The mascot presents the findings of a screen one after the other. Resolves when it has finished, or at the cap: a
-// finding it has started is played to its end, the next ones are only drawn and counted.
+// What a screen shows once its relevé is taken, while the agent goes on: the mascot reads, the line around each new
+// finding is drawn and counted, then the mascot takes the look of the worst one (a proven defect, else a doubt, else
+// nothing it could conclude, else all good) with a jump, and rests. Not a word. Queued, never awaited by relever: a
+// screen the agent has already left keeps its lines for its address (surligner).
 let queue = Promise.resolve();
-async function present(step, units) {
-  let capped = false;
-  const measure = { releve: step.key, duree_s: null, dits: 0, sans_phrase: 0 };
-  presentations.push(measure);
+function show(step, units) {
   queue = queue.then(async () => {
-    const from = Date.now();
-    if (!units.length) {
-      await mascot("etat", "verification");
-      await sleep(1200);
+    await mascot("etat", "verification");
+    if (!units.some((constat) => marks.has(constat.id))) await hold(800);
+    for (const constat of units) {
+      const mark = marks.get(constat.id);
+      if (mark) {
+        const drawing = mascot("surligner", mark.address, mark.rects, mark.genre, constat.id, mark.avant);
+        await sleep(STROKE_MS * 0.3);
+        if (WITNESSES) say(`Témoin trait-pendant-agent : ${constat.id}, relevé ${step.key} rendu à l'agent depuis ${Date.now() - answered.get(step.key)} ms.`);
+        await witness("trait-pendant-agent");
+        await drawing;
+        await witness(`trait-${mark.genre}${mark.avant ? "-deplacement" : ""}`);
+      }
+      await reveal(constat);
     }
-    for (const unit of units) {
-      measure[capped ? "sans_phrase" : "dits"]++;
-      await play(unit, capped);
+    const worst = ["VERIFIED_FAIL", "SUSPECTED", "INCONCLUSIVE"].find((statut) => units.some((constat) => constat.statut === statut)) ?? "PASS";
+    const [etat] = KIND[worst];
+    await mascot("etat", etat, etat !== "repos");
+    if (etat === "defaut") {
+      await sleep(150);
+      await witness("mascotte-defaut-sans-bulle");
     }
+    await hold(1200);
     await mascot("etat", "repos");
-    measure.duree_s = (Date.now() - from) / 1000;
   }).catch((error) => errors.push(`Mascotte : ${error.message}`));
-  await Promise.race([queue, sleep(CAP_MS).then(() => (capped = true))]);
 }
 
 // What is found on the screen just taken (the page is still this screen): the findings, consolidated with those of
@@ -350,9 +324,9 @@ async function findings(step, releve) {
 }
 
 // The relevé hook of the runner, for the tool relever(ecran, vue): our capture (a ReleveCapture of agent/src/coureur.ts)
-// and the sentence the agent reads. It is only given once the mascot has presented this screen (or at the cap):
-// meanwhile the page does not move and the audience reads. On another page nothing is checked nor presented: the
-// capture carries the real address and the runner refuses the relevé itself.
+// and the sentence the agent reads, given as soon as the capture is taken and checked. What the screen shows (show) is
+// drawn afterwards, while the agent goes on. On another page nothing is checked nor shown: the capture carries the real
+// address and the runner refuses the relevé itself.
 async function relever(ecran, vue) {
   const step = course.find((candidate) => candidate.ecran === ecran && candidate.vue === vue);
   if (!step) throw new Error(`relevé hors du parcours de la scène : ${ecran}--${vue}`);
@@ -375,7 +349,8 @@ async function relever(ecran, vue) {
   const releve = { ecran, vue, version: VERSION, png: result.png, texte: shot.texte_page, url: shot.url_page };
   taken.set(step.key, releve);
   if (WRITE_REFERENCES) say(`Référence écrite : ${ecrireReference(VAULT, LOGICIEL, ecran, vue, VERSION, shot.png)}`);
-  await present(step, await findings(step, releve));
+  show(step, await findings(step, releve));
+  answered.set(step.key, Date.now());
   return { ...result, phrase: `Relevé pris. ${next()}` };
 }
 
@@ -454,7 +429,9 @@ async function scriptedCourse(gesture, onTool) {
   await gesture("go_to");
   await navigate(page, START);
   for (const test of tests) {
-    const start = versioned(test, new URL(test.url_depart, BASE).searchParams.get("suite"));
+    // The page the test starts from: after the entrance of Facturo (?suite=), else the departure address itself.
+    const departure = new URL(test.url_depart, BASE);
+    const start = versioned(test, departure.searchParams.get("suite") ?? `${departure.pathname}${departure.search}`);
     if ((await evaluate(page, "location.pathname + location.search")) !== start) {
       await click(`le lien vers ${start}`, `(seen) => seen.find((element) => element.getAttribute("href") === ${JSON.stringify(start)})`);
     }
@@ -485,7 +462,7 @@ try {
     vault: VAULT, base, baseUrl: BASE, identifiant: () => ID, signaler: say, hookTimeoutMs: HOOK_TIMEOUT_MS, signal: arret.signal,
     relever: async (ecran, vue) => {
       const from = Date.now();
-      try { return await relever(ecran, vue); } finally { releverMs.push({ releve: `${ecran}--${vue}`, ms: Date.now() - from }); }
+      try { return await relever(ecran, vue); } finally { releverMs.push({ releve: `${ecran}--${vue}`, ms: (answeredAt = Date.now()) - from }); }
     },
     ...(SANS_AGENT ? { session: scriptedSession } : { h: { navigateur, settle_s: SETTLE_S, key: process.env.HAI_API_KEY, signaler: say } }),
   });
@@ -501,44 +478,59 @@ try {
 }
 errors.push(...refus.map((line) => `Relevé ${line}`));
 
-// ---------- End of the course: the summary, then each defect and each doubt in turn, and a human decides ----------
+// ---------- End of the course: the mascot speaks at last. Each defect and each doubt in turn, explained, and a human
+// decides ----------
 await queue;
 const complete = course.every((step) => taken.has(step.key));
 const final = totals();
 const kept = consolidated.filter((constat) => revealed.has(constat.id) && open(constat));
 const review = flag("sans-fin") ? [] : [...kept.filter((constat) => constat.statut === "VERIFIED_FAIL"), ...kept.filter((constat) => constat.statut === "SUSPECTED")];
-const summary = [
-  complete ? "J'ai fini." : "Je n'ai pas pu finir le parcours.",
+const sentences = (parts) => parts.filter(Boolean).map((part) => (part.endsWith(".") ? part : `${part}.`)).join(" ");
+const outcome = [
   [final.problemes && count(final.problemes, "problème", "problèmes"), final.doutes && count(final.doutes, "doute", "doutes")].filter(Boolean).join(" et ") || (complete && !final.sans_conclusion ? "Tout est bon" : ""),
   final.sans_conclusion ? `${count(final.sans_conclusion, "point", "points")} que je n'ai pas pu vérifier` : "",
-  review.length > 1 ? "On les regarde ensemble." : review.length ? "On le regarde ensemble." : "",
-].filter(Boolean).map((part) => (part.endsWith(".") ? part : `${part}.`)).join(" ");
-say(summary);
+];
+const summary = sentences([complete ? "J'ai fini." : "Je n'ai pas pu finir le parcours.", ...outcome, review.length > 1 ? "On les regarde ensemble." : review.length ? "On le regarde ensemble." : ""]);
+// The first thing the mascot says: what it needs from the human, or, with nothing to decide, how the course went.
+const rest = sentences([!complete && "Je n'ai pas pu finir le parcours.", ...outcome]);
+const recap = review.length ? "Petit récapitulatif : j'ai besoin de toi pour voir certaines choses." : `Petit récapitulatif : ${rest.charAt(0).toLowerCase()}${rest.slice(1)}`;
+say(`Bilan : ${summary}`);
+let finMs = null; // from the last relevé to the end screen (to the summary when there is nothing to decide)
 // The test a finding belongs to: the one that carries its rule, failing that the first one that asks for its screen.
 const testOf = (constat) => (tests.find((test) => constat.regle && test.regles.some((rule) => same(rule, constat.regle))) ?? tests[course.find((step) => step.ecran === constat.ecran && step.vue === constat.vue).part - 1]).id;
 if (page) {
   try {
-    await mascot("bulle", summary, "", null);
-    await sleep(350);
-    await witness("bilan");
+    say(SANS_PRESENTATION ? `Récapitulatif non dit (--sans-presentation) : ${recap}` : `Récapitulatif : ${recap}`);
+    if (!SANS_PRESENTATION) await mascot("bulle", recap, "", null);
+    await hold(350);
+    await witness("recapitulatif");
+    if (!review.length && answeredAt) finMs = Date.now() - answeredAt;
     if (review.length) {
-      await sleep(reading(summary));
+      await hold(reading(recap));
       await mascot("bulle", null);
       await mascot("revue", true);
       const choices = [];
       for (const [index, constat] of review.entries()) {
         await navigate(page, taken.get(`${constat.ecran}--${constat.vue}`).url);
-        const { question, resultat } = formuler(constat);
+        const { annonce, question, resultat } = formuler(constat);
         const text = question ?? resultat;
+        const [etat, genre] = KIND[constat.statut];
+        // In the light, what was checked and what was found, said here since nothing was said during the course; a
+        // result the question repeats word for word is not said twice.
+        const cible = await mascot("lumiere", { id: constat.id, etat });
+        const told = [annonce, !text.startsWith(resultat) && resultat].filter(Boolean);
+        if (told.length && !SANS_PRESENTATION) say(`Explication ${index + 1} sur ${review.length} : ${told.join(" ")}`);
+        if (annonce) await speak(annonce, "", cible, `annonce-${index + 1}`);
+        if (!text.startsWith(resultat)) await speak(resultat, genre, cible, `resultat-${index + 1}`);
         const answer = new Promise((resolve) => (chosen = resolve));
-        await mascot("question", { id: constat.id, texte: text, rang: `${index + 1} sur ${review.length}`, etat: KIND[constat.statut][0] });
+        await mascot("question", { id: constat.id, texte: text, rang: `${index + 1} sur ${review.length}`, etat });
         await witness(`question-${index + 1}`);
         // --choix answers by itself, after the time it takes to read the question.
-        if (CHOICES[index]) sleep(reading(text)).then(() => mascot("choisir", CHOICES[index])).catch(() => {});
+        if (CHOICES[index]) sleep(SANS_PRESENTATION ? 0 : reading(text)).then(() => mascot("choisir", CHOICES[index])).catch(() => {});
         const { choix } = await answer;
         say(`Question ${index + 1} sur ${review.length} : ${text} Réponse : ${choix}${CHOICES[index] ? " (--choix)" : ""}.`);
-        choices.push({ constat, choix });
-        await sleep(900);
+        choices.push({ constat, choix, question });
+        await hold(900);
         await witness(`reponse-${index + 1}`);
         await mascot("bulle", null);
       }
@@ -547,16 +539,62 @@ if (page) {
       await mascot("etat", "repos");
       await speak("Je range tout ça.", "", null, "rangement");
       const le = new Date().toISOString();
-      for (const { constat, choix } of choices) {
-        const decision = versDecision(constat, choix, { passage_id: ID, test_id: testOf(constat), logiciel: LOGICIEL, version: VERSION, par: PAR, le });
-        decisions.push({ fichier: ecrireDecision(VAULT, decision), decision });
+      for (const { constat, choix, question } of choices) {
+        let decision = versDecision(constat, choix, { passage_id: ID, test_id: testOf(constat), logiciel: LOGICIEL, version: VERSION, par: PAR, le });
+        let file;
+        if (choix === "voulu") {
+          // A correction that cannot be proposed, applied or refused leaves the decision as versDecision made it.
+          const plain = decision;
+          let failure = null;
+          let proposal = null;
+          try {
+            proposal = await proposerCorrection(VAULT, decision, { indices: [question] });
+            decision = proposal.decision;
+          } catch (error) {
+            failure = error;
+          }
+          if (decision.correction_de_note) {
+            await navigate(page, taken.get(`${constat.ecran}--${constat.vue}`).url);
+            const answer = new Promise((resolve) => (chosen = resolve));
+            const correction = decision.correction_de_note;
+            await mascot("correction", { id: decision.id, file: correction.fichier, before: correction.avant, after: correction.apres });
+            say(`Correction proposée pour ${correction.fichier} : ${correction.avant} → ${correction.apres}`);
+            await witness("correction-proposee");
+            if (CORRECTION_CHOICE) sleep(SANS_PRESENTATION ? 0 : reading(correction.avant + correction.apres)).then(() => mascot("chooseCorrection", CORRECTION_CHOICE, decision.id)).catch(() => {});
+            const { choix: correctionChoice } = await answer;
+            try {
+              decision = correctionChoice === "accepter" ? appliquerCorrection(VAULT, decision) : refuserCorrection(VAULT, decision);
+              // The memory operation already wrote this final decision; do not overwrite it with an earlier version.
+              file = `${decision.logiciel}/decisions/${decision.id}.md`;
+            } catch (error) {
+              failure = error;
+              decision = plain;
+            }
+            if (!failure) {
+              await mascot("correctionResult", decision.correction_de_note.statut);
+              say(`Correction ${decision.correction_de_note.statut} : ${correction.fichier}.`);
+              await hold(900);
+              await witness(`correction-${decision.correction_de_note.statut}`);
+            }
+            await mascot("bulle", null);
+          } else if (proposal) {
+            say(proposal.raison);
+            await speak(proposal.raison, "", null, "correction-absente");
+          }
+          if (failure) {
+            say(`Correction de note impossible, décision gardée sans correction : ${failure.message}`);
+            await speak("Je n'ai pas pu corriger la note : je garde ta décision sans correction.", "", null, "correction-impossible");
+          }
+        }
+        decisions.push({ fichier: file ?? ecrireDecision(VAULT, decision), decision });
       }
       const written = lireDecisions(VAULT, LOGICIEL);
       for (const { fichier, decision } of decisions) if (!written.some((candidate) => same(candidate, decision))) errors.push(`Décision écrite mais pas relue à l'identique : ${fichier}`);
       const made = (choix) => decisions.filter(({ decision }) => decision.decision === choix).length;
       const tally = [made("bug") && count(made("bug"), "bug à corriger", "bugs à corriger"), made("voulu") && count(made("voulu"), "changement validé", "changements validés")].filter(Boolean).join(", ");
       await mascot("fin", { titre: "C'est rangé.", compte: tally, legende: "Écrit dans la documentation :", fichiers: decisions.map(({ fichier }) => fichier) });
-      await sleep(900);
+      if (answeredAt) finMs = Date.now() - answeredAt;
+      await hold(900);
       await witness("fin");
       say(`${tally}. ${count(decisions.length, "décision écrite", "décisions écrites")} dans ${VAULT} : ${decisions.map(({ fichier }) => fichier).join(", ")}.`);
     }
@@ -613,12 +651,12 @@ writeFileSync(join(OUT, "passage.json"), `${JSON.stringify({
   clics,
   clic_retenu: !DIRECT,
   retard_par_clic_ms: delays.length ? { min: Math.min(...delays), max: Math.max(...delays), moyenne: Math.round(delays.reduce((sum, ms) => sum + ms, 0) / delays.length) } : null,
-  plafond_s: CAP_MS / 1000,
+  sans_presentation: SANS_PRESENTATION,
   relever_ms: releverMs,
   relever_max_ms: releverMs.length ? Math.max(...releverMs.map(({ ms }) => ms)) : null,
   delai_crochet_ms: HOOK_TIMEOUT_MS,
   settle_s: SANS_AGENT ? null : SETTLE_S,
-  presentations,
+  fin_s: finMs === null ? null : finMs / 1000,
   film: FILM ? { dossier: FILM, images, duree_s: filmedMs / 1000 } : null,
   debut: started.toISOString(),
   fin: new Date().toISOString(),
@@ -634,7 +672,7 @@ writeFileSync(join(OUT, "passage.json"), `${JSON.stringify({
 }, null, 2)}\n`);
 say(`Passage écrit : ${join(OUT, "passage.json")} (${taken.size} relevé(s) sur ${course.length}, ${clics.length} clic(s) vus, durée ${dureeS === null ? "à mesurer" : `${dureeS.toFixed(1).replace(".", ",")} s`}).`);
 if (stored !== "supabase") say(`Base en mémoire : ${count(stored.passages, "passage", "passages")}, ${count(stored.captures, "capture", "captures")}, ${count(stored.evenements, "événement", "événements")}, ${count(stored.decisions, "décision", "décisions")}, état « ${stored.etat} ».`);
-for (const { releve, duree_s, dits, sans_phrase } of presentations) say(`Présentation de ${releve} : ${duree_s === null ? "interrompue" : `${duree_s.toFixed(1).replace(".", ",")} s`}, ${count(dits, "constat dit", "constats dits")}${sans_phrase ? `, ${sans_phrase} montré(s) sans phrase (plafond de ${CAP_MS / 1000} s)` : ""}.`);
+if (finMs !== null) say(`Fin du parcours : ${(finMs / 1000).toFixed(1).replace(".", ",")} s, du dernier relevé jusqu'${review.length ? "à l'écran de fin" : "au récapitulatif"}.`);
 if (releverMs.length) say(`Relevé le plus long : ${Math.max(...releverMs.map(({ ms }) => ms))} ms (délai du crochet : ${HOOK_TIMEOUT_MS} ms).`);
 if (delays.length) say(`Retard ajouté par clic retenu : de ${Math.min(...delays)} à ${Math.max(...delays)} ms (${delays.length} clics).`);
 if (FILM) say(`Film : ${images} images sur ${(filmedMs / 1000).toFixed(1).replace(".", ",")} s, dans ${FILM}.`);

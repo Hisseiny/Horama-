@@ -124,3 +124,18 @@ test("une référence illisible et un constat sans preuve ne produisent jamais P
     statut: "PASS", regle: accepted.regles[0], valeurs: {}, description: "Sans calcul", textes_a_surligner: [] }] });
   assert.equal(output.statut, "INCONCLUSIVE");
 });
+
+test("un écart visuel ne compte que pour le premier test du passage qui demande l’écran", () => {
+  ecrireReference(vault, "facturo", accepted.releves[1].ecran, "defaut", "12", new Uint8Array([9]));
+  const verify: typeof verifierReleve = (entry) => [...verifierReleve({ ...entry, reference: undefined }), ...(entry.reference ? [{ id: "v", ecran: entry.releve.ecran,
+    vue: "defaut", genre: "visuel" as const, statut: "SUSPECTED" as const, valeurs: {}, description: "Zone changée", textes_a_surligner: [], zone: { x: 1, y: 1, largeur: 2, hauteur: 2 } }] : [])];
+  const other = { ...accepted, id: "autre-test" };
+  const owner = verifierTest({ ...options(), passageTests: [accepted, other], verify });
+  assert.equal(owner.statut, "SUSPECTED");
+  assert.equal(owner.ecarts_visuels.length, 1);
+  const follower = verifierTest({ ...options(), passageTests: [other, accepted], verify });
+  assert.equal(follower.statut, "PASS");
+  assert.deepEqual(follower.ecarts_visuels, []);
+  assert.ok(follower.calcul);
+  assert.equal(follower.version_reference_capture, "12");
+});

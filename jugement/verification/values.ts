@@ -9,6 +9,7 @@ export interface Table {
 export interface ScreenValues {
   tables: Table[];
   labelled: Record<string, string>; // « CA du mois » then « 1 240,00 € », or « Client : Studio Lune »
+  texte: string; // the page text the values were read from (innerText)
   today?: string; // from « Aujourd'hui : JJ/MM/AAAA »
   filter?: string; // from « Filtrer : Toutes »
   count?: { value: number; text: string }; // from « 4 factures »
@@ -23,7 +24,7 @@ const cells = (row: string) => row.split("\t").map((cell) => cell.trim());
 
 export function releverValeurs(texte: string): ScreenValues {
   const lines = texte.split("\n");
-  const values: ScreenValues = { tables: [], labelled: {} };
+  const values: ScreenValues = { tables: [], labelled: {}, texte };
   for (let i = 0; i < lines.length; i++) {
     if (lines[i].includes("\t")) {
       const table: Table = { headers: cells(lines[i]), rows: [] };

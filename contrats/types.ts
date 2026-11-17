@@ -15,7 +15,8 @@ export type Regle =
   | { type: "egalite"; a: { ecran: IdEcran; champ: string }; b: { ecran: IdEcran; champ: string } }
   | { type: "filtre"; ecran: IdEcran; filtre: string; colonne: string; condition: "< aujourd_hui" | "<= aujourd_hui" | "= valeur"; valeur?: string }
   | { type: "format"; ecran: IdEcran; colonne: string; motif: "montant-fr" | "date-fr" }
-  | { type: "presence"; ecran: IdEcran; colonne: string };
+  | { type: "presence"; ecran: IdEcran; colonne: string }
+  | { type: "etat"; ecran: IdEcran; vue: Vue; texte_present?: string[]; texte_absent?: string[] };
 
 // ---------- C1 Proposed test (Nathan: generation) ----------
 
