@@ -5,6 +5,8 @@
 // From the cursor layer of the T7 probe (itself from Nami, extension/agent-overlay.js): the closed Shadow DOM, the
 // trusted presses followed and reported through the CDP binding horamaPress, the layer hidden for a capture.
 // Everything drawn lives in that Shadow DOM, and the whole state lives in sessionStorage: it survives a change of page.
+// The script runs in the isolated world « horama » of the page: the page's own code reaches neither window.__horama
+// nor the bindings horamaPress and horamaChoix, which only exist in that world.
 // This file is one function expression: installLayer calls it with the id of the course (a new id forgets what an
 // earlier course left), the title of the banner ("" in the probe: the cursor alone, shown at the first click), the
 // options ({ direct }: the click is not held) and `annotate` of rough-notation.
@@ -119,6 +121,10 @@
     .bubble.defaut { --bg: ${COLORS.defaut}; background: ${COLORS.defaut}; color: ${NIGHT}; }
     .bubble.doute { --bg: ${WING}; background: ${WING}; color: ${NIGHT}; }
     .bubble.ask { max-width: 640px; padding: 24px 28px 28px; font-size: 32px; line-height: 1.2; }
+    .bubble.correction { font-size: 24px; }
+    .correction-file { margin-bottom: 18px; overflow-wrap: anywhere; font-size: 17px; }
+    .correction-before { display: block; opacity: 0.7; text-decoration-thickness: 2px; }
+    .correction-after { margin: 18px 0 0; color: ${COLORS.conforme}; }
     .rank { margin-bottom: 10px; color: ${WING}; font: 800 17px/1 ${FONT}; letter-spacing: 0.1em; text-transform: uppercase; }
     .choices { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 24px; }
     .choice { flex: 1; padding: 17px 20px; border: 0; color: ${NIGHT}; font: 800 22px/1 ${FONT}; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; pointer-events: auto !important; cursor: pointer;
@@ -342,6 +348,12 @@
   const loupeButton = element("button", "choice loupe", "Voir à la loupe");
   loupeButton.addEventListener("click", (event) => event.isTrusted && window.__horama.loupe(!loupeBox.classList.contains("on")));
   choices.append(loupeButton);
+  const correctionChoices = element("div", "choices");
+  for (const [choice, label, color] of [["accepter", "Accepter", "voulu"], ["refuser", "Refuser", "bug"]]) {
+    const button = element("button", `choice ${color} ${choice}`, label);
+    button.addEventListener("click", (event) => event.isTrusted && window.__horama.chooseCorrection(choice));
+    correctionChoices.append(button);
+  }
 
   // ---------- The loupe: a copy of the page, magnified, in a round lens beside the zone (no blur, no screenshot) ----------
   function showLoupe(on) {
@@ -389,8 +401,14 @@
       if (mine !== turn) return;
     }
     if (!bulle) return void bubble.classList.remove("on");
-    bubble.className = `bubble ${bulle.genre}${bulle.question ? " ask" : ""}`;
-    if (bulle.question) {
+    bubble.className = `bubble ${bulle.genre}${bulle.question || bulle.correction ? " ask" : ""}${bulle.correction ? " correction" : ""}`;
+    if (bulle.correction) {
+      const correction = bulle.correction;
+      correctionChoices.className = `choices${correction.choice ? " made" : ""}`;
+      for (const button of correctionChoices.children) button.classList.toggle("chosen", button.classList.contains(correction.choice));
+      bubble.replaceChildren(element("div", "rank", "Corriger la note"), element("div", "correction-file", correction.file), element("del", "correction-before", correction.before), element("p", "correction-after", correction.after), correctionChoices);
+      if (correction.status) bubble.append(element("div", "stamp conforme", correction.status === "acceptee" ? "Correction acceptée" : "Correction refusée"));
+    } else if (bulle.question) {
       choices.className = "choices";
       for (const button of choices.children) button.classList.remove("chosen");
       bubble.replaceChildren(element("div", "rank", bulle.question.rang), element("div", "", typo(bulle.question.texte)), choices);
@@ -617,6 +635,30 @@
       save();
       showLoupe(false);
       await wait(450);
+      return renderBubble(true);
+    },
+    async correction({ id, file, before, after }) {
+      this.revue(true);
+      showLoupe(false);
+      setEtat("interrogation");
+      state.bulle = { correction: { id, file, before, after }, genre: "", cible: null, page: here() };
+      save();
+      return renderBubble(true);
+    },
+    chooseCorrection(choice, id) {
+      const correction = state.bulle?.correction;
+      if (!correction || correction.choice || (id && correction.id !== id) || !["accepter", "refuser"].includes(choice)) return;
+      correction.choice = choice;
+      correctionChoices.classList.add("made");
+      correctionChoices.querySelector(`.${choice}`).classList.add("chosen");
+      save();
+      window.horamaChoix?.(JSON.stringify({ id: correction.id, choix: choice }));
+    },
+    async correctionResult(status) {
+      if (!state.bulle?.correction) return;
+      state.bulle.correction.status = status;
+      setEtat(status === "acceptee" ? "conforme" : "repos");
+      save();
       return renderBubble(true);
     },
     // The third button: the zone of the question, magnified in a loupe beside it. loupe(false) closes it.

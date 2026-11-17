@@ -46,7 +46,7 @@ Ce qu'il fait :
 3. À chaque `relever(ecran, vue)` : l'adresse de la page est vérifiée, la couche est masquée, la capture et le texte sont pris et rangés dans `releves/`, puis `verifierReleve` est appelé, `texte_zone` est rempli pour chaque constat visuel, et `consoliderConstats` repasse sur tous les constats du parcours.
 4. La mascotte présente les constats nouveaux de cet écran, l'un après l'autre : l'`annonce` de `formuler(constat)`, le trait qui se dessine autour de ce qui est trouvé, puis le `resultat`. **La réponse à l'agent ne part qu'à la fin de cette présentation**, ou au plafond (`--plafond`, 12 s) : un constat commencé avant le plafond est dit jusqu'au bout, les suivants sont dessinés et comptés sans phrase (la fin y revient). Ordre : ce qu'une décision a déjà tranché, puis les règles, puis les écarts d'image.
 5. À la fin du parcours : le bilan en une phrase, puis chaque défaut prouvé et chaque doute, un à la fois. Le script ramène la page à l'adresse du relevé, la page s'assombrit sauf la zone, la `question` du constat s'affiche avec « C'est un bug » et « C'est voulu », qui se cliquent à la vraie souris.
-6. « Je range tout ça. » : chaque choix devient une `Decision` (`versDecision`), écrite par `ecrireDecision` puis relue par `lireDecisions`. L'écran de fin liste les fichiers écrits et le compte. Chaque décision est ensuite écrite en base, puis l'état du passage passe à `verifie`. `passage.json` est écrit, la fenêtre reste ouverte.
+6. « Je range tout ça. » : chaque choix devient une `Decision` (`versDecision`). Pour chaque « voulu », `proposerCorrection(vault, decision, { indices: [question] })` reçoit la question de `formuler` de ce constat. Si une correction est proposée, une bulle montre la phrase `avant` barrée, la phrase `apres` et deux boutons cliquables à la souris, « Accepter » et « Refuser ». Accepter appelle `appliquerCorrection` : la note est corrigée et la décision écrite avec `correction_de_note.statut: "acceptee"`. Refuser appelle `refuserCorrection` : la note reste inchangée, la décision est écrite avec `statut: "refusee"`. Ces fonctions écrivent déjà la décision : la scène ne la réécrit pas. Sans proposition (y compris un échec du modèle), la mascotte montre la `raison`, puis la décision sans correction est écrite par `ecrireDecision`, comme un « bug ». **Repli** : si `proposerCorrection`, `appliquerCorrection` ou `refuserCorrection` lève une erreur (par exemple la phrase `avant` n'apparaît plus exactement une fois dans la note), la décision part sans correction (celle de `versDecision`, écrite par `ecrireDecision` puis envoyée en base comme les autres), le terminal donne le message de l'erreur et la mascotte dit « Je n'ai pas pu corriger la note : je garde ta décision sans correction. » (témoin `correction-impossible`). Le parcours continue et la sortie n'est pas en erreur pour ça. Les décisions sont relues par `lireDecisions`. L'écran de fin liste les fichiers écrits et le compte. La même décision finale est ensuite envoyée en base par `decisions.mjs`, avec sa correction et son statut, puis l'état du passage passe à `verifie`. `passage.json` conserve cette même décision, la fenêtre reste ouverte.
 7. Au parcours suivant, les décisions du vault sont données à `verifierReleve` : un doute déjà tranché « voulu » est dit par la mascotte (« Déjà vu et validé. ») et n'est plus demandé.
 
 Options :
@@ -58,15 +58,18 @@ Options :
 | `--avec-base` | sans l'agent : le passage scripté s'écrit dans Supabase |
 | `--rythme <s>` | pause fixe entre deux gestes du script ; sans elle, entre 2 et 4 s au hasard |
 | `--plafond <s>` | temps maximal pendant lequel l'agent attend la mascotte à un écran (défaut 12) |
+| `--sans-presentation` | pour l'intégration continue : même parcours, même coureur, mêmes relevés, verdicts et décisions, sans les présentations de la mascotte ni les pauses de lecture. Chaque constat est tracé et compté sans phrase, aucune bulle (bilan, « Je range tout ça. »), `--choix` répond dès que la question est posée, pas d'attente de 350 ou 900 ms pour regarder. Restent : la pause entre deux gestes du script (`--rythme`), le clic retenu, le dessin des traits (les questions de la fin en ont besoin), l'écran de fin. `sans_presentation` dans `passage.json`. Mesure : `docs/tests/2026-11-17-rythme-ci.md` |
 | `--clic-direct` | le clic n'est pas retenu : la page réagit tout de suite, le curseur suit |
 | `--choix bug,voulu,…` | répond tout seul aux questions de la fin, dans l'ordre (essais, captures) ; une question sans réponse attend un vrai clic |
 | `--sans-fin` | s'arrête au bilan : ni questions, ni écriture |
 | `--par <nom>` | qui tranche, écrit dans chaque décision (défaut « Nathan ») |
 | `--vault <dossier>` | défaut `../../vault-horama`. **Les décisions s'y écrivent** : pour un essai, donner une copie |
 | `--verification <fichier>` | le module de vérification (défaut `../../jugement/verification/index.ts`) |
+| `--correction <fichier>` | module exportant `proposerCorrection`, défaut `../../jugement/correction/index.ts` ; chemin relatif au dossier courant, comme `--verification` |
+| `--correction-choix accepter\|refuser` | répond automatiquement à chaque proposition de correction, après un temps de lecture ; sans cette option, attend un vrai clic |
 | `--logiciel`, `--version 13`, `--reference 12`, `--tests a,b,c`, `--r <ids>` | quoi jouer (défaut : tous les tests, par ordre d'identifiant) |
 | `--ecrire-references` | range chaque capture par `ecrireReference` |
-| `--temoins <dossier>` | captures avec la couche visible, nommées par ce qu'elles montrent (`curseur-a-mi-trajet`, `trait-a-moitie-doute`, `question-1`, `fin`…) |
+| `--temoins <dossier>` | captures avec la couche visible, nommées par ce qu'elles montrent (`curseur-a-mi-trajet`, `trait-a-moitie-doute`, `question-1`, `correction-proposee`, `correction-acceptee`, `correction-refusee`, `correction-absente`, `correction-impossible`, `fin`…) |
 | `--film <dossier>` | une capture avec la couche toutes les 200 ms, du début à l'écran de fin (`<n>-<ms depuis le début>ms.jpg`) |
 | `--sortie <dossier>` | défaut `/Users/nathan/Code/projet/horama/.orchestrateur/passages/<identifiant>/` |
 | `--port 9333`, `--profil <dossier>`, `--fermer-chrome` | le Chrome dédié ; sans `--fermer-chrome` il reste ouvert à la fin |
@@ -75,7 +78,7 @@ Variables : `HAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `FAUX_SA
 
 Zone de page : `fitViewport` (`scene.mjs`) règle d'abord la fenêtre, puis impose 1280 × 900 à la densité 1 par `Emulation.setDeviceMetricsOverride`, sur tout écran (l'écran du Mac seul ne donne que 1280 × 862 à la fenêtre). Mesuré le 17/11 sur l'écran du Mac seul : la zone tient après un changement de page (même origine, autre origine, `about:blank`) tant que la connexion CDP qui l'a posée reste ouverte, et se perd quand elle se ferme (retour à 1280 × 862) ; chaque `connectTab` est donc suivi de `fitViewport`. Les captures restent à 0 pixel des références prises sur grand écran sans émulation. L'effet sur les clics de H est à mesurer (sur l'écran du Mac seul, la fenêtre montre moins que la zone émulée).
 
-`passage.json` : identifiant, version, référence, tests joués et écartés, relevés, `constats` (consolidés, avec `explique_par`, `nature`, `decision_id`), bilan, compteur, `decisions` (chaque décision écrite et son fichier), clics (avec `trajet_ms` et `retard_ms`), `retard_par_clic_ms`, `relever_ms` (durée de chaque `relever`, de l'appel de l'outil à la réponse rendue à l'agent), `relever_max_ms`, `delai_crochet_ms`, `presentations` (durée par écran, constats dits et montrés sans phrase), film. Depuis le `RapportPassage` du coureur : `duree_s` et `cout_usd` (`rapport.passage`), `etapes`, `session_h` et `replay_url` (répétés dans chaque entrée de test), `etat` (`joue` ou `echec`). `relances` : sessions demandées par le coureur moins une. `base` : les comptes de la base en mémoire (passages, captures, événements, décisions) et l'état du passage en base (`etat`, `verifie` quand tout s'est bien passé), ou `"supabase"`. Une valeur que le mode sans agent ne mesure pas vaut `null`.
+`passage.json` : identifiant, version, référence, tests joués et écartés, relevés, `constats` (consolidés, avec `explique_par`, `nature`, `decision_id`), bilan, compteur, `decisions` (chaque décision écrite et son fichier), clics (avec `trajet_ms` et `retard_ms`), `retard_par_clic_ms`, `sans_presentation` (vrai avec `--sans-presentation`), `relever_ms` (durée de chaque `relever`, de l'appel de l'outil à la réponse rendue à l'agent), `relever_max_ms`, `delai_crochet_ms`, `presentations` (durée par écran, constats dits et montrés sans phrase), film. Depuis le `RapportPassage` du coureur : `duree_s` et `cout_usd` (`rapport.passage`), `etapes`, `session_h` et `replay_url` (répétés dans chaque entrée de test), `etat` (`joue` ou `echec`). `relances` : sessions demandées par le coureur moins une. `base` : les comptes de la base en mémoire (passages, captures, événements, décisions) et l'état du passage en base (`etat`, `verifie` quand tout s'est bien passé), ou `"supabase"`. Une valeur que le mode sans agent ne mesure pas vaut `null`.
 
 ### Le module de vérification
 
@@ -103,9 +106,32 @@ Ce que la scène fait de chaque constat consolidé :
 
 `test_id` d'une décision : le test qui porte la règle du constat ; pour un écart d'image, le premier test qui demande cet écran.
 
+### Essayer la correction sans agent H
+
+Le module de correction doit exporter `proposerCorrection(vault, decision, { indices })`, avec le même résultat que `jugement/correction/index.ts` : `{ decision, raison, modele, duree_ms, essais }`. `indices` contient la question posée à l'humain (notamment la nouvelle position d'un élément). Sans proposition, `decision` revient sans `correction_de_note` et `raison` est affichée sans attendre un clic. Un module absent ou sans cet export arrête le lancement avec le code 2.
+
+Dans `essais/` (ignoré par Git), préparer un faux module `faux-correction.ts` qui retourne la décision reçue enrichie de `correction_de_note: { fichier, avant, apres, statut: "proposee" }`. `fichier` est relatif au logiciel dans le vault. Prendre une phrase `avant` du corps de la note de l'écran, présente exactement une fois : `appliquerCorrection` refuse un remplacement absent ou ambigu. Le faux module permet d'essayer les boutons sans modèle distant, sans jeton et sans nouvelle dépendance.
+
+Depuis `automatisation/scene/`, après installation des dépendances et démarrage du faux SaaS, sur une copie uniquement :
+
+```sh
+mkdir -p essais
+cp -R ../../vault-horama essais/vault-copie
+FAUX_SAAS_URL=http://localhost:3100 node parcours.mjs \
+  --sans-agent --sans-base --rythme 1 --choix bug,bug,voulu \
+  --vault essais/vault-copie --correction essais/faux-correction.ts \
+  --correction-choix accepter --temoins essais/temoins-a --fermer-chrome
+```
+
+Adapter `CHROME_BIN`, `--profil` et `--sortie` à la machine. Si les références du vault ont été prises dans un autre environnement graphique, les renouveler **dans la copie seulement**, par un premier parcours `--sans-agent --sans-base --version 12 --reference 12 --ecrire-references --sans-fin`. Dupliquer ensuite cette copie vierge de décisions pour chaque essai, afin que les « voulu » antérieurs ne neutralisent pas les questions.
+
+Vérifier par `diff` que seule la phrase attendue de la note a changé et que la décision porte `statut: "acceptee"`. Repartir d'une copie neuve avec `--correction-choix refuser` : `diff` vide et `statut: "refusee"`. Enfin, sans `--correction` et sans jeton du modèle, vérifier la raison d'absence de proposition et la fin normale du parcours. Les témoins `correction-proposee` et `correction-acceptee` montrent la proposition avec ses boutons, puis le statut final ; `correction-refusee` et `correction-absente` couvrent les autres cas. L'écriture des décisions, de la note et du rapport reste dans la copie ; `--sans-base` conserve les écritures de base en mémoire.
+
 ## La couche dans la page (`couche-horama.js`)
 
 Posée par `Page.addScriptToEvaluateOnNewDocument` avec le code de `rough-notation` (aucun appel réseau depuis la page), dans un Shadow DOM fermé. Tout ce qu'elle dessine y vit, traits compris : `masquer()` cache tout d'un coup pour une capture. Tout son état (curseur, place de la mascotte, bulle, compteur, zones par adresse de page) vit dans `sessionStorage` : il survit à un changement de page, et les traits d'un écran déjà annoté reviennent sans se redessiner. Un nouveau passage repart de zéro.
+
+**Monde isolé.** La couche ne vit pas dans le monde JavaScript de la page testée mais dans un monde isolé nommé `horama`, comme le script de contenu d'une extension : `worldName` de `Page.addScriptToEvaluateOnNewDocument`, liaisons `horamaPress` et `horamaChoix` posées par `Runtime.addBinding` avec `executionContextName: "horama"`. Le DOM est partagé : la couche dessine dans la page et voit les vrais clics de l'agent. Mais le code du logiciel testé ne voit ni `window.__horama` ni les deux liaisons : il ne peut pas répondre « voulu » ou « accepter » à la place de l'humain. `installLayer` suit l'identifiant de ce monde dans le cadre principal (`Runtime.executionContextCreated`, `executionContextDestroyed`, `executionContextsCleared`) ; `layer()` et le masquage de `capture()` s'évaluent dans ce monde (`Runtime.evaluate` avec `contextId`). Ce qui lit la page testée (`evaluate`, `waitFor`, texte et adresse de `capture`, points de clic du script) reste dans le monde principal. Reste visible de la page : le DOM de l'hôte (son Shadow DOM est fermé) et l'entrée `horama` de `sessionStorage`, qu'elle peut lire ou réécrire (effet sur l'affichage seulement, aucun choix ne passe par là).
 
 ### Le curseur
 
@@ -120,11 +146,14 @@ Posée par `Page.addScriptToEvaluateOnNewDocument` avec le code de `rough-notati
 - Elle rejoint sa place sur un ressort (raideur 130, amortissement 19, sans rebond visible), respire en permanence, et ses pupilles regardent la zone dont elle parle, sinon le curseur ; droit devant quand elle nous parle sans rien montrer.
 - La bulle est accrochée à la mascotte, à sa droite ou à sa gauche. Une seule à la fois : la mascotte se déplace d'abord, la bulle apparaît ensuite. Sa couleur dit le résultat (vert bon, corail problème, jaune doute, sombre pour le reste). Une bulle ne suit pas l'agent sur un autre écran : si la page change sous elle, elle disparaît.
 
-Commandes, appelées par `layer(page, "<commande>", ...)` de `scene.mjs` (`window.__horama` dans la page ; une promesse est attendue) :
+Commandes, appelées par `layer(page, "<commande>", ...)` de `scene.mjs` (`window.__horama` dans le monde `horama` de la page ; une promesse est attendue) :
 
 | Commande | Effet |
 |---|---|
 | `etat(nom)` | `repos`, `verification`, `interrogation`, `defaut`, `conforme` |
+| `correction({ id, file, before, after })` | affiche la proposition dans une bulle, avec la phrase précédente barrée et les boutons Accepter et Refuser |
+| `chooseCorrection(choix)` | sélectionne `accepter` ou `refuser` (essais automatiques), une seule fois ; les clics de souris utilisent la même commande |
+| `correctionResult(statut)` | affiche le résultat `acceptee` ou `refusee`, une fois la décision écrite par la mémoire |
 | `bulle(texte, genre, cible)` | une bulle, `null` pour la retirer ; `genre` : `""`, `conforme`, `defaut`, `doute` ; `cible` : rectangle de la page dont elle parle ; rend la main quand la bulle est affichée |
 | `compteur(bons, problemes, doutes)` | chiffres du bandeau ; celui qui change grossit un instant |
 | `surligner(adresse, rects, genre, id, avant)` | trait dessiné en 800 ms autour de chaque rectangle, puis le numéro ; `avant` : ancien emplacement, en pointillé ; gardé pour l'adresse donnée, dessiné tout de suite si c'est la page courante |
