@@ -65,6 +65,7 @@ function inspectDocument() {
     }
   }
   const links = Array.from(document.querySelectorAll<HTMLAnchorElement>("a[href]")).filter(link => {
+    if (!URL.canParse(link.href, location.href)) return false;
     const url = new URL(link.href, location.href);
     return visible(link) && url.origin === location.origin && /^https?:$/.test(url.protocol) && !(url.pathname === location.pathname && url.search === location.search);
   }).map(link => { const url = new URL(link.href); url.hash = ""; return { url: url.href, ...proof(link) }; });
