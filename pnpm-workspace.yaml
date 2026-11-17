@@ -1,5 +1,3 @@
-includeWorkspaceRoot: true
-
 packages:
   - contrats
   - agent

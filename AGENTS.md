@@ -43,7 +43,7 @@ Avant de coder, lis :
 
 - Installer : `pnpm install`
 - Lancer en local : `pnpm dev` (mode factice `USE_MOCKS=1`, interface sur http://localhost:3000 et faux SaaS sur http://localhost:3100 ; ne lance pas l'agent H ; shell POSIX).
-- Tout vérifier avant une pull request : `pnpm -r check` (lint statique du pôle Ali, types et tests des paquets). Elle doit passer. `pnpm lint` vérifie les déclarations et paramètres inutilisés, le code inaccessible et les labels inutilisés avec TypeScript, sans dépendance supplémentaire.
+- Tout vérifier avant une pull request : `pnpm -r check` (lint statique du pôle Ali, types et tests des paquets). Elle doit passer. Le check d’`agent/` lance son lint une seule fois ; `pnpm lint` à la racine délègue à ce même lint, qui vérifie les déclarations et paramètres inutilisés, le code inaccessible et les labels inutilisés avec TypeScript, sans dépendance supplémentaire.
 
 ## Git
 
