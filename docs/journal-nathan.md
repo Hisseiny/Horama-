@@ -209,7 +209,7 @@ Orchestrateur : Claude Code (Opus 5.5). Mission : J0 à J4 (scène branchée sur
 - `pnpm -r --if-present run check` : code 0. faux-saas 7, memoire 28, interface 8, jugement 51, agent 49 tests, aucun échec.
 - Quota Devin (app.devin.ai, Chrome) : **75 % utilisés**, remise à zéro dans 5 jours, aucun solde à la demande. La page n'affiche que des points entiers et l'onglet « Usage history » est vide : la mesure de SWE-2 (avant et après J2) ne verra qu'un écart d'au moins 1 point.
 
-### 14 h 40, J1 lancé chez Devin (`claude-opus-5-5-high`)
+### 14 h 34, J1 lancé chez Devin (`claude-opus-5-5-high`)
 - Brief : `.orchestrateur/briefs/j1-coureur.md` (hors Git). Worktree `../horama-wt/j1-coureur`, branche `j1-coureur`.
 - Blocage d'environnement au premier essai scripté : seul l'écran du Mac est branché, la zone de page plafonne à 1280 × 862. **Décision de Nathan** : imposer la zone par le code, toujours, pour le même résultat sur tout écran. Ajouté à J1 : `fitViewport` applique `Emulation.setDeviceMetricsOverride` (1280 × 900, densité 1) après le réglage de la fenêtre.
 - L'ancien commentaire du code et la note du vault (`_tech/h-company-agents-api.md`) disent que l'émulation « fausserait les clics » : rien ne le mesure. Le parcours réel de J1 le dira (clics signalés par la couche avec le bon élément dessous).
