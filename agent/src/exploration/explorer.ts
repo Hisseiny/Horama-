@@ -178,7 +178,8 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
         hookSignal?.throwIfAborted();
         const actual = new URL(capture.url_page), expected = new URL(page.url);
         if (actual.origin !== expected.origin || actual.pathname.replace(/\/+$/, "") !== expected.pathname.replace(/\/+$/, "")) return capture;
-        if (actual.search !== expected.search) return capture;
+        if (![...expected.searchParams].every(([key, value]) => actual.searchParams.get(key) === value)
+          || actual.searchParams.get("filtre") !== expected.searchParams.get("filtre")) return capture;
         consigne.course.find(step => step.ecran === ecran)!.address = capture.url_page;
         acquired.set(ecran, capture);
         writeFileSync(join(sortie, `captures/${ecran}.png`), capture.png);

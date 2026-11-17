@@ -33,7 +33,7 @@ let root: string;
 beforeEach(() => { root = mkdtempSync(join(tmpdir(), "horama-explorer-")); });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-async function run({ png = original, skip = "", refuse = false, failure = false, earlyEnd = false, deps = {} }: { png?: Buffer; skip?: string; refuse?: boolean; failure?: boolean; earlyEnd?: boolean; deps?: Partial<ExplorerDependencies> } = {}) {
+async function run({ png = original, skip = "", refuse = false, failure = false, earlyEnd = false, query = "", deps = {} }: { png?: Buffer; skip?: string; refuse?: boolean; failure?: boolean; earlyEnd?: boolean; query?: string; deps?: Partial<ExplorerDependencies> } = {}) {
   let address = "https://example.org/";
   const base = new BaseMemoire();
   const session: Session = async input => {
@@ -53,6 +53,7 @@ async function run({ png = original, skip = "", refuse = false, failure = false,
         if (earlyEnd && step === input.consigne.course.at(-1)) continue;
         if (step.ecran === skip) continue;
         address = step.address + (new URL(step.address).pathname !== "/" ? "/" : "");
+        address += query;
         if (refuse) address = "https://example.org/wrong";
         await input.onStep({ etape: step.part, horodatage: new Date().toISOString(), action: "Ouvre une page", etat_session: "en_cours" });
         const response = await input.onTool("relever", { ecran: step.ecran, vue: "defaut" });
@@ -75,6 +76,15 @@ async function run({ png = original, skip = "", refuse = false, failure = false,
   });
   return { result, base };
 }
+
+test("paramètre de suivi ajouté : capture préparée et persistée normalement", async () => {
+  const { result, base } = await run({ query: "?utm_source=internal" });
+  assert.equal(result.etat, "fini");
+  assert.equal(result.totaux.pages_visitees, 2);
+  assert.equal(result.totaux.sans_conclusion, 0);
+  assert.equal(base.resultats.length, 2);
+  assert.ok(result.pages.every(page => page.etat === "visitee" && page.capture && page.holo?.etat === "fait"));
+});
 
 test("shape atomique, totaux, un C4 par page et première mémoire sans écraser une note", async () => {
   const product = join(root, "vault/example-org/produit"); mkdirSync(product, { recursive: true });
