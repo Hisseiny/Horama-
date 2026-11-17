@@ -20,17 +20,17 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | 1.1 | Trancher D1 à D4 (D5 tranchée le 16/11) | Ali, Inès, Noé, l'équipe | à faire |  |
 | 1.2 | Poser la structure du repo : dossiers, README, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.gitignore`, `.env.example`, cadrage et plan dans `docs/`, fiches de mission, tableau d'avancement | Nathan (fichiers prêts), Ali (valide) | à faire |  |
 | 1.3 | Protéger `main` (pull request et une relecture obligatoires), étiquettes A à F, tableau GitHub Projects, une issue par tâche de ce plan | Ali (administrateur du repo) | à faire |  |
-| 1.4 | Squelette du code : `package.json`, lint, vérification des types, tests, `npm run dev`, `npm run check`, un dossier par pôle | Ali | à faire |  |
+| 1.4 | Squelette du code : `package.json`, lint, vérification des types, tests, `npm run dev`, `npm run check`, un dossier par pôle | Ali | codé non testé | Commandes pnpm documentées ; lint statique TypeScript du pôle Ali sans nouvelle dépendance, dev interface et faux SaaS, types et tests des paquets vérifiés automatiquement. Validation par une autre personne à faire. [Preuve](tests/2026-11-17-1.4-outillage.md). |
 | 1.5 | Clés : H (Ali, Leslie, Nathan, plus la clé de démo), Hugging Face (Leslie, coupon de 50 €), projet Vercel (Ali), projet Supabase (Inès), crédits v0 (Axil) | Chacun pour les siennes | à faire |  |
 | 1.6 | Envoyer au collègue les prérequis du pilote (cadrage, section 17) : environnement de test, compte de test avec données fictives, accord écrit, connexion sans captcha, documentation et notes de version, chiffres | Noé | à faire |  |
-| 1.7 | Brouillon des contrats C1 à C8 avec un exemple factice chacun | Ali (gardien), avec Leslie et Inès | à faire |  |
-| 1.8 | Preuve 1 : l'agent H se connecte au SaaS (pilote si l'accès existe, sinon le faux SaaS ou un site de démonstration) et atteint 2 écrans | Ali, Nathan en renfort | à faire |  |
+| 1.7 | Brouillon des contrats C1 à C8 avec un exemple factice chacun | Ali (gardien), avec Leslie et Inès | codé non testé | Étiquette `contrats-v1` publiée ; [types et exemples C1 à C8](../contrats/). Validation humaine du brouillon non attestée ici. |
+| 1.8 | Preuve 1 : l'agent H se connecte au SaaS (pilote si l'accès existe, sinon le faux SaaS ou un site de démonstration) et atteint 2 écrans | Ali, Nathan en renfort | testé | [T7 de Nathan, sur dev](tests/2026-11-16-t7-navigateur-local.md) : trois passages H sur Facturo v13, quatre relevés chacun. Preuve produite par Nathan, distincte du coureur Ali. |
 | 1.9 | Preuve 2 : un modèle Hugging Face écrit un test au format H à partir de la note d'exemple du cadrage (section 10) ; deux modèles comparés | Leslie | à faire |  |
 | 1.10 | Preuve 3 : Holo (Models API) relève un montant sur une capture | Nathan | à faire |  |
 | 1.11 | Vault de départ : structure, 3 notes d'écran, 1 note de règles entre écrans, 1 note de version (factices tant que la doc du pilote n'est pas arrivée) | Inès | à faire |  |
 | 1.12 | Maquettes rapides des écrans prioritaires : 11.2 (note vers test), 11.3 (passage en direct), 11.6 (relecture) | Axil | à faire |  |
 | 1.13 | Faux SaaS, première version : tableau de bord, liste des factures, détail d'une facture, données fictives, déployé sur Vercel | Nathan | à faire |  |
-| 1.14 | Ouvrir `docs/retours-api-h.md` (ce qui marche, ce qui casse, ce qui surprend) | Ali | à faire |  |
+| 1.14 | Ouvrir `docs/retours-api-h.md` (ce qui marche, ce qui casse, ce qui surprend) | Ali | codé non testé | [Retours API H](retours-api-h.md) : sources de l’équipe, quota 200 et refus entreprise 403 ; mesures restantes explicites. Relecture humaine à faire. |
 | 1.15 | Peer review du soir | Tous | à faire |  |
 
 ## Phase 2. Mardi matin : contrats gelés, versions factices, points H
@@ -38,7 +38,7 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | N° | Tâche | Qui | État | Preuve |
 |---|---|---|---|---|
 | 2.1 | Point de 9 h 30 : état des preuves 1.8 à 1.10, réponse du pilote | Tous | à faire |  |
-| 2.2 | Gel des contrats C1 à C8 | Ali | à faire |  |
+| 2.2 | Gel des contrats C1 à C8 | Ali | codé non testé | Étiquette distante `contrats-v1` : `42a349108f062e0fe58fe926678199f8866305f5` ; [contrats gelés](../contrats/README.md). Pas de nouvelle attestation humaine ici. |
 | 2.3 | Versions factices : A (fil et rapport), B (test proposé et verdict), C (vault et base remplis de données factices) | Ali, Leslie, Inès | à faire |  |
 | 2.4 | Tables Supabase et stockage des captures, selon C3, C4, C6, C8 | Inès | à faire |  |
 | 2.5 | Point technique H (11 h) : questions du cadrage section 18, bugs de la veille avec capture | Ali, Nathan | à faire |  |
@@ -52,7 +52,7 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | 3.1 | Génération : une note du vault devient un test proposé (C1) avec ses questions d'ambiguïté | Leslie | à faire |  |
 | 3.2 | Écran 11.2 : note à gauche, test à droite, règle surlignée, Accepter, Modifier, Refuser | Axil | à faire |  |
 | 3.3 | Écriture du test accepté dans `vault-horama/…/tests/` (C2) | Inès | à faire |  |
-| 3.4 | Orchestrateur : une session H par test accepté, événements du fil (C3) en base, lien de replay, abandon d'une session muette après 45 s et une relance | Ali | à faire |  |
+| 3.4 | Orchestrateur : une session H par test accepté, événements du fil (C3) en base, lien de replay, abandon d'une session muette après 45 s et une relance | Ali | en cours | En ligne : A6 v12 réel (3 captures), puis cinq A7 v13 (20 captures), Supabase partagé ; médiane v13 66,517 s C6 / 67,786 s commande complète. Six trajectoires publiques dans C6/Markdown, curl anonyme HTTP 200. Session chaînée conforme au changement de cap du couloir ; aucun gel ni relance observé. Promotion des références, jugement métier et validation humaine restants. [Preuve en ligne](tests/2026-11-17-a7-facturo-en-ligne.md). |
 | 3.5 | Vérification : relevé des valeurs, calcul, statut (C4) pour une règle d'un écran | Leslie, Nathan en renfort | à faire |  |
 | 3.6 | Écran 11.3 : le fil en direct se remplit à partir de la base | Axil | à faire |  |
 | 3.7 | Point technique H (15 h) : ce qui bloque 3.4 et 3.5 | Ali, Nathan | à faire |  |
@@ -72,7 +72,7 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | 4.4 | Roadmap jusqu'à jeudi (tirée de ce plan) | Noé | à faire |  |
 | 4.5 | Dépôt du rendu de mercredi | Noé | à faire |  |
 | 4.6 | Règle entre deux écrans prouvée par le calcul (le CA du tableau de bord égale le total de la liste) | Leslie, Ali | à faire |  |
-| 4.7 | Passage de plusieurs tests (3 en parallèle au plus) et rapport de passage (C6), écrit aussi dans le vault | Ali | à faire |  |
+| 4.7 | Passage de plusieurs tests (3 en parallèle au plus) et rapport de passage (C6), écrit aussi dans le vault | Ali | en cours | En ligne : A6 puis cinq A7 réels séquentiels, C6 dans Supabase partagé et six Markdown dans un vault externe, 17 tests terminés avec replay. Trois tests chaînés par v13, parallélisme non exercé ; aucun PASS métier revendiqué. Validation de la porte par Ali restante. [Preuve et comptes REST](tests/2026-11-17-a7-facturo-en-ligne.md). |
 | 4.8 | Écran 11.6 : file de relecture, « C'est un bug » ou « C'est voulu » (C5) | Axil | à faire |  |
 | 4.9 | Mémoire limitée à un écart, référence mise à jour seulement quand tout est tranché, retest | Inès | à faire |  |
 | 4.10 | Faux SaaS en deux versions (12 et 13) et régressions activables selon la liste du banc | Nathan | à faire |  |
@@ -104,7 +104,7 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | 6.2 | Vidéo de démo de 5 minutes | Noé, Nathan | à faire |  |
 | 6.3 | Fiche projet et README finaux, lien du prototype, « comment tester », dépôt H cité (licence MIT) | Ali | à faire |  |
 | 6.4 | Contrôle de tous les liens en fenêtre privée, sans être connecté | Nathan | à faire |  |
-| 6.5 | `docs/retours-api-h.md` complété (c'est un livrable) | Ali, Nathan | à faire |  |
+| 6.5 | `docs/retours-api-h.md` complété (c'est un livrable) | Ali, Nathan | en cours | Retours Ali complétés par A6 et cinq A7 sur Facturo en ligne, base partagée, coûts et replays HTTP 200 ; limites explicites. Relecture Nathan/humaine restante. [Retours API](retours-api-h.md), [preuve en ligne](tests/2026-11-17-a7-facturo-en-ligne.md). |
 | 6.6 | Dépôt des livrables du matin | Noé | à faire |  |
 | 6.7 | Deck final de 8 à 12 slides, chiffres du banc et retour du pilote compris | Noé (contenu), Axil (design) | à faire |  |
 | 6.8 | Pitch du top 6 : Noé parle, Ali pilote la démo ; questions du jury réparties (technique Ali, IA Leslie, données Inès, business Noé) | Noé, Ali | à faire |  |
