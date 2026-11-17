@@ -19,6 +19,7 @@ test("session locale : corps, étapes, appels dédoublonnés, résultats et mét
   const requete: typeof fetch = async (url, init) => {
     const address = String(url);
     requests.push({ url: address, body: init?.body ? JSON.parse(String(init.body)) : null, method: init?.method ?? "GET" });
+    if (address.endsWith("/share")) return json({ share_url: "/share/api/v1/trajectories/public-session" });
     if (address.endsWith("/sessions")) return json({ id: "session-h", status: { status: "running" } });
     if (address.endsWith("/tool_results")) return new Response(null, { status: 204 });
     if (++polls === 1) return new Response(null, { status: 204 });
@@ -40,6 +41,8 @@ test("session locale : corps, étapes, appels dédoublonnés, résultats et mét
   assert.equal(result.cout_usd, 0.04);
   assert.equal(result.etapes, 1);
   assert.equal(result.muted, false);
+  assert.equal(result.replay_url, "https://agp.eu.hcompany.ai/share/api/v1/trajectories/public-session");
+  assert.equal(requests.filter(({ url, method }) => url.endsWith("/sessions/session-h/share") && method === "POST").length, 1);
   assert.equal(requests[0].body.queue, false);
   assert.equal(requests[0].body.agent.environments[0].session_id, "local-channel");
   assert.deepEqual(requests[0].body.agent.environments[0].mode, { type: "visual", markdown: true });
@@ -58,6 +61,7 @@ test("45 secondes sans action : annulation, puis nouveau pont après 35 secondes
     navigateur: async () => ({ channel: `channel-${++bridges}`, stop: () => { stopped++; } }),
     requete: async (url, init) => {
       methods.push(init?.method ?? "GET");
+      if (String(url).endsWith("/share")) return json({ share_url: "/share/replay" });
       if (String(url).endsWith("/sessions")) return json({ id: `session-${bridges}` });
       if (init?.method === "GET") now += 46_000;
       return new Response(null, { status: 204 });
@@ -77,6 +81,7 @@ test("un statut failed après terminer reste un échec même sans erreur explici
   const session = creerSessionH({
     key: "test-key", navigateur: async () => ({ channel: "channel", stop() {} }),
     requete: async (url) => {
+      if (String(url).endsWith("/share")) return json({ share_url: "/share/replay" });
       if (String(url).endsWith("/sessions")) return json({ id: "failed-after-end" });
       if (String(url).endsWith("/tool_results")) return new Response(null, { status: 204 });
       if (++polls === 1) return json({ status: "running", new_events: [], pending_tool_calls: [{ id: "end", tool_name: "terminer", args: { etat: "reussi" } }] });
@@ -116,6 +121,7 @@ for (const tool of ["relever", "terminer"]) {
       pause: async (ms) => { pauses.push(ms); now += ms; },
       navigateur: async () => ({ channel: `channel-${++bridges}`, stop() {} }),
       requete: async (url, init) => {
+        if (String(url).endsWith("/share")) return json({ share_url: "/share/replay" });
         if (String(url).endsWith("/sessions")) return json({ id: "rate-limited-tool" });
         if (init?.method === "DELETE") { cancelled++; return new Response(null, { status: 204 }); }
         if (String(url).endsWith("/tool_results")) return new Response(null, { status: ++posts < 3 ? 429 : 204 });
@@ -146,6 +152,7 @@ test("le silence se mesure depuis le dernier événement, même après une actio
     key: "test-key", maintenant: () => now,
     navigateur: async () => ({ channel: "channel", stop() {} }),
     requete: async (url, init) => {
+      if (String(url).endsWith("/share")) return json({ share_url: "/share/replay" });
       if (String(url).endsWith("/sessions")) return json({ id: "stalled" });
       if (init?.method === "DELETE") { cancelled++; return new Response(null, { status: 204 }); }
       if (++polls === 1) {
@@ -180,3 +187,38 @@ test("réseau et pont indisponibles donnent un résultat d'échec avec nettoyage
   assert.equal(result.cout_usd, null);
   await assert.rejects(creerSessionH({ key: "test-key" })(defaults()), /pont local/);
 });
+
+for (const shared of [
+  { share_url: "https://agp.eu.hcompany.ai/share/replay" },
+  null,
+  {},
+  { share_url: "" },
+  { share_url: "https://example.org/replay" },
+  { share_url: "javascript:alert(1)" },
+  "http-error",
+  "network-error",
+]) {
+  test(`replay public : réponse ${JSON.stringify(shared)}`, async () => {
+    const warnings: string[] = [];
+    const session = creerSessionH({
+      key: "secret-test", signaler: (message) => warnings.push(message),
+      navigateur: async () => ({ channel: "channel", stop() {} }),
+      requete: async (url, init) => {
+        if (String(url).endsWith("/sessions")) return json({ id: "session-share" });
+        if (String(url).endsWith("/share")) {
+          assert.equal(init?.method, "POST");
+          if (shared === "network-error") throw new Error("secret-test");
+          if (shared === "http-error") return new Response("secret-test", { status: 404 });
+          return json(shared);
+        }
+        return json({ status: "completed", new_events: [] });
+      },
+    });
+    const result = await (await session(defaults())).fin;
+    const valid = shared !== null && typeof shared === "object" && shared.share_url === "https://agp.eu.hcompany.ai/share/replay";
+    assert.equal(result.replay_url, valid ? shared.share_url : undefined);
+    assert.equal(result.erreur, undefined);
+    assert.deepEqual(warnings, valid ? [] : ["Session session-share : replay public indisponible ; aucun lien ajouté au rapport."]);
+    assert.ok(!JSON.stringify(warnings).includes("secret-test"));
+  });
+}
