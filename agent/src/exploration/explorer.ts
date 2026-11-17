@@ -49,7 +49,7 @@ export function construireExploration(pages: Array<{ ecran: string; url: string 
     test_id: tests[index].id, address: page.url, here: `location.href === ${JSON.stringify(page.url)}` }));
   return { tests, course, dropped: [], start: pages[0].url,
     instructions: [...COURSE_RULES, "Simple visiteur : ne remplis et ne soumets aucun formulaire, ne te connecte jamais. N'ouvre aucun onglet ni fenêtre."].join("\n"),
-    task: [...pages.map((page, index) => `Partie ${index + 1} : ouvre ${page.url} avec go_to dans l'onglet courant, attends le chargement puis appelle relever(ecran="${page.ecran}", vue="defaut").`),
+    task: ["Nouveau passage : aucune page n'a encore été relevée dans cette session. La page déjà ouverte ne prouve aucun avancement. Commence à la partie 1, même si le navigateur affiche une partie ultérieure.", ...pages.map((page, index) => `Partie ${index + 1} : ouvre ${page.url} avec go_to dans l'onglet courant, attends le chargement puis appelle relever(ecran="${page.ecran}", vue="defaut").`),
       'Après toutes les pages, appelle terminer(etat="reussi"). Si une page est inaccessible, continue les autres.'].join("\n"),
     tools: [{ name: "relever", description: "Enregistre la page chargée.", input_schema: { type: "object", properties: { ecran: { type: "string", enum: pages.map(page => page.ecran) }, vue: { type: "string", enum: ["defaut"] } }, required: ["ecran", "vue"] } }, END_TOOL] };
 }
@@ -158,7 +158,17 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
   };
   try {
     if (!consigne) { report.etat = signal?.aborted ? "interrompu" : "fini"; agent.etat = signal?.aborted ? "tombe" : "fini"; return report; }
-    const runner = creerCoureur({ vault, base: wrapped, session, signal, consigne, identifiant: () => id, hookTimeoutMs: 550_000,
+    const trackedSession: Session = input => session({ ...input, async onTool(name, args) {
+      const next = () => pages.find(page => page.etat !== "visitee");
+      const remaining = () => {
+        const page = next();
+        return page ? `${pages.filter(page => page.etat === "visitee").length}/${pages.length} pages relevées dans ce passage. Ouvre ${page.url} avec go_to puis appelle relever(ecran="${page.ecran}", vue="defaut"). Ne termine pas avant les relevés restants.` : 'Tous les relevés sont acquis. Appelle terminer(etat="reussi").';
+      };
+      if (name === "terminer" && args.etat === "reussi" && next()) return `Fin refusée : des pages restent à visiter. ${remaining()}`;
+      const response = await input.onTool(name, args);
+      return name === "relever" ? `${response}\n${remaining()}` : response;
+    } });
+    const runner = creerCoureur({ vault, base: wrapped, session: trackedSession, signal, consigne, identifiant: () => id, hookTimeoutMs: 550_000,
       async relever(ecran, vue, hookSignal) {
         const page = pages.find(page => page.ecran === ecran)!;
         page.etat = "en_cours"; page.debut = new Date().toISOString(); agent.etat = "en_cours";
@@ -247,7 +257,8 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
     });
     const launched = await runner.lancerPassage({ logiciel: site, version_testee: version, version_reference: versionReference ?? version, tests: consigne.tests.map(test => test.id), cle: "dev" });
     const result = await runner.attendreFin(launched.passage_id);
-    report.etat = signal?.aborted || result.passage.etat !== "joue" ? "interrompu" : "fini";
+    report.etat = signal?.aborted || result.passage.etat !== "joue" || pages.some(page => page.etat !== "visitee") ? "interrompu" : "fini";
+    if (pages.some(page => page.etat !== "visitee")) { agent.etat = "tombe"; agent.raison ??= "Des pages n'ont pas été visitées."; }
   } catch {
     report.etat = "interrompu"; agent.etat = "tombe"; agent.raison ??= "Le passage a été interrompu.";
   } finally {

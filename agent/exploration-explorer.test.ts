@@ -33,13 +33,24 @@ let root: string;
 beforeEach(() => { root = mkdtempSync(join(tmpdir(), "horama-explorer-")); });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-async function run({ png = original, skip = "", refuse = false, failure = false, deps = {} }: { png?: Buffer; skip?: string; refuse?: boolean; failure?: boolean; deps?: Partial<ExplorerDependencies> } = {}) {
+async function run({ png = original, skip = "", refuse = false, failure = false, earlyEnd = false, deps = {} }: { png?: Buffer; skip?: string; refuse?: boolean; failure?: boolean; earlyEnd?: boolean; deps?: Partial<ExplorerDependencies> } = {}) {
   let address = "https://example.org/";
   const base = new BaseMemoire();
   const session: Session = async input => {
     await input.onCreated("session-1");
     const fin = (async () => {
+      if (earlyEnd) {
+        const last = input.consigne.course.at(-1)!;
+        address = last.address;
+        const captured = await input.onTool("relever", { ecran: last.ecran, vue: "defaut" });
+        assert.match(captured, /1\/2 pages relevées/);
+        assert.match(captured, /Ouvre https:\/\/example.org\//);
+        const response = await input.onTool("terminer", { etat: "reussi" });
+        assert.match(response, /Fin refusée/);
+        assert.match(response, /ecran="accueil"/);
+      }
       for (const step of input.consigne.course) {
+        if (earlyEnd && step === input.consigne.course.at(-1)) continue;
         if (step.ecran === skip) continue;
         address = step.address + (new URL(step.address).pathname !== "/" ? "/" : "");
         if (refuse) address = "https://example.org/wrong";
@@ -97,9 +108,19 @@ test("shape atomique, totaux, un C4 par page et première mémoire sans écraser
 test("une page non visitée reste INCONCLUSIVE en JSON et C4", async () => {
   const { result, base } = await run({ skip: "faq" });
   assert.equal(result.pages[1].etat, "non_visitee"); assert.equal(result.pages[1].statut, "INCONCLUSIVE");
+  assert.equal(result.etat, "interrompu");
   assert.equal(result.totaux.pages_visitees, 1); assert.equal(result.totaux.sans_conclusion, 1);
   assert.equal(base.resultats.length, 2); assert.equal(base.resultats[1].statut, "INCONCLUSIVE"); assert.ok(base.resultats[1].raison);
   assert.equal(existsSync(join(root, "vault/example-org/references/faq/defaut--v1.png")), false);
+});
+
+test("navigateur sur la dernière page : une fin prématurée est refusée et les relevés reprennent", async () => {
+  await run();
+  const { result, base } = await run({ earlyEnd: true });
+  assert.equal(result.version, "2"); assert.equal(result.etat, "fini");
+  assert.equal(result.totaux.pages_visitees, 2); assert.equal(result.totaux.sans_conclusion, 0);
+  assert.equal(base.resultats.length, 2);
+  assert.equal(result.constats.filter(item => item.source === "comparaison").length, 0);
 });
 
 test("relevé refusé : aucun contrôle, constat acquis ou référence", async () => {
