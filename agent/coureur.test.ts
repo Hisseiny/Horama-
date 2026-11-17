@@ -44,7 +44,7 @@ test("un parcours, quatre captures uniques, attribution au premier test et rappo
       assert.equal(await onTool("relever", { ...step }), "Continue le parcours.");
     }
     assert.equal(await onTool("terminer", { etat: "reussi" }), "Parcours terminé. N'effectue plus aucune action.");
-  });
+  }, { replay_url: "https://agp.eu.hcompany.ai/share/replay" });
   const coureur = creerCoureur({ vault, base, session, baseUrl: "http://localhost:3100", identifiant: () => "passage-test", maintenant: () => clock++ * 1000, relever: async (ecran, vue) => { shots++; return fixture(ecran, vue); } });
   const { passage_id } = await coureur.lancerPassage(input);
   const report = await coureur.attendreFin(passage_id);
@@ -52,6 +52,7 @@ test("un parcours, quatre captures uniques, attribution au premier test et rappo
   assert.equal(report.passage.cout_usd, 0.02);
   assert.ok(report.passage.duree_s! > 0);
   assert.deepEqual(report.tests.map(({ etat, session_id }) => [etat, session_id]), Array(3).fill(["termine", "session-1"]));
+  assert.ok(report.tests.every(({ replay_url }) => replay_url === "https://agp.eu.hcompany.ai/share/replay"));
   assert.equal(shots, 4);
   assert.equal(base.captures.size, 4);
   assert.equal(base.fichiers.size, 4);
@@ -68,6 +69,7 @@ test("un parcours, quatre captures uniques, attribution au premier test et rappo
   assert.match(markdown, /version_reference: "12"/);
   assert.match(markdown, /Aucun résultat de vérification/);
   assert.match(markdown, /Réussites : 0/);
+  assert.equal(markdown.split("[session H](https://agp.eu.hcompany.ai/share/replay)").length - 1, 3);
   for (const id of input.tests) assert.ok(markdown.includes(`## ${id}`));
 });
 
