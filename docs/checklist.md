@@ -59,7 +59,7 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | 3.8 | Workflow n8n : « cas à relire » (C7) devient une notification, et une ligne de mesure part en base | Nathan | à faire |  |
 | 3.9 | Banc : liste d'environ 10 régressions (dont 3 entre écrans) et 5 changements voulus (dont 2 contredisent la doc), vérité écrite à l'avance, cas gardés cachés jusqu'à la mesure | Inès | à faire |  |
 | 3.10 | Chiffres du pilote (temps de recette, bugs arrivés chez des clients), sa documentation transmise à Inès, premier jet du go-to-market | Noé | à faire |  |
-| 3.11 | Intégration : la boucle complète sur 1 écran, sans toucher au code entre deux passages ; `main` gelé pendant le test | Ali | à faire |  |
+| 3.11 | Intégration : la boucle complète sur 1 écran, sans toucher au code entre deux passages ; `main` gelé pendant le test | Ali | codé non testé | Deux passages H Eugenia avec --sans-base ; C4 SUSPECTED, décision simulée relue au second passage. Base partagée non accessible. Voir docs/tests/2026-11-17-3.11-integration-eugenia.md. |
 | 3.12 | Peer review du soir | Tous | à faire |  |
 
 ## Phase 4. Mercredi : le rendu de 17 h et la boucle sur plusieurs écrans
@@ -86,6 +86,7 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 |---|---|---|---|---|
 | 5.1 | Écran 11.5 : comparaison des versions, côte à côte, rideau, pixels bruts ; zones d'écart entourées | Axil (écran), Leslie (zones), Nathan (script de différence de pixels) | en cours | Leslie (zones) : fait, `comparerImages` et un seul constat pour un élément déplacé (`jugement/verification/`, voir `jugement/README.md`) ; reste l'écran (Axil) |
 | 5.2 | Dérive documentaire : un « voulu » qui contredit une note propose la correction (écran 11.7) ; Accepter modifie la note dans le vault | Inès (logique), Leslie (rédaction de la correction), Axil (écran) | en cours | Leslie : rédaction faite, `proposerCorrection` dans `jugement/correction/` (PR #11, #20) ; mesure réelle 11, 14, 14 puis 15 sur 15 après corrections (`docs/tests/2026-11-17-correction.md`) ; branchée dans la scène par Nathan (PR #28, `automatisation/scene/README.md`) : avant / après, « Accepter » ou « Refuser » ; passage réel de la scène avec correction : à mesurer |
+| #36.2 | PR documentaire après acceptation d'une correction de note (temps 6) | Ali | codé non testé | `automatisation/pr-doc/` : texte et commandes vérifiés hors réseau, vrais commits/poussées vers un dépôt nu local ; [preuve et limites](tests/2026-11-17-pr-doc.md). Branchement par Nathan et essai GitHub sur un dépôt d'essai à faire ; aucune attestation humaine. |
 | 5.3 | Vérifier les 8 critères du P0 (cadrage, section 7), `main` gelé | Ali | à faire |  |
 | 5.4 | Mesures complètes, comparaisons (pixels, tests écrits à la main, sans et avec mémoire, deux modèles Hugging Face), coût et durée d'un passage, graphiques du deck | Inès | à faire |  |
 | 5.5 | Retour écrit du pilote : utiliserait-il Horama, paierait-il, combien, que manque-t-il ; point business de l'après-midi | Noé | à faire |  |
