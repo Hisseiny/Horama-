@@ -20,7 +20,7 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | 1.1 | Trancher D1 à D4 (D5 tranchée le 16/11) | Ali, Inès, Noé, l'équipe | à faire |  |
 | 1.2 | Poser la structure du repo : dossiers, README, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.gitignore`, `.env.example`, cadrage et plan dans `docs/`, fiches de mission, tableau d'avancement | Nathan (fichiers prêts), Ali (valide) | à faire |  |
 | 1.3 | Protéger `main` (pull request et une relecture obligatoires), étiquettes A à F, tableau GitHub Projects, une issue par tâche de ce plan | Ali (administrateur du repo) | à faire |  |
-| 1.4 | Squelette du code : `package.json`, lint, vérification des types, tests, `npm run dev`, `npm run check`, un dossier par pôle | Ali | à faire |  |
+| 1.4 | Squelette du code : `package.json`, lint, vérification des types, tests, `npm run dev`, `npm run check`, un dossier par pôle | Ali | en cours | Socle A1 terminé : installation et `pnpm -r check` (types et tests) sur clone neuf ; lint et commande dev non livrés par A1. [Preuve](tests/2026-11-16-a1-outillage.md). |
 | 1.5 | Clés : H (Ali, Leslie, Nathan, plus la clé de démo), Hugging Face (Leslie, coupon de 50 €), projet Vercel (Ali), projet Supabase (Inès), crédits v0 (Axil) | Chacun pour les siennes | à faire |  |
 | 1.6 | Envoyer au collègue les prérequis du pilote (cadrage, section 17) : environnement de test, compte de test avec données fictives, accord écrit, connexion sans captcha, documentation et notes de version, chiffres | Noé | à faire |  |
 | 1.7 | Brouillon des contrats C1 à C8 avec un exemple factice chacun | Ali (gardien), avec Leslie et Inès | à faire |  |
@@ -52,7 +52,7 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | 3.1 | Génération : une note du vault devient un test proposé (C1) avec ses questions d'ambiguïté | Leslie | à faire |  |
 | 3.2 | Écran 11.2 : note à gauche, test à droite, règle surlignée, Accepter, Modifier, Refuser | Axil | à faire |  |
 | 3.3 | Écriture du test accepté dans `vault-horama/…/tests/` (C2) | Inès | à faire |  |
-| 3.4 | Orchestrateur : une session H par test accepté, événements du fil (C3) en base, lien de replay, abandon d'une session muette après 45 s et une relance | Ali | à faire |  |
+| 3.4 | Orchestrateur : une session H par test accepté, événements du fil (C3) en base, lien de replay, abandon d'une session muette après 45 s et une relance | Ali | en cours | A3/A4 codés et contrôlés automatiquement : consigne chaînée, une session pour tous les tests, persistance Supabase locale et relance après silence. Session simulée, pas d'appel H ; replay public non créé. [Preuve](tests/2026-11-16-a3-a4-agent.md). |
 | 3.5 | Vérification : relevé des valeurs, calcul, statut (C4) pour une règle d'un écran | Leslie, Nathan en renfort | à faire |  |
 | 3.6 | Écran 11.3 : le fil en direct se remplit à partir de la base | Axil | à faire |  |
 | 3.7 | Point technique H (15 h) : ce qui bloque 3.4 et 3.5 | Ali, Nathan | à faire |  |
@@ -72,7 +72,7 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | 4.4 | Roadmap jusqu'à jeudi (tirée de ce plan) | Noé | à faire |  |
 | 4.5 | Dépôt du rendu de mercredi | Noé | à faire |  |
 | 4.6 | Règle entre deux écrans prouvée par le calcul (le CA du tableau de bord égale le total de la liste) | Leslie, Ali | à faire |  |
-| 4.7 | Passage de plusieurs tests (3 en parallèle au plus) et rapport de passage (C6), écrit aussi dans le vault | Ali | à faire |  |
+| 4.7 | Passage de plusieurs tests (3 en parallèle au plus) et rapport de passage (C6), écrit aussi dans le vault | Ali | en cours | Porte A3/A4 réalisée : 3 tests, rapport C6 en base, 4 captures réelles Facturo v13 et fil visibles sur la [planche](captures/2026-11-16-porte-agent/index.html). Session simulée, pas d'appel H ; écriture du rapport dans le vault et validation de la porte par Ali restent à faire. [Preuve](tests/2026-11-16-porte-agent.md). |
 | 4.8 | Écran 11.6 : file de relecture, « C'est un bug » ou « C'est voulu » (C5) | Axil | à faire |  |
 | 4.9 | Mémoire limitée à un écart, référence mise à jour seulement quand tout est tranché, retest | Inès | à faire |  |
 | 4.10 | Faux SaaS en deux versions (12 et 13) et régressions activables selon la liste du banc | Nathan | à faire |  |
