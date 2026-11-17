@@ -2,6 +2,7 @@
 ecran: tableau-de-bord
 chemin: Menu > Tableau de bord
 url: /tableau-de-bord
+code: ["faux-saas/app/[version]/tableau-de-bord/page.tsx", "faux-saas/lib/data.ts", "faux-saas/lib/session.ts", "faux-saas/app/shell.tsx", "faux-saas/app/layout.tsx", "faux-saas/app/styles.ts", "faux-saas/regressions.ts"]
 ---
 
 # Tableau de bord
