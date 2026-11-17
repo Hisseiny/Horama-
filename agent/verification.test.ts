@@ -45,6 +45,44 @@ test("un écart calculé donne VERIFIED_FAIL", () => {
   assert.match(output.calcul!, /1420|1 420/);
 });
 
+test("un défaut calculé prime sur un constat incomplet ou une règle non évaluée", () => {
+  for (const genre of ["visuel", "regle"] as const) {
+    const output = verifierTest({ ...options(), acquired: captures("1 419,99 €"), verify: (entry) => [
+      ...verifierReleve(entry),
+      { id: "incomplet", ecran: entry.releve.ecran, vue: "defaut", genre, statut: "INCONCLUSIVE", valeurs: {},
+        description: "Vérification incomplète", textes_a_surligner: [], raison: "Preuve indisponible" },
+    ] });
+    assert.equal(output.statut, "VERIFIED_FAIL", genre);
+    assert.ok(output.calcul);
+    assert.equal(output.niveau_de_preuve, "releve + calcul");
+  }
+  const output = verifierTest({ ...options(), acquired: captures("1 419,99 €"),
+    test: { ...accepted, regles: [...accepted.regles, { type: "presence", ecran: "autre-ecran", colonne: "Numéro" }] },
+    verify: (entry) => verifierReleve({ ...entry, regles: accepted.regles }),
+  });
+  assert.equal(output.statut, "VERIFIED_FAIL", "règle non évaluée");
+  assert.ok(output.calcul);
+});
+
+test("sans défaut prouvé, incomplet prime sur soupçon et PASS exige toutes les preuves", () => {
+  for (const calculated of [false, true]) {
+    for (const incomplete of [false, true]) {
+      const output = verifierTest({ ...options(), verify: (entry) => [
+        ...verifierReleve(entry),
+        { id: "visuel", ecran: entry.releve.ecran, vue: "defaut", genre: "visuel" as const, statut: "SUSPECTED" as const, valeurs: {},
+          description: "Doute visuel", textes_a_surligner: [] },
+        ...(incomplete ? [{ id: "incomplet", ecran: entry.releve.ecran, vue: "defaut", genre: "visuel" as const,
+          statut: "INCONCLUSIVE" as const, valeurs: {}, description: "Référence absente", textes_a_surligner: [], raison: "Preuve indisponible" }] : []),
+      ].map((finding) => calculated ? finding : { ...finding, calcul: undefined }) });
+      assert.equal(output.statut, incomplete ? "INCONCLUSIVE" : "SUSPECTED");
+    }
+  }
+  const unproven = verifierTest({ ...options(), verify: (entry) => verifierReleve(entry).map((finding) => ({
+    ...finding, statut: "VERIFIED_FAIL" as const, calcul: undefined,
+  })) });
+  assert.equal(unproven.statut, "INCONCLUSIVE");
+});
+
 test("capture manquante, session échouée, règle non évaluée et absence de règle restent INCONCLUSIVE", () => {
   const empty = verifierTest({ ...options(), acquired: [] });
   assert.equal(empty.statut, "INCONCLUSIVE");
