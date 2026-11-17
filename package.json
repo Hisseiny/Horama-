@@ -3,6 +3,8 @@
   "private": true,
   "packageManager": "pnpm@12.18.0",
   "scripts": {
-    "check": "pnpm -r --if-present run check"
+    "dev": "USE_MOCKS=1 pnpm --parallel --filter @horama/interface --filter @horama/faux-saas run dev",
+    "lint": "pnpm --filter @horama/agent exec tsc --noEmit --noUnusedLocals --noUnusedParameters --allowUnreachableCode false --allowUnusedLabels false",
+    "check": "pnpm lint && pnpm -r --if-present run check"
   }
 }
