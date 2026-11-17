@@ -116,3 +116,38 @@ Les avertissements de replay et d'arrêt H dans certains tests existants provien
 - Le signal appartient au coureur : il concerne tous ses passages et ne se réarme pas. Pour des annulations indépendantes, créer un contrôleur et un coureur par passage.
 - La CLI conserve ses gestionnaires SIGINT/SIGTERM : ils ferment leur raccord puis quittent immédiatement, sans attendre cette finalisation. Les router ici demanderait de modifier leur cycle de sortie ; ce raccord optionnel est laissé hors du correctif.
 - Aucun navigateur réel, replay ou rendu de scène vérifié visuellement ; aucun passage H réel demandé ni lancé.
+
+## Correctif de revue PR #22 : rejet d'une session livrée après annulation
+
+HEAD vérifié avant modification : `d110fda5ff563c7c7176bccf25bf0374a779a3fe`.
+
+Test ajouté dans `agent/crochet.test.ts` : « une session livrée après annulation peut rejeter fin à l'arrêt sans rejet non géré ». La session injectée attend que l'annulation ait déclenché la finalisation, retenue dans la fausse base. Elle arrive ensuite et son `stop()` rejette `fin`. Deux tours de boucle événementielle laissent Node détecter un éventuel rejet non géré, avant de libérer la persistance. Le test contrôle l'arrêt unique, la fin en échec, le rapport persisté et les C4 non concluants avec la raison.
+
+Avant correction, depuis `agent/` :
+
+```text
+node --test --test-name-pattern="une session livrée après annulation" crochet.test.ts
+not ok 1 - une session livrée après annulation peut rejeter fin à l'arrêt sans rejet non géré
+  failureType: 'unhandledRejection'
+  error: 'Session injectée arrêtée après annulation précoce'
+# tests 1
+# pass 0
+# fail 1
+```
+
+Correction minimale : attacher un gestionnaire de rejet à `session.fin` dès réception de la session dans `starting.then`, avant tout arrêt éventuel. La promesse originale reste intacte et son rejet continue d'être observé par le chemin normal d'attente ; seul le rejet auparavant abandonné est désormais pris en charge.
+
+Après correction, depuis la racine, `pnpm -r check`, sortie **0** :
+
+```text
+agent check: 1..73
+agent check: # tests 73
+agent check: # suites 0
+agent check: # pass 73
+agent check: # fail 0
+agent check: # cancelled 0
+agent check: # skipped 0
+agent check: # todo 0
+agent check: # duration_ms 747.196449
+agent check: Done
+```

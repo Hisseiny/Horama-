@@ -168,6 +168,47 @@ test("signal déjà annulé : aucune session créée, passage finalisé et raiso
   assert.ok(base.resultats.every(({ raison }) => raison?.includes("avant lancement")));
 });
 
+test("une session livrée après annulation peut rejeter fin à l'arrêt sans rejet non géré", { timeout: 2000 }, async () => {
+  const controller = new AbortController();
+  const entered = deferred<void>();
+  const releaseSession = deferred<void>();
+  const finalizing = deferred<void>();
+  const releaseFinalization = deferred<void>();
+  const base = new BaseMemoire();
+  const persist = base.terminerPassage.bind(base);
+  base.terminerPassage = async (report) => {
+    finalizing.resolve();
+    await releaseFinalization.promise;
+    await persist(report);
+  };
+  let stops = 0;
+  const { runner } = setup({ base, signal: controller.signal, h: undefined, session: async () => {
+    entered.resolve();
+    await releaseSession.promise;
+    let rejectFin!: (reason: Error) => void;
+    const fin = new Promise<never>((_resolve, reject) => { rejectFin = reject; });
+    return { id: "session-tardive", fin, stop: async () => {
+      stops++;
+      rejectFin(new Error("Session injectée arrêtée après annulation précoce"));
+    } };
+  } });
+  const starting = runner.lancerPassage(input);
+  await entered.promise;
+  controller.abort("annulation précoce");
+  await finalizing.promise;
+  releaseSession.resolve();
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  releaseFinalization.resolve();
+  const { passage_id } = await starting;
+  const report = await runner.attendreFin(passage_id);
+  assert.equal(stops, 1);
+  assert.equal(report.passage.etat, "echec");
+  assert.ok(report.passage.fin);
+  assert.deepEqual(base.rapports.get(passage_id), report);
+  assert.ok(base.resultats.every(({ statut, raison }) => statut === "INCONCLUSIVE" && raison?.includes("annulation précoce")));
+});
+
 test("annulation pendant la création du pont : un pont livré tardivement est arrêté", { timeout: 2000 }, async () => {
   const controller = new AbortController();
   const opening = deferred<void>();

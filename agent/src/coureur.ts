@@ -136,6 +136,7 @@ export function creerCoureur({ vault, base, relever, hookTimeoutMs = 30_000, sig
           },
         });
         void starting.then((session) => {
+          void session.fin.catch(() => {});
           if (signal?.aborted) void Promise.resolve().then(() => session.stop?.()).catch(() => {});
         }, () => {});
         return withAbort(starting, signal);
