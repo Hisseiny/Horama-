@@ -52,7 +52,7 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | 3.1 | Génération : une note du vault devient un test proposé (C1) avec ses questions d'ambiguïté | Leslie | à faire |  |
 | 3.2 | Écran 11.2 : note à gauche, test à droite, règle surlignée, Accepter, Modifier, Refuser | Axil | à faire |  |
 | 3.3 | Écriture du test accepté dans `vault-horama/…/tests/` (C2) | Inès | à faire |  |
-| 3.4 | Orchestrateur : une session H par test accepté, événements du fil (C3) en base, lien de replay, abandon d'une session muette après 45 s et une relance | Ali | en cours | A3/A4 et commande A5 câblés : consigne chaînée, session unique, Supabase et CDP, relance après silence. A6 v12 contrôlé avec session injectée. Replay public codé et testé automatiquement dans C6 sans modifier les contrats ; aucune validation en session réelle ni curl d’un lien réel. [Preuve replay](tests/2026-11-17-3.4-replay-public.md). [Preuve A5/A6](tests/2026-11-17-a5-a6-rapport-vault.md). |
+| 3.4 | Orchestrateur : une session H par test accepté, événements du fil (C3) en base, lien de replay, abandon d'une session muette après 45 s et une relance | Ali | en cours | A7 : cinq passages H réels sur Supabase partagé, médiane 66,938 s, 59 événements et 20 captures ; cinq trajectoires publiques JSON dans C6/Markdown, curl anonyme HTTP 200. Aucun gel ni relance observé. Une session chaînée pour trois tests ; gel réel, session par test et A6 v12 réel restent à valider. Aucun PASS métier revendiqué. [Preuve A7](tests/2026-11-17-a7-fiabilite.md). [Tests replay](tests/2026-11-17-3.4-replay-public.md). |
 | 3.5 | Vérification : relevé des valeurs, calcul, statut (C4) pour une règle d'un écran | Leslie, Nathan en renfort | à faire |  |
 | 3.6 | Écran 11.3 : le fil en direct se remplit à partir de la base | Axil | à faire |  |
 | 3.7 | Point technique H (15 h) : ce qui bloque 3.4 et 3.5 | Ali, Nathan | à faire |  |
@@ -72,7 +72,7 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | 4.4 | Roadmap jusqu'à jeudi (tirée de ce plan) | Noé | à faire |  |
 | 4.5 | Dépôt du rendu de mercredi | Noé | à faire |  |
 | 4.6 | Règle entre deux écrans prouvée par le calcul (le CA du tableau de bord égale le total de la liste) | Leslie, Ali | à faire |  |
-| 4.7 | Passage de plusieurs tests (3 en parallèle au plus) et rapport de passage (C6), écrit aussi dans le vault | Ali | en cours | Rapport désormais écrit en base et dans `<logiciel>/passages/<id>.md` via mémoire ; erreurs du vault visibles. [Tests injectés et limites](tests/2026-11-17-a5-a6-rapport-vault.md). [Planche antérieure](tests/2026-11-16-porte-agent/index.html) : captures Facturo réelles, session simulée. Trois passages H du coureur et validation de la porte par Ali restent à faire. |
+| 4.7 | Passage de plusieurs tests (3 en parallèle au plus) et rapport de passage (C6), écrit aussi dans le vault | Ali | en cours | A7 : cinq passages réels séquentiels, chacun avec trois tests chaînés, rapport C6 dans Supabase partagé et Markdown dans un vault externe ; replay public sur les trois tests. [Mesures et contrôles REST](tests/2026-11-17-a7-fiabilite.md). Parallélisme non exercé, jugement métier non lancé et validation de la porte par Ali restante. |
 | 4.8 | Écran 11.6 : file de relecture, « C'est un bug » ou « C'est voulu » (C5) | Axil | à faire |  |
 | 4.9 | Mémoire limitée à un écart, référence mise à jour seulement quand tout est tranché, retest | Inès | à faire |  |
 | 4.10 | Faux SaaS en deux versions (12 et 13) et régressions activables selon la liste du banc | Nathan | à faire |  |
@@ -104,7 +104,7 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | 6.2 | Vidéo de démo de 5 minutes | Noé, Nathan | à faire |  |
 | 6.3 | Fiche projet et README finaux, lien du prototype, « comment tester », dépôt H cité (licence MIT) | Ali | à faire |  |
 | 6.4 | Contrôle de tous les liens en fenêtre privée, sans être connecté | Nathan | à faire |  |
-| 6.5 | `docs/retours-api-h.md` complété (c'est un livrable) | Ali, Nathan | à faire |  |
+| 6.5 | `docs/retours-api-h.md` complété (c'est un livrable) | Ali, Nathan | en cours | Retours Ali complétés par les cinq mesures A7 sur base partagée et les cinq liens publics HTTP 200 ; lecteur visuel, gel réel/relance et relecture Nathan restent à vérifier. [Retours API](retours-api-h.md), [preuve A7](tests/2026-11-17-a7-fiabilite.md). |
 | 6.6 | Dépôt des livrables du matin | Noé | à faire |  |
 | 6.7 | Deck final de 8 à 12 slides, chiffres du banc et retour du pilote compris | Noé (contenu), Axil (design) | à faire |  |
 | 6.8 | Pitch du top 6 : Noé parle, Ali pilote la démo ; questions du jury réparties (technique Ali, IA Leslie, données Inès, business Noé) | Noé, Ali | à faire |  |
