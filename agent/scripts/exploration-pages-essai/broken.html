@@ -1,0 +1,11 @@
+<!doctype html><html lang="fr"><meta charset="utf-8"><title>Défauts</title>
+<body><h1>undefined</h1><p>NaN null Lorem Ipsum {{</p>
+<button id="overflow" style="width:40px;height:24px;white-space:nowrap"><span>Texte beaucoup trop long pour ce bouton</span></button>
+<button id="vertical-overflow" style="width:120px;height:24px;font-size:16px;line-height:20px;padding:0">Première ligne<br>Deuxième ligne</button>
+<img id="broken" src="/missing.png" width="80" height="60">
+<a href="/dead">Lien mort</a><a href="/dead#duplicate">Doublon</a><a href="/fallback">Repli</a>
+<a href="/redirect">Redirection</a><a href="/fallback-redirect">Redirection après repli</a>
+<a href="http://[">Adresse invalide</a>
+<div style="width:2000px;height:1px"></div>
+<script>console.error('Erreur de démonstration');throw new Error('Exception de démonstration');</script>
+</body></html>
