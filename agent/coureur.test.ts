@@ -67,10 +67,35 @@ test("un parcours, quatre captures uniques, attribution au premier test et rappo
   assert.match(markdown, /# Passage passage-test/);
   assert.match(markdown, /version_testee: "13"/);
   assert.match(markdown, /version_reference: "12"/);
-  assert.match(markdown, /Aucun résultat de vérification/);
+  assert.match(markdown, /INCONCLUSIVE/);
   assert.match(markdown, /Réussites : 0/);
   assert.equal(markdown.split("[session H](https://agp.eu.hcompany.ai/share/replay)").length - 1, 3);
   for (const id of input.tests) assert.ok(markdown.includes(`## ${id}`));
+  assert.equal(base.resultats.length, 3);
+});
+
+test("les C4 et le Markdown précèdent le PATCH, un refus C4 ne bloque pas la fin", async () => {
+  const base = new BaseMemoire();
+  const order: string[] = [];
+  const messages: string[] = [];
+  base.enregistrerResultat = async (verification) => {
+    order.push(`C4:${verification.test_id}`);
+    assert.equal(verification.statut, "INCONCLUSIVE");
+    throw new Error("refus distant");
+  };
+  base.terminerPassage = async () => { order.push("PATCH"); };
+  const session = fakeSession(async ({ consigne, onTool }) => {
+    for (const step of consigne.course) await onTool("relever", { ...step });
+    await onTool("terminer", { etat: "reussi" });
+  });
+  const runner = creerCoureur({ vault, base, session, baseUrl: "http://localhost:3100", relever: async (ecran, vue) => fixture(ecran, vue),
+    signaler: (message) => messages.push(message), writeReport: (_vault, _report, results) => {
+      assert.equal(results.length, 3); order.push("Markdown"); return "rapport.md";
+    } });
+  const { passage_id } = await runner.lancerPassage(input);
+  assert.equal((await runner.attendreFin(passage_id)).passage.etat, "joue");
+  assert.deepEqual(order, [...input.tests.map((id) => `C4:${id}`), "Markdown", "PATCH"]);
+  assert.equal(messages.filter((message) => message.includes("C4 non enregistré")).length, 3);
 });
 
 test("la création rend la main avant la fin de session", async () => {

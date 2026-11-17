@@ -208,3 +208,34 @@ Orchestrateur : Claude Code (Opus 5.5). Mission : J0 à J4 (scène branchée sur
 - `pnpm install` à la racine et `pnpm install --ignore-workspace` dans `automatisation/scene/` : le verrou de la racine reçoit une entrée `@pnpm/exe` (artefact de la version locale de pnpm), remise à celle de `dev` par `git checkout pnpm-lock.yaml`. Même chose après chaque `pnpm -r run` : à rétablir avant tout commit.
 - `pnpm -r --if-present run check` : code 0. faux-saas 7, memoire 28, interface 8, jugement 51, agent 49 tests, aucun échec.
 - Quota Devin (app.devin.ai, Chrome) : **75 % utilisés**, remise à zéro dans 5 jours, aucun solde à la demande. La page n'affiche que des points entiers et l'onglet « Usage history » est vide : la mesure de SWE-2 (avant et après J2) ne verra qu'un écart d'au moins 1 point.
+
+### 14 h 34, J1 lancé chez Devin (`claude-opus-5-5-high`)
+- Brief : `.orchestrateur/briefs/j1-coureur.md` (hors Git). Worktree `../horama-wt/j1-coureur`, branche `j1-coureur`.
+- Blocage d'environnement au premier essai scripté : seul l'écran du Mac est branché, la zone de page plafonne à 1280 × 862. **Décision de Nathan** : imposer la zone par le code, toujours, pour le même résultat sur tout écran. Ajouté à J1 : `fitViewport` applique `Emulation.setDeviceMetricsOverride` (1280 × 900, densité 1) après le réglage de la fenêtre.
+- L'ancien commentaire du code et la note du vault (`_tech/h-company-agents-api.md`) disent que l'émulation « fausserait les clics » : rien ne le mesure. Le parcours réel de J1 le dira (clics signalés par la couche avec le bon élément dessous).
+- Point relevé à la lecture du coureur d'Ali : `settle_s: 0.5` en dur (`agent/src/session.ts`), la scène tournait à 1,0 parce qu'elle retient chaque clic 620 à 920 ms. À mesurer au parcours réel (l'agent reclique-t-il ?) avant d'écrire une demande à Ali.
+- Base de comparaison des captures : relevés du parcours réel du 16/11 à 0 h (`.orchestrateur/passages/2026-11-16-22h56-b0bf/releves/`, grand écran, sans émulation) et références v12 du vault.
+
+### 14 h 38, J3 lancé en parallèle, puis arrêt avant J2 : trois PR du couloir Ali
+- J3 lancé chez Devin (`swe-2-max`) à 14 h 35, worktree `../horama-wt/j3-controle-captures` : un seul fichier nouveau, aucun Chrome, sur les relevés réels du 16/11. Son coût se mêle à celui de J1 dans le quota ; la mesure de SWE-2 se fera sur J2, lancé seul.
+- Outil de contrôle de la base, hors Git : `.orchestrateur/compter-base.mjs <passage_id>` (n'affiche que codes HTTP, comptes, états). Essayé sur le passage A7 `2026-11-17-12h03-2ce9` : 13 événements, 4 captures, 0 résultat, 0 décision, comme le rapport d'Ali.
+- **Consigne de Nathan** après lecture des PR #17, #18 et #19 d'Ali, ouvertes après la récupération de `dev` de 14 h 12 :
+  - #18 : le coureur écrit déjà un C4 par test dans `resultats` en fin de session (`verifierTest`, à partir de `verifierReleve`). **J2 n'écrit plus de C4** : réduit aux décisions C5 en base (en plus du vault) et à `passages.etat = 'verifie'`. Un seul écrivain par table. Brief J2 réécrit (`.orchestrateur/briefs/j2-resultats-decisions.md`, branche `j2-decisions`).
+  - #19 (contient #18) : le coureur ne suppose plus Facturo (préfixe `/vN/` déduit de `url_depart`, query reprise). À vérifier : J1 reste compatible.
+  - #17 (CLI du coureur lancée en processus séparé) : **pas suivie pour la scène**. La scène appelle `creerCoureur` en direct avec son crochet `relever` (mascotte qui retient l'agent, capture couche masquée). Design de J1 gardé.
+- Lu dans le diff de #19, ce qui touche J1 : `BasePassages` gagne `enregistrerResultat` (une base enveloppée doit le transmettre) ; `bonneAdresse` exige tous les paramètres de l'adresse attendue (la scène rend `location.href` : compatible) ; `settle_s` toujours à 0,5.
+- Conséquence à savoir : le C4 du coureur est calculé à la fin de la session H, donc **avant** que l'humain tranche à la fin de la scène. Un « voulu » pris à la fin n'apparaît pas dans `resultats` (pas d'`EcartVisuel` en `PASS` avec `decision_id`) ; il est dans `decisions`. Au parcours suivant, le coureur lit les décisions du vault : l'écart est alors neutralisé.
+- Suite : Nathan fusionne #18 puis #19 dans `dev` ; ensuite `git merge origin/dev` dans `dev-nathan`, et dans le worktree de J1 une fois Devin fini, avant la revue ; vérification générale relancée.
+
+### 14 h 39, PR #18 et #19 fusionnées dans `dev`, récupérées dans `dev-nathan`
+- `origin/dev` à a83067c (#18 puis #19 fusionnées par Nathan). `git merge --no-ff origin/dev` dans `dev-nathan` : aucun conflit, commit 85ae3ab, poussé.
+- `pnpm install` (verrou remis à celui de `dev`), puis `pnpm -r --if-present run check` : code 0. faux-saas 7, memoire 28, interface 8, jugement 51, agent 63 tests, aucun échec.
+- Le worktree de J1 recevra la même fusion quand Devin aura rendu la main, avant la revue.
+
+### 14 h 44, J3 tenu (Devin, `swe-2-max`), fusionné
+- Devin : 14 h 36 à 14 h 43 (7 min), sortie 0, 2 fichiers (`automatisation/scene/controle-captures.mjs`, `docs/tests/2026-11-17-j3-controle-captures.md`), commit fait par Devin lui-même. Aucun refus de son juge.
+- Rejoué par l'orchestrateur : `node automatisation/scene/controle-captures.mjs --releves automatisation/scene/essais/releves-16-11`, sortie 0. Sur les relevés réels v13 du 16/11 : tableau de bord 387 pixels différents, tous dans `ca-mois` ; liste 1 320, tous dans `export-haut` ; détail F-119 0 ; vue filtrée sans référence v12. **0 pixel hors des zones attendues.** Les 387 et 1 320 recoupent les `pixels_differents` de `faux-saas/positions.json`.
+- Contre-épreuve de l'orchestrateur (liste copiée sous le nom du tableau de bord) : 152 382 pixels hors zones, sortie 1. Contrôle de Devin (référence contre elle-même) : 0 partout.
+- Revue du code : lecture des PNG par `pngjs`, aucune tolérance, rectangles `avant` et `apres` exclus, aucun appel réseau. Accepté sans correction, à la première revue.
+- Reste pour J3 : le rejouer sur les relevés d'un parcours réel passé par la nouvelle scène (J1, avec la zone de page imposée par émulation).
+- Pendant ce temps, Nathan a fusionné la PR #20 (correction de note) dans `dev-nathan` : récupérée, check vert (jugement 52, agent 63, total 158). `dev-nathan` à c62a9a9, poussé. Vault perso : `git status` vide.
