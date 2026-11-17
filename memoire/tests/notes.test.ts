@@ -32,6 +32,7 @@ test("les 6 notes du vault sont lues avec leur en-tête et leur titre", () => {
       "faux-saas/app/styles.ts",
       "faux-saas/regressions.ts",
     ],
+    vues: ["filtre-echeance"],
   });
   assert.ok(liste.texte.startsWith("---\necran: liste-des-factures\n"));
   assert.deepEqual(notes[5].entete, { version: 13, date: "2026-11-18" });
@@ -60,12 +61,12 @@ test("une puce sans ligne regle: est rendue avec null, avec sa phrase et sa lign
   );
   assert.deepEqual(untested, [
     ["produit/detail-facture.md", 17, "Le « Total TTC » doit être égal au montant de la facture dans la liste : voir [[regles-entre-ecrans]]."],
-    ["produit/liste-des-factures.md", 23,"Sous le tableau, le nombre de factures affichées est indiqué (« 4 factures »)."],
+    ["produit/liste-des-factures.md", 24,"Sous le tableau, le nombre de factures affichées est indiqué (« 4 factures »)."],
     ["produit/tableau-de-bord.md", 17,"Le « CA du mois » et le nombre de « Factures du mois » doivent correspondre à la liste des factures : voir [[regles-entre-ecrans]]."],
   ]);
   const first = lireNotes(vault, "facturo")[2].regles[0];
   assert.equal(first.phrase, "Le total en bas du tableau est la somme de la colonne « Montant TTC ».");
-  assert.equal(first.ligne, 15);
+  assert.equal(first.ligne, 16);
 });
 
 test("analyserLigneRegle lit les cinq types", () => {
