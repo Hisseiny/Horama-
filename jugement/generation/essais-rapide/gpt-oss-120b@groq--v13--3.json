@@ -1,0 +1,137 @@
+{
+  "model": "openai/gpt-oss-120b:groq",
+  "note": "notes-de-version/v13.md",
+  "pass": 3,
+  "valid": true,
+  "rulesRight": true,
+  "written": true,
+  "ms": 4148,
+  "tries": 1,
+  "inputTokens": 2223,
+  "outputTokens": 1490,
+  "costUsd": 0.00107385,
+  "answered": true,
+  "problems": [],
+  "firstRefusal": [],
+  "calls": [
+    {
+      "model": "openai/gpt-oss-120b:groq",
+      "ms": 4148,
+      "status": 200,
+      "content": "{\n  \"tests\": [\n    {\n      \"id\": \"filtre-echeance-depassee-liste-factures\",\n      \"titre\": \"Liste des factures : filtre Échéance dépassée\",\n      \"setup\": \"Connecté avec le compte de démo, sur la liste des factures, sans filtre.\",\n      \"etapes\": [\n        \"Cliquer sur le menu « Filtrer ».\",\n        \"Sélectionner le filtre « Échéance dépassée ».\"\n      ],\n      \"resultat_attendu\": \"Seules les factures dont l’échéance est antérieure à aujourd’hui sont affichées.\",\n      \"verifications\": [\n        \"FAIL if une ligne affichée a une échéance postérieure ou égale à aujourd'hui.\"\n      ],\n      \"releves\": [\n        {\n          \"ecran\": \"liste-des-factures\",\n          \"vue\": \"filtre-echeance-depassee\"\n        }\n      ],\n      \"regles_calculables\": [\n        {\n          \"type\": \"filtre\",\n          \"ecran\": \"liste-des-factures\",\n          \"filtre\": \"Échéance dépassée\",\n          \"colonne\": \"Échéance\",\n          \"condition\": \"< aujourd_hui\"\n        }\n      ],\n      \"passages_de_la_source\": [\n        \"- Nouveau filtre « Échéance dépassée » sur la liste des factures : il n'affiche que les factures dont la date d'échéance est passée.\"\n      ],\n      \"questions\": [\n        {\n          \"texte\": \"La date d'échéance du jour doit-elle être incluse dans le filtre « Échéance dépassée » ?\",\n          \"choix\": [\"Oui\", \"Non\"]\n        }\n      ]\n    },\n    {\n      \"id\": \"bouton-exporter-position-liste-factures\",\n      \"titre\": \"Liste des factures : position du bouton Exporter\",\n      \"setup\": \"Connecté avec le compte de démo, sur la liste des factures, sans filtre.\",\n      \"etapes\": [\n        \"Observer la barre d'actions en haut de l'écran.\"\n      ],\n      \"resultat_attendu\": \"Le bouton « Exporter » se trouve en haut à droite de la barre d'actions.\",\n      \"verifications\": [\n        \"FAIL if le bouton « Exporter » n’est pas situé en haut à droite.\"\n      ],\n      \"releves\": [\n        {\n          \"ecran\": \"liste-des-factures\",\n          \"vue\": \"defaut\"\n        }\n      ],\n      \"regles_calculables\": [],\n      \"passages_de_la_source\": [\n        \"- Refonte de la barre d'actions : le bouton « Exporter » passe en haut à droite.\"\n      ],\n      \"questions\": []\n    }\n  ]\n}",
+      "inputTokens": 2223,
+      "outputTokens": 1490,
+      "body": {
+        "id": "gen-1794923223-J9j9LJ9A6Uaa9c2pAEyt",
+        "object": "chat.completion",
+        "created": 1794923223,
+        "model": "openai/gpt-oss-120b",
+        "provider": "Groq",
+        "system_fingerprint": "fp_4b2f03d631",
+        "service_tier": "on_demand",
+        "choices": [
+          {
+            "index": 0,
+            "logprobs": null,
+            "finish_reason": "stop",
+            "native_finish_reason": "stop",
+            "message": {
+              "role": "assistant",
+              "content": "{\n  \"tests\": [\n    {\n      \"id\": \"filtre-echeance-depassee-liste-factures\",\n      \"titre\": \"Liste des factures : filtre Échéance dépassée\",\n      \"setup\": \"Connecté avec le compte de démo, sur la liste des factures, sans filtre.\",\n      \"etapes\": [\n        \"Cliquer sur le menu « Filtrer ».\",\n        \"Sélectionner le filtre « Échéance dépassée ».\"\n      ],\n      \"resultat_attendu\": \"Seules les factures dont l’échéance est antérieure à aujourd’hui sont affichées.\",\n      \"verifications\": [\n        \"FAIL if une ligne affichée a une échéance postérieure ou égale à aujourd'hui.\"\n      ],\n      \"releves\": [\n        {\n          \"ecran\": \"liste-des-factures\",\n          \"vue\": \"filtre-echeance-depassee\"\n        }\n      ],\n      \"regles_calculables\": [\n        {\n          \"type\": \"filtre\",\n          \"ecran\": \"liste-des-factures\",\n          \"filtre\": \"Échéance dépassée\",\n          \"colonne\": \"Échéance\",\n          \"condition\": \"< aujourd_hui\"\n        }\n      ],\n      \"passages_de_la_source\": [\n        \"- Nouveau filtre « Échéance dépassée » sur la liste des factures : il n'affiche que les factures dont la date d'échéance est passée.\"\n      ],\n      \"questions\": [\n        {\n          \"texte\": \"La date d'échéance du jour doit-elle être incluse dans le filtre « Échéance dépassée » ?\",\n          \"choix\": [\"Oui\", \"Non\"]\n        }\n      ]\n    },\n    {\n      \"id\": \"bouton-exporter-position-liste-factures\",\n      \"titre\": \"Liste des factures : position du bouton Exporter\",\n      \"setup\": \"Connecté avec le compte de démo, sur la liste des factures, sans filtre.\",\n      \"etapes\": [\n        \"Observer la barre d'actions en haut de l'écran.\"\n      ],\n      \"resultat_attendu\": \"Le bouton « Exporter » se trouve en haut à droite de la barre d'actions.\",\n      \"verifications\": [\n        \"FAIL if le bouton « Exporter » n’est pas situé en haut à droite.\"\n      ],\n      \"releves\": [\n        {\n          \"ecran\": \"liste-des-factures\",\n          \"vue\": \"defaut\"\n        }\n      ],\n      \"regles_calculables\": [],\n      \"passages_de_la_source\": [\n        \"- Refonte de la barre d'actions : le bouton « Exporter » passe en haut à droite.\"\n      ],\n      \"questions\": []\n    }\n  ]\n}",
+              "refusal": null,
+              "reasoning": "We need to produce JSON with tests for each change announced in version note, because no prewritten rules. Two changes:\n\n1. Nouveau filtre « Échéance dépassée » sur la liste des factures : il n'affiche que les factures dont la date d'échéance est passée.\n2. Refonte de la barre d'actions : le bouton « Exporter » passe en haut à droite.\n\nWe need one test per change.\n\nFirst test: filter \"Échéance dépassée\" on list screen. Need to verify that when filter selected, only rows with échéance date passed (strictly before today). Also maybe verify that filter appears? But main is behavior.\n\nWe need to include \"regles_calculables\" for filter condition: type filtre, ecran liste-des-factures, filtre \"Échéance dépassée\", colonne \"Échéance\", condition \"< aujourd_hui\". Since strict earlier.\n\nAlso maybe verify format etc? Not needed.\n\nWe need steps: open list (already on start). Then select filter \"Échéance dépassée\". Possibly need to open filter menu \"Filtrer\" then choose \"Échéance dépassée\". Steps phrasing: \"Cliquer sur le menu « Filtrer »\", \"Sélectionner le filtre « Échéance dépassée »\". That's it.\n\nResultat_attendu: \"Seules les factures dont l’échéance est antérieure à aujourd’hui sont affichées.\"\n\nVerifications: FAIL if une ligne affichée a une échéance >= aujourd'hui. So phrase: \"FAIL if une ligne affichée a une échéance postérieure ou égale à aujourd'hui.\" Must be French.\n\nReleves: need capture screen after filter applied. So releve: ecran \"liste-des-factures\", vue \"filtre-echeance-depassee\". Also maybe capture default view before? Not required but at least one. We'll include only after.\n\nPassages_de_la_source: the bullet line: \"- Nouveau filtre « Échéance dépassée » sur la liste des factures : il n'affiche que les factures dont la date d'échéance est passée.\"\n\nSecond test: button Exporter moved to top right. Need to verify its new position? That's UI change not calculable. So no regles_calculables. Steps: maybe \"Vérifier la présence du bouton « Exporter » en haut à droite\". But steps are actions to bring screen to state. Starting on list screen default view. So steps: \"Observer la barre d'actions\". But need an action? Could be \"Vérifier la position du bouton « Exporter »\". However steps are actions the agent executes. Could be \"Regarder la barre d'actions\". We'll phrase: \"Observer la barre d'actions en haut de l'écran\". That's okay.\n\nResultat_attendu: \"Le bouton « Exporter » se trouve en haut à droite de la barre d'actions.\"\n\nVerifications: FAIL if le bouton « Exporter » n’est pas situé en haut à droite. So phrase.\n\nReleves: capture list screen default view: ecran \"liste-des-factures\", vue \"defaut\". Maybe also capture after? Not needed.\n\nPassages_de_la_source: \"- Refonte de la barre d'actions : le bouton « Exporter » passe en haut à droite.\"\n\nQuestions: any ambiguous limits? For filter, note says \"date d'échéance est passée.\" Does that include today? \"Passée\" likely means strictly before today, not including today. But ambiguous. We need a question about inclusion of today. So add question: \"La date d'échéance du jour doit-elle être incluse dans le filtre « Échéance dépassée » ?\" choices [\"Oui\",\"Non\"]. Since we assume strict, we choose most strict reading (exclude today). So test uses strict (< aujourd_hui). Provide question.\n\nSecond test no ambiguity.\n\nNow construct JSON.\n\nIDs: \"filtre-echeance-depassee-liste-factures\", \"bouton-exporter-position-liste-factures\".\n\nTitles: \"Liste des factures : filtre Échéance dépassée\", \"Liste des factures : position du bouton Exporter\".\n\nSetup: \"Connecté avec le compte de démo, sur la liste des factures, sans filtre.\" For both.\n\nEtapes list.\n\nNow produce JSON.",
+              "reasoning_details": [
+                {
+                  "type": "reasoning.text",
+                  "text": "We need to produce JSON with tests for each change announced in version note, because no prewritten rules. Two changes:\n\n1. Nouveau filtre « Échéance dépassée » sur la liste des factures : il n'affiche que les factures dont la date d'échéance est passée.\n2. Refonte de la barre d'actions : le bouton « Exporter » passe en haut à droite.\n\nWe need one test per change.\n\nFirst test: filter \"Échéance dépassée\" on list screen. Need to verify that when filter selected, only rows with échéance date passed (strictly before today). Also maybe verify that filter appears? But main is behavior.\n\nWe need to include \"regles_calculables\" for filter condition: type filtre, ecran liste-des-factures, filtre \"Échéance dépassée\", colonne \"Échéance\", condition \"< aujourd_hui\". Since strict earlier.\n\nAlso maybe verify format etc? Not needed.\n\nWe need steps: open list (already on start). Then select filter \"Échéance dépassée\". Possibly need to open filter menu \"Filtrer\" then choose \"Échéance dépassée\". Steps phrasing: \"Cliquer sur le menu « Filtrer »\", \"Sélectionner le filtre « Échéance dépassée »\". That's it.\n\nResultat_attendu: \"Seules les factures dont l’échéance est antérieure à aujourd’hui sont affichées.\"\n\nVerifications: FAIL if une ligne affichée a une échéance >= aujourd'hui. So phrase: \"FAIL if une ligne affichée a une échéance postérieure ou égale à aujourd'hui.\" Must be French.\n\nReleves: need capture screen after filter applied. So releve: ecran \"liste-des-factures\", vue \"filtre-echeance-depassee\". Also maybe capture default view before? Not required but at least one. We'll include only after.\n\nPassages_de_la_source: the bullet line: \"- Nouveau filtre « Échéance dépassée » sur la liste des factures : il n'affiche que les factures dont la date d'échéance est passée.\"\n\nSecond test: button Exporter moved to top right. Need to verify its new position? That's UI change not calculable. So no regles_calculables. Steps: maybe \"Vérifier la présence du bouton « Exporter » en haut à droite\". But steps are actions to bring screen to state. Starting on list screen default view. So steps: \"Observer la barre d'actions\". But need an action? Could be \"Vérifier la position du bouton « Exporter »\". However steps are actions the agent executes. Could be \"Regarder la barre d'actions\". We'll phrase: \"Observer la barre d'actions en haut de l'écran\". That's okay.\n\nResultat_attendu: \"Le bouton « Exporter » se trouve en haut à droite de la barre d'actions.\"\n\nVerifications: FAIL if le bouton « Exporter » n’est pas situé en haut à droite. So phrase.\n\nReleves: capture list screen default view: ecran \"liste-des-factures\", vue \"defaut\". Maybe also capture after? Not needed.\n\nPassages_de_la_source: \"- Refonte de la barre d'actions : le bouton « Exporter » passe en haut à droite.\"\n\nQuestions: any ambiguous limits? For filter, note says \"date d'échéance est passée.\" Does that include today? \"Passée\" likely means strictly before today, not including today. But ambiguous. We need a question about inclusion of today. So add question: \"La date d'échéance du jour doit-elle être incluse dans le filtre « Échéance dépassée » ?\" choices [\"Oui\",\"Non\"]. Since we assume strict, we choose most strict reading (exclude today). So test uses strict (< aujourd_hui). Provide question.\n\nSecond test no ambiguity.\n\nNow construct JSON.\n\nIDs: \"filtre-echeance-depassee-liste-factures\", \"bouton-exporter-position-liste-factures\".\n\nTitles: \"Liste des factures : filtre Échéance dépassée\", \"Liste des factures : position du bouton Exporter\".\n\nSetup: \"Connecté avec le compte de démo, sur la liste des factures, sans filtre.\" For both.\n\nEtapes list.\n\nNow produce JSON.",
+                  "format": "unknown",
+                  "index": 0
+                }
+              ]
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 2223,
+          "completion_tokens": 1490,
+          "total_tokens": 3713,
+          "cost": 0.00107385,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 2048,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0.00107385,
+            "upstream_inference_prompt_cost": 0.00017985,
+            "upstream_inference_completions_cost": 0.000894
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 896,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      },
+      "rejections": []
+    }
+  ],
+  "tests": [
+    {
+      "id": "filtre-echeance-depassee-liste-factures",
+      "logiciel": "facturo",
+      "source": "notes-de-version/v13.md",
+      "passages_de_la_source": [
+        "- Nouveau filtre « Échéance dépassée » sur la liste des factures : il n'affiche que les factures dont la date d'échéance est passée."
+      ],
+      "releves": [
+        {
+          "ecran": "liste-des-factures",
+          "vue": "filtre-echeance-depassee"
+        }
+      ],
+      "test_markdown": "# Liste des factures : filtre Échéance dépassée\n\n## Setup\nConnecté avec le compte de démo, sur la liste des factures, sans filtre.\n\n## Task\n1. Cliquer sur le menu « Filtrer ».\n2. Sélectionner le filtre « Échéance dépassée ».\n\n## Expected Result\nSeules les factures dont l’échéance est antérieure à aujourd’hui sont affichées.\n\n## Verification\n- FAIL if une ligne affichée a une échéance postérieure ou égale à aujourd'hui.",
+      "regles_calculables": [
+        {
+          "type": "filtre",
+          "ecran": "liste-des-factures",
+          "filtre": "Échéance dépassée",
+          "colonne": "Échéance",
+          "condition": "< aujourd_hui"
+        }
+      ],
+      "questions": [
+        {
+          "texte": "La date d'échéance du jour doit-elle être incluse dans le filtre « Échéance dépassée » ?",
+          "choix": [
+            "Oui",
+            "Non"
+          ]
+        }
+      ],
+      "statut": "propose",
+      "modele": "openai/gpt-oss-120b:groq"
+    },
+    {
+      "id": "bouton-exporter-position-liste-factures",
+      "logiciel": "facturo",
+      "source": "notes-de-version/v13.md",
+      "passages_de_la_source": [
+        "- Refonte de la barre d'actions : le bouton « Exporter » passe en haut à droite."
+      ],
+      "releves": [
+        {
+          "ecran": "liste-des-factures",
+          "vue": "defaut"
+        }
+      ],
+      "test_markdown": "# Liste des factures : position du bouton Exporter\n\n## Setup\nConnecté avec le compte de démo, sur la liste des factures, sans filtre.\n\n## Task\n1. Observer la barre d'actions en haut de l'écran.\n\n## Expected Result\nLe bouton « Exporter » se trouve en haut à droite de la barre d'actions.\n\n## Verification\n- FAIL if le bouton « Exporter » n’est pas situé en haut à droite.",
+      "regles_calculables": [],
+      "questions": [],
+      "statut": "propose",
+      "modele": "openai/gpt-oss-120b:groq"
+    }
+  ]
+}

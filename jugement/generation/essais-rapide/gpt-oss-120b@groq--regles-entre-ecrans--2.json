@@ -1,0 +1,188 @@
+{
+  "model": "openai/gpt-oss-120b:groq",
+  "note": "produit/regles-entre-ecrans.md",
+  "pass": 2,
+  "valid": true,
+  "rulesRight": true,
+  "written": null,
+  "ms": 5436,
+  "tries": 1,
+  "inputTokens": 2634,
+  "outputTokens": 2266,
+  "costUsd": 0.0016011,
+  "answered": true,
+  "problems": [],
+  "firstRefusal": [],
+  "calls": [
+    {
+      "model": "openai/gpt-oss-120b:groq",
+      "ms": 5436,
+      "status": 200,
+      "content": "{\n  \"tests\": [\n    {\n      \"id\": \"ca-mois-egal-total-factures\",\n      \"titre\": \"Tableau de bord : CA du mois égal au total des factures\",\n      \"setup\": \"Connecté avec le compte de démo, sur le tableau de bord, affichage par défaut.\",\n      \"etapes\": [\n        \"Cliquer sur le menu « Factures ».\",\n        \"Attendre le chargement de la liste des factures.\"\n      ],\n      \"resultat_attendu\": \"Le CA du mois affiché correspond au total des factures listées.\",\n      \"verifications\": [\n        \"FAIL if le CA du mois affiché est différent du total affiché en bas du tableau.\"\n      ],\n      \"releves\": [\n        {\n          \"ecran\": \"tableau-de-bord\",\n          \"vue\": \"defaut\"\n        },\n        {\n          \"ecran\": \"liste-des-factures\",\n          \"vue\": \"defaut\"\n        }\n      ],\n      \"regles_calculables\": [\n        {\n          \"type\": \"egalite\",\n          \"a\": {\n            \"ecran\": \"tableau-de-bord\",\n            \"champ\": \"CA du mois\"\n          },\n          \"b\": {\n            \"ecran\": \"liste-des-factures\",\n            \"champ\": \"Total\"\n          }\n        }\n      ],\n      \"passages_de_la_source\": [\n        \"Le « CA du mois » du [[tableau-de-bord]] est égal au total de la [[liste-des-factures]].\"\n      ],\n      \"questions\": []\n    },\n    {\n      \"id\": \"nombre-factures-egal-nombre-liste\",\n      \"titre\": \"Tableau de bord : nombre de factures du mois égal au nombre de factures listées\",\n      \"setup\": \"Connecté avec le compte de démo, sur le tableau de bord, affichage par défaut.\",\n      \"etapes\": [\n        \"Cliquer sur le menu « Factures ».\",\n        \"Attendre le chargement de la liste des factures.\"\n      ],\n      \"resultat_attendu\": \"Le nombre de factures du mois affiché correspond au nombre de factures présentées dans la liste.\",\n      \"verifications\": [\n        \"FAIL if le nombre de factures du mois affiché est différent du nombre de factures indiqué sous le tableau.\"\n      ],\n      \"releves\": [\n        {\n          \"ecran\": \"tableau-de-bord\",\n          \"vue\": \"defaut\"\n        },\n        {\n          \"ecran\": \"liste-des-factures\",\n          \"vue\": \"defaut\"\n        }\n      ],\n      \"regles_calculables\": [\n        {\n          \"type\": \"egalite\",\n          \"a\": {\n            \"ecran\": \"tableau-de-bord\",\n            \"champ\": \"Factures du mois\"\n          },\n          \"b\": {\n            \"ecran\": \"liste-des-factures\",\n            \"champ\": \"Nombre de factures\"\n          }\n        }\n      ],\n      \"passages_de_la_source\": [\n        \"Le nombre de « Factures du mois » du [[tableau-de-bord]] est égal au nombre de factures de la [[liste-des-factures]].\"\n      ],\n      \"questions\": []\n    },\n    {\n      \"id\": \"total-ttc-detail-egal-montant-liste\",\n      \"titre\": \"Détail facture : Total TTC égal au montant TTC de la même facture dans la liste\",\n      \"setup\": \"Connecté avec le compte de démo, sur la liste des factures, affichage par défaut.\",\n      \"etapes\": [\n        \"Cliquer sur le numéro de facture « F-119 » dans la liste.\",\n        \"Attendre le chargement du détail de la facture.\"\n      ],\n      \"resultat_attendu\": \"Le Total TTC affiché dans le détail correspond au montant TTC indiqué dans la liste pour la facture F-119.\",\n      \"verifications\": [\n        \"FAIL if le Total TTC affiché est différent du Montant TTC de la facture F-119 dans la liste.\"\n      ],\n      \"releves\": [\n        {\n          \"ecran\": \"liste-des-factures\",\n          \"vue\": \"defaut\"\n        },\n        {\n          \"ecran\": \"detail-facture\",\n          \"vue\": \"defaut\"\n        }\n      ],\n      \"regles_calculables\": [\n        {\n          \"type\": \"egalite\",\n          \"a\": {\n            \"ecran\": \"detail-facture\",\n            \"champ\": \"Total TTC\"\n          },\n          \"b\": {\n            \"ecran\": \"liste-des-factures\",\n            \"champ\": \"Montant TTC de F-119\"\n          }\n        }\n      ],\n      \"passages_de_la_source\": [\n        \"Le « Total TTC » du [[detail-facture]] est égal au montant de la même facture dans la [[liste-des-factures]]. Facture témoin : F-119.\"\n      ],\n      \"questions\": []\n    }\n  ]\n}",
+      "inputTokens": 2634,
+      "outputTokens": 2266,
+      "body": {
+        "id": "gen-1794923247-O2XcV0WAUx51GgF9a6so",
+        "object": "chat.completion",
+        "created": 1794923247,
+        "model": "openai/gpt-oss-120b",
+        "provider": "Groq",
+        "system_fingerprint": "fp_4b2f03d631",
+        "service_tier": "on_demand",
+        "choices": [
+          {
+            "index": 0,
+            "logprobs": null,
+            "finish_reason": "stop",
+            "native_finish_reason": "stop",
+            "message": {
+              "role": "assistant",
+              "content": "{\n  \"tests\": [\n    {\n      \"id\": \"ca-mois-egal-total-factures\",\n      \"titre\": \"Tableau de bord : CA du mois égal au total des factures\",\n      \"setup\": \"Connecté avec le compte de démo, sur le tableau de bord, affichage par défaut.\",\n      \"etapes\": [\n        \"Cliquer sur le menu « Factures ».\",\n        \"Attendre le chargement de la liste des factures.\"\n      ],\n      \"resultat_attendu\": \"Le CA du mois affiché correspond au total des factures listées.\",\n      \"verifications\": [\n        \"FAIL if le CA du mois affiché est différent du total affiché en bas du tableau.\"\n      ],\n      \"releves\": [\n        {\n          \"ecran\": \"tableau-de-bord\",\n          \"vue\": \"defaut\"\n        },\n        {\n          \"ecran\": \"liste-des-factures\",\n          \"vue\": \"defaut\"\n        }\n      ],\n      \"regles_calculables\": [\n        {\n          \"type\": \"egalite\",\n          \"a\": {\n            \"ecran\": \"tableau-de-bord\",\n            \"champ\": \"CA du mois\"\n          },\n          \"b\": {\n            \"ecran\": \"liste-des-factures\",\n            \"champ\": \"Total\"\n          }\n        }\n      ],\n      \"passages_de_la_source\": [\n        \"Le « CA du mois » du [[tableau-de-bord]] est égal au total de la [[liste-des-factures]].\"\n      ],\n      \"questions\": []\n    },\n    {\n      \"id\": \"nombre-factures-egal-nombre-liste\",\n      \"titre\": \"Tableau de bord : nombre de factures du mois égal au nombre de factures listées\",\n      \"setup\": \"Connecté avec le compte de démo, sur le tableau de bord, affichage par défaut.\",\n      \"etapes\": [\n        \"Cliquer sur le menu « Factures ».\",\n        \"Attendre le chargement de la liste des factures.\"\n      ],\n      \"resultat_attendu\": \"Le nombre de factures du mois affiché correspond au nombre de factures présentées dans la liste.\",\n      \"verifications\": [\n        \"FAIL if le nombre de factures du mois affiché est différent du nombre de factures indiqué sous le tableau.\"\n      ],\n      \"releves\": [\n        {\n          \"ecran\": \"tableau-de-bord\",\n          \"vue\": \"defaut\"\n        },\n        {\n          \"ecran\": \"liste-des-factures\",\n          \"vue\": \"defaut\"\n        }\n      ],\n      \"regles_calculables\": [\n        {\n          \"type\": \"egalite\",\n          \"a\": {\n            \"ecran\": \"tableau-de-bord\",\n            \"champ\": \"Factures du mois\"\n          },\n          \"b\": {\n            \"ecran\": \"liste-des-factures\",\n            \"champ\": \"Nombre de factures\"\n          }\n        }\n      ],\n      \"passages_de_la_source\": [\n        \"Le nombre de « Factures du mois » du [[tableau-de-bord]] est égal au nombre de factures de la [[liste-des-factures]].\"\n      ],\n      \"questions\": []\n    },\n    {\n      \"id\": \"total-ttc-detail-egal-montant-liste\",\n      \"titre\": \"Détail facture : Total TTC égal au montant TTC de la même facture dans la liste\",\n      \"setup\": \"Connecté avec le compte de démo, sur la liste des factures, affichage par défaut.\",\n      \"etapes\": [\n        \"Cliquer sur le numéro de facture « F-119 » dans la liste.\",\n        \"Attendre le chargement du détail de la facture.\"\n      ],\n      \"resultat_attendu\": \"Le Total TTC affiché dans le détail correspond au montant TTC indiqué dans la liste pour la facture F-119.\",\n      \"verifications\": [\n        \"FAIL if le Total TTC affiché est différent du Montant TTC de la facture F-119 dans la liste.\"\n      ],\n      \"releves\": [\n        {\n          \"ecran\": \"liste-des-factures\",\n          \"vue\": \"defaut\"\n        },\n        {\n          \"ecran\": \"detail-facture\",\n          \"vue\": \"defaut\"\n        }\n      ],\n      \"regles_calculables\": [\n        {\n          \"type\": \"egalite\",\n          \"a\": {\n            \"ecran\": \"detail-facture\",\n            \"champ\": \"Total TTC\"\n          },\n          \"b\": {\n            \"ecran\": \"liste-des-factures\",\n            \"champ\": \"Montant TTC de F-119\"\n          }\n        }\n      ],\n      \"passages_de_la_source\": [\n        \"Le « Total TTC » du [[detail-facture]] est égal au montant de la même facture dans la [[liste-des-factures]]. Facture témoin : F-119.\"\n      ],\n      \"questions\": []\n    }\n  ]\n}",
+              "refusal": null,
+              "reasoning": "We need to output JSON with tests array. Since note source contains already written rules (three). We must write tests for these rules only. Recopy each rule exactly in \"regles_calculables\". Put passages of source as the rule lines (the phrase lines? The note source includes the phrase and rule lines). The instruction: \"passages_de_la_source\": at least one passage of the note source d'où vient le test, recopié caractère pour caractère (mêmes guillemets, mêmes accents, mêmes espaces), without the dash of the bullet, without adding. So we need to include the passage that contains the rule. The note source includes lines like \"- Le « CA du mois » du [[tableau-de-bord]] est égal au total de la [[liste-des-factures]].\". That's a passage. We'll include that exact line (including leading dash? It says without the dash of the bullet. So we should remove the leading \"- \". So passage should be \"Le « CA du mois » du [[tableau-de-bord]] est égal au total de la [[liste-des-factures]].\". Similarly for other two.\n\nNow each test: need id, titre, setup, etapes, resultat_attendu, verifications, releves, regles_calculables, passages_de_la_source, questions.\n\nWe have three rules: equality between CA du mois and total list; equality between Factures du mois count and number of factures; equality between Total TTC in detail-facture and Montant TTC in list for same invoice.\n\nWe need to design tests that capture needed screens and values.\n\nTest 1: CA du mois equals total list.\n\n- Starting state: connected, on tableau-de-bord (first screen). Setup phrase: \"Connecté avec le compte de démo, sur le tableau de bord, affichage par défaut.\"\n\n- Steps: maybe \"ouvrir le tableau de bord\" is already done. Need to capture tableau-de-bord and then navigate to liste-des-factures? The test must capture both screens. Steps: \"cliquer sur le lien « Liste des factures »\" maybe not defined. But we can use generic: \"ouvrir la liste des factures depuis le menu\". Use interface label \"Liste des factures\". So step: \"cliquer sur le menu « Factures »\". That will go to liste-des-factures.\n\n- Result expected: \"Le CA du mois affiché correspond au total des factures listées.\"\n\n- Verifications: FAIL if le CA du mois affiché diffère du total affiché en bas du tableau.\n\n- Releves: first capture tableau-de-bord view default, then capture liste-des-factures view default (since after navigation). So releves array with two objects.\n\n- regles_calculables: include the equality rule as given in note source (the JSON). Use exactly the rule object.\n\n- passages_de_la_source: include the phrase line.\n\n- questions: none (no ambiguity). So empty list.\n\nTest 2: Factures du mois count equals number of factures.\n\nSimilar steps.\n\nTest 3: Total TTC detail equals Montant TTC in list for same invoice (F-119). Need to open detail for that invoice. Starting on tableau-de-bord? Could start on liste-des-factures default. Setup: \"Connecté avec le compte de démo, sur la liste des factures, affichage par défaut.\"\n\nSteps: \"cliquer sur le numéro de facture « F-119 »\". That opens detail-facture.\n\nResult: \"Le Total TTC affiché dans le détail correspond au montant TTC indiqué dans la liste pour la facture F-119.\"\n\nVerifications: FAIL if le Total TTC affiché diffère du Montant TTC de la facture F-119 dans la liste.\n\nReleves: capture liste-des-factures default (to get the row), then capture detail-facture default.\n\nregles_calculables: include equality rule JSON.\n\npassages: phrase line.\n\nNow need to ensure column names match exactly as in rule objects: For rule 1: champ \"CA du mois\" and \"Total\". For rule 2: \"Factures du mois\" and \"Nombre de factures\". For rule 3: \"Total TTC\" and \"Montant TTC de F-119\". Use those.\n\nNow produce JSON.\n\nIDs: \"ca-mois-egal-total-factures\", \"nombre-factures-egal-nombre-liste\", \"total-ttc-detail-egal-montant-liste\". Use kebab-case.\n\nTitles: \"Tableau de bord : CA du mois égal au total des factures\", etc.\n\nSetup sentences: as described.\n\nEtapes: list of strings with infinitive, capitalized, ending period. Must cite libellés between « ». Use French quotes.\n\nFor test 1 steps: \"Cliquer sur le menu « Factures ».\" \"Attendre le chargement de la liste des factures.\"\n\nTest 2 similar steps.\n\nTest 3 steps: \"Cliquer sur le numéro de facture « F-119 » dans la liste.\" \"Attendre le chargement du détail de la facture.\"\n\nNow verifications: \"FAIL if le CA du mois affiché est différent du total affiché en bas du tableau.\" etc.\n\nReleves: need ecran identifiers: \"tableau-de-bord\", \"liste-des-factures\", \"detail-facture\". Views: default for each.\n\nNow regles_calculables: include the JSON objects exactly as given in note source (the rule objects). Ensure they match exactly: {\"type\":\"egalite\",\"a\":{\"ecran\":\"tableau-de-bord\",\"champ\":\"CA du mois\"},\"b\":{\"ecran\":\"liste-des-factures\",\"champ\":\"Total\"}} etc.\n\nNow produce final JSON.\n\n",
+              "reasoning_details": [
+                {
+                  "type": "reasoning.text",
+                  "text": "We need to output JSON with tests array. Since note source contains already written rules (three). We must write tests for these rules only. Recopy each rule exactly in \"regles_calculables\". Put passages of source as the rule lines (the phrase lines? The note source includes the phrase and rule lines). The instruction: \"passages_de_la_source\": at least one passage of the note source d'où vient le test, recopié caractère pour caractère (mêmes guillemets, mêmes accents, mêmes espaces), without the dash of the bullet, without adding. So we need to include the passage that contains the rule. The note source includes lines like \"- Le « CA du mois » du [[tableau-de-bord]] est égal au total de la [[liste-des-factures]].\". That's a passage. We'll include that exact line (including leading dash? It says without the dash of the bullet. So we should remove the leading \"- \". So passage should be \"Le « CA du mois » du [[tableau-de-bord]] est égal au total de la [[liste-des-factures]].\". Similarly for other two.\n\nNow each test: need id, titre, setup, etapes, resultat_attendu, verifications, releves, regles_calculables, passages_de_la_source, questions.\n\nWe have three rules: equality between CA du mois and total list; equality between Factures du mois count and number of factures; equality between Total TTC in detail-facture and Montant TTC in list for same invoice.\n\nWe need to design tests that capture needed screens and values.\n\nTest 1: CA du mois equals total list.\n\n- Starting state: connected, on tableau-de-bord (first screen). Setup phrase: \"Connecté avec le compte de démo, sur le tableau de bord, affichage par défaut.\"\n\n- Steps: maybe \"ouvrir le tableau de bord\" is already done. Need to capture tableau-de-bord and then navigate to liste-des-factures? The test must capture both screens. Steps: \"cliquer sur le lien « Liste des factures »\" maybe not defined. But we can use generic: \"ouvrir la liste des factures depuis le menu\". Use interface label \"Liste des factures\". So step: \"cliquer sur le menu « Factures »\". That will go to liste-des-factures.\n\n- Result expected: \"Le CA du mois affiché correspond au total des factures listées.\"\n\n- Verifications: FAIL if le CA du mois affiché diffère du total affiché en bas du tableau.\n\n- Releves: first capture tableau-de-bord view default, then capture liste-des-factures view default (since after navigation). So releves array with two objects.\n\n- regles_calculables: include the equality rule as given in note source (the JSON). Use exactly the rule object.\n\n- passages_de_la_source: include the phrase line.\n\n- questions: none (no ambiguity). So empty list.\n\nTest 2: Factures du mois count equals number of factures.\n\nSimilar steps.\n\nTest 3: Total TTC detail equals Montant TTC in list for same invoice (F-119). Need to open detail for that invoice. Starting on tableau-de-bord? Could start on liste-des-factures default. Setup: \"Connecté avec le compte de démo, sur la liste des factures, affichage par défaut.\"\n\nSteps: \"cliquer sur le numéro de facture « F-119 »\". That opens detail-facture.\n\nResult: \"Le Total TTC affiché dans le détail correspond au montant TTC indiqué dans la liste pour la facture F-119.\"\n\nVerifications: FAIL if le Total TTC affiché diffère du Montant TTC de la facture F-119 dans la liste.\n\nReleves: capture liste-des-factures default (to get the row), then capture detail-facture default.\n\nregles_calculables: include equality rule JSON.\n\npassages: phrase line.\n\nNow need to ensure column names match exactly as in rule objects: For rule 1: champ \"CA du mois\" and \"Total\". For rule 2: \"Factures du mois\" and \"Nombre de factures\". For rule 3: \"Total TTC\" and \"Montant TTC de F-119\". Use those.\n\nNow produce JSON.\n\nIDs: \"ca-mois-egal-total-factures\", \"nombre-factures-egal-nombre-liste\", \"total-ttc-detail-egal-montant-liste\". Use kebab-case.\n\nTitles: \"Tableau de bord : CA du mois égal au total des factures\", etc.\n\nSetup sentences: as described.\n\nEtapes: list of strings with infinitive, capitalized, ending period. Must cite libellés between « ». Use French quotes.\n\nFor test 1 steps: \"Cliquer sur le menu « Factures ».\" \"Attendre le chargement de la liste des factures.\"\n\nTest 2 similar steps.\n\nTest 3 steps: \"Cliquer sur le numéro de facture « F-119 » dans la liste.\" \"Attendre le chargement du détail de la facture.\"\n\nNow verifications: \"FAIL if le CA du mois affiché est différent du total affiché en bas du tableau.\" etc.\n\nReleves: need ecran identifiers: \"tableau-de-bord\", \"liste-des-factures\", \"detail-facture\". Views: default for each.\n\nNow regles_calculables: include the JSON objects exactly as given in note source (the rule objects). Ensure they match exactly: {\"type\":\"egalite\",\"a\":{\"ecran\":\"tableau-de-bord\",\"champ\":\"CA du mois\"},\"b\":{\"ecran\":\"liste-des-factures\",\"champ\":\"Total\"}} etc.\n\nNow produce final JSON.\n\n",
+                  "format": "unknown",
+                  "index": 0
+                }
+              ]
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 2634,
+          "completion_tokens": 2266,
+          "total_tokens": 4900,
+          "cost": 0.0016011,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 2048,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0.0016011,
+            "upstream_inference_prompt_cost": 0.0002415,
+            "upstream_inference_completions_cost": 0.0013596
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 1194,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      },
+      "rejections": []
+    }
+  ],
+  "tests": [
+    {
+      "id": "ca-mois-egal-total-factures",
+      "logiciel": "facturo",
+      "source": "produit/regles-entre-ecrans.md",
+      "passages_de_la_source": [
+        "Le « CA du mois » du [[tableau-de-bord]] est égal au total de la [[liste-des-factures]]."
+      ],
+      "releves": [
+        {
+          "ecran": "tableau-de-bord",
+          "vue": "defaut"
+        },
+        {
+          "ecran": "liste-des-factures",
+          "vue": "defaut"
+        }
+      ],
+      "test_markdown": "# Tableau de bord : CA du mois égal au total des factures\n\n## Setup\nConnecté avec le compte de démo, sur le tableau de bord, affichage par défaut.\n\n## Task\n1. Cliquer sur le menu « Factures ».\n2. Attendre le chargement de la liste des factures.\n\n## Expected Result\nLe CA du mois affiché correspond au total des factures listées.\n\n## Verification\n- FAIL if le CA du mois affiché est différent du total affiché en bas du tableau.",
+      "regles_calculables": [
+        {
+          "type": "egalite",
+          "a": {
+            "ecran": "tableau-de-bord",
+            "champ": "CA du mois"
+          },
+          "b": {
+            "ecran": "liste-des-factures",
+            "champ": "Total"
+          }
+        }
+      ],
+      "questions": [],
+      "statut": "propose",
+      "modele": "openai/gpt-oss-120b:groq"
+    },
+    {
+      "id": "nombre-factures-egal-nombre-liste",
+      "logiciel": "facturo",
+      "source": "produit/regles-entre-ecrans.md",
+      "passages_de_la_source": [
+        "Le nombre de « Factures du mois » du [[tableau-de-bord]] est égal au nombre de factures de la [[liste-des-factures]]."
+      ],
+      "releves": [
+        {
+          "ecran": "tableau-de-bord",
+          "vue": "defaut"
+        },
+        {
+          "ecran": "liste-des-factures",
+          "vue": "defaut"
+        }
+      ],
+      "test_markdown": "# Tableau de bord : nombre de factures du mois égal au nombre de factures listées\n\n## Setup\nConnecté avec le compte de démo, sur le tableau de bord, affichage par défaut.\n\n## Task\n1. Cliquer sur le menu « Factures ».\n2. Attendre le chargement de la liste des factures.\n\n## Expected Result\nLe nombre de factures du mois affiché correspond au nombre de factures présentées dans la liste.\n\n## Verification\n- FAIL if le nombre de factures du mois affiché est différent du nombre de factures indiqué sous le tableau.",
+      "regles_calculables": [
+        {
+          "type": "egalite",
+          "a": {
+            "ecran": "tableau-de-bord",
+            "champ": "Factures du mois"
+          },
+          "b": {
+            "ecran": "liste-des-factures",
+            "champ": "Nombre de factures"
+          }
+        }
+      ],
+      "questions": [],
+      "statut": "propose",
+      "modele": "openai/gpt-oss-120b:groq"
+    },
+    {
+      "id": "total-ttc-detail-egal-montant-liste",
+      "logiciel": "facturo",
+      "source": "produit/regles-entre-ecrans.md",
+      "passages_de_la_source": [
+        "Le « Total TTC » du [[detail-facture]] est égal au montant de la même facture dans la [[liste-des-factures]]. Facture témoin : F-119."
+      ],
+      "releves": [
+        {
+          "ecran": "liste-des-factures",
+          "vue": "defaut"
+        },
+        {
+          "ecran": "detail-facture",
+          "vue": "defaut"
+        }
+      ],
+      "test_markdown": "# Détail facture : Total TTC égal au montant TTC de la même facture dans la liste\n\n## Setup\nConnecté avec le compte de démo, sur la liste des factures, affichage par défaut.\n\n## Task\n1. Cliquer sur le numéro de facture « F-119 » dans la liste.\n2. Attendre le chargement du détail de la facture.\n\n## Expected Result\nLe Total TTC affiché dans le détail correspond au montant TTC indiqué dans la liste pour la facture F-119.\n\n## Verification\n- FAIL if le Total TTC affiché est différent du Montant TTC de la facture F-119 dans la liste.",
+      "regles_calculables": [
+        {
+          "type": "egalite",
+          "a": {
+            "ecran": "detail-facture",
+            "champ": "Total TTC"
+          },
+          "b": {
+            "ecran": "liste-des-factures",
+            "champ": "Montant TTC de F-119"
+          }
+        }
+      ],
+      "questions": [],
+      "statut": "propose",
+      "modele": "openai/gpt-oss-120b:groq"
+    }
+  ]
+}

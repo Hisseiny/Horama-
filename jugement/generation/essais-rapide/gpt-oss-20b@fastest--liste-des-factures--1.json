@@ -1,0 +1,129 @@
+{
+  "model": "openai/gpt-oss-20b:fastest",
+  "note": "produit/liste-des-factures.md",
+  "pass": 1,
+  "valid": true,
+  "rulesRight": true,
+  "written": null,
+  "ms": 4114,
+  "tries": 1,
+  "inputTokens": 2597,
+  "outputTokens": 2215,
+  "costUsd": 0.00051404,
+  "answered": true,
+  "problems": [],
+  "firstRefusal": [],
+  "calls": [
+    {
+      "model": "openai/gpt-oss-20b:fastest",
+      "ms": 4113,
+      "status": 200,
+      "content": "{\"tests\":[{\"id\":\"liste-des-factures-regles\",\"titre\":\"Liste des factures : règles de total, format, échéance, présence\",\"setup\":\"Connecté avec le compte de démo, sur la liste des factures, sans filtre.\",\"etapes\":[\"Cliquer sur le menu « Filtrer »\",\"Sélectionner l'option « Toutes »\"],\"resultat_attendu\":\"Les règles de total, format, échéance et présence sont respectées.\",\"verifications\":[\"FAIL if le total affiché n'est pas la somme des montants TTC.\",\"FAIL if un montant TTC n'est pas affiché au format 1 420,00 €.\",\"FAIL if une échéance n'est pas affichée au format JJ/MM/AAAA.\",\"FAIL if une colonne Échéance est vide.\"],\"releves\":[{\"ecran\":\"liste-des-factures\",\"vue\":\"defaut\"}],\"regles_calculables\":[{\"type\":\"somme\",\"ecran\":\"liste-des-factures\",\"colonne\":\"Montant TTC\",\"cible\":\"Total\"},{\"type\":\"format\",\"ecran\":\"liste-des-factures\",\"colonne\":\"Montant TTC\",\"motif\":\"montant-fr\"},{\"type\":\"format\",\"ecran\":\"liste-des-factures\",\"colonne\":\"Échéance\",\"motif\":\"date-fr\"},{\"type\":\"presence\",\"ecran\":\"liste-des-factures\",\"colonne\":\"Échéance\"}],\"passages_de_la_source\":[\"Le total en bas du tableau est la somme de la colonne « Montant TTC ».\",\"Les montants s'affichent au format 1 420,00 €.\",\"Les échéances s'affichent au format JJ/MM/AAAA.\",\"Chaque facture a une échéance.\"],\"questions\":[]}]}",
+      "inputTokens": 2597,
+      "outputTokens": 2215,
+      "body": {
+        "id": "gen-1794923236-QtbzInFdERJ6PCwIICEw",
+        "object": "chat.completion",
+        "created": 1794923236,
+        "model": "openai/gpt-oss-20b",
+        "provider": "Amazon Bedrock",
+        "system_fingerprint": null,
+        "service_tier": null,
+        "choices": [
+          {
+            "index": 0,
+            "logprobs": null,
+            "finish_reason": "stop",
+            "native_finish_reason": "end_turn",
+            "message": {
+              "role": "assistant",
+              "content": "{\"tests\":[{\"id\":\"liste-des-factures-regles\",\"titre\":\"Liste des factures : règles de total, format, échéance, présence\",\"setup\":\"Connecté avec le compte de démo, sur la liste des factures, sans filtre.\",\"etapes\":[\"Cliquer sur le menu « Filtrer »\",\"Sélectionner l'option « Toutes »\"],\"resultat_attendu\":\"Les règles de total, format, échéance et présence sont respectées.\",\"verifications\":[\"FAIL if le total affiché n'est pas la somme des montants TTC.\",\"FAIL if un montant TTC n'est pas affiché au format 1 420,00 €.\",\"FAIL if une échéance n'est pas affichée au format JJ/MM/AAAA.\",\"FAIL if une colonne Échéance est vide.\"],\"releves\":[{\"ecran\":\"liste-des-factures\",\"vue\":\"defaut\"}],\"regles_calculables\":[{\"type\":\"somme\",\"ecran\":\"liste-des-factures\",\"colonne\":\"Montant TTC\",\"cible\":\"Total\"},{\"type\":\"format\",\"ecran\":\"liste-des-factures\",\"colonne\":\"Montant TTC\",\"motif\":\"montant-fr\"},{\"type\":\"format\",\"ecran\":\"liste-des-factures\",\"colonne\":\"Échéance\",\"motif\":\"date-fr\"},{\"type\":\"presence\",\"ecran\":\"liste-des-factures\",\"colonne\":\"Échéance\"}],\"passages_de_la_source\":[\"Le total en bas du tableau est la somme de la colonne « Montant TTC ».\",\"Les montants s'affichent au format 1 420,00 €.\",\"Les échéances s'affichent au format JJ/MM/AAAA.\",\"Chaque facture a une échéance.\"],\"questions\":[]}]}",
+              "refusal": null,
+              "reasoning": "We need to produce tests for each rule already written. The note source includes rules for liste-des-factures. Also there are rules in detail-facture and tableau-de-bord but not yet written in the \"Règles déjà écrites\" list. The instruction: \"Si la note porte des règles déjà écrites (elles te sont données avec leur phrase) : écris des tests pour ces règles seulement. Recopie chaque règle telle quelle dans 'regles_calculables' : toutes, sans en ajouter, sans en changer un caractère. Mets dans un même test les règles qui se vérifient sur les mêmes écrans, sinon un test par règle. Les passages de la source sont les phrases de ces règles.\"\n\nThus we only need to write tests for the rules that are already written in the note source. Those are the four rules for liste-des-factures. We don't need to write tests for detail-facture or tableau-de-bord because they are not in the \"Règles déjà écrites\" list. So we produce tests for each rule, but we can combine if same screen. All four rules are on the same screen \"liste-des-factures\". So we can combine them into one test? The instruction: \"Mets dans un même test les règles qui se vérifient sur les mêmes écrans, sinon un test par règle.\" So yes, we can combine all four into one test for liste-des-factures. But we need to include all four rules in \"regles_calculables\" array. The \"passages_de_la_source\" should include each phrase of the rule. So we need to include each phrase as separate passage? The field \"passages_de_la_source\" is a list of passages. We can include each phrase. The phrase is the text before \"règle:\"? The note source includes:\n\n- phrase : Le total en bas du tableau est la somme de la colonne « Montant TTC ».\n  règle : {\"type\":\"somme\",\"ecran\":\"liste-des-factures\",\"colonne\":\"Montant TTC\",\"cible\":\"Total\"}\n- phrase : Les montants s'affichent au format 1 420,00 €.\n  règle : {\"type\":\"format\",\"ecran\":\"liste-des-factures\",\"colonne\":\"Montant TTC\",\"motif\":\"montant-fr\"}\n- phrase : Les échéances s'affichent au format JJ/MM/AAAA.\n  règle : {\"type\":\"format\",\"ecran\":\"liste-des-factures\",\"colonne\":\"Échéance\",\"motif\":\"date-fr\"}\n- phrase : Chaque facture a une échéance.\n  règle : {\"type\":\"presence\",\"ecran\":\"liste-des-factures\",\"colonne\":\"Échéance\"}\n\nThus we need to include these four phrases in \"passages_de_la_source\". The \"regles_calculables\" should contain the four rule objects exactly as given.\n\nNow we need to fill the test fields.\n\n- id: e.g., \"liste-des-factures-total-montant\" or something. But we need kebab-case, unique. Since we combine all rules, we can use \"liste-des-factures-regles\". But maybe better \"liste-des-factures-regles\". Let's use that.\n\n- titre: \"Liste des factures : vérification des règles\". Or \"Liste des factures : règles de total, format, échéance, présence\". The spec: \"titre\" : une ligne, le nom de l'écran puis ce qui est vérifié, par exemple « Fiche client : adresse de livraison ». So we can say \"Liste des factures : règles de total, format, échéance, présence\".\n\n- setup: \"Connecté avec le compte de démo, sur la liste des factures, sans filtre.\" The screen is \"liste-des-factures\". So \"Connecté avec le compte de démo, sur la liste des factures, sans filtre.\"\n\n- etapes: list of phrases to get to the state. Starting from the screen, we might need to ensure filter is \"Toutes\" (default). So steps: \"Cliquer sur le menu « Filtrer »\", \"Sélectionner l'option « Toutes »\". But the default might be \"Toutes\". But to be safe, we can include steps to ensure filter is \"Toutes\". Also we might need to scroll to bottom to see total. But not necessary. So steps: \"Cliquer sur le bouton « Filtrer »\", \"Sélectionner l'option « Toutes »\". But we need to use the interface labels exactly as in documentation. The documentation says: \"Le menu « Filtrer » propose « Toutes » et « À venir »\". So we can use \"Cliquer sur le menu « Filtrer »\", \"Sélectionner l'option « Toutes »\". But we might not need to click filter if default is \"Toutes\". But we can include to be explicit.\n\n- resultat_attendu: \"Les règles sont respectées : le total est correct, les montants et échéances sont formatés, et aucune échéance n'est vide.\" But we need a single sentence. \"Les règles de total, format, échéance et présence sont respectées.\" That is fine.\n\n- verifications: list of FAIL if statements. We need to include checks for each rule. For each rule, we need a FAIL if condition. For somme: \"FAIL if le total affiché n'est pas la somme des montants TTC.\" For format Montant TTC: \"FAIL if un montant TTC n'est pas affiché au format 1 420,00 €.\" For format Échéance: \"FAIL if une échéance n'est pas affichée au format JJ/MM/AAAA.\" For presence: \"FAIL if une colonne Échéance est vide.\" That covers all.\n\n- releves: we need to capture the screen \"liste-des-factures\" with view \"defaut\" (since no filter changed). But we changed filter to \"Toutes\" which is default. So view \"defaut\". So we include { \"ecran\": \"liste-des-factures\", \"vue\": \"defaut\" }.\n\n- regles_calculables: list of four rule objects exactly as given.\n\n- passages_de_la_source: list of the four phrases exactly as in note source. They are:\n\n\"Le total en bas du tableau est la somme de la colonne « Montant TTC ».\"\n\"Les montants s'affichent au format 1 420,00 €.\"\n\"Les échéances s'affichent au format JJ/MM/AAAA.\"\n\"Chaque facture a une échéance.\"\n\nWe need to ensure quotes and accents exactly. The note source uses French quotes « ». We need to copy exactly. So we need to include those strings.\n\n- questions: list empty because no doubt.\n\nNow we need to produce JSON with \"tests\": [ { ... } ].\n\nCheck that all fields are present.\n\nLet's craft the test object.\n\n\"id\": \"liste-des-factures-regles\"\n\n\"titre\": \"Liste des factures : règles de total, format, échéance, présence\"\n\n\"setup\": \"Connecté avec le compte de démo, sur la liste des factures, sans filtre.\"\n\n\"etapes\": [\n  \"Cliquer sur le menu « Filtrer »\",\n  \"Sélectionner l'option « Toutes »\"\n]\n\n\"resultat_attendu\": \"Les règles de total, format, échéance et présence sont respectées.\"\n\n\"verifications\": [\n  \"FAIL if le total affiché n'est pas la somme des montants TTC.\",\n  \"FAIL if un montant TTC n'est pas affiché au format 1 420,00 €.\",\n  \"FAIL if une échéance n'est pas affichée au format JJ/MM/AAAA.\",\n  \"FAIL if une colonne Échéance est vide.\"\n]\n\n\"releves\": [\n  { \"ecran\": \"liste-des-factures\", \"vue\": \"defaut\" }\n]\n\n\"regles_calculables\": [\n  {\"type\":\"somme\",\"ecran\":\"liste-des-factures\",\"colonne\":\"Montant TTC\",\"cible\":\"Total\"},\n  {\"type\":\"format\",\"ecran\":\"liste-des-factures\",\"colonne\":\"Montant TTC\",\"motif\":\"montant-fr\"},\n  {\"type\":\"format\",\"ecran\":\"liste-des-factures\",\"colonne\":\"Échéance\",\"motif\":\"date-fr\"},\n  {\"type\":\"presence\",\"ecran\":\"liste-des-factures\",\"colonne\":\"Échéance\"}\n]\n\n\"passages_de_la_source\": [\n  \"Le total en bas du tableau est la somme de la colonne « Montant TTC ».\",\n  \"Les montants s'affichent au format 1 420,00 €.\",\n  \"Les échéances s'affichent au format JJ/MM/AAAA.\",\n  \"Chaque facture a une échéance.\"\n]\n\n\"questions\": []\n\nCheck that all fields are present. Yes.\n\nNow produce JSON.",
+              "reasoning_details": [
+                {
+                  "type": "reasoning.text",
+                  "text": "We need to produce tests for each rule already written. The note source includes rules for liste-des-factures. Also there are rules in detail-facture and tableau-de-bord but not yet written in the \"Règles déjà écrites\" list. The instruction: \"Si la note porte des règles déjà écrites (elles te sont données avec leur phrase) : écris des tests pour ces règles seulement. Recopie chaque règle telle quelle dans 'regles_calculables' : toutes, sans en ajouter, sans en changer un caractère. Mets dans un même test les règles qui se vérifient sur les mêmes écrans, sinon un test par règle. Les passages de la source sont les phrases de ces règles.\"\n\nThus we only need to write tests for the rules that are already written in the note source. Those are the four rules for liste-des-factures. We don't need to write tests for detail-facture or tableau-de-bord because they are not in the \"Règles déjà écrites\" list. So we produce tests for each rule, but we can combine if same screen. All four rules are on the same screen \"liste-des-factures\". So we can combine them into one test? The instruction: \"Mets dans un même test les règles qui se vérifient sur les mêmes écrans, sinon un test par règle.\" So yes, we can combine all four into one test for liste-des-factures. But we need to include all four rules in \"regles_calculables\" array. The \"passages_de_la_source\" should include each phrase of the rule. So we need to include each phrase as separate passage? The field \"passages_de_la_source\" is a list of passages. We can include each phrase. The phrase is the text before \"règle:\"? The note source includes:\n\n- phrase : Le total en bas du tableau est la somme de la colonne « Montant TTC ».\n  règle : {\"type\":\"somme\",\"ecran\":\"liste-des-factures\",\"colonne\":\"Montant TTC\",\"cible\":\"Total\"}\n- phrase : Les montants s'affichent au format 1 420,00 €.\n  règle : {\"type\":\"format\",\"ecran\":\"liste-des-factures\",\"colonne\":\"Montant TTC\",\"motif\":\"montant-fr\"}\n- phrase : Les échéances s'affichent au format JJ/MM/AAAA.\n  règle : {\"type\":\"format\",\"ecran\":\"liste-des-factures\",\"colonne\":\"Échéance\",\"motif\":\"date-fr\"}\n- phrase : Chaque facture a une échéance.\n  règle : {\"type\":\"presence\",\"ecran\":\"liste-des-factures\",\"colonne\":\"Échéance\"}\n\nThus we need to include these four phrases in \"passages_de_la_source\". The \"regles_calculables\" should contain the four rule objects exactly as given.\n\nNow we need to fill the test fields.\n\n- id: e.g., \"liste-des-factures-total-montant\" or something. But we need kebab-case, unique. Since we combine all rules, we can use \"liste-des-factures-regles\". But maybe better \"liste-des-factures-regles\". Let's use that.\n\n- titre: \"Liste des factures : vérification des règles\". Or \"Liste des factures : règles de total, format, échéance, présence\". The spec: \"titre\" : une ligne, le nom de l'écran puis ce qui est vérifié, par exemple « Fiche client : adresse de livraison ». So we can say \"Liste des factures : règles de total, format, échéance, présence\".\n\n- setup: \"Connecté avec le compte de démo, sur la liste des factures, sans filtre.\" The screen is \"liste-des-factures\". So \"Connecté avec le compte de démo, sur la liste des factures, sans filtre.\"\n\n- etapes: list of phrases to get to the state. Starting from the screen, we might need to ensure filter is \"Toutes\" (default). So steps: \"Cliquer sur le menu « Filtrer »\", \"Sélectionner l'option « Toutes »\". But the default might be \"Toutes\". But to be safe, we can include steps to ensure filter is \"Toutes\". Also we might need to scroll to bottom to see total. But not necessary. So steps: \"Cliquer sur le bouton « Filtrer »\", \"Sélectionner l'option « Toutes »\". But we need to use the interface labels exactly as in documentation. The documentation says: \"Le menu « Filtrer » propose « Toutes » et « À venir »\". So we can use \"Cliquer sur le menu « Filtrer »\", \"Sélectionner l'option « Toutes »\". But we might not need to click filter if default is \"Toutes\". But we can include to be explicit.\n\n- resultat_attendu: \"Les règles sont respectées : le total est correct, les montants et échéances sont formatés, et aucune échéance n'est vide.\" But we need a single sentence. \"Les règles de total, format, échéance et présence sont respectées.\" That is fine.\n\n- verifications: list of FAIL if statements. We need to include checks for each rule. For each rule, we need a FAIL if condition. For somme: \"FAIL if le total affiché n'est pas la somme des montants TTC.\" For format Montant TTC: \"FAIL if un montant TTC n'est pas affiché au format 1 420,00 €.\" For format Échéance: \"FAIL if une échéance n'est pas affichée au format JJ/MM/AAAA.\" For presence: \"FAIL if une colonne Échéance est vide.\" That covers all.\n\n- releves: we need to capture the screen \"liste-des-factures\" with view \"defaut\" (since no filter changed). But we changed filter to \"Toutes\" which is default. So view \"defaut\". So we include { \"ecran\": \"liste-des-factures\", \"vue\": \"defaut\" }.\n\n- regles_calculables: list of four rule objects exactly as given.\n\n- passages_de_la_source: list of the four phrases exactly as in note source. They are:\n\n\"Le total en bas du tableau est la somme de la colonne « Montant TTC ».\"\n\"Les montants s'affichent au format 1 420,00 €.\"\n\"Les échéances s'affichent au format JJ/MM/AAAA.\"\n\"Chaque facture a une échéance.\"\n\nWe need to ensure quotes and accents exactly. The note source uses French quotes « ». We need to copy exactly. So we need to include those strings.\n\n- questions: list empty because no doubt.\n\nNow we need to produce JSON with \"tests\": [ { ... } ].\n\nCheck that all fields are present.\n\nLet's craft the test object.\n\n\"id\": \"liste-des-factures-regles\"\n\n\"titre\": \"Liste des factures : règles de total, format, échéance, présence\"\n\n\"setup\": \"Connecté avec le compte de démo, sur la liste des factures, sans filtre.\"\n\n\"etapes\": [\n  \"Cliquer sur le menu « Filtrer »\",\n  \"Sélectionner l'option « Toutes »\"\n]\n\n\"resultat_attendu\": \"Les règles de total, format, échéance et présence sont respectées.\"\n\n\"verifications\": [\n  \"FAIL if le total affiché n'est pas la somme des montants TTC.\",\n  \"FAIL if un montant TTC n'est pas affiché au format 1 420,00 €.\",\n  \"FAIL if une échéance n'est pas affichée au format JJ/MM/AAAA.\",\n  \"FAIL if une colonne Échéance est vide.\"\n]\n\n\"releves\": [\n  { \"ecran\": \"liste-des-factures\", \"vue\": \"defaut\" }\n]\n\n\"regles_calculables\": [\n  {\"type\":\"somme\",\"ecran\":\"liste-des-factures\",\"colonne\":\"Montant TTC\",\"cible\":\"Total\"},\n  {\"type\":\"format\",\"ecran\":\"liste-des-factures\",\"colonne\":\"Montant TTC\",\"motif\":\"montant-fr\"},\n  {\"type\":\"format\",\"ecran\":\"liste-des-factures\",\"colonne\":\"Échéance\",\"motif\":\"date-fr\"},\n  {\"type\":\"presence\",\"ecran\":\"liste-des-factures\",\"colonne\":\"Échéance\"}\n]\n\n\"passages_de_la_source\": [\n  \"Le total en bas du tableau est la somme de la colonne « Montant TTC ».\",\n  \"Les montants s'affichent au format 1 420,00 €.\",\n  \"Les échéances s'affichent au format JJ/MM/AAAA.\",\n  \"Chaque facture a une échéance.\"\n]\n\n\"questions\": []\n\nCheck that all fields are present. Yes.\n\nNow produce JSON.",
+                  "format": "unknown",
+                  "index": 0
+                }
+              ]
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 2597,
+          "completion_tokens": 2215,
+          "total_tokens": 4812,
+          "cost": 0.00051404,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0.00051404,
+            "upstream_inference_prompt_cost": 0.00018179,
+            "upstream_inference_completions_cost": 0.00033225
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 1817,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      },
+      "rejections": []
+    }
+  ],
+  "tests": [
+    {
+      "id": "liste-des-factures-regles",
+      "logiciel": "facturo",
+      "source": "produit/liste-des-factures.md",
+      "passages_de_la_source": [
+        "Le total en bas du tableau est la somme de la colonne « Montant TTC ».",
+        "Les montants s'affichent au format 1 420,00 €.",
+        "Les échéances s'affichent au format JJ/MM/AAAA.",
+        "Chaque facture a une échéance."
+      ],
+      "releves": [
+        {
+          "ecran": "liste-des-factures",
+          "vue": "defaut"
+        }
+      ],
+      "test_markdown": "# Liste des factures : règles de total, format, échéance, présence\n\n## Setup\nConnecté avec le compte de démo, sur la liste des factures, sans filtre.\n\n## Task\n1. Cliquer sur le menu « Filtrer »\n2. Sélectionner l'option « Toutes »\n\n## Expected Result\nLes règles de total, format, échéance et présence sont respectées.\n\n## Verification\n- FAIL if le total affiché n'est pas la somme des montants TTC.\n- FAIL if un montant TTC n'est pas affiché au format 1 420,00 €.\n- FAIL if une échéance n'est pas affichée au format JJ/MM/AAAA.\n- FAIL if une colonne Échéance est vide.",
+      "regles_calculables": [
+        {
+          "type": "somme",
+          "ecran": "liste-des-factures",
+          "colonne": "Montant TTC",
+          "cible": "Total"
+        },
+        {
+          "type": "format",
+          "ecran": "liste-des-factures",
+          "colonne": "Montant TTC",
+          "motif": "montant-fr"
+        },
+        {
+          "type": "format",
+          "ecran": "liste-des-factures",
+          "colonne": "Échéance",
+          "motif": "date-fr"
+        },
+        {
+          "type": "presence",
+          "ecran": "liste-des-factures",
+          "colonne": "Échéance"
+        }
+      ],
+      "questions": [],
+      "statut": "propose",
+      "modele": "openai/gpt-oss-20b:fastest"
+    }
+  ]
+}

@@ -1,0 +1,139 @@
+{
+  "model": "openai/gpt-oss-120b:fastest",
+  "note": "notes-de-version/v13.md",
+  "pass": 3,
+  "valid": true,
+  "rulesRight": false,
+  "written": true,
+  "ms": 1559,
+  "tries": 1,
+  "inputTokens": 2223,
+  "outputTokens": 2078,
+  "costUsd": 0.00233655,
+  "answered": true,
+  "problems": [
+    "le second test ne relève pas liste-des-factures en vue defaut"
+  ],
+  "firstRefusal": [],
+  "calls": [
+    {
+      "model": "openai/gpt-oss-120b:fastest",
+      "ms": 1558,
+      "status": 200,
+      "content": "{\n  \"tests\": [\n    {\n      \"id\": \"filtre-echeance-depassee-liste-factures\",\n      \"titre\": \"Liste des factures : filtre Échéance dépassée\",\n      \"setup\": \"Connecté avec le compte de démo, sur la liste des factures, affichage par défaut.\",\n      \"etapes\": [\n        \"Cliquer sur le menu « Filtrer ».\",\n        \"Sélectionner le filtre « Échéance dépassée ».\"\n      ],\n      \"resultat_attendu\": \"Le tableau ne montre que les factures dont l’échéance est antérieure à aujourd’hui.\",\n      \"verifications\": [\n        \"FAIL if une facture affichée a une échéance postérieure ou égale à aujourd’hui.\"\n      ],\n      \"releves\": [\n        {\n          \"ecran\": \"liste-des-factures\",\n          \"vue\": \"filtre-echeance-depassee\"\n        }\n      ],\n      \"regles_calculables\": [\n        {\n          \"type\": \"filtre\",\n          \"ecran\": \"liste-des-factures\",\n          \"filtre\": \"Échéance dépassée\",\n          \"colonne\": \"Échéance\",\n          \"condition\": \"< aujourd_hui\"\n        }\n      ],\n      \"passages_de_la_source\": [\n        \"Nouveau filtre « Échéance dépassée » sur la liste des factures : il n'affiche que les factures dont la date d'échéance est passée.\"\n      ],\n      \"questions\": [\n        {\n          \"texte\": \"La date d'échéance égale à aujourd’hui doit‑elle être incluse dans le filtre ?\",\n          \"choix\": [\"Oui\", \"Non\"]\n        }\n      ]\n    },\n    {\n      \"id\": \"exporter-en-haut-liste-factures\",\n      \"titre\": \"Liste des factures : position du bouton Exporter\",\n      \"setup\": \"Connecté avec le compte de démo, sur la liste des factures, affichage par défaut.\",\n      \"etapes\": [\n        \"Observer la barre d’actions.\"\n      ],\n      \"resultat_attendu\": \"Le bouton « Exporter » se trouve en haut à droite de la page.\",\n      \"verifications\": [\n        \"FAIL if le bouton « Exporter » n’est pas affiché en haut à droite.\"\n      ],\n      \"releves\": [\n        {\n          \"ecran\": \"liste-des-factures\",\n          \"vue\": \"exporter-en-haut\"\n        }\n      ],\n      \"regles_calculables\": [],\n      \"passages_de_la_source\": [\n        \"Refonte de la barre d'actions : le bouton « Exporter » passe en haut à droite.\"\n      ],\n      \"questions\": []\n    }\n  ]\n}",
+      "inputTokens": 2223,
+      "outputTokens": 2078,
+      "body": {
+        "id": "gen-1794923219-m867SBN8OYCzTiYEq2tA",
+        "object": "chat.completion",
+        "created": 1794923219,
+        "model": "openai/gpt-oss-120b",
+        "provider": "Cerebras",
+        "system_fingerprint": "fp_4e63ac9396838fe79c69",
+        "service_tier": null,
+        "choices": [
+          {
+            "index": 0,
+            "logprobs": null,
+            "finish_reason": "stop",
+            "native_finish_reason": "stop",
+            "message": {
+              "role": "assistant",
+              "content": "{\n  \"tests\": [\n    {\n      \"id\": \"filtre-echeance-depassee-liste-factures\",\n      \"titre\": \"Liste des factures : filtre Échéance dépassée\",\n      \"setup\": \"Connecté avec le compte de démo, sur la liste des factures, affichage par défaut.\",\n      \"etapes\": [\n        \"Cliquer sur le menu « Filtrer ».\",\n        \"Sélectionner le filtre « Échéance dépassée ».\"\n      ],\n      \"resultat_attendu\": \"Le tableau ne montre que les factures dont l’échéance est antérieure à aujourd’hui.\",\n      \"verifications\": [\n        \"FAIL if une facture affichée a une échéance postérieure ou égale à aujourd’hui.\"\n      ],\n      \"releves\": [\n        {\n          \"ecran\": \"liste-des-factures\",\n          \"vue\": \"filtre-echeance-depassee\"\n        }\n      ],\n      \"regles_calculables\": [\n        {\n          \"type\": \"filtre\",\n          \"ecran\": \"liste-des-factures\",\n          \"filtre\": \"Échéance dépassée\",\n          \"colonne\": \"Échéance\",\n          \"condition\": \"< aujourd_hui\"\n        }\n      ],\n      \"passages_de_la_source\": [\n        \"Nouveau filtre « Échéance dépassée » sur la liste des factures : il n'affiche que les factures dont la date d'échéance est passée.\"\n      ],\n      \"questions\": [\n        {\n          \"texte\": \"La date d'échéance égale à aujourd’hui doit‑elle être incluse dans le filtre ?\",\n          \"choix\": [\"Oui\", \"Non\"]\n        }\n      ]\n    },\n    {\n      \"id\": \"exporter-en-haut-liste-factures\",\n      \"titre\": \"Liste des factures : position du bouton Exporter\",\n      \"setup\": \"Connecté avec le compte de démo, sur la liste des factures, affichage par défaut.\",\n      \"etapes\": [\n        \"Observer la barre d’actions.\"\n      ],\n      \"resultat_attendu\": \"Le bouton « Exporter » se trouve en haut à droite de la page.\",\n      \"verifications\": [\n        \"FAIL if le bouton « Exporter » n’est pas affiché en haut à droite.\"\n      ],\n      \"releves\": [\n        {\n          \"ecran\": \"liste-des-factures\",\n          \"vue\": \"exporter-en-haut\"\n        }\n      ],\n      \"regles_calculables\": [],\n      \"passages_de_la_source\": [\n        \"Refonte de la barre d'actions : le bouton « Exporter » passe en haut à droite.\"\n      ],\n      \"questions\": []\n    }\n  ]\n}",
+              "refusal": null,
+              "reasoning": "We need to produce JSON with tests for each change announced in version note, because no prewritten rules. There are two changes:\n\n1. Nouveau filtre « Échéance dépassée » sur la liste des factures : il n'affiche que les factures dont la date d'échéance est passée.\n2. Refonte de la barre d'actions : le bouton « Exporter » passe en haut à droite.\n\nWe need exactly one test per change announced. For each test, we need to fill fields.\n\nFirst test: about new filter on list of invoices. The filter \"Échéance dépassée\" shows only invoices whose due date is passed (i.e., date < today). Need to verify that filter works. Also maybe rule: filter type. The rule grammar: type \"filtre\". So we can create a calculable rule: when filter \"Échéance dépassée\" is chosen, each line displayed respects condition \"< aujourd_hui\" in column \"Échéance\". So we need to include that rule.\n\nAlso need to capture screen states: start on list-des-factures screen default view. Then after selecting filter, view becomes something like \"filtre-echeance-depassee\". So we need releves: first capture default? The test verifies after filter applied. The \"releves\" list must include at least one capture, but can include multiple. Probably capture after filter applied. The screen is \"liste-des-factures\". The view after applying filter is \"filtre-echeance-depassee\". So we include that.\n\nNow fill fields:\n\n- id: e.g., \"filtre-echeance-depassee-liste-factures\"\n- titre: \"Liste des factures : filtre Échéance dépassée\"\n- setup: \"Connecté avec le compte de démo, sur la liste des factures, affichage par défaut.\" (must be a phrase)\n- etapes: list of steps: \"Cliquer sur le menu « Filtrer ».\", \"Sélectionner le filtre « Échéance dépassée ».\" (maybe also \"Attendre le rafraîchissement de la liste.\") Ensure each step ends with period.\n\n- resultat_attendu: \"Le tableau ne montre que les factures dont l’échéance est antérieure à aujourd’hui.\"\n\n- verifications: \"FAIL if une facture affichée a une échéance postérieure ou égale à aujourd’hui.\" Also maybe \"FAIL if le nombre de factures indiqué ne correspond pas aux factures filtrées.\" But we need at least one.\n\n- releves: we need capture after filter applied. So { \"ecran\": \"liste-des-factures\", \"vue\": \"filtre-echeance-depassee\" }.\n\n- regles_calculables: include the filter rule. According to grammar: { \"type\": \"filtre\", \"ecran\": \"liste-des-factures\", \"filtre\": \"Échéance dépassée\", \"colonne\": \"Échéance\", \"condition\": \"< aujourd_hui\" }. Note condition string exactly \"< aujourd_hui\". Use same spacing? The grammar says K values: \"< aujourd_hui\". So we use that.\n\n- passages_de_la_source: include the exact passage from note source: \"- Nouveau filtre « Échéance dépassée » sur la liste des factures : il n'affiche que les factures dont la date d'échéance est passée.\" Must copy exactly, including dash? The instruction: \"au moins un passage de la note source d'où vient le test, recopié caractère pour caractère (mêmes guillemets, mêmes accents, mêmes espaces), sans le tiret de la puce, sans rien ajouter ni corriger.\" So we need the passage without the leading dash and space. So the passage is \"Nouveau filtre « Échéance dépassée » sur la liste des factures : il n'affiche que les factures dont la date d'échéance est passée.\" Must be exactly as in note source. Ensure correct quotes: they use « » French guillemets. Keep them.\n\n- questions: Since note says \"date d'échéance est passée\" ambiguous about inclusive? It says \"passée\" meaning strictly before today? Could be ambiguous. We need a question about whether the limit itself counts. So ask: \"La date d'échéance égale à aujourd’hui doit‑elle être incluse dans le filtre ?\" Choices: [\"Oui\", \"Non\"]. So include that.\n\nSecond test: Refonte de la barre d'actions: le bouton « Exporter » passe en haut à droite. This is UI change, not calculable. So test verifies position of Exporter button. No calculable rule. So we need test with no regles_calculables (empty list). Need to capture screen before and after? The test starts on list-des-factures default view, where Exporter button originally was at bottom. After change, it's at top right. So steps: maybe \"Vérifier la position du bouton « Exporter » en haut à droite.\" But we need steps to bring to state. Since the UI change is already present in version, we just need to check that the button is at top right. So steps could be \"Observer la barre d’actions.\" But we need at least one step. Could be \"Regarder la barre d’actions.\" But must be infinitive: \"Observer la barre d’actions.\" That's fine.\n\nResult expected: \"Le bouton « Exporter » se trouve en haut à droite de la page.\"\n\nVerifications: \"FAIL if le bouton « Exporter » n’est pas affiché en haut à droite.\" Also maybe \"FAIL if le bouton « Exporter » reste en bas du tableau.\" Provide one.\n\nReleves: capture the screen after change: { \"ecran\": \"liste-des-factures\", \"vue\": \"exporter-en-haut\" }. Could also capture default view before? Not needed but we can include both. At least one. We'll include after.\n\nregles_calculables: empty list [].\n\npassages_de_la_source: copy the passage: \"Refonte de la barre d'actions : le bouton « Exporter » passe en haut à droite.\" Without dash.\n\nquestions: No ambiguity, so empty list [].\n\nNow ensure JSON format: {\"tests\": [ { ... }, { ... } ] }.\n\nCheck each field names exactly as required: \"id\", \"titre\", \"setup\", \"etapes\", \"resultat_attendu\", \"verifications\", \"releves\", \"regles_calculables\", \"passages_de_la_source\", \"questions\".\n\nMake sure \"etapes\" is list of strings ending with period. \"verifications\" list strings starting with \"FAIL if\". \"releves\" list of objects with \"ecran\" and \"vue\". \"regles_calculables\" list of rule objects.\n\nFor first test, rule object: {\"type\":\"filtre\",\"ecran\":\"liste-des-factures\",\"filtre\":\"Échéance dépassée\",\"colonne\":\"Échéance\",\"condition\":\"< aujourd_hui\"}.\n\nMake sure JSON strings use double quotes. Ensure no extra spaces inside keys.\n\nNow produce final JSON.",
+              "reasoning_details": [
+                {
+                  "type": "reasoning.text",
+                  "text": "We need to produce JSON with tests for each change announced in version note, because no prewritten rules. There are two changes:\n\n1. Nouveau filtre « Échéance dépassée » sur la liste des factures : il n'affiche que les factures dont la date d'échéance est passée.\n2. Refonte de la barre d'actions : le bouton « Exporter » passe en haut à droite.\n\nWe need exactly one test per change announced. For each test, we need to fill fields.\n\nFirst test: about new filter on list of invoices. The filter \"Échéance dépassée\" shows only invoices whose due date is passed (i.e., date < today). Need to verify that filter works. Also maybe rule: filter type. The rule grammar: type \"filtre\". So we can create a calculable rule: when filter \"Échéance dépassée\" is chosen, each line displayed respects condition \"< aujourd_hui\" in column \"Échéance\". So we need to include that rule.\n\nAlso need to capture screen states: start on list-des-factures screen default view. Then after selecting filter, view becomes something like \"filtre-echeance-depassee\". So we need releves: first capture default? The test verifies after filter applied. The \"releves\" list must include at least one capture, but can include multiple. Probably capture after filter applied. The screen is \"liste-des-factures\". The view after applying filter is \"filtre-echeance-depassee\". So we include that.\n\nNow fill fields:\n\n- id: e.g., \"filtre-echeance-depassee-liste-factures\"\n- titre: \"Liste des factures : filtre Échéance dépassée\"\n- setup: \"Connecté avec le compte de démo, sur la liste des factures, affichage par défaut.\" (must be a phrase)\n- etapes: list of steps: \"Cliquer sur le menu « Filtrer ».\", \"Sélectionner le filtre « Échéance dépassée ».\" (maybe also \"Attendre le rafraîchissement de la liste.\") Ensure each step ends with period.\n\n- resultat_attendu: \"Le tableau ne montre que les factures dont l’échéance est antérieure à aujourd’hui.\"\n\n- verifications: \"FAIL if une facture affichée a une échéance postérieure ou égale à aujourd’hui.\" Also maybe \"FAIL if le nombre de factures indiqué ne correspond pas aux factures filtrées.\" But we need at least one.\n\n- releves: we need capture after filter applied. So { \"ecran\": \"liste-des-factures\", \"vue\": \"filtre-echeance-depassee\" }.\n\n- regles_calculables: include the filter rule. According to grammar: { \"type\": \"filtre\", \"ecran\": \"liste-des-factures\", \"filtre\": \"Échéance dépassée\", \"colonne\": \"Échéance\", \"condition\": \"< aujourd_hui\" }. Note condition string exactly \"< aujourd_hui\". Use same spacing? The grammar says K values: \"< aujourd_hui\". So we use that.\n\n- passages_de_la_source: include the exact passage from note source: \"- Nouveau filtre « Échéance dépassée » sur la liste des factures : il n'affiche que les factures dont la date d'échéance est passée.\" Must copy exactly, including dash? The instruction: \"au moins un passage de la note source d'où vient le test, recopié caractère pour caractère (mêmes guillemets, mêmes accents, mêmes espaces), sans le tiret de la puce, sans rien ajouter ni corriger.\" So we need the passage without the leading dash and space. So the passage is \"Nouveau filtre « Échéance dépassée » sur la liste des factures : il n'affiche que les factures dont la date d'échéance est passée.\" Must be exactly as in note source. Ensure correct quotes: they use « » French guillemets. Keep them.\n\n- questions: Since note says \"date d'échéance est passée\" ambiguous about inclusive? It says \"passée\" meaning strictly before today? Could be ambiguous. We need a question about whether the limit itself counts. So ask: \"La date d'échéance égale à aujourd’hui doit‑elle être incluse dans le filtre ?\" Choices: [\"Oui\", \"Non\"]. So include that.\n\nSecond test: Refonte de la barre d'actions: le bouton « Exporter » passe en haut à droite. This is UI change, not calculable. So test verifies position of Exporter button. No calculable rule. So we need test with no regles_calculables (empty list). Need to capture screen before and after? The test starts on list-des-factures default view, where Exporter button originally was at bottom. After change, it's at top right. So steps: maybe \"Vérifier la position du bouton « Exporter » en haut à droite.\" But we need steps to bring to state. Since the UI change is already present in version, we just need to check that the button is at top right. So steps could be \"Observer la barre d’actions.\" But we need at least one step. Could be \"Regarder la barre d’actions.\" But must be infinitive: \"Observer la barre d’actions.\" That's fine.\n\nResult expected: \"Le bouton « Exporter » se trouve en haut à droite de la page.\"\n\nVerifications: \"FAIL if le bouton « Exporter » n’est pas affiché en haut à droite.\" Also maybe \"FAIL if le bouton « Exporter » reste en bas du tableau.\" Provide one.\n\nReleves: capture the screen after change: { \"ecran\": \"liste-des-factures\", \"vue\": \"exporter-en-haut\" }. Could also capture default view before? Not needed but we can include both. At least one. We'll include after.\n\nregles_calculables: empty list [].\n\npassages_de_la_source: copy the passage: \"Refonte de la barre d'actions : le bouton « Exporter » passe en haut à droite.\" Without dash.\n\nquestions: No ambiguity, so empty list [].\n\nNow ensure JSON format: {\"tests\": [ { ... }, { ... } ] }.\n\nCheck each field names exactly as required: \"id\", \"titre\", \"setup\", \"etapes\", \"resultat_attendu\", \"verifications\", \"releves\", \"regles_calculables\", \"passages_de_la_source\", \"questions\".\n\nMake sure \"etapes\" is list of strings ending with period. \"verifications\" list strings starting with \"FAIL if\". \"releves\" list of objects with \"ecran\" and \"vue\". \"regles_calculables\" list of rule objects.\n\nFor first test, rule object: {\"type\":\"filtre\",\"ecran\":\"liste-des-factures\",\"filtre\":\"Échéance dépassée\",\"colonne\":\"Échéance\",\"condition\":\"< aujourd_hui\"}.\n\nMake sure JSON strings use double quotes. Ensure no extra spaces inside keys.\n\nNow produce final JSON.",
+                  "format": "unknown",
+                  "index": 0
+                }
+              ]
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 2223,
+          "completion_tokens": 2078,
+          "total_tokens": 4301,
+          "cost": 0.00233655,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 2176,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0.00233655,
+            "upstream_inference_prompt_cost": 0.00077805,
+            "upstream_inference_completions_cost": 0.0015585
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 1486,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      },
+      "rejections": []
+    }
+  ],
+  "tests": [
+    {
+      "id": "filtre-echeance-depassee-liste-factures",
+      "logiciel": "facturo",
+      "source": "notes-de-version/v13.md",
+      "passages_de_la_source": [
+        "Nouveau filtre « Échéance dépassée » sur la liste des factures : il n'affiche que les factures dont la date d'échéance est passée."
+      ],
+      "releves": [
+        {
+          "ecran": "liste-des-factures",
+          "vue": "filtre-echeance-depassee"
+        }
+      ],
+      "test_markdown": "# Liste des factures : filtre Échéance dépassée\n\n## Setup\nConnecté avec le compte de démo, sur la liste des factures, affichage par défaut.\n\n## Task\n1. Cliquer sur le menu « Filtrer ».\n2. Sélectionner le filtre « Échéance dépassée ».\n\n## Expected Result\nLe tableau ne montre que les factures dont l’échéance est antérieure à aujourd’hui.\n\n## Verification\n- FAIL if une facture affichée a une échéance postérieure ou égale à aujourd’hui.",
+      "regles_calculables": [
+        {
+          "type": "filtre",
+          "ecran": "liste-des-factures",
+          "filtre": "Échéance dépassée",
+          "colonne": "Échéance",
+          "condition": "< aujourd_hui"
+        }
+      ],
+      "questions": [
+        {
+          "texte": "La date d'échéance égale à aujourd’hui doit‑elle être incluse dans le filtre ?",
+          "choix": [
+            "Oui",
+            "Non"
+          ]
+        }
+      ],
+      "statut": "propose",
+      "modele": "openai/gpt-oss-120b:fastest"
+    },
+    {
+      "id": "exporter-en-haut-liste-factures",
+      "logiciel": "facturo",
+      "source": "notes-de-version/v13.md",
+      "passages_de_la_source": [
+        "Refonte de la barre d'actions : le bouton « Exporter » passe en haut à droite."
+      ],
+      "releves": [
+        {
+          "ecran": "liste-des-factures",
+          "vue": "exporter-en-haut"
+        }
+      ],
+      "test_markdown": "# Liste des factures : position du bouton Exporter\n\n## Setup\nConnecté avec le compte de démo, sur la liste des factures, affichage par défaut.\n\n## Task\n1. Observer la barre d’actions.\n\n## Expected Result\nLe bouton « Exporter » se trouve en haut à droite de la page.\n\n## Verification\n- FAIL if le bouton « Exporter » n’est pas affiché en haut à droite.",
+      "regles_calculables": [],
+      "questions": [],
+      "statut": "propose",
+      "modele": "openai/gpt-oss-120b:fastest"
+    }
+  ]
+}

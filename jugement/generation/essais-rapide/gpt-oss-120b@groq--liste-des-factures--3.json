@@ -1,0 +1,196 @@
+{
+  "model": "openai/gpt-oss-120b:groq",
+  "note": "produit/liste-des-factures.md",
+  "pass": 3,
+  "valid": true,
+  "rulesRight": true,
+  "written": null,
+  "ms": 5635,
+  "tries": 2,
+  "inputTokens": 5741,
+  "outputTokens": 1822,
+  "costUsd": 0.0019543499999999997,
+  "answered": true,
+  "problems": [],
+  "firstRefusal": [
+    "test 1 : « etapes » doit être une liste d'au moins 1 élément(s)"
+  ],
+  "calls": [
+    {
+      "model": "openai/gpt-oss-120b:groq",
+      "ms": 3132,
+      "status": 200,
+      "content": "{\n  \"tests\": [\n    {\n      \"id\": \"liste-des-factures-verifications-regles\",\n      \"titre\": \"Liste des factures : vérifications des règles\",\n      \"setup\": \"Connecté avec le compte de démo, sur la liste des factures, affichage par défaut.\",\n      \"etapes\": [],\n      \"resultat_attendu\": \"Le tableau des factures s'affiche correctement avec les montants et échéances formatés, le total correct et chaque ligne possède une échéance.\",\n      \"verifications\": [\n        \"FAIL if le total affiché en bas du tableau n'est pas la somme de la colonne Montant TTC.\",\n        \"FAIL if un montant TTC n'est pas affiché au format 1 420,00 €.\",\n        \"FAIL if une échéance n'est pas affichée au format JJ/MM/AAAA.\",\n        \"FAIL if une ligne du tableau n'a pas de valeur dans la colonne Échéance.\"\n      ],\n      \"releves\": [\n        {\n          \"ecran\": \"liste-des-factures\",\n          \"vue\": \"defaut\"\n        }\n      ],\n      \"regles_calculables\": [\n        {\n          \"type\": \"somme\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Montant TTC\",\n          \"cible\": \"Total\"\n        },\n        {\n          \"type\": \"format\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Montant TTC\",\n          \"motif\": \"montant-fr\"\n        },\n        {\n          \"type\": \"format\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Échéance\",\n          \"motif\": \"date-fr\"\n        },\n        {\n          \"type\": \"presence\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Échéance\"\n        }\n      ],\n      \"passages_de_la_source\": [\n        \"Le total en bas du tableau est la somme de la colonne « Montant TTC ».\",\n        \"Les montants s'affichent au format 1 420,00 €.\",\n        \"Les échéances s'affichent au format JJ/MM/AAAA.\",\n        \"Chaque facture a une échéance.\"\n      ],\n      \"questions\": []\n    }\n  ]\n}",
+      "inputTokens": 2600,
+      "outputTokens": 1225,
+      "body": {
+        "id": "gen-1794923236-xiAvf3UzypU95dGryR7f",
+        "object": "chat.completion",
+        "created": 1794923236,
+        "model": "openai/gpt-oss-120b",
+        "provider": "Groq",
+        "system_fingerprint": "fp_e1a78f200e",
+        "service_tier": "on_demand",
+        "choices": [
+          {
+            "index": 0,
+            "logprobs": null,
+            "finish_reason": "stop",
+            "native_finish_reason": "stop",
+            "message": {
+              "role": "assistant",
+              "content": "{\n  \"tests\": [\n    {\n      \"id\": \"liste-des-factures-verifications-regles\",\n      \"titre\": \"Liste des factures : vérifications des règles\",\n      \"setup\": \"Connecté avec le compte de démo, sur la liste des factures, affichage par défaut.\",\n      \"etapes\": [],\n      \"resultat_attendu\": \"Le tableau des factures s'affiche correctement avec les montants et échéances formatés, le total correct et chaque ligne possède une échéance.\",\n      \"verifications\": [\n        \"FAIL if le total affiché en bas du tableau n'est pas la somme de la colonne Montant TTC.\",\n        \"FAIL if un montant TTC n'est pas affiché au format 1 420,00 €.\",\n        \"FAIL if une échéance n'est pas affichée au format JJ/MM/AAAA.\",\n        \"FAIL if une ligne du tableau n'a pas de valeur dans la colonne Échéance.\"\n      ],\n      \"releves\": [\n        {\n          \"ecran\": \"liste-des-factures\",\n          \"vue\": \"defaut\"\n        }\n      ],\n      \"regles_calculables\": [\n        {\n          \"type\": \"somme\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Montant TTC\",\n          \"cible\": \"Total\"\n        },\n        {\n          \"type\": \"format\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Montant TTC\",\n          \"motif\": \"montant-fr\"\n        },\n        {\n          \"type\": \"format\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Échéance\",\n          \"motif\": \"date-fr\"\n        },\n        {\n          \"type\": \"presence\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Échéance\"\n        }\n      ],\n      \"passages_de_la_source\": [\n        \"Le total en bas du tableau est la somme de la colonne « Montant TTC ».\",\n        \"Les montants s'affichent au format 1 420,00 €.\",\n        \"Les échéances s'affichent au format JJ/MM/AAAA.\",\n        \"Chaque facture a une échéance.\"\n      ],\n      \"questions\": []\n    }\n  ]\n}",
+              "refusal": null,
+              "reasoning": "We need to produce JSON with tests. Since note source contains already written rules (the four rules). We must write tests for these rules only. Recopy each rule exactly in \"regles_calculables\". Put passages of source as the rule sentences (the phrase lines). The note source includes also a fifth rule about number of invoices displayed, but that rule is not in the \"Règles déjà écrites dans la note source\" list. The instruction: \"Règles déjà écrites dans la note source :\" lists four rules. The note source also includes the same four plus an extra about number of invoices. Since it's not listed as already written, we should not include it? The instruction: \"Elle porte des règles déjà écrites (elles te sont données avec leur phrase) : écris des tests pour ces règles seulement. Recopie chaque règle telle quelle dans \"regles_calculables\" : toutes, sans en ajouter, sans en changer un caractère.\" So we only test the given rules (the four). The extra rule about count is not given as a rule object, so we ignore it.\n\nWe need to create tests. Possibly combine rules that are on same screen. The four rules are all on \"liste-des-factures\". So we can put them in a single test (since same screen). The test should verify all four. The test id unique. Title: \"Liste des factures : vérifications des règles\". Setup: \"Connecté avec le compte de démo, sur la liste des factures, affichage par défaut.\" Steps: maybe none? But we need at least one step? Could be none, but steps list can be empty? It says list of phrases; could be empty list. But we can include a step like \"Vérifier l'affichage du tableau\". However steps are actions to bring screen to state. Since default is fine, we can have empty list.\n\nResultat_attendu: \"Le tableau des factures s'affiche correctement avec les montants et échéances formatés, le total correct et chaque ligne possède une échéance.\" Verifications: list FAIL if statements for each rule.\n\nWe need \"releves\": capture screen states. At least one. Since we need to capture the screen where verification occurs: \"liste-des-factures\". The view is \"defaut\". So releves: [{ \"ecran\":\"liste-des-factures\", \"vue\":\"defaut\"}].\n\n\"regles_calculables\": list of the four rule objects exactly as given.\n\n\"passages_de_la_source\": at least one passage of note source where rule appears. Provide each rule phrase line? Could include each phrase line. Provide the exact text lines from note source: e.g., \"- Le total en bas du tableau est la somme de la colonne « Montant TTC ».\" etc. Must be exact, including dash? The instruction: \"au moins un passage de la note source d'où vient le test, recopié caractère pour caractère (mêmes guillemets, mêmes accents, mêmes espaces), sans le tiret de la puce\". So we must copy the line without the leading dash and space. So the passage should be \"Le total en bas du tableau est la somme de la colonne « Montant TTC ».\" etc. Provide multiple passages? At least one. Could include all four lines as separate entries in array. Provide them.\n\n\"questions\": list empty because no ambiguity.\n\nThus JSON with one test.\n\nCheck rule objects: must match exactly given. Ensure fields order not important.\n\nLet's craft.\n\n",
+              "reasoning_details": [
+                {
+                  "type": "reasoning.text",
+                  "text": "We need to produce JSON with tests. Since note source contains already written rules (the four rules). We must write tests for these rules only. Recopy each rule exactly in \"regles_calculables\". Put passages of source as the rule sentences (the phrase lines). The note source includes also a fifth rule about number of invoices displayed, but that rule is not in the \"Règles déjà écrites dans la note source\" list. The instruction: \"Règles déjà écrites dans la note source :\" lists four rules. The note source also includes the same four plus an extra about number of invoices. Since it's not listed as already written, we should not include it? The instruction: \"Elle porte des règles déjà écrites (elles te sont données avec leur phrase) : écris des tests pour ces règles seulement. Recopie chaque règle telle quelle dans \"regles_calculables\" : toutes, sans en ajouter, sans en changer un caractère.\" So we only test the given rules (the four). The extra rule about count is not given as a rule object, so we ignore it.\n\nWe need to create tests. Possibly combine rules that are on same screen. The four rules are all on \"liste-des-factures\". So we can put them in a single test (since same screen). The test should verify all four. The test id unique. Title: \"Liste des factures : vérifications des règles\". Setup: \"Connecté avec le compte de démo, sur la liste des factures, affichage par défaut.\" Steps: maybe none? But we need at least one step? Could be none, but steps list can be empty? It says list of phrases; could be empty list. But we can include a step like \"Vérifier l'affichage du tableau\". However steps are actions to bring screen to state. Since default is fine, we can have empty list.\n\nResultat_attendu: \"Le tableau des factures s'affiche correctement avec les montants et échéances formatés, le total correct et chaque ligne possède une échéance.\" Verifications: list FAIL if statements for each rule.\n\nWe need \"releves\": capture screen states. At least one. Since we need to capture the screen where verification occurs: \"liste-des-factures\". The view is \"defaut\". So releves: [{ \"ecran\":\"liste-des-factures\", \"vue\":\"defaut\"}].\n\n\"regles_calculables\": list of the four rule objects exactly as given.\n\n\"passages_de_la_source\": at least one passage of note source where rule appears. Provide each rule phrase line? Could include each phrase line. Provide the exact text lines from note source: e.g., \"- Le total en bas du tableau est la somme de la colonne « Montant TTC ».\" etc. Must be exact, including dash? The instruction: \"au moins un passage de la note source d'où vient le test, recopié caractère pour caractère (mêmes guillemets, mêmes accents, mêmes espaces), sans le tiret de la puce\". So we must copy the line without the leading dash and space. So the passage should be \"Le total en bas du tableau est la somme de la colonne « Montant TTC ».\" etc. Provide multiple passages? At least one. Could include all four lines as separate entries in array. Provide them.\n\n\"questions\": list empty because no ambiguity.\n\nThus JSON with one test.\n\nCheck rule objects: must match exactly given. Ensure fields order not important.\n\nLet's craft.\n\n",
+                  "format": "unknown",
+                  "index": 0
+                }
+              ]
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 2600,
+          "completion_tokens": 1225,
+          "total_tokens": 3825,
+          "cost": 0.001125,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0.001125,
+            "upstream_inference_prompt_cost": 0.00039,
+            "upstream_inference_completions_cost": 0.000735
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 726,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      },
+      "rejections": [
+        "test 1 : « etapes » doit être une liste d'au moins 1 élément(s)"
+      ]
+    },
+    {
+      "model": "openai/gpt-oss-120b:groq",
+      "ms": 2503,
+      "status": 200,
+      "content": "{\n  \"tests\": [\n    {\n      \"id\": \"liste-des-factures-verifications-regles\",\n      \"titre\": \"Liste des factures : vérifications des règles\",\n      \"setup\": \"Connecté avec le compte de démo, sur la liste des factures, affichage par défaut.\",\n      \"etapes\": [\n        \"Vérifier l'affichage du tableau.\"\n      ],\n      \"resultat_attendu\": \"Le tableau des factures s'affiche correctement avec les montants et échéances formatés, le total correct et chaque ligne possède une échéance.\",\n      \"verifications\": [\n        \"FAIL if le total affiché en bas du tableau n'est pas la somme de la colonne Montant TTC.\",\n        \"FAIL if un montant TTC n'est pas affiché au format 1 420,00 €.\",\n        \"FAIL if une échéance n'est pas affichée au format JJ/MM/AAAA.\",\n        \"FAIL if une ligne du tableau n'a pas de valeur dans la colonne Échéance.\"\n      ],\n      \"releves\": [\n        {\n          \"ecran\": \"liste-des-factures\",\n          \"vue\": \"defaut\"\n        }\n      ],\n      \"regles_calculables\": [\n        {\n          \"type\": \"somme\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Montant TTC\",\n          \"cible\": \"Total\"\n        },\n        {\n          \"type\": \"format\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Montant TTC\",\n          \"motif\": \"montant-fr\"\n        },\n        {\n          \"type\": \"format\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Échéance\",\n          \"motif\": \"date-fr\"\n        },\n        {\n          \"type\": \"presence\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Échéance\"\n        }\n      ],\n      \"passages_de_la_source\": [\n        \"Le total en bas du tableau est la somme de la colonne « Montant TTC ».\",\n        \"Les montants s'affichent au format 1 420,00 €.\",\n        \"Les échéances s'affichent au format JJ/MM/AAAA.\",\n        \"Chaque facture a une échéance.\"\n      ],\n      \"questions\": []\n    }\n  ]\n}",
+      "inputTokens": 3141,
+      "outputTokens": 597,
+      "body": {
+        "id": "gen-1794923239-jHjpQIF3KkB59o9RDPqb",
+        "object": "chat.completion",
+        "created": 1794923239,
+        "model": "openai/gpt-oss-120b",
+        "provider": "Groq",
+        "system_fingerprint": "fp_6fb4303df4",
+        "service_tier": "on_demand",
+        "choices": [
+          {
+            "index": 0,
+            "logprobs": null,
+            "finish_reason": "stop",
+            "native_finish_reason": "stop",
+            "message": {
+              "role": "assistant",
+              "content": "{\n  \"tests\": [\n    {\n      \"id\": \"liste-des-factures-verifications-regles\",\n      \"titre\": \"Liste des factures : vérifications des règles\",\n      \"setup\": \"Connecté avec le compte de démo, sur la liste des factures, affichage par défaut.\",\n      \"etapes\": [\n        \"Vérifier l'affichage du tableau.\"\n      ],\n      \"resultat_attendu\": \"Le tableau des factures s'affiche correctement avec les montants et échéances formatés, le total correct et chaque ligne possède une échéance.\",\n      \"verifications\": [\n        \"FAIL if le total affiché en bas du tableau n'est pas la somme de la colonne Montant TTC.\",\n        \"FAIL if un montant TTC n'est pas affiché au format 1 420,00 €.\",\n        \"FAIL if une échéance n'est pas affichée au format JJ/MM/AAAA.\",\n        \"FAIL if une ligne du tableau n'a pas de valeur dans la colonne Échéance.\"\n      ],\n      \"releves\": [\n        {\n          \"ecran\": \"liste-des-factures\",\n          \"vue\": \"defaut\"\n        }\n      ],\n      \"regles_calculables\": [\n        {\n          \"type\": \"somme\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Montant TTC\",\n          \"cible\": \"Total\"\n        },\n        {\n          \"type\": \"format\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Montant TTC\",\n          \"motif\": \"montant-fr\"\n        },\n        {\n          \"type\": \"format\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Échéance\",\n          \"motif\": \"date-fr\"\n        },\n        {\n          \"type\": \"presence\",\n          \"ecran\": \"liste-des-factures\",\n          \"colonne\": \"Échéance\"\n        }\n      ],\n      \"passages_de_la_source\": [\n        \"Le total en bas du tableau est la somme de la colonne « Montant TTC ».\",\n        \"Les montants s'affichent au format 1 420,00 €.\",\n        \"Les échéances s'affichent au format JJ/MM/AAAA.\",\n        \"Chaque facture a une échéance.\"\n      ],\n      \"questions\": []\n    }\n  ]\n}",
+              "refusal": null,
+              "reasoning": "We need to add at least one step in \"etapes\". Even if no action needed, we can add a trivial step like \"Vérifier l'affichage du tableau.\" Must be infinitive, start with capital, end with period. Use French infinitive: \"Vérifier l'affichage du tableau.\" That satisfies.\n\nAlso ensure all fields correct. Provide JSON with tests array.\n\nLet's produce corrected JSON.",
+              "reasoning_details": [
+                {
+                  "type": "reasoning.text",
+                  "text": "We need to add at least one step in \"etapes\". Even if no action needed, we can add a trivial step like \"Vérifier l'affichage du tableau.\" Must be infinitive, start with capital, end with period. Use French infinitive: \"Vérifier l'affichage du tableau.\" That satisfies.\n\nAlso ensure all fields correct. Provide JSON with tests array.\n\nLet's produce corrected JSON.",
+                  "format": "unknown",
+                  "index": 0
+                }
+              ]
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 3141,
+          "completion_tokens": 597,
+          "total_tokens": 3738,
+          "cost": 0.00082935,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0.00082935,
+            "upstream_inference_prompt_cost": 0.00047115,
+            "upstream_inference_completions_cost": 0.0003582
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 85,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      },
+      "rejections": []
+    }
+  ],
+  "tests": [
+    {
+      "id": "liste-des-factures-verifications-regles",
+      "logiciel": "facturo",
+      "source": "produit/liste-des-factures.md",
+      "passages_de_la_source": [
+        "Le total en bas du tableau est la somme de la colonne « Montant TTC ».",
+        "Les montants s'affichent au format 1 420,00 €.",
+        "Les échéances s'affichent au format JJ/MM/AAAA.",
+        "Chaque facture a une échéance."
+      ],
+      "releves": [
+        {
+          "ecran": "liste-des-factures",
+          "vue": "defaut"
+        }
+      ],
+      "test_markdown": "# Liste des factures : vérifications des règles\n\n## Setup\nConnecté avec le compte de démo, sur la liste des factures, affichage par défaut.\n\n## Task\n1. Vérifier l'affichage du tableau.\n\n## Expected Result\nLe tableau des factures s'affiche correctement avec les montants et échéances formatés, le total correct et chaque ligne possède une échéance.\n\n## Verification\n- FAIL if le total affiché en bas du tableau n'est pas la somme de la colonne Montant TTC.\n- FAIL if un montant TTC n'est pas affiché au format 1 420,00 €.\n- FAIL if une échéance n'est pas affichée au format JJ/MM/AAAA.\n- FAIL if une ligne du tableau n'a pas de valeur dans la colonne Échéance.",
+      "regles_calculables": [
+        {
+          "type": "somme",
+          "ecran": "liste-des-factures",
+          "colonne": "Montant TTC",
+          "cible": "Total"
+        },
+        {
+          "type": "format",
+          "ecran": "liste-des-factures",
+          "colonne": "Montant TTC",
+          "motif": "montant-fr"
+        },
+        {
+          "type": "format",
+          "ecran": "liste-des-factures",
+          "colonne": "Échéance",
+          "motif": "date-fr"
+        },
+        {
+          "type": "presence",
+          "ecran": "liste-des-factures",
+          "colonne": "Échéance"
+        }
+      ],
+      "questions": [],
+      "statut": "propose",
+      "modele": "openai/gpt-oss-120b:groq"
+    }
+  ]
+}
