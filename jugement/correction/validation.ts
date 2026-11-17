@@ -9,11 +9,11 @@ export interface Checked {
 }
 
 const LABEL = /«\s*([^»]+?)\s*»/g;
-const labels = (text: string) => new Set([...text.matchAll(LABEL)].map((match) => match[1]));
+export const labels = (text: string) => new Set([...text.matchAll(LABEL)].map((match) => match[1]));
 const occurrences = (text: string, part: string) => text.split(part).length - 1;
 
 // The lines a correction may touch: the body of the note, outside the front matter, the headings and the « Règles » part.
-function editableLines(note: Note): string[] {
+export function editableLines(note: Note): string[] {
   const lines = note.texte.split("\n");
   const body = lines[0] === "---" ? lines.slice(lines.indexOf("---", 1) + 1) : lines;
   let inRules = false;

@@ -76,4 +76,4 @@ Modèle par défaut de `proposerTests` dans le code au moment du lancement : `op
 - Jetons : 30602 en entrée, 32963 en sortie ; coût rendu par le routeur : 0.0071 $.
 - Critère de T4 (au moins 2 notes sur 3 réussies aux 3 passes, temps médian sous 10 s) : **tenu**.
 
-Détail de chaque passe et réponses brutes : `jugement/generation/essais-rapide/` et `docs/tests/2026-11-17-t4-generation-rapide.md`.
+Détail de chaque passe : `docs/tests/2026-11-17-t4-generation-rapide.md` ; réponses brutes gardées en local, hors du dépôt (`jugement/generation/essais-rapide/`).

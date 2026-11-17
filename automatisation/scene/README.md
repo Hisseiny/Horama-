@@ -8,17 +8,38 @@ La scène de `docs/decisions/2026-11-16-scene-en-direct.md` : le logiciel testé
 
 ## Le parcours (`parcours.mjs`)
 
-- Avec l'agent (clé `HAI_API_KEY`, outil `holo` installé) : `node --env-file=<.env.local> automatisation/scene/parcours.mjs`
+- Avec l'agent (clé `HAI_API_KEY`, `SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY`, outil `holo` installé) : `node --env-file=<.env.local> automatisation/scene/parcours.mjs`
 - Sans H (le script fait lui-même les clics par CDP, au rythme d'un agent) : `node automatisation/scene/parcours.mjs --sans-agent`
 - Essai complet sans rien écrire dans le vault du repo (depuis ce dossier) :
   ```
   cp -R ../../vault-horama essais/vault-copie
-  node parcours.mjs --sans-agent --choix bug,bug,voulu --vault essais/vault-copie --verification essais/fausse-verification.mjs --sortie essais/passage-1 --temoins essais/temoins --film essais/film --fermer-chrome
+  node parcours.mjs --sans-agent --choix bug,bug,voulu --vault essais/vault-copie --sortie essais/passage-1 --temoins essais/temoins --film essais/film --fermer-chrome
   ```
 - Écrire les références de la version 12 dans le vault : `node automatisation/scene/parcours.mjs --version 12 --ecrire-references --sans-agent --sans-fin`
 
+### Le coureur d'Ali, la session H et la base
+
+Le passage est joué par le coureur d'Ali (`creerCoureur` de `agent/index.ts`), dans les deux modes. La scène lui donne trois choses et garde tout le reste (Chrome, couche, captures, vérification, mascotte, fin du parcours) :
+
+- `relever(ecran, vue)` : le crochet décrit plus bas (étape 3). Il rend un `ReleveCapture` (`agent/src/coureur.ts`) : PNG, texte, adresse, dimensions, défilement et la phrase lue par l'agent. Sur une autre page il ne vérifie ni ne présente rien et rend la capture avec la vraie adresse : c'est le coureur qui refuse le relevé (« Relevé refusé : écran non atteint… »). Un relevé déjà enregistré est répondu par le coureur, sans rappeler la scène.
+- `navigateur` (avec l'agent) : à chaque session demandée, l'onglet revient à `about:blank` et un nouveau pont `holo local browser` démarre sur un nouveau canal (`startBridge` de `agent-h.mjs`, journal `pont-holo.log` dans le dossier de sortie).
+- `identifiant` : l'identifiant du passage de la scène. La couche, le dossier de sortie, `passage.json`, la base et le rapport du vault portent le même.
+
+D'où vient la session H : `creerSessionH` d'Ali (`agent/src/session.ts`). Elle crée l'agent `horama-testeur` avec la consigne de `construireConsigne` (instructions, tâche, outils `relever` et `terminer`), suit la session, abandonne une session muette après 45 s et la relance une fois après 35 s de pause. Sa consigne est écrite dans `consigne.md`, pour mémoire. Elle crée l'environnement avec `settle_s` 0,5 (en dur chez Ali ; la scène demandait 1,0, voir plus bas). Ctrl+C arrête les ponts et sort avec 130 ; la session H n'est pas supprimée (le coureur n'en donne pas la main), elle finit seule faute de pont.
+
+Sans l'agent, la session est celle du script (`session` injectable du coureur) : identifiant `script-<passage>`, une étape par geste (ouvrir la page, chaque clic, chaque relevé, la fin), chaque relevé passe par l'outil `relever` du coureur, puis `terminer(etat="reussi")`. Coût inconnu (`null`).
+
+Ce qui va en base, écrit par le coureur : la ligne `passages` (`en_cours`, puis `joue` ou `echec` avec durée et coût), une ligne `evenements` par étape, et par relevé accepté le PNG dans le stockage `captures` et sa ligne `captures`. Chaque étape est aussi dite dans le terminal (`étape n : …`). Le coureur écrit enfin son rapport dans `<vault>/<logiciel>/passages/<id>.md` : pour un essai, donner une copie du vault.
+
+| Mode | Base par défaut | Autre choix |
+|---|---|---|
+| avec l'agent | Supabase (`creerBaseSupabase`) | `--sans-base` : en mémoire |
+| `--sans-agent` | en mémoire (`BaseMemoire`), pour ne pas remplir la base partagée de passages scriptés | `--avec-base` : Supabase |
+
+En mémoire, la fin dit les comptes (passages, captures, événements), gardés sous `base` dans `passage.json`.
+
 Ce qu'il fait :
-1. Lit les tests acceptés (`lireTestsAcceptes`), les notes (`lireNotes`) et les décisions (`lireDecisions`) du vault. Les relevés de tous les tests, dans l'ordre et sans doublon, font un seul parcours ; les sections Setup et Task de chaque test, mises bout à bout, font une seule consigne, écrite dans `consigne.md`. En version 12, `/v13/` devient `/v12/` et un test dont une vue n'existe pas dans cette version est écarté.
+1. Lit les tests acceptés (`lireTestsAcceptes`), les notes (`lireNotes`) et les décisions (`lireDecisions`) du vault. Les relevés de tous les tests, dans l'ordre et sans doublon, font un seul parcours. En version 12, `/v13/` devient `/v12/` et un test dont une vue n'existe pas dans cette version est écarté ; les tests restants sont donnés au coureur.
 2. Chaque clic de l'agent est **retenu** le temps que le curseur arrive dessus, puis rendu à la page (voir « Le curseur »).
 3. À chaque `relever(ecran, vue)` : l'adresse de la page est vérifiée, la couche est masquée, la capture et le texte sont pris et rangés dans `releves/`, puis `verifierReleve` est appelé, `texte_zone` est rempli pour chaque constat visuel, et `consoliderConstats` repasse sur tous les constats du parcours.
 4. La mascotte présente les constats nouveaux de cet écran, l'un après l'autre : l'`annonce` de `formuler(constat)`, le trait qui se dessine autour de ce qui est trouvé, puis le `resultat`. **La réponse à l'agent ne part qu'à la fin de cette présentation**, ou au plafond (`--plafond`, 12 s) : un constat commencé avant le plafond est dit jusqu'au bout, les suivants sont dessinés et comptés sans phrase (la fin y revient). Ordre : ce qu'une décision a déjà tranché, puis les règles, puis les écarts d'image.
@@ -31,6 +52,8 @@ Options :
 | Option | Effet |
 |---|---|
 | `--sans-agent` | les clics sont faits par le script (CDP) ; H n'est pas appelé |
+| `--sans-base` | avec l'agent : la base est en mémoire au lieu de Supabase |
+| `--avec-base` | sans l'agent : le passage scripté s'écrit dans Supabase |
 | `--rythme <s>` | pause fixe entre deux gestes du script ; sans elle, entre 2 et 4 s au hasard |
 | `--plafond <s>` | temps maximal pendant lequel l'agent attend la mascotte à un écran (défaut 12) |
 | `--clic-direct` | le clic n'est pas retenu : la page réagit tout de suite, le curseur suit |
@@ -46,13 +69,15 @@ Options :
 | `--sortie <dossier>` | défaut `/Users/nathan/Code/projet/horama/.orchestrateur/passages/<identifiant>/` |
 | `--port 9333`, `--profil <dossier>`, `--fermer-chrome` | le Chrome dédié ; sans `--fermer-chrome` il reste ouvert à la fin |
 
-Variables : `FAUX_SAAS_URL`, `CHROME_BIN`, `HOLO_BIN`, `HAI_AGENT_MODEL`, `HAI_AGENT_REASONING`. Sortie : 0 tous les relevés pris et rien en erreur, 1 sinon, 2 il manque quelque chose, 130 Ctrl+C. Avec l'agent, la session est créée avec `settle_s` 1,0 (le clic retenu arrive à la page 620 à 920 ms après le geste de l'agent).
+Variables : `HAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `FAUX_SAAS_URL`, `CHROME_BIN`, `HOLO_BIN`, `HAI_AGENT_MODEL`, `HAI_AGENT_REASONING`. Sortie : 0 tous les relevés pris, passage `joue` selon le coureur et rien en erreur, 1 sinon, 2 il manque quelque chose (dont les variables Supabase quand la base est Supabase), 130 Ctrl+C. La session d'Ali est créée avec `settle_s` 0,5, alors que le clic retenu arrive à la page 620 à 920 ms après le geste de l'agent : si l'agent reclique, c'est à mesurer au parcours réel.
 
-`passage.json` : identifiant, version, référence, tests joués et écartés, relevés, `constats` (consolidés, avec `explique_par`, `nature`, `decision_id`), bilan, compteur, `decisions` (chaque décision écrite et son fichier), clics (avec `trajet_ms` et `retard_ms`), `retard_par_clic_ms`, `presentations` (durée par écran, constats dits et montrés sans phrase), film, durée, étapes, coût, session H. Une valeur que le mode sans agent ne mesure pas vaut `null`.
+Zone de page : `fitViewport` (`scene.mjs`) règle d'abord la fenêtre, puis impose 1280 × 900 à la densité 1 par `Emulation.setDeviceMetricsOverride`, sur tout écran (l'écran du Mac seul ne donne que 1280 × 862 à la fenêtre). Mesuré le 17/11 sur l'écran du Mac seul : la zone tient après un changement de page (même origine, autre origine, `about:blank`) tant que la connexion CDP qui l'a posée reste ouverte, et se perd quand elle se ferme (retour à 1280 × 862) ; chaque `connectTab` est donc suivi de `fitViewport`. Les captures restent à 0 pixel des références prises sur grand écran sans émulation. L'effet sur les clics de H est à mesurer (sur l'écran du Mac seul, la fenêtre montre moins que la zone émulée).
+
+`passage.json` : identifiant, version, référence, tests joués et écartés, relevés, `constats` (consolidés, avec `explique_par`, `nature`, `decision_id`), bilan, compteur, `decisions` (chaque décision écrite et son fichier), clics (avec `trajet_ms` et `retard_ms`), `retard_par_clic_ms`, `presentations` (durée par écran, constats dits et montrés sans phrase), film. Depuis le `RapportPassage` du coureur : `duree_s` et `cout_usd` (`rapport.passage`), `etapes`, `session_h` et `replay_url` (répétés dans chaque entrée de test), `etat` (`joue` ou `echec`). `relances` : sessions demandées par le coureur moins une. `base` : les comptes de la base en mémoire, ou `"supabase"`. Une valeur que le mode sans agent ne mesure pas vaut `null`.
 
 ### Le module de vérification
 
-La scène ne fabrique aucune phrase sur un constat : elle les demande au module, qui doit exporter les quatre fonctions ci-dessous. Sans elles le script s'arrête avant tout lancement (sortie 2). Tant que `jugement/verification/` ne les a pas, lancer avec `--verification essais/fausse-verification.mjs`.
+La scène ne fabrique aucune phrase sur un constat : elle les demande au module, qui doit exporter les quatre fonctions ci-dessous. Sans elles le script s'arrête avant tout lancement (sortie 2). `jugement/verification/` les exporte toutes les quatre depuis S3-B.
 
 ```ts
 verifierReleve(entree): Constat[]

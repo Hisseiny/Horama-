@@ -1,10 +1,12 @@
 import type { Decision } from "@horama/contrats";
 import { lireNotes } from "@horama/memoire";
-import { DEFAULT_MODEL } from "../generation/index.ts";
 import { callModel } from "../generation/router.ts";
 import type { ModelCall } from "../generation/router.ts";
-import { buildMessages, retryMessage } from "./prompt.ts";
-import { validateAnswer } from "./validation.ts";
+import { buildMessages, nudgeMessage, retryMessage } from "./prompt.ts";
+import { editableLines, labels, validateAnswer } from "./validation.ts";
+
+// The configuration measured at 15 sur 15 (docs/tests/2026-11-17-correction.md); the router's default provider.
+export const CORRECTION_MODEL = "openai/gpt-oss-120b";
 
 export interface CorrectionOptions {
   modele?: string;
@@ -23,7 +25,7 @@ export interface CorrectionProposal {
 // Proposes the note correction of a "voulu" decision. Never throws for a model or network failure: the decision comes back
 // without correction and `raison` says why. `appliquerCorrection` (@horama/memoire) applies it once the human accepts.
 export async function proposerCorrection(vault: string, decision: Decision, options: CorrectionOptions = {}): Promise<CorrectionProposal> {
-  const modele = options.modele ?? DEFAULT_MODEL;
+  const modele = options.modele ?? CORRECTION_MODEL;
   const start = Date.now();
   const none = (raison: string, essais = 0): CorrectionProposal => ({ decision, raison, modele, duree_ms: Date.now() - start, essais });
   if (decision.decision !== "voulu") return none("Un bug ne change pas la documentation.");
@@ -34,6 +36,8 @@ export async function proposerCorrection(vault: string, decision: Decision, opti
   const messages = buildMessages(decision, note, releaseNote, options.indices ?? []);
   const sources = messages.map(({ content }) => content).join("\n");
   const change = [decision.ecart, decision.pourquoi ?? "", ...(options.indices ?? [])].join("\n");
+  const body = editableLines(note).join("\n");
+  const cited = [...labels(change)].filter((label) => body.includes(`« ${label} »`));
 
   let reasons: string[] = [];
   for (let essais = 1; essais <= 2; essais++) {
@@ -43,6 +47,10 @@ export async function proposerCorrection(vault: string, decision: Decision, opti
     if (!checked) return none(`Pas de correction proposée : le modèle n'a pas répondu (${call.error}).`, essais);
     if (!checked.reasons.length) {
       const { avant, apres, raison } = checked;
+      if (!avant && essais === 1 && cited.length) {
+        messages.push({ role: "assistant", content: call.content! }, { role: "user", content: nudgeMessage(cited) });
+        continue;
+      }
       if (!avant || !apres) return none(raison ? `Pas de correction proposée : ${raison}` : "Pas de correction proposée.", essais);
       return {
         decision: { ...decision, correction_de_note: { fichier: note.chemin, avant, apres, statut: "proposee" } },

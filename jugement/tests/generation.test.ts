@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { cpSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, afterEach, mock, test } from "node:test";
@@ -12,17 +12,24 @@ import { validateAnswer } from "../generation/validation.ts";
 // No test reaches the network: the answers are files of tests/reponses/, and fetch is replaced when proposerTests is called.
 // v13.json and v13--choix-invalide.json are answers of openai/gpt-oss-120b of 2026-11-16 (second and first try of the same call),
 // transcribed from the trace of the call (same content, JSON layout not guaranteed); liste-des-factures--ecrite-a-la-main.json is written by hand.
-// To be replaced by files of generation/essais/ once T4 has run.
-const VAULT = fileURLToPath(new URL("../../vault-horama", import.meta.url));
+// To be replaced by files of generation/essais/ once T4 has run. Their view of the filter was renamed « filtre-echeance » (the
+// recorded answers said « filtre-echeance-depassee ») when the code started to accept only the views a screen note declares.
+// The tests run on a copy of the vault whose note liste-des-factures declares that view, as Facturo exposes it.
+const VAULT = mkdtempSync(join(tmpdir(), "horama-generation-"));
+cpSync(fileURLToPath(new URL("../../vault-horama", import.meta.url)), VAULT, { recursive: true });
+const LISTE_FILE = join(VAULT, "facturo", "produit", "liste-des-factures.md");
+writeFileSync(LISTE_FILE, readFileSync(LISTE_FILE, "utf8").replace(/^---\n/, "---\nvues: [filtre-echeance]\n"));
+after(() => rmSync(VAULT, { recursive: true, force: true }));
 const V13 = "notes-de-version/v13.md";
 const LISTE = "produit/liste-des-factures.md";
-const MODEL = "openai/gpt-oss-120b";
+const MODEL = "openai/gpt-oss-120b:fastest";
 const recorded = (name: string) => readFileSync(new URL(`./reponses/${name}.json`, import.meta.url), "utf8");
 const notes = lireNotes(VAULT, "facturo");
 const source = (chemin: string) => ({
   logiciel: "facturo",
   note: notes.find((note) => note.chemin === chemin)!,
   screens: ["detail-facture", "liste-des-factures", "tableau-de-bord"],
+  views: { "liste-des-factures": ["filtre-echeance"] } as Record<string, string[]>,
   modele: MODEL,
 });
 type Slots = Record<string, any>;
@@ -38,7 +45,7 @@ const FILTER_TEST: TestPropose = {
   logiciel: "facturo",
   source: V13,
   passages_de_la_source: ["Nouveau filtre « Échéance dépassée » sur la liste des factures : il n'affiche que les factures dont la date d'échéance est passée."],
-  releves: [{ ecran: "liste-des-factures", vue: "filtre-echeance-depassee" }],
+  releves: [{ ecran: "liste-des-factures", vue: "filtre-echeance" }],
   test_markdown: [
     "# Liste des factures : filtre Échéance dépassée",
     "",
@@ -114,7 +121,8 @@ test("une réponse invalide de chaque sorte est refusée, avec sa raison", () =>
     [changed("v13", (tests) => (tests[0].verifications = ["Le filtre doit marcher."])), /^test 1 : la vérification « Le filtre doit marcher\. » ne commence pas par « FAIL if »$/],
     [changed("v13", (tests) => delete tests[1].etapes), /^test 2 : « etapes » doit être une liste d'au moins 1 élément\(s\)$/],
     [changed("v13", (tests) => (tests[1].titre = "Liste des factures\n## Task")), /^test 2 : « titre » doit être un texte d'une seule ligne$/],
-    [changed("v13", (tests) => ((tests[1].releves as Array<{ vue: string }>)[0].vue = "exporter-en-haut")), /^test 2 : la vue « exporter-en-haut » n'est pas « defaut » alors qu'aucune étape ne choisit/],
+    [changed("v13", (tests) => ((tests[1].releves as Array<{ vue: string }>)[0].vue = "exporter-en-haut")), /^test 2 : la vue « exporter-en-haut » n'est pas déclarée pour l'écran « liste-des-factures » \(vues : defaut, filtre-echeance\)$/],
+    [changed("v13", (tests) => ((tests[0].releves as Array<{ vue: string }>)[0].vue = "filtre-echeance-depassee")), /^test 1 : la vue « filtre-echeance-depassee » n'est pas déclarée/],
     [changed("v13", (tests) => (tests[0].questions = [])), /^test 1 : la règle de filtre \(« < aujourd_hui »\) a une limite dont la note ne dit pas si elle compte : ajoute la question$/],
   ];
   for (const [answer, reason] of invalid) {
@@ -211,7 +219,7 @@ test("proposerTests : une réponse refusée repart au modèle avec la raison, po
 
 test("proposerTests : deux réponses refusées, erreur visible avec les raisons, pas de troisième appel, aucun test rendu", async () => {
   const requests = router(recorded("v13--choix-invalide"), recorded("v13--choix-invalide"), recorded("v13"));
-  await assert.rejects(proposerTests(VAULT, "facturo", V13), /Tests refusés après 2 essais \(openai\/gpt-oss-120b, notes-de-version\/v13\.md\) : test 1 : « questions\.choix »/);
+  await assert.rejects(proposerTests(VAULT, "facturo", V13), /Tests refusés après 2 essais \(openai\/gpt-oss-120b:fastest, notes-de-version\/v13\.md\) : test 1 : « questions\.choix »/);
   assert.equal(requests.length, 2);
 });
 
@@ -219,7 +227,7 @@ test("proposerTests : un appel en échec n'est pas masqué (code HTTP et message
   const requests = router(new Response(JSON.stringify({ error: { message: "Invalid credentials" } }), { status: 401 }), recorded("v13"));
   const calls: Array<{ status: number | null; error?: string }> = [];
   await assert.rejects(proposerTests(VAULT, "facturo", V13, { trace: (call) => calls.push(call) }), (error: Error) => {
-    assert.equal(error.message, "Génération impossible (openai/gpt-oss-120b, notes-de-version/v13.md) : HTTP 401 : Invalid credentials");
+    assert.equal(error.message, "Génération impossible (openai/gpt-oss-120b:fastest, notes-de-version/v13.md) : HTTP 401 : Invalid credentials");
     return true;
   });
   assert.equal(requests.length, 1);

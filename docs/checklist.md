@@ -25,7 +25,7 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | 1.6 | Envoyer au collègue les prérequis du pilote (cadrage, section 17) : environnement de test, compte de test avec données fictives, accord écrit, connexion sans captcha, documentation et notes de version, chiffres | Noé | à faire |  |
 | 1.7 | Brouillon des contrats C1 à C8 avec un exemple factice chacun | Ali (gardien), avec Leslie et Inès | codé non testé | Étiquette `contrats-v1` publiée ; [types et exemples C1 à C8](../contrats/). Validation humaine du brouillon non attestée ici. |
 | 1.8 | Preuve 1 : l'agent H se connecte au SaaS (pilote si l'accès existe, sinon le faux SaaS ou un site de démonstration) et atteint 2 écrans | Ali, Nathan en renfort | testé | [T7 de Nathan, sur dev](tests/2026-11-16-t7-navigateur-local.md) : trois passages H sur Facturo v13, quatre relevés chacun. Preuve produite par Nathan, distincte du coureur Ali. |
-| 1.9 | Preuve 2 : un modèle Hugging Face écrit un test au format H à partir de la note d'exemple du cadrage (section 10) ; deux modèles comparés | Leslie | à faire |  |
+| 1.9 | Preuve 2 : un modèle Hugging Face écrit un test au format H à partir de la note d'exemple du cadrage (section 10) ; deux modèles comparés | Leslie | fait | Mesure T4 du 16/11 (couloir Nathan, `jugement/generation/comparaison.md`) puis remesure du 17/11 avec les suffixes du routeur (`comparaison-rapide.md`, `comparaison-rapide-2.md`) |
 | 1.10 | Preuve 3 : Holo (Models API) relève un montant sur une capture | Nathan | à faire |  |
 | 1.11 | Vault de départ : structure, 3 notes d'écran, 1 note de règles entre écrans, 1 note de version (factices tant que la doc du pilote n'est pas arrivée) | Inès | à faire |  |
 | 1.12 | Maquettes rapides des écrans prioritaires : 11.2 (note vers test), 11.3 (passage en direct), 11.6 (relecture) | Axil | à faire |  |
@@ -49,7 +49,7 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 
 | N° | Tâche | Qui | État | Preuve |
 |---|---|---|---|---|
-| 3.1 | Génération : une note du vault devient un test proposé (C1) avec ses questions d'ambiguïté | Leslie | à faire |  |
+| 3.1 | Génération : une note du vault devient un test proposé (C1) avec ses questions d'ambiguïté | Leslie | fait | `proposerTests` ; modèle par défaut `openai/gpt-oss-120b:fastest` : 9 sur 9, 3 notes sur 3, 3,0 s en médiane (`comparaison-rapide-2.md`) ; le code refuse une vue inventée et un filtre à limite sans question |
 | 3.2 | Écran 11.2 : note à gauche, test à droite, règle surlignée, Accepter, Modifier, Refuser | Axil | à faire |  |
 | 3.3 | Écriture du test accepté dans `vault-horama/…/tests/` (C2) | Inès | à faire |  |
 | 3.4 | Orchestrateur : une session H par test accepté, événements du fil (C3) en base, lien de replay, abandon d'une session muette après 45 s et une relance | Ali | en cours | En ligne : A6 v12 réel (3 captures), puis cinq A7 v13 (20 captures), Supabase partagé ; médiane v13 66,517 s C6 / 67,786 s commande complète. Six trajectoires publiques dans C6/Markdown, curl anonyme HTTP 200. Session chaînée conforme au changement de cap du couloir ; aucun gel ni relance observé. Promotion des références, jugement métier et validation humaine restants. [Preuve en ligne](tests/2026-11-17-a7-facturo-en-ligne.md). |
@@ -85,7 +85,7 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | N° | Tâche | Qui | État | Preuve |
 |---|---|---|---|---|
 | 5.1 | Écran 11.5 : comparaison des versions, côte à côte, rideau, pixels bruts ; zones d'écart entourées | Axil (écran), Leslie (zones), Nathan (script de différence de pixels) | à faire |  |
-| 5.2 | Dérive documentaire : un « voulu » qui contredit une note propose la correction (écran 11.7) ; Accepter modifie la note dans le vault | Inès (logique), Leslie (rédaction de la correction), Axil (écran) | en cours | Leslie : `proposerCorrection` dans `jugement/correction/`, 15 tests sans réseau ; mesure réelle à lancer (`jugement/scripts/t52-correction.ts`) ; branchement dans la scène à faire (couloir Nathan) |
+| 5.2 | Dérive documentaire : un « voulu » qui contredit une note propose la correction (écran 11.7) ; Accepter modifie la note dans le vault | Inès (logique), Leslie (rédaction de la correction), Axil (écran) | en cours | Leslie : rédaction faite, `proposerCorrection` dans `jugement/correction/` (PR #11) ; mesure réelle 11, 14, 14 puis 15 sur 15 après corrections (`docs/tests/2026-11-17-correction.md`) ; reste le branchement dans la scène (Nathan) |
 | 5.3 | Vérifier les 8 critères du P0 (cadrage, section 7), `main` gelé | Ali | à faire |  |
 | 5.4 | Mesures complètes, comparaisons (pixels, tests écrits à la main, sans et avec mémoire, deux modèles Hugging Face), coût et durée d'un passage, graphiques du deck | Inès | à faire |  |
 | 5.5 | Retour écrit du pilote : utiliserait-il Horama, paierait-il, combien, que manque-t-il ; point business de l'après-midi | Noé | à faire |  |

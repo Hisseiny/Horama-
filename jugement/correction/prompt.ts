@@ -7,7 +7,7 @@ const INSTRUCTIONS = `Tu tiens à jour la documentation d'un logiciel. Un humain
 Réponds par un seul objet JSON, sans aucun texte autour :
 { "phrase_contredite": ..., "nouvelle_phrase": ..., "raison": ... }
 
-- "phrase_contredite" : la phrase de la note de l'écran que le changement rend fausse, recopiée caractère pour caractère (mêmes guillemets « », mêmes accents, mêmes espaces), sans le tiret d'une puce, sans rien ajouter ni corriger. Une seule phrase. null si aucune phrase de la note ne parle de ce qui a changé.
+- "phrase_contredite" : la phrase de la note de l'écran que le changement rend fausse (un indice peut dire ce qu'il y avait avant à cet endroit : cherche aussi la phrase qui cite cet ancien texte), recopiée caractère pour caractère (mêmes guillemets « », mêmes accents, mêmes espaces), sans le tiret d'une puce, sans rien ajouter ni corriger. Une seule phrase. null si aucune phrase de la note ne parle de ce qui a changé.
 - "nouvelle_phrase" : la phrase qui la remplace, dans le style de la note, qui dit l'état de l'écran depuis le changement. Écris les libellés de l'interface entre « », tels que la note ou le changement les donnent. N'écris pas la version : le programme l'ajoute. null si "phrase_contredite" est null, ou si rien de ce qu'on te donne ne dit le nouvel état (n'invente jamais une position, une valeur ou un libellé).
 - "raison" : une phrase courte qui dit ton choix.
 
@@ -40,4 +40,9 @@ export function buildMessages(decision: Decision, note: Note, releaseNote: Note 
 
 export function retryMessage(reasons: string[]): string {
   return `Le programme a refusé ta réponse :\n${reasons.map((reason) => `- ${reason}`).join("\n")}\nRends de nouveau l'objet JSON complet, corrigé.`;
+}
+
+// Sent once when the model answers null although the editable part of the note cites a label of the change.
+export function nudgeMessage(cited: string[]): string {
+  return `Tu as répondu null, mais la note cite ${cited.map((label) => `« ${label} »`).join(", ")}, qui fait partie de ce changement. Relis la phrase qui le cite : si le changement la rend fausse, corrige-la ; sinon, réponds de nouveau null. Rends l'objet JSON complet.`;
 }
