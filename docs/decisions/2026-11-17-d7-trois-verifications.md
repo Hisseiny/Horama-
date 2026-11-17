@@ -1,6 +1,6 @@
 # D7 : trois sortes de vérification, et le vault comme mémoire des agents
 
-Date : 17 novembre 2026. Décidé par Nathan (CAO) pour le fond : les méthodes 1 et 2 ci-dessous en P0. **Le nouveau type de règle (section 3) modifie `contrats-v1` : à valider avec Ali (CTO) avant tout code**, comme le prévoit `contrats/README.md`. Complète D6 option B (commentaire de la PR #10) et la décision de jonction (`2026-11-17-jonction-scene-coureur.md`).
+Date : 17 novembre 2026. Décidé par Nathan (CAO) pour le fond : les méthodes 1 et 2 ci-dessous en P0. **Le nouveau type de règle (section 3) modifie `contrats-v1` : accepté par Ali (CTO), gardien des contrats, avec 4 conditions intégrées en section 3** (commentaire de la PR #21). Complète D6 option B (commentaire de la PR #10) et la décision de jonction (`2026-11-17-jonction-scene-coureur.md`).
 
 ## 1. Le constat
 
@@ -33,7 +33,15 @@ La méthode 1 ne demande aucun changement de contrat : les vues et les référen
 ```
 
 - Jugé sur le `texte_page` du relevé (écran, vue), que le coureur transmet déjà à la vérification (`agent/src/verification.ts`) : **aucun champ nouveau dans `Capture` ni dans la base**, aucun changement du coureur au-delà du passage de la règle, qu'il fait déjà (`test.regles`).
-- Statuts : `PASS` si tous les textes présents le sont et aucun texte absent n'apparaît ; `VERIFIED_FAIL` sinon, avec le texte manquant ou en trop dans `calcul` et `textes_a_surligner` ; `INCONCLUSIVE` si le relevé de cette vue manque.
+- **Statuts, selon l'état réellement atteint** (condition 1 d'Ali) :
+  - `INCONCLUSIVE` (« état non atteint ») si le relevé de cette vue manque, ou si **aucun** des `texte_present` n'apparaît : rien ne prouve que l'agent a fait l'action (le mode sombre n'a peut-être jamais été activé) ;
+  - `VERIFIED_FAIL` seulement si l'état est prouvé (au moins un `texte_present` trouvé) **et** qu'un texte attendu manque ou qu'un `texte_absent` apparaît, avec le texte manquant ou en trop dans `calcul` et `textes_a_surligner` ;
+  - `PASS` si tous les `texte_present` sont là et aucun `texte_absent` n'apparaît.
+  - Une règle qui n'a que des `texte_absent` doit porter au moins un `texte_present` témoin, sinon elle est refusée à la lecture.
+- **Comparaison des textes** (condition 2) : en sous-chaîne de `texte_page` (le `innerText` de la page, donc sans le texte masqué), après normalisation des espaces, des espaces insécables et de la casse.
+- **La vue** (condition 3) : `etat` se juge sur le relevé de la `vue` de la règle. Aujourd'hui, `jugement/verification/index.ts` ne garde que la vue `defaut` (sauf pour `filtre`) : à étendre. Les `switch (regle.type)` de `jugement/verification/rules.ts`, `jugement/verification/wording.ts` et `memoire/src/rules.ts` gèrent `etat` **dans le même lot**, sinon `pnpm -r check` casse dès l'arrivée du type.
+- **Un seul changement de contrat, au bon moment** (condition 4) : Ali ajoute le type dans `contrats/types.ts` et `contrats/exemples.ts` et pose l'étiquette `contrats-v2` **quand le jugement de `etat` est prêt à être fusionné juste après**, jamais avant, pour ne pas laisser `dev` avec un type que personne ne juge.
+- Limite : `etat` ne voit que le texte. Un mode sombre cassé seulement dans ses couleurs relève de la méthode 1 (comparaison d'images), pas de `etat`. D'où les deux méthodes ensemble dans le scénario.
 - Écrit dans les notes du vault comme les autres règles : `regle: etat | vue: mode-sombre | present: Revenir au mode clair`.
 - Volontairement limité au texte visible : Horama reste une boîte noire qui voit ce que voit un utilisateur, ce qui marche aussi sur un logiciel dont on n'a pas le code (Dolibarr, le pilote).
 
@@ -96,9 +104,9 @@ La mémoire de travail de l'agent passe en P1 : elle n'est utile qu'au-delà de 
 
 | Brique | Qui | Quand |
 |---|---|---|
-| Valider le type `etat` (contrat) | Ali et Nathan | Avant tout code |
-| Type `etat` dans `contrats/`, étiquette `contrats-v2` | Ali (gardien) | Après accord |
-| Jugement de `etat` dans `jugement/verification/`, lecture dans `memoire/` | Couloir Nathan | Après J4 (la jonction ne doit pas être perturbée) |
+| Valider le type `etat` (contrat) | Ali et Nathan | Fait le 17/11 (accord d'Ali, 4 conditions) |
+| Jugement de `etat` dans `jugement/verification/` et `wording.ts`, lecture dans `memoire/`, en un seul lot | Couloir Nathan | Après J4 (la jonction ne doit pas être perturbée) |
+| Type `etat` dans `contrats/`, étiquette `contrats-v2` | Ali (gardien) | Quand le lot du jugement est prêt à être fusionné juste après |
 | Mode sombre et bouton Relancer dans Facturo, commit de démo et sa fiche, références `mode-sombre` | Couloir Nathan | Avec l'option B |
 | Fiches de changement : format, lecture, sélection des tests | Couloir Nathan (script du diff de l'option B) | Avec l'option B |
 | Génération des tests depuis une fiche et des règles `etat` | Leslie (consigne Hugging Face) | Après accord sur le type |
