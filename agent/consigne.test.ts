@@ -108,16 +108,19 @@ Voir Admissions.
   } finally { rmSync(temporary, { recursive: true, force: true }); }
 });
 
-test("une vue déclarée dans le champ vues de la note est jouée, sans filtre dans le contrôle", () => {
+for (const existingViews of [false, true]) test(`une vue déclarée dans le champ vues de la note est jouée, sans filtre dans le contrôle (champ existant : ${existingViews})`, () => {
   const temporary = mkdtempSync(join(tmpdir(), "horama-views-"));
   try {
     cpSync(join(vault, "facturo"), join(temporary, "facturo"), { recursive: true });
     const testFile = join(temporary, "facturo/tests/ca-du-mois-egal-total.md");
     writeFileSync(testFile, readFileSync(testFile, "utf8").replace("{ ecran: tableau-de-bord, vue: defaut }", "{ ecran: tableau-de-bord, vue: langue-en }"));
     const ids = ["ca-du-mois-egal-total"];
-    assert.throws(() => construireConsigne({ ...options, vault: temporary, ids }), /Vue « langue-en » inconnue : à déclarer dans le champ vues de la note de l'écran « tableau-de-bord »/);
     const noteFile = join(temporary, "facturo/produit/tableau-de-bord.md");
-    writeFileSync(noteFile, readFileSync(noteFile, "utf8").replace(/^url: .*$/m, "$&\nvues: [langue-en]"));
+    const note = readFileSync(noteFile, "utf8").replace(/^vues:.*\n/gm, "");
+    writeFileSync(noteFile, existingViews ? note.replace(/^url: .*$/m, "$&\nvues: [defaut]") : note);
+    assert.throws(() => construireConsigne({ ...options, vault: temporary, ids }), /Vue « langue-en » inconnue : à déclarer dans le champ vues de la note de l'écran « tableau-de-bord »/);
+    const current = readFileSync(noteFile, "utf8");
+    writeFileSync(noteFile, /^vues:/m.test(current) ? current.replace(/^vues:.*$/m, "vues: [langue-en]") : current.replace(/^url: .*$/m, "$&\nvues: [langue-en]"));
     const step = construireConsigne({ ...options, vault: temporary, ids }).course.find(({ vue }) => vue === "langue-en")!;
     assert.equal(step.address, "/v13/tableau-de-bord");
     assert.ok(!step.here.includes("filtre"));
