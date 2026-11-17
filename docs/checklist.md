@@ -38,7 +38,7 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | N° | Tâche | Qui | État | Preuve |
 |---|---|---|---|---|
 | 2.1 | Point de 9 h 30 : état des preuves 1.8 à 1.10, réponse du pilote | Tous | à faire |  |
-| 2.2 | Gel des contrats C1 à C8 | Ali | codé non testé | Étiquette distante `contrats-v1` : `42a349108f062e0fe58fe926678199f8866305f5` ; [contrats gelés](../contrats/README.md). Pas de nouvelle attestation humaine ici. |
+| 2.2 | Gel des contrats C1 à C8 | Ali | codé non testé | Étiquette distante `contrats-v1` : `42a349108f062e0fe58fe926678199f8866305f5` ; [contrats gelés](../contrats/README.md). Pas de nouvelle attestation humaine ici. contrats-v2 (point 1 de #35) : règle `etat` de D7 ajoutée à `Regle` avec un exemple, PR en brouillon tant que `jugement/` ne la gère pas ; étiquette `contrats-v2` non posée, codé non testé. |
 | 2.3 | Versions factices : A (fil et rapport), B (test proposé et verdict), C (vault et base remplis de données factices) | Ali, Leslie, Inès | à faire |  |
 | 2.4 | Tables Supabase et stockage des captures, selon C3, C4, C6, C8 | Inès | à faire |  |
 | 2.5 | Point technique H (11 h) : questions du cadrage section 18, bugs de la veille avec capture | Ali, Nathan | à faire |  |
