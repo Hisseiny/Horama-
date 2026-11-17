@@ -102,6 +102,42 @@ test("429 est réessayé deux fois et un échec de création ferme le pont sans 
   assert.deepEqual(pauses, [30_000, 30_000]);
 });
 
+for (const tool of ["relever", "terminer"]) {
+  test(`un résultat ${tool} accepté après deux 429 ne rend pas la session muette`, async () => {
+    let now = 0;
+    let polls = 0;
+    let posts = 0;
+    let cancelled = 0;
+    let bridges = 0;
+    let tools = 0;
+    const pauses: number[] = [];
+    const session = creerSessionH({
+      key: "test-key", maintenant: () => now,
+      pause: async (ms) => { pauses.push(ms); now += ms; },
+      navigateur: async () => ({ channel: `channel-${++bridges}`, stop() {} }),
+      requete: async (url, init) => {
+        if (String(url).endsWith("/sessions")) return json({ id: "rate-limited-tool" });
+        if (init?.method === "DELETE") { cancelled++; return new Response(null, { status: 204 }); }
+        if (String(url).endsWith("/tool_results")) return new Response(null, { status: ++posts < 3 ? 429 : 204 });
+        if (++polls === 1) return json({ status: "running", new_events: [], pending_tool_calls: [{ id: "call", tool_name: tool, args: {} }] });
+        if (polls === 2) { now += 30_000; return new Response(null, { status: 204 }); }
+        if (polls === 3) return json({ status: "completed", new_events: [] });
+        return new Response(null, { status: 204 });
+      },
+    });
+    const result = await (await session({ ...defaults(), onTool: async () => { tools++; return "Accepté."; } })).fin;
+    assert.equal(result.muted, false);
+    assert.equal(result.erreur, undefined);
+    assert.equal(posts, 3);
+    assert.equal(tools, 1);
+    assert.equal(polls, 4);
+    assert.equal(cancelled, 0);
+    assert.equal(bridges, 1);
+    assert.equal(now, 90_000);
+    assert.deepEqual(pauses, [30_000, 30_000]);
+  });
+}
+
 test("le silence se mesure depuis le dernier événement, même après une action", async () => {
   let now = 0;
   let polls = 0;

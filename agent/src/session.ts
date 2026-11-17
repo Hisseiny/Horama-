@@ -131,6 +131,7 @@ export function creerSessionH({ navigateur, key, requete = fetch, maintenant = D
             handled.add(callId);
             const result = await input.onTool(call.tool_name, call.args ?? {});
             await h("POST", `/sessions/${id}/tool_results`, { kind: "tool_result", tool_req: call, result });
+            lastActivity = maintenant();
             if (call.tool_name === "terminer") deadline = Math.min(deadline, maintenant() + 40_000);
           }
         }
