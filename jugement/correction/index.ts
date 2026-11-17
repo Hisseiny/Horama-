@@ -34,7 +34,7 @@ export async function proposerCorrection(vault: string, decision: Decision, opti
   if (!note) return none(`Aucune note de ${decision.logiciel} ne décrit l'écran « ${decision.ecran} ».`);
   const releaseNote = notes.find(({ chemin }) => chemin === `notes-de-version/v${decision.version}.md`);
   const messages = buildMessages(decision, note, releaseNote, options.indices ?? []);
-  const sources = messages.map(({ content }) => content).join("\n");
+  const sources = [decision.ecart, decision.pourquoi ?? "", ...(options.indices ?? [])].join("\n");
   const change = [decision.ecart, decision.pourquoi ?? "", ...(options.indices ?? [])].join("\n");
   const body = editableLines(note).join("\n");
   const cited = [...labels(change)].filter((label) => body.includes(`« ${label} »`));
