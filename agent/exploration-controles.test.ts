@@ -19,6 +19,9 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
     if (request.url === "/healthy" || request.url === "/broken") {
       response.setHeader("Content-Type", "text/html; charset=utf-8");
       response.end(await readFile(new URL(`./scripts/exploration-pages-essai/${request.url.slice(1)}.html`, import.meta.url)));
+    } else if (request.url === "/redirect" || request.url === "/fallback-redirect") {
+      if (request.url === "/fallback-redirect" && request.method === "HEAD") response.writeHead(405).end();
+      else response.writeHead(302, { Location: "/redirect-target" }).end();
     } else if (request.url === "/fallback") {
       response.writeHead(request.method === "HEAD" ? 405 : 200).end("OK");
     } else response.writeHead(request.url === "/error" ? 500 : 404).end("Introuvable");
@@ -85,6 +88,8 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
   assert.ok(defects.some(defect => defect.valeur === "Erreur de démonstration"));
   assert.ok(defects.some(defect => String(defect.valeur).includes("Exception de démonstration")));
   assert.equal(defects.filter(defect => defect.sorte === "lien_casse").length, 1);
+  assert.ok(!requests.some(value => value.endsWith(" /redirect-target")));
+  assert.deepEqual(requests.filter(value => value.endsWith(" /fallback-redirect")), ["HEAD /fallback-redirect", "GET /fallback-redirect"]);
   assert.deepEqual(requests.filter(value => value.endsWith(" /fallback")), ["HEAD /fallback", "GET /fallback"]);
   assert.ok(defects.find(defect => defect.sorte === "debordement")?.zone);
   assert.ok(defects.some(defect => defect.sorte === "debordement" && defect.selecteur === "#overflow"));

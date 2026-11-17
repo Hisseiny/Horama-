@@ -95,13 +95,13 @@ export async function controlerPage(client: CdpClient, options: { maxLiens?: num
       if (seen.size >= limit) break;
       seen.add(link.url);
       try {
-        let response = await request(link.url, { method: "HEAD", signal: AbortSignal.timeout(10_000) });
+        let response = await request(link.url, { method: "HEAD", redirect: "manual", signal: AbortSignal.timeout(10_000) });
         if (response.status === 405) {
           await response.body?.cancel();
-          response = await request(link.url, { method: "GET", signal: AbortSignal.timeout(10_000) });
+          response = await request(link.url, { method: "GET", redirect: "manual", signal: AbortSignal.timeout(10_000) });
         }
         await response.body?.cancel();
-        if (response.status >= 400) defects.push({ statut: "VERIFIED_FAIL", sorte: "lien_casse", message: `Le lien interne renvoie HTTP ${response.status}.`, selecteur: link.selecteur, zone: link.zone, valeur: `${link.url} : ${response.status}` });
+        if (response.type !== "opaqueredirect" && response.status >= 400) defects.push({ statut: "VERIFIED_FAIL", sorte: "lien_casse", message: `Le lien interne renvoie HTTP ${response.status}.`, selecteur: link.selecteur, zone: link.zone, valeur: `${link.url} : ${response.status}` });
       } catch { /* Une absence de réponse ne prouve pas un lien cassé. */ }
     }
     return [...defects, ...consoleDefects];
