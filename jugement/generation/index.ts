@@ -6,7 +6,7 @@ import type { ModelCall } from "./router.ts";
 import { validateAnswer } from "./validation.ts";
 
 // Provisional: T4 has not been measured yet. The winner of comparaison.md (written by scripts/t4-generation.ts) goes here.
-// Mesure du 17/11 (generation/comparaison-rapide-2.md) : 9 sur 9, 3 notes sur 3, 3,0 s en médiane (16,3 s sans suffixe).
+// Mesure de contrôle du 17/11, code final (generation/comparaison-rapide-3.md) : 9 sur 9, 3 notes sur 3, 1,6 s en médiane (16,3 s sans suffixe).
 // « :fastest » plutôt que « :cerebras » (1,8 s) : le routeur choisit un fournisseur disponible, Cerebras a rendu un HTTP 429 au premier lancement.
 export const DEFAULT_MODEL = "openai/gpt-oss-120b:fastest";
 
