@@ -10,7 +10,7 @@ Vérifier : `pnpm --filter @horama/memoire run check` (types, puis tests sur une
 - `lireNotes(vault, logiciel)` : les notes de `produit/` et de `notes-de-version/` (`chemin`, `entete`, `titre`, `texte`, `regles`). Une règle : `{ phrase, regle, ligne }`, `regle` vaut `null` si la puce n'a pas de ligne `regle:`.
 - `analyserLigneRegle(ligne, ecranDeLaNote)` : une ligne `regle: … | cle: valeur` devient une `Regle`.
 - `verifierRegle(regle)` : rend la `Regle` avec les seuls champs du contrat, dans l'ordre du contrat ; lève une erreur qui dit pourquoi si ce n'en est pas une.
-- `urlDepart(vault, logiciel, version, ecran)` : `/v<version>/entrer?suite=/v<version><url de l'écran>`.
+- `urlDepart(vault, logiciel, version, ecran)` : l'adresse de départ d'un test sur cet écran. Si `<logiciel>/logiciel.md` déclare une entrée authentifiée (champ `entree`, avec `{version}` et `{url}`, celle de Facturo : `/v{version}/entrer?suite=/v{version}{url}`), elle est appliquée ; sinon, l'url de la note telle quelle (site public).
 
 **Tests acceptés (C2)**
 - `ecrireTestAccepte(vault, propose, { url_depart, version_cible, timeout_s, accepte_par, accepte_le })` : écrit `<logiciel>/tests/<id>.md` (en-tête, phrase finale de la section Task et bloc `regles` écrits par le code), rend le `TestAccepte`.

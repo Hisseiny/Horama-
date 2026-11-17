@@ -24,7 +24,9 @@ export interface ImageComparison {
   zones: ImageZone[]; // zones that count, from top to bottom
 }
 
-export function comparerImages(png: Uint8Array, reference: Uint8Array): ImageComparison {
+// `ignorees`: zones of the page that change at each visit (a photo that rotates), declared in the note of the screen;
+// their pixels are not compared.
+export function comparerImages(png: Uint8Array, reference: Uint8Array, ignorees: Array<{ x: number; y: number; largeur: number; hauteur: number }> = []): ImageComparison {
   const [a, b] = [png, reference].map((bytes) => PNG.sync.read(Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength)));
   const { width, height } = a;
   const comparison: ImageComparison = {
@@ -50,6 +52,7 @@ export function comparerImages(png: Uint8Array, reference: Uint8Array): ImageCom
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const i = (y * width + x) * 4;
+      if (ignorees.length && ignorees.some((zone) => x >= zone.x && x < zone.x + zone.largeur && y >= zone.y && y < zone.y + zone.hauteur)) continue;
       if (
         Math.abs(a.data[i] - b.data[i]) <= TOLERANCE &&
         Math.abs(a.data[i + 1] - b.data[i + 1]) <= TOLERANCE &&

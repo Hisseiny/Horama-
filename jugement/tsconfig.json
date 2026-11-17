@@ -6,5 +6,5 @@
     "allowImportingTsExtensions": true,
     "types": ["node"]
   },
-  "include": ["index.ts", "generation/*.ts", "scripts/*.ts", "tests/*.ts"]
+  "include": ["index.ts", "generation/*.ts", "correction/*.ts", "scripts/*.ts", "tests/*.ts"]
 }

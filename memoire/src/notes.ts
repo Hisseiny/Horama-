@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { IdEcran, Regle, Version } from "@horama/contrats";
 import { listMarkdown, splitFrontMatter } from "./files.ts";
@@ -53,8 +53,15 @@ export function lireNotes(vault: string, logiciel: string): Note[] {
   );
 }
 
+// The departure address of a test on a screen. A software the agent must enter through an authenticated entrance
+// declares it in <logiciel>/logiciel.md (field `entree`, with {version} and {url}); without it, the address of the
+// screen as its note gives it (a public site, such as the one of Eugenia).
 export function urlDepart(vault: string, logiciel: string, version: Version, ecran: IdEcran): string {
   const url = lireNotes(vault, logiciel).find((note) => note.entete.ecran === ecran)?.entete.url;
   if (typeof url !== "string") throw new Error(`Aucune note de ${logiciel} ne donne l'url de l'écran « ${ecran} »`);
-  return `/v${version}/entrer?suite=/v${version}${url}`;
+  const settings = join(vault, logiciel, "logiciel.md");
+  const entree = existsSync(settings) ? splitFrontMatter(readFileSync(settings, "utf8")).header.entree : undefined;
+  if (entree === undefined) return url;
+  if (typeof entree !== "string") throw new Error(`${logiciel}/logiciel.md : le champ « entree » doit être un texte`);
+  return entree.replaceAll("{version}", version).replaceAll("{url}", url);
 }

@@ -25,7 +25,7 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | 1.6 | Envoyer au collègue les prérequis du pilote (cadrage, section 17) : environnement de test, compte de test avec données fictives, accord écrit, connexion sans captcha, documentation et notes de version, chiffres | Noé | à faire |  |
 | 1.7 | Brouillon des contrats C1 à C8 avec un exemple factice chacun | Ali (gardien), avec Leslie et Inès | codé non testé | Étiquette `contrats-v1` publiée ; [types et exemples C1 à C8](../contrats/). Validation humaine du brouillon non attestée ici. |
 | 1.8 | Preuve 1 : l'agent H se connecte au SaaS (pilote si l'accès existe, sinon le faux SaaS ou un site de démonstration) et atteint 2 écrans | Ali, Nathan en renfort | testé | [T7 de Nathan, sur dev](tests/2026-11-16-t7-navigateur-local.md) : trois passages H sur Facturo v13, quatre relevés chacun. Preuve produite par Nathan, distincte du coureur Ali. |
-| 1.9 | Preuve 2 : un modèle Hugging Face écrit un test au format H à partir de la note d'exemple du cadrage (section 10) ; deux modèles comparés | Leslie | à faire |  |
+| 1.9 | Preuve 2 : un modèle Hugging Face écrit un test au format H à partir de la note d'exemple du cadrage (section 10) ; deux modèles comparés | Leslie | fait | Mesure T4 du 16/11 (couloir Nathan, `jugement/generation/comparaison.md`) puis remesure du 17/11 avec les suffixes du routeur (`comparaison-rapide.md`, `comparaison-rapide-2.md`) |
 | 1.10 | Preuve 3 : Holo (Models API) relève un montant sur une capture | Nathan | à faire |  |
 | 1.11 | Vault de départ : structure, 3 notes d'écran, 1 note de règles entre écrans, 1 note de version (factices tant que la doc du pilote n'est pas arrivée) | Inès | à faire |  |
 | 1.12 | Maquettes rapides des écrans prioritaires : 11.2 (note vers test), 11.3 (passage en direct), 11.6 (relecture) | Axil | à faire |  |
@@ -38,7 +38,7 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | N° | Tâche | Qui | État | Preuve |
 |---|---|---|---|---|
 | 2.1 | Point de 9 h 30 : état des preuves 1.8 à 1.10, réponse du pilote | Tous | à faire |  |
-| 2.2 | Gel des contrats C1 à C8 | Ali | codé non testé | Étiquette distante `contrats-v1` : `42a349108f062e0fe58fe926678199f8866305f5` ; [contrats gelés](../contrats/README.md). Pas de nouvelle attestation humaine ici. |
+| 2.2 | Gel des contrats C1 à C8 | Ali | codé non testé | Étiquette distante `contrats-v1` : `42a349108f062e0fe58fe926678199f8866305f5` ; [contrats gelés](../contrats/README.md). Pas de nouvelle attestation humaine ici. contrats-v2 (point 1 de #35) : règle `etat` de D7 ajoutée à `Regle` avec un exemple, PR en brouillon tant que `jugement/` ne la gère pas ; étiquette `contrats-v2` non posée, codé non testé. |
 | 2.3 | Versions factices : A (fil et rapport), B (test proposé et verdict), C (vault et base remplis de données factices) | Ali, Leslie, Inès | à faire |  |
 | 2.4 | Tables Supabase et stockage des captures, selon C3, C4, C6, C8 | Inès | à faire |  |
 | 2.5 | Point technique H (11 h) : questions du cadrage section 18, bugs de la veille avec capture | Ali, Nathan | à faire |  |
@@ -49,11 +49,11 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 
 | N° | Tâche | Qui | État | Preuve |
 |---|---|---|---|---|
-| 3.1 | Génération : une note du vault devient un test proposé (C1) avec ses questions d'ambiguïté | Leslie | à faire |  |
+| 3.1 | Génération : une note du vault devient un test proposé (C1) avec ses questions d'ambiguïté | Leslie | fait | `proposerTests` ; modèle par défaut `openai/gpt-oss-120b:fastest` : 9 sur 9, 3 notes sur 3, 1,6 s en médiane à la mesure de contrôle (`comparaison-rapide-3.md`) ; le code refuse une vue non déclarée dans la note de l'écran et un filtre à limite sans question |
 | 3.2 | Écran 11.2 : note à gauche, test à droite, règle surlignée, Accepter, Modifier, Refuser | Axil | à faire |  |
 | 3.3 | Écriture du test accepté dans `vault-horama/…/tests/` (C2) | Inès | à faire |  |
 | 3.4 | Orchestrateur : une session H par test accepté, événements du fil (C3) en base, lien de replay, abandon d'une session muette après 45 s et une relance | Ali | codé non testé | A3/A4 : coureur et C3 livrés, parcours désormais chaîné ; [PR #9](https://github.com/Hisseiny/Horama-/pull/9) replay public, [PR #15](https://github.com/Hisseiny/Horama-/pull/15) `--tests`/`--base-url`, [PR #17](https://github.com/Hisseiny/Horama-/pull/17) décision d'appel direct par la scène, [PR #18](https://github.com/Hisseiny/Horama-/pull/18) C4 dans `resultats`, [PR #19](https://github.com/Hisseiny/Horama-/pull/19) Dolibarr réel C4 PASS, [PR #22](https://github.com/Hisseiny/Horama-/pull/22) timeout du crochet et annulation : toutes fusionnées. Relance testée avec faux H, pas de gel observé en réel. [Preuve C4](tests/2026-11-17-c4-coureur.md), [preuve Dolibarr](tests/2026-11-17-essai-dolibarr.md), [preuve timeout/annulation](tests/2026-11-17-crochet-relever.md). `settle_s`, raison d'échec C6 et phrase des doublons : [PR #26](https://github.com/Hisseiny/Horama-/pull/26) en relecture, pas encore sur dev. Vues lues dans le champ `vues:` des notes (point 2 de #35) : PR en relecture, pas encore sur dev. site sans `/v<version>/` (point 3 de #35) : [PR #39](https://github.com/Hisseiny/Horama-/pull/39) en relecture, [preuve](tests/2026-11-17-a-site-sans-version.md), essai avec page statique d'essai et faux H. validation par une autre personne à attester. |
-| 3.5 | Vérification : relevé des valeurs, calcul, statut (C4) pour une règle d'un écran | Leslie, Nathan en renfort | à faire |  |
+| 3.5 | Vérification : relevé des valeurs, calcul, statut (C4) pour une règle d'un écran | Leslie, Nathan en renfort | fait | `verifierReleve` (`jugement/verification/`) ; appelé par le coureur en fin de passage (PR #18) ; passage réel `2026-11-17-13h14-6321` : C4 écrit dans `resultats` (`docs/tests/2026-11-17-c4-coureur.md`) |
 | 3.6 | Écran 11.3 : le fil en direct se remplit à partir de la base | Axil | à faire |  |
 | 3.7 | Point technique H (15 h) : ce qui bloque 3.4 et 3.5 | Ali, Nathan | à faire |  |
 | 3.8 | Workflow n8n : « cas à relire » (C7) devient une notification, et une ligne de mesure part en base | Nathan | à faire |  |
@@ -71,7 +71,7 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | 4.3 | Loom de 2 minutes : problème, solution, avancement montré avec la vraie boucle de mardi | Noé | à faire |  |
 | 4.4 | Roadmap jusqu'à jeudi (tirée de ce plan) | Noé | à faire |  |
 | 4.5 | Dépôt du rendu de mercredi | Noé | à faire |  |
-| 4.6 | Règle entre deux écrans prouvée par le calcul (le CA du tableau de bord égale le total de la liste) | Leslie, Ali | à faire |  |
+| 4.6 | Règle entre deux écrans prouvée par le calcul (le CA du tableau de bord égale le total de la liste) | Leslie, Ali | fait | Règle `egalite` : passage H réel `2026-11-17-13h14-6321` sur Facturo v13, `VERIFIED_FAIL`, « 1 240,00 ≠ 1 420,00, écart 180,00 » (`docs/tests/2026-11-17-c4-coureur.md`) |
 | 4.7 | Passage de plusieurs tests (3 en parallèle au plus) et rapport de passage (C6), écrit aussi dans le vault | Ali | codé non testé | A5/A6/A7 : [PR #14 fusionnée](https://github.com/Hisseiny/Horama-/pull/14), référence v12 réelle (3 captures, sans promotion automatique), cinq passages Facturo v13 en ligne (20 captures), 17 tests terminés, six C6/Markdown avec replays HTTP 200 ; médiane v13 66,517 s C6 / 67,786 s commande complète. Trois tests chaînés par v13, pas de parallélisme ni de gel observé. [Preuve et comptes REST](tests/2026-11-17-a7-facturo-en-ligne.md). C4 ajouté ensuite par la [PR #18 fusionnée](https://github.com/Hisseiny/Horama-/pull/18) : Facturo réel `VERIFIED_FAIL` calculé, résultats transmis au Markdown ; ne pas attribuer ces verdicts aux anciens A7. Validation humaine des références et de la porte non attestée par ces mesures. validation par une autre personne à attester. |
 | 4.8 | Écran 11.6 : file de relecture, « C'est un bug » ou « C'est voulu » (C5) | Axil | à faire |  |
 | 4.9 | Mémoire limitée à un écart, référence mise à jour seulement quand tout est tranché, retest | Inès | à faire |  |
@@ -84,8 +84,8 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 
 | N° | Tâche | Qui | État | Preuve |
 |---|---|---|---|---|
-| 5.1 | Écran 11.5 : comparaison des versions, côte à côte, rideau, pixels bruts ; zones d'écart entourées | Axil (écran), Leslie (zones), Nathan (script de différence de pixels) | à faire |  |
-| 5.2 | Dérive documentaire : un « voulu » qui contredit une note propose la correction (écran 11.7) ; Accepter modifie la note dans le vault | Inès (logique), Leslie (rédaction de la correction), Axil (écran) | à faire |  |
+| 5.1 | Écran 11.5 : comparaison des versions, côte à côte, rideau, pixels bruts ; zones d'écart entourées | Axil (écran), Leslie (zones), Nathan (script de différence de pixels) | en cours | Leslie (zones) : fait, `comparerImages` et un seul constat pour un élément déplacé (`jugement/verification/`, voir `jugement/README.md`) ; reste l'écran (Axil) |
+| 5.2 | Dérive documentaire : un « voulu » qui contredit une note propose la correction (écran 11.7) ; Accepter modifie la note dans le vault | Inès (logique), Leslie (rédaction de la correction), Axil (écran) | en cours | Leslie : rédaction faite, `proposerCorrection` dans `jugement/correction/` (PR #11, #20) ; mesure réelle 11, 14, 14 puis 15 sur 15 après corrections (`docs/tests/2026-11-17-correction.md`) ; branchée dans la scène par Nathan (PR #28, `automatisation/scene/README.md`) : avant / après, « Accepter » ou « Refuser » ; passage réel de la scène avec correction : à mesurer |
 | 5.3 | Vérifier les 8 critères du P0 (cadrage, section 7), `main` gelé | Ali | à faire |  |
 | 5.4 | Mesures complètes, comparaisons (pixels, tests écrits à la main, sans et avec mémoire, deux modèles Hugging Face), coût et durée d'un passage, graphiques du deck | Inès | à faire |  |
 | 5.5 | Retour écrit du pilote : utiliserait-il Horama, paierait-il, combien, que manque-t-il ; point business de l'après-midi | Noé | à faire |  |

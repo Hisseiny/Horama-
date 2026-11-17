@@ -7,9 +7,9 @@ import { lireDecisions, lireReferences } from "@horama/memoire";
 
 export interface AcquiredCapture { capture: Capture; png: Uint8Array }
 
-export function verifierTest({ vault, logiciel, test, acquired, passageId, version, referenceVersion, sessionFailed, replayUrl, verify = verifierReleve }: {
+export function verifierTest({ vault, logiciel, test, acquired, passageId, version, referenceVersion, sessionFailed, replayUrl, passageTests = [test], verify = verifierReleve }: {
   vault: string; logiciel: string; test: TestAccepte; acquired: AcquiredCapture[]; passageId: string;
-  version: string; referenceVersion: string; sessionFailed: boolean; replayUrl?: string; verify?: typeof verifierReleve;
+  version: string; referenceVersion: string; sessionFailed: boolean; replayUrl?: string; passageTests?: TestAccepte[]; verify?: typeof verifierReleve;
 }): ResultatVerification {
   const captures = acquired.filter(({ capture }) => test.releves.some(({ ecran, vue }) => capture.ecran === ecran && capture.vue === vue));
   const output: ResultatVerification = {
@@ -31,8 +31,11 @@ export function verifierTest({ vault, logiciel, test, acquired, passageId, versi
       const releve = { ecran: capture.ecran, vue: capture.vue, version: capture.version, png, texte: capture.texte_page, url: capture.url_page };
       previous.push(releve);
       const reference = references.find((candidate) => candidate.ecran === capture.ecran && candidate.vue === capture.vue);
-      findings.push(...verify({ releve, releves: [...previous], regles: test.regles, decisions,
-        ...(reference ? { reference: new Uint8Array(readFileSync(join(vault, reference.chemin))), version_reference: referenceVersion } : {}) }));
+      const found = verify({ releve, releves: [...previous], regles: test.regles, decisions,
+        ...(reference ? { reference: new Uint8Array(readFileSync(join(vault, reference.chemin))), version_reference: referenceVersion } : {}) });
+      // A visual gap counts for one test only: the first test of the passage that asks for this screen (as the scene's decisions do).
+      const owner = passageTests.find(({ releves }) => releves.some(({ ecran, vue }) => ecran === capture.ecran && vue === capture.vue));
+      findings.push(...(owner && owner.id !== test.id ? found.filter((finding) => finding.genre !== "visuel") : found));
       if (reference) output.version_reference_capture = referenceVersion;
     }
     const rules = findings.filter((finding) => finding.genre === "regle");

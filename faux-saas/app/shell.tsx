@@ -2,6 +2,9 @@ import type { ReactNode } from "react";
 import { formatDate, today } from "../lib/data.ts";
 import type { Version } from "../regressions.ts";
 
+const DARK_MODE_SCRIPT =
+  'document.addEventListener("click",function(event){var target=event.target;if(!(target instanceof Element))return;var button=target.closest("[data-darkmode]");if(!button)return;var dark=document.documentElement.classList.toggle("sombre");button.textContent=dark?"Revenir au mode clair":"Mode sombre";});';
+
 export function Shell({ version, active, children }: { version: Version; active: "tableau-de-bord" | "factures"; children: ReactNode }) {
   return (
     <>
@@ -21,6 +24,10 @@ export function Shell({ version, active, children }: { version: Version; active:
         <span className="account">Compte de démo</span>
         <span className="today">{`Aujourd'hui : ${formatDate(today())}`}</span>
         <a className="logout" href="/deconnexion">Se déconnecter</a>
+        <button type="button" className="darkmode" data-darkmode="">
+          Mode sombre
+        </button>
+        <script dangerouslySetInnerHTML={{ __html: DARK_MODE_SCRIPT }} />
       </header>
       <main className="content">{children}</main>
     </>

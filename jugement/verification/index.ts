@@ -28,6 +28,7 @@ export interface EntreeVerification {
   reference?: Uint8Array; // PNG of the same (ecran, vue) in the reference version, if there is one
   version_reference?: string;
   decisions: Decision[]; // memory: decisions already taken
+  zones_ignorees?: Zone[]; // zones of this screen that change at each visit (field zones_ignorees of its note): not compared
 }
 
 type Zone = EcartVisuel["zone"];
@@ -57,8 +58,8 @@ export interface Constat {
 // Where a finding comes out: the capture just taken, and its rank among the findings of its kind on this capture.
 const situate = ({ ecran, vue }: ReleveCapture, genre: Constat["genre"], n: number) => ({ id: `${ecran}--${vue}--${genre}--${n}`, ecran, vue, genre });
 
-function visualFindings({ releve, reference, version_reference, decisions }: EntreeVerification & { reference: Uint8Array }): Constat[] {
-  const { sameSize, size, referenceSize, zones } = comparerImages(releve.png, reference);
+function visualFindings({ releve, reference, version_reference, decisions, zones_ignorees = [] }: EntreeVerification & { reference: Uint8Array }): Constat[] {
+  const { sameSize, size, referenceSize, zones } = comparerImages(releve.png, reference, zones_ignorees);
   if (!sameSize) {
     const raison = `tailles différentes : ${size.width} × ${size.height} contre ${referenceSize.width} × ${referenceSize.height} pour la référence`;
     return [{ ...situate(releve, "visuel", 1), statut: "INCONCLUSIVE", valeurs: {}, description: `Je n'ai pas pu comparer l'image : ${raison}.`, textes_a_surligner: [], raison }];
@@ -92,12 +93,16 @@ export function verifierReleve(entree: EntreeVerification): Constat[] {
   const before = index === -1 ? releves : releves.slice(0, index);
 
   // The capture a rule reads on each of its screens: for a filter rule, the latest one whose active filter is the filter of the rule;
-  // for the others, the latest one of the view « defaut » (no filter). null while a screen is missing.
+  // for an « etat » rule, the latest one of the view of the rule; for the others, the latest one of the view « defaut » (no filter).
+  // null while a screen is missing.
   const pick = (regle: Regle, captures: ReleveCapture[]) => {
     const picked = new Map<string, ReleveCapture>();
     for (const ecran of regle.type === "egalite" ? [regle.a.ecran, regle.b.ecran] : [regle.ecran]) {
       const capture = captures
-        .filter((candidate) => candidate.ecran === ecran && (regle.type === "filtre" ? key(valuesOf(candidate).filter ?? "") === key(regle.filtre) : candidate.vue === "defaut"))
+        .filter(
+          (candidate) =>
+            candidate.ecran === ecran && (regle.type === "filtre" ? key(valuesOf(candidate).filter ?? "") === key(regle.filtre) : candidate.vue === (regle.type === "etat" ? regle.vue : "defaut")),
+        )
         .at(-1);
       if (!capture) return null;
       picked.set(ecran, capture);

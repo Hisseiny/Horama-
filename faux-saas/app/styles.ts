@@ -19,8 +19,9 @@ a { color: #1f4fb5; text-decoration: none; }
 .topbar { position: absolute; left: 220px; top: 0; width: 1060px; height: 56px; border-bottom: 1px solid #d5dbe3; }
 .topbar span, .topbar a { position: absolute; top: 18px; height: 20px; overflow: hidden; }
 .topbar .account { left: 32px; width: 300px; font-weight: 700; }
-.topbar .today { left: 660px; width: 220px; text-align: right; color: #5b6878; }
-.topbar .logout { left: 912px; width: 116px; text-align: right; }
+.topbar .today { left: 480px; width: 220px; text-align: right; color: #5b6878; }
+.topbar .logout { left: 730px; width: 130px; text-align: right; }
+.topbar .darkmode { position: absolute; left: 876px; top: 10px; width: 164px; }
 
 .content { position: absolute; left: 220px; top: 56px; width: 1060px; height: 844px; padding: 28px 32px 0; }
 h1 { width: 600px; height: 32px; margin: 0 0 20px; font-size: 22px; line-height: 32px; overflow: hidden; }
@@ -72,4 +73,33 @@ button.primary { border-color: #1f4fb5; background: #1f4fb5; color: #ffffff; fon
 .login input { display: block; width: 334px; height: 36px; margin: 6px 0 0; padding: 0 10px; border: 1px solid #b8c1cc; border-radius: 0; background: #ffffff; color: #1d2733; font: inherit; appearance: none; }
 .login button { width: 334px; margin-top: 24px; }
 .login p { width: 334px; height: 20px; margin: 16px 0 0; font-weight: 700; overflow: hidden; }
+
+html.sombre { color-scheme: dark; }
+html.sombre body { background: #16191d; color: #e4e8ec; }
+html.sombre a { color: #8fb4f2; }
+html.sombre .sidebar { background: #1d2229; border-color: #3a424d; }
+html.sombre .brand { border-color: #3a424d; }
+html.sombre .sidebar a { color: #e4e8ec; }
+html.sombre .sidebar a.on { background: #27364e; color: #8fb4f2; }
+html.sombre .topbar { border-color: #3a424d; }
+html.sombre .today { color: #9aa7b4; }
+html.sombre .card { border-color: #3a424d; }
+html.sombre .card-label { color: #9aa7b4; }
+html.sombre th, html.sombre td { border-color: #3a424d; }
+html.sombre th { background: #1d2229; color: #9aa7b4; }
+html.sombre .total td { background: #1d2229; }
+html.sombre .filter summary { border-color: #4a545f; background: #242a31; }
+html.sombre .filter summary svg path { fill: #9aa7b4; }
+html.sombre .filter-menu { border-color: #4a545f; background: #242a31; }
+html.sombre .filter-menu a { color: #e4e8ec; }
+html.sombre .filter-menu a.on { color: #8fb4f2; }
+html.sombre button { border-color: #4a545f; background: #242a31; color: #e4e8ec; }
+html.sombre button.primary { border-color: #2f5fc4; background: #2f5fc4; color: #ffffff; }
+html.sombre .table-footer { background: #16191d; }
+html.sombre .count { color: #9aa7b4; }
+html.sombre .meta .badge { border-color: #8fb4f2; color: #8fb4f2; }
+html.sombre .meta .badge.full { background: #2f5fc4; color: #ffffff; }
+html.sombre .login { border-color: #3a424d; }
+html.sombre .login label { color: #9aa7b4; }
+html.sombre .login input { border-color: #4a545f; background: #242a31; color: #e4e8ec; }
 `;

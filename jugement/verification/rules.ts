@@ -1,6 +1,6 @@
 import type { Regle } from "@horama/contrats";
 import type { Constat } from "./index.ts";
-import { key, normalize, plainCents, readCents, readDate, showCents } from "./values.ts";
+import { key, normalize, plage, plainCents, readCents, readDate, showCents } from "./values.ts";
 import type { ScreenValues } from "./values.ts";
 
 const UNREADABLE = "unreadable";
@@ -44,6 +44,14 @@ function resolve(ecran: string, values: ScreenValues, name: string, kind: "champ
   if (cell && found) {
     const row = found.table.rows.find((candidate) => key(candidate[0]) === key(cell[2])) ?? unreadable(`ligne ${cell[2]} introuvable sur ${ecran}`);
     return [{ name, text: row[found.index], row: row[0] }];
+  }
+  const above = /^(.+?)\s*\(chiffre au-dessus\)$/i.exec(normalize(name));
+  if (above) {
+    const shown = Object.keys(values.avant).find((candidate) => key(candidate) === key(above[1]));
+    const numbers = shown === undefined ? [] : values.avant[shown];
+    // Never guessed: no number right above the label, or the label shown several times, is unreadable.
+    if (numbers.length !== 1) unreadable(numbers.length ? `« ${above[1]} » affiché ${numbers.length} fois avec un chiffre au-dessus sur ${ecran}` : `aucun chiffre juste au-dessus de « ${above[1]} » sur ${ecran}`);
+    return [{ name, text: numbers[0] }];
   }
   const label = Object.keys(values.labelled).find((candidate) => key(candidate) === wanted);
   if (label !== undefined) return [{ name, text: values.labelled[label] }];
@@ -104,7 +112,7 @@ function judge(regle: Regle, screens: Map<string, ScreenValues>, valeurs: Record
       // Amounts are compared in cents (an amount facing a text that is not one is unreadable), anything else as normalized text.
       const [a, b] = cents.some((value) => value !== null)
         ? sides.map(({ ecran, item }) => showCents(amount(ecran, item)))
-        : sides.map(({ ecran, item }) => text(ecran, item) || unreadable(`valeur vide ${shown(ecran, item)}`));
+        : sides.map(({ ecran, item }) => plage(text(ecran, item) || unreadable(`valeur vide ${shown(ecran, item)}`)));
       const ok = a === b;
       const gap = ok || cents[0] === null ? "" : `, écart ${showCents(Math.abs(cents[0] - cents[1]!))}`;
       return {
@@ -183,6 +191,39 @@ function judge(regle: Regle, screens: Map<string, ScreenValues>, valeurs: Record
           ? `« ${colonne} » est remplie sur chaque ligne.`
           : `« ${colonne} » est vide pour ${bad.map((item) => normalize(item.row ?? item.name)).join(", ")}.`,
         marks: bad.map((item) => item.row ?? item.name),
+      };
+    }
+    case "etat": {
+      const { ecran } = regle;
+      const expected = regle.texte_present ?? [];
+      const forbidden = regle.texte_absent ?? [];
+      // A substring of the page text, after normalisation of spaces (no-break ones included) and case.
+      const page = key(screens.get(ecran)!.texte);
+      const missing = expected.filter((wanted) => !page.includes(key(wanted)));
+      const shown = forbidden.filter((banned) => page.includes(key(banned)));
+      const quote = (wanted: string) => `« ${normalize(wanted)} »`;
+      for (const wanted of expected) valeurs[`${ecran}.attendu ${quote(wanted)}`] = missing.includes(wanted) ? "absent" : "affiché";
+      for (const banned of forbidden) valeurs[`${ecran}.interdit ${quote(banned)}`] = shown.includes(banned) ? "affiché" : "absent";
+      // The state is not proven while none of the expected texts appears: the action may never have happened.
+      // A rule without a witness text never passes (memoire refuses it when reading; checked again here).
+      if (!expected.length) unreadable(`règle etat sans texte témoin sur ${ecran}`);
+      if (missing.length === expected.length) unreadable(`état non atteint en vue ${regle.vue} sur ${ecran} : aucun des textes attendus (${expected.map(quote).join(", ")}) n'apparaît`);
+      const ok = !missing.length && !shown.length;
+      const parts = [...missing.map((wanted) => `${quote(wanted)} attendu, absent`), ...shown.map((banned) => `${quote(banned)} interdit, affiché`)];
+      return {
+        ok,
+        calcul: ok
+          ? [
+              expected.length && `${expected.map(quote).join(", ")} affiché${expected.length > 1 ? "s" : ""}`,
+              forbidden.length && `${forbidden.map(quote).join(", ")} absent${forbidden.length > 1 ? "s" : ""}`,
+            ]
+              .filter(Boolean)
+              .join(" ; ")
+          : parts.join(" ; "),
+        description: ok
+          ? `Après l'action, ${expected.length > 1 ? "les textes attendus s'affichent" : `${quote(expected[0])} s'affiche`}.`
+          : `Après l'action, ${[missing.length && `${missing.map(quote).join(", ")} n'apparaît pas`, shown.length && `${shown.map(quote).join(", ")} s'affiche encore`].filter(Boolean).join(" et ")}.`,
+        marks: [...missing, ...shown].map(normalize),
       };
     }
   }
