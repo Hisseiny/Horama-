@@ -34,7 +34,7 @@ const RUN = [DASHBOARD, LIST, FILTERED, DETAIL];
 const TEST_RULES = lireTestsAcceptes(VAULT, "facturo").flatMap((accepted) => accepted.regles);
 const NOTE_RULES = lireNotes(VAULT, "facturo").flatMap((note) => note.regles.flatMap(({ regle }) => regle ?? []));
 const noteRule = (type: Regle["type"], ecran: string, colonne: string) =>
-  NOTE_RULES.find((rule) => rule.type === type && rule.type !== "egalite" && rule.ecran === ecran && rule.colonne === colonne)!;
+  NOTE_RULES.find((rule) => rule.type === type && rule.type !== "egalite" && rule.type !== "etat" && rule.ecran === ecran && rule.colonne === colonne)!;
 
 type Box = { x: number; y: number; largeur: number; hauteur: number };
 const POSITIONS = JSON.parse(file("faux-saas/positions.json").toString()) as Array<{ id: string; avant: Box; apres: Box }>;

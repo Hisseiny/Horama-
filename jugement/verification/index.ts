@@ -92,12 +92,17 @@ export function verifierReleve(entree: EntreeVerification): Constat[] {
   const before = index === -1 ? releves : releves.slice(0, index);
 
   // The capture a rule reads on each of its screens: for a filter rule, the latest one whose active filter is the filter of the rule;
-  // for the others, the latest one of the view « defaut » (no filter). null while a screen is missing.
+  // for a rule « etat », the latest one of its view (D7, condition 3); for the others, the latest one of the view « defaut » (no filter).
+  // null while a screen is missing.
   const pick = (regle: Regle, captures: ReleveCapture[]) => {
     const picked = new Map<string, ReleveCapture>();
     for (const ecran of regle.type === "egalite" ? [regle.a.ecran, regle.b.ecran] : [regle.ecran]) {
       const capture = captures
-        .filter((candidate) => candidate.ecran === ecran && (regle.type === "filtre" ? key(valuesOf(candidate).filter ?? "") === key(regle.filtre) : candidate.vue === "defaut"))
+        .filter(
+          (candidate) =>
+            candidate.ecran === ecran &&
+            (regle.type === "filtre" ? key(valuesOf(candidate).filter ?? "") === key(regle.filtre) : candidate.vue === (regle.type === "etat" ? regle.vue : "defaut")),
+        )
         .at(-1);
       if (!capture) return null;
       picked.set(ecran, capture);

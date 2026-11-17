@@ -44,6 +44,8 @@ function announce(regle: Regle): string {
       );
     case "presence":
       return fit(`Je vérifie que ${quote(regle.colonne)} est rempli partout.`, "Je vérifie qu'il ne manque rien.");
+    case "etat":
+      return fit(`Je vérifie que ${quote(regle.texte_present?.[0] ?? "")} apparaît bien.`, "Je vérifie que la nouveauté apparaît bien.");
   }
 }
 
@@ -59,6 +61,8 @@ function conforming(regle: Regle, valeurs: Record<string, string>): string {
       return "C'est bon : tout est bien écrit.";
     case "presence":
       return "C'est bon : rien ne manque.";
+    case "etat":
+      return fit(`C'est bon : ${quote(regle.texte_present?.[0] ?? "")} est bien affiché.`, "C'est bon : la nouveauté est bien là.");
   }
 }
 
@@ -129,6 +133,18 @@ function broken(regle: Regle, { ecran, valeurs, textes_a_surligner }: Constat): 
         ),
         question: ask(`${quote(regle.colonne)} est vide pour ${first}.`, "Une case est vide."),
       };
+    case "etat": {
+      // `valeurs` says, for each text of the rule, « affiché » or « absent ».
+      const missing = (regle.texte_present ?? []).filter((wanted) => valeurs[`${ecran}.${normalize(wanted)}`] === "absent");
+      const extra = (regle.texte_absent ?? []).filter((wanted) => valeurs[`${ecran}.${normalize(wanted)}`] === "affiché");
+      const [said, asked] = missing.length
+        ? [`Problème : ${quote(missing[0])} n'apparaît pas.`, `Après l'action, ${quote(missing[0])} n'apparaît pas.`]
+        : [`Problème : ${quote(extra[0] ?? first)} est encore affiché.`, `Après l'action, ${quote(extra[0] ?? first)} est encore affiché.`];
+      return {
+        resultat: fit(said, "Problème : l'écran n'a pas changé comme prévu."),
+        question: ask(asked, "L'écran n'a pas changé comme prévu."),
+      };
+    }
   }
 }
 
@@ -166,5 +182,7 @@ export function formuler(constat: Constat): Wording {
   // The reason, without the identifiers of the screens.
   const screens = regle.type === "egalite" ? [regle.a.ecran, regle.b.ecran] : [regle.ecran];
   const reason = screens.reduce((text, ecran) => text.replaceAll(` sur ${ecran}`, ""), constat.raison ?? "");
+  // « etat » without its witness: the action may not have been done (D7, condition 1).
+  if (regle.type === "etat" && reason.startsWith("état non atteint")) return { annonce, resultat: "Je ne vois pas la nouveauté : l'action n'a peut-être pas été faite." };
   return { annonce, resultat: join("Je n'arrive pas à lire cette valeur.", reason && fit(`${reason[0].toUpperCase()}${reason.slice(1)}.`, "")) };
 }

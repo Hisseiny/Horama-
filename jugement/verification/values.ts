@@ -12,6 +12,7 @@ export interface ScreenValues {
   today?: string; // from « Aujourd'hui : JJ/MM/AAAA »
   filter?: string; // from « Filtrer : Toutes »
   count?: { value: number; text: string }; // from « 4 factures »
+  page: string; // the whole text of the page (innerText), as read: for the rule « etat »
 }
 
 // \s covers every Unicode space (no-break, narrow no-break, thin...).
@@ -23,7 +24,7 @@ const cells = (row: string) => row.split("\t").map((cell) => cell.trim());
 
 export function releverValeurs(texte: string): ScreenValues {
   const lines = texte.split("\n");
-  const values: ScreenValues = { tables: [], labelled: {} };
+  const values: ScreenValues = { tables: [], labelled: {}, page: texte };
   for (let i = 0; i < lines.length; i++) {
     if (lines[i].includes("\t")) {
       const table: Table = { headers: cells(lines[i]), rows: [] };

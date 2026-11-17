@@ -171,6 +171,36 @@ function judge(regle: Regle, screens: Map<string, ScreenValues>, valeurs: Record
         marks: bad.map(highlight),
       };
     }
+    case "etat": {
+      // D7, section 3: substring of the page text, spaces (no-break included) and case normalized.
+      const { ecran, vue, texte_present = [], texte_absent = [] } = regle;
+      if (!texte_present.length) unreadable(`règle etat sans texte témoin sur ${ecran}`);
+      const page = key(screens.get(ecran)!.page);
+      const shows = (wanted: string) => {
+        const seen = page.includes(key(wanted));
+        valeurs[`${ecran}.${normalize(wanted)}`] = seen ? "affiché" : "absent";
+        return seen;
+      };
+      const missing = texte_present.filter((wanted) => !shows(wanted));
+      const extra = texte_absent.filter(shows);
+      // No witness on the page: nothing proves the action was done (condition 1 of D7).
+      if (missing.length === texte_present.length) {
+        unreadable(`état non atteint en vue ${vue} sur ${ecran} : aucun des textes attendus (${texte_present.map((wanted) => `« ${normalize(wanted)} »`).join(", ")}) n'apparaît`);
+      }
+      const ok = !missing.length && !extra.length;
+      const list = (texts: string[]) => texts.map((wanted) => `« ${normalize(wanted)} »`).join(", ");
+      return {
+        ok,
+        calcul: [
+          `présents : ${texte_present.length - missing.length} sur ${texte_present.length}${missing.length ? `, manque ${list(missing)}` : ""}`,
+          texte_absent.length && `absents : ${texte_absent.length - extra.length} sur ${texte_absent.length}${extra.length ? `, affiché ${list(extra)}` : ""}`,
+        ].filter(Boolean).join(" ; "),
+        description: ok
+          ? `L'écran montre bien ${list(texte_present)}${texte_absent.length ? ` et plus ${list(texte_absent)}` : ""}.`
+          : [missing.length && `${list(missing)} n'apparaît pas`, extra.length && `${list(extra)} est encore affiché`].filter(Boolean).join(", et ") + ".",
+        marks: [...missing, ...extra].map(normalize),
+      };
+    }
     case "presence": {
       const { ecran, colonne } = regle;
       const items = column(ecran, colonne);
