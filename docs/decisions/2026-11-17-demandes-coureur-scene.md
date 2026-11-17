@@ -17,6 +17,8 @@ La scène (`automatisation/scene/parcours.mjs`) appelle maintenant `creerCoureur
 3. **Phrase rendue pour un relevé déjà pris** : le coureur renvoie la phrase d'origine (« Relevé pris. Relevé suivant : X »), qui peut être périmée. Proposition : « Déjà relevé. » suivi du prochain relevé encore à prendre.
 4. Le README du coureur dit « Le port H ne crée pas de lien de partage », alors que `session.ts` appelle `POST /sessions/{id}/share` et que le replay est bien rendu.
 
+Faits par la PR #26 (fusionnée dans `dev` le 17/11) : points 1 (`h.settle_s`, la scène passe 1,2 s), 2 (`tests[].raison`) et 3 (« Déjà relevé »). Le point 4 reste ouvert.
+
 Retirée : l'annulation de la session H sur Ctrl+C de la scène est couverte par la PR #22 (option `signal` de `creerCoureur`, `DELETE /sessions/{id}`), fusionnée dans `dev` le 17/11.
 
 Pour info, sans demande : la zone de page est désormais imposée par `Emulation.setDeviceMetricsOverride` dans `fitViewport` (`automatisation/scene/scene.mjs`), que `agent/src/browser.ts` appelle aussi ; elle tient tant que la connexion CDP qui l'a posée reste ouverte.
