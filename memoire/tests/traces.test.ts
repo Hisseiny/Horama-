@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, readFileSync, utimesSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import type { RapportPassage, ResultatVerification } from "@horama/contrats";
@@ -100,5 +100,8 @@ test("derniersFichiers : les plus récents d'abord, sans dossiers ni fichiers ca
     { chemin: "facturo/decisions/recent.md", date: "2030-01-02T00:00:00.000Z" },
     { chemin: "facturo/produit/tableau-de-bord.md", date: "2030-01-01T00:00:00.000Z" },
   ]);
-  assert.equal(derniersFichiers(vault, 100).length, 10);
+  // The real vault grows (models, notes): check what is excluded, not how many files it holds.
+  const all = derniersFichiers(vault, 100);
+  assert.ok(all.length > 2);
+  assert.ok(all.every(({ chemin }) => !chemin.split("/").some((part) => part.startsWith(".")) && statSync(join(vault, chemin)).isFile()));
 });
