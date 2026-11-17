@@ -287,3 +287,11 @@ Orchestrateur : Claude Code (Opus 5.5). Mission : J0 à J4 (scène branchée sur
 - PR #26 lue : `h.settle_s` (0,5 par défaut), raison d'échec dans `tests[].raison` du C6 (reprise par la scène dans son message d'erreur), « Déjà relevé » pour un relevé redemandé.
 - **Décision de l'orchestrateur** (autorisée par Nathan, « si tu veux un settle_s plus long ») : la scène passe `h.settle_s: 1.2` (clic retenu jusqu'à 922 ms, plus le chargement de la page). `settle_s` écrit dans `passage.json`. À mesurer en J4 : clics doublés, durée, étapes.
 - Scripté après le changement : code 0. `dev-nathan` à 0c2f3a1, poussé.
+
+### 15 h 33, J4 : trois parcours réels sur trois, avec `settle_s` 1,2 s
+- `.orchestrateur/j4-trois-parcours.sh .orchestrateur/j4b`, 15 h 23 à 15 h 32. Passages `15h23-68e7`, `15h26-18d0`, `15h29-a8f5` : sortie 0 chacun, **état `verifie` en base aux trois**, 12 ou 13 événements, 4 captures, 3 C4 (FAIL, SUSPECTED, FAIL), 3 décisions écrites ; 5 clics justes à chaque parcours, **aucun clic doublé**, aucune relance ; 111,2 s, 108,3 s, 110,3 s ; 0,0255 $, 0,0268 $, 0,0252 $ ; relevé le plus long 20,1 s (délai du crochet 45 s) ; J3 : 0 pixel hors zones aux trois. Le code 1 du script vient de sa dernière ligne (`[ $n != 3 ] && sleep 40`), pas d'un parcours.
+- `settle_s` : à 1,2 s, 0 clic doublé sur 3 et des parcours plus courts (108 à 111 s) ; à 0,5 s, 1 clic doublé sur 3 parcours complets, 122 à 162 s. Gardé à 1,2 s.
+- Limite constatée : l'identifiant d'une décision (date, écran, écart) fait que rejouer le même jour réécrit la même ligne `decisions`. Après la série, les 3 lignes portent le dernier passage ; les deux premiers n'ont plus de décision à leur nom (leur `verifie` prouve que l'écriture avait réussi). Même chose pour les fichiers du vault. À trancher avec Nathan si l'historique par passage compte pour la démo.
+- Rapport : `docs/tests/2026-11-17-j4-jonction.md`. Témoins (10 images du parcours `15h23`, planche `index.html`) : `docs/captures/2026-11-17-jonction/`.
+- Observation sur la DA, sans correction : le bandeau Horama recouvre l'en-tête de Facturo (la date n'est plus lisible).
+- Reste de J4 : le quatrième parcours, tranché par Nathan à la souris. **Porte : arrêt, appel de Nathan.**
