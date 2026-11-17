@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Capture, CoureurAgent, LancementPassage, Passage, RapportPassage } from "@horama/contrats";
+import { ecrireRapportPassage } from "@horama/memoire";
 import type { BasePassages } from "./base.ts";
 import { construireConsigne } from "./consigne.ts";
 import type { CourseStep } from "./consigne.ts";
@@ -26,6 +27,7 @@ export interface OptionsCoureur {
   maintenant?: () => number;
   identifiant?: () => string;
   signaler?: (message: string) => void;
+  writeReport?: typeof ecrireRapportPassage;
 }
 
 function bonneAdresse(step: CourseStep, address: string, start: string): boolean {
@@ -38,7 +40,7 @@ function bonneAdresse(step: CourseStep, address: string, start: string): boolean
   } catch { return false; }
 }
 
-export function creerCoureur({ vault, base, relever, session = creerSessionH(), h, baseUrl, maintenant = Date.now, identifiant = randomUUID, signaler = console.error }: OptionsCoureur): CoureurAgent {
+export function creerCoureur({ vault, base, relever, session = creerSessionH(), h, baseUrl, maintenant = Date.now, identifiant = randomUUID, signaler = console.error, writeReport = ecrireRapportPassage }: OptionsCoureur): CoureurAgent {
   const jouer = h ? creerSessionH(h) : session;
   const passages = new Map<string, Promise<RapportPassage>>();
   return {
@@ -117,6 +119,11 @@ export function creerCoureur({ vault, base, relever, session = creerSessionH(), 
             };
           }),
         };
+        try { writeReport(vault, report, []); }
+        catch {
+          report.passage.etat = "echec";
+          signaler(`Passage ${passage.id} : écriture du rapport dans le vault impossible ; le passage sera en échec.`);
+        }
         const written = await safe(() => base.terminerPassage(report));
         if (!written) report.passage.etat = "echec";
         return report;

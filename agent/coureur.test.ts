@@ -1,13 +1,22 @@
 import assert from "node:assert/strict";
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { test } from "node:test";
+import { afterEach, beforeEach, test } from "node:test";
 import { BaseMemoire } from "./src/base.ts";
 import { creerCoureur } from "./src/coureur.ts";
 import type { ReleveCapture } from "./src/coureur.ts";
 import type { Session, SessionInput } from "./src/session.ts";
 import { creerSessionH } from "./src/session.ts";
 
-const vault = fileURLToPath(new URL("../vault-horama", import.meta.url));
+const sourceVault = fileURLToPath(new URL("../vault-horama", import.meta.url));
+let vault: string;
+beforeEach(() => {
+  vault = mkdtempSync(join(tmpdir(), "horama-runner-"));
+  cpSync(join(sourceVault, "facturo"), join(vault, "facturo"), { recursive: true });
+});
+afterEach(() => { rmSync(vault, { recursive: true, force: true }); });
 const input = { logiciel: "facturo", version_testee: "13", version_reference: "12", tests: ["ca-du-mois-egal-total", "detail-facture-total-egal-liste", "liste-factures-filtre-echeance"] };
 const png = new Uint8Array([137, 80, 78, 71]);
 const result = { id: "session-1", muted: false, cout_usd: 0.02, etapes: 4 };
@@ -53,6 +62,13 @@ test("un parcours, quatre captures uniques, attribution au premier test et rappo
   assert.equal(shared.chemin, "passage-test/ca-du-mois-egal-total/liste-des-factures--defaut.png");
   assert.deepEqual(base.rapports.get(passage_id), report);
   assert.deepEqual(await coureur.attendreFin(passage_id), report);
+  const markdown = readFileSync(join(vault, "facturo", "passages", `${passage_id}.md`), "utf8");
+  assert.match(markdown, /# Passage passage-test/);
+  assert.match(markdown, /version_testee: "13"/);
+  assert.match(markdown, /version_reference: "12"/);
+  assert.match(markdown, /Aucun résultat de vérification/);
+  assert.match(markdown, /Réussites : 0/);
+  for (const id of input.tests) assert.ok(markdown.includes(`## ${id}`));
 });
 
 test("la création rend la main avant la fin de session", async () => {
@@ -199,6 +215,7 @@ test("erreurs de capture, création, session et finalisation restent explicites"
   const failed = creerCoureur({ vault, base, session: async () => { throw new Error("H indisponible"); }, relever: async () => { throw new Error(); } });
   await assert.rejects(failed.lancerPassage(input), /H indisponible/);
   assert.ok([...base.rapports.values()].every(({ passage }) => passage.etat === "echec"));
+  assert.match(readFileSync(join(vault, "facturo", "passages", [...base.rapports.keys()].at(-1)! + ".md"), "utf8"), /non concluante/);
   base.terminerPassage = async () => { throw new Error("network"); };
   const rejected = creerCoureur({ vault, base, signaler: () => {}, session: async ({ onCreated }) => {
     await onCreated("failed");
@@ -206,4 +223,21 @@ test("erreurs de capture, création, session et finalisation restent explicites"
   }, relever: async (ecran, vue) => fixture(ecran, vue) });
   const launched = await rejected.lancerPassage(input);
   assert.equal((await rejected.attendreFin(launched.passage_id)).passage.etat, "echec");
+});
+
+test("un échec d’écriture du rapport dans le vault reste visible et est persisté en base", async () => {
+  writeFileSync(join(vault, "facturo", "passages"), "Ce fichier empêche de créer le dossier.");
+  const base = new BaseMemoire();
+  const messages: string[] = [];
+  const session = fakeSession(async ({ consigne, onTool }) => {
+    for (const step of consigne.course) await onTool("relever", { ...step });
+    await onTool("terminer", { etat: "reussi" });
+  });
+  const runner = creerCoureur({ vault, base, session, baseUrl: "http://localhost:3100", relever: async (ecran, vue) => fixture(ecran, vue), signaler: (message) => messages.push(message) });
+  const { passage_id } = await runner.lancerPassage(input);
+  const report = await runner.attendreFin(passage_id);
+  assert.equal(report.passage.etat, "echec");
+  assert.equal(base.rapports.get(passage_id)!.passage.etat, "echec");
+  assert.equal(messages.length, 1);
+  assert.match(messages[0], /rapport dans le vault impossible/);
 });

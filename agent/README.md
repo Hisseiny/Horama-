@@ -33,6 +33,13 @@ utiliser `rapport.passage` pour les totaux, ne pas sommer les entrées.
 Le port H ne crée pas de lien de partage ; une session injectée peut rendre
 `replay_url`, qui sera conservé dans le rapport.
 
+La fin du passage écrit aussi le rapport via `@horama/memoire` dans
+`<vault>/<logiciel>/passages/<id>.md` (cadrage, section 10).
+`attendreFin` attend cette écriture ainsi que celle en base. Une erreur du
+vault est signalée et rend le passage en échec en base ; aucun résultat
+métier n’est inventé : sans C4, le Markdown indique zéro réussite et des
+tests non concluants. Les tests utilisent une copie temporaire du vault.
+
 Vérification : `pnpm --filter @horama/agent check` ou `pnpm -r check`.
 Preuves et limites : `docs/tests/2026-11-16-a3-a4-agent.md`.
 
