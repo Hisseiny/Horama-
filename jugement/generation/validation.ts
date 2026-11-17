@@ -3,12 +3,12 @@ import { verifierRegle } from "@horama/memoire";
 import type { Note } from "@horama/memoire";
 
 const KEBAB = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-const CHOICE = /\b(choisir|sélectionner|selectionner|filtrer|trier|onglet|cocher|appliquer)/i; // a step that changes the state of the screen
 
 export interface Source {
   logiciel: string;
   note: Note;
   screens: string[]; // screen ids of the vault
+  views: Record<string, string[]>; // per screen, the views its note declares (front matter « vues »), besides « defaut »
   modele: string;
 }
 
@@ -32,7 +32,7 @@ const ruleScreens = (rule: Regle) => (rule.type === "egalite" ? [rule.a.ecran, r
 const ruleKey = (rule: Regle) => JSON.stringify(rule); // verifierRegle fixes the order of the fields
 
 // The model fills the slots; the code checks them all and writes everything else. Throws with every reason of refusal.
-function buildTest(raw: unknown, { logiciel, note, screens, modele }: Source): TestPropose {
+function buildTest(raw: unknown, { logiciel, note, screens, views, modele }: Source): TestPropose {
   const slots = (raw ?? {}) as Record<string, unknown>;
   const reasons: string[] = [];
   const read = <T>(fallback: T, reader: () => T): T => {
@@ -92,11 +92,14 @@ function buildTest(raw: unknown, { logiciel, note, screens, modele }: Source): T
     // releves is empty when it was refused above: no second reason for the same fault
     if (releves.length && !releves.some((releve) => releve.ecran === ecran)) reasons.push(`l'écran « ${ecran} », cité par une règle, n'est pas dans releves`);
   }
-  // The prompt asks for both; faster providers forget them (measure of 2026-11-17), so the code checks them.
-  const views = releves.filter(({ vue }) => vue !== "defaut").map(({ vue }) => vue);
-  if (views.length && etapes.length && !etapes.some((step) => CHOICE.test(step))) {
-    reasons.push(`la vue « ${views[0]} » n'est pas « defaut » alors qu'aucune étape ne choisit un filtre, un tri ou un onglet : la vue est alors « defaut »`);
+  // A view must be one the scene can reach and compare: « defaut » or a view declared by the note of the screen.
+  // Checked once the screens are right, so a wrong screen gives one reason, not two.
+  for (const { ecran, vue } of reasons.length ? [] : releves) {
+    if (vue !== "defaut" && screens.includes(ecran) && !(views[ecran] ?? []).includes(vue)) {
+      reasons.push(`la vue « ${vue} » n'est pas déclarée pour l'écran « ${ecran} » (vues : ${["defaut", ...(views[ecran] ?? [])].join(", ")})`);
+    }
   }
+  // The prompt asks for it; faster providers forget it (measure of 2026-11-17), so the code checks it.
   const limit = regles.find((rule) => rule.type === "filtre" && /[<>]/.test(rule.condition));
   // slots.questions, not questions: a list refused above is not « no question »
   if (limit?.type === "filtre" && Array.isArray(slots.questions) && !slots.questions.length && !/inclu|strictement|compris/i.test(note.texte)) {

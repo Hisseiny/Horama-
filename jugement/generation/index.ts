@@ -29,7 +29,8 @@ export async function proposerTests(vault: string, logiciel: string, cheminNote:
   const note = notes.find(({ chemin }) => chemin === cheminNote);
   if (!note) throw new Error(`Note « ${cheminNote} » introuvable dans ${logiciel}`);
   const screens = notes.filter(({ chemin, entete }) => chemin.startsWith("produit/") && typeof entete.ecran === "string");
-  const source = { logiciel, note, screens: screens.map(({ entete }) => entete.ecran as string), modele };
+  const views = Object.fromEntries(screens.map(({ entete }) => [entete.ecran as string, declaredViews(entete.vues)]));
+  const source = { logiciel, note, screens: screens.map(({ entete }) => entete.ecran as string), views, modele };
   const messages = buildMessages(logiciel, options.version ?? "13", note, screens);
 
   const start = Date.now();
@@ -44,4 +45,10 @@ export async function proposerTests(vault: string, logiciel: string, cheminNote:
     messages.push({ role: "assistant", content: call.content! }, { role: "user", content: retryMessage(reasons) });
   }
   throw new Error(`Tests refusés après 2 essais (${modele}, ${cheminNote}) : ${reasons.join(" ; ")}`);
+}
+
+// The « vues » of a screen note: a YAML list (« [filtre-echeance] ») or a line of names separated by commas.
+function declaredViews(value: unknown): string[] {
+  const names = Array.isArray(value) ? value : typeof value === "string" ? value.split(",") : [];
+  return names.filter((name): name is string => typeof name === "string").map((name) => name.trim()).filter((name) => name && name !== "defaut");
 }

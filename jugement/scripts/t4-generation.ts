@@ -239,7 +239,7 @@ const generated = "Fichier écrit par `jugement/scripts/t4-generation.ts` : aucu
 
 writeFileSync(
   join(OUT, COMPARAISON),
-  ["# T4 : comparaison des modèles de génération", "", generated, "", verdict(summaries), "", launch, "", definitions, "", sections, "", `Détail de chaque passe et réponses brutes : \`jugement/generation/${ESSAIS}/\` et \`${REPORT}\`.`, ""].join("\n"),
+  ["# T4 : comparaison des modèles de génération", "", generated, "", verdict(summaries), "", launch, "", definitions, "", sections, "", (ASKED.length ? `Détail de chaque passe : \`${REPORT}\` ; réponses brutes gardées en local, hors du dépôt (\`jugement/generation/${ESSAIS}/\`).` : `Détail de chaque passe et réponses brutes : \`jugement/generation/${ESSAIS}/\` et \`${REPORT}\`.`), ""].join("\n"),
 );
 writeFileSync(
   join(ROOT, REPORT),
@@ -277,7 +277,7 @@ writeFileSync(
     "Premiers essais refusés par le code, puis rattrapés ou non au second :",
     retries.length ? retries.join("\n") : "Aucun.",
     "",
-    `Réponses brutes de chaque passe : \`jugement/generation/${ESSAIS}/<modele>--<note>--<passe>.json\`.`,
+    `Réponses brutes de chaque passe : ${ASKED.length ? "gardées en local, hors du dépôt (" : ""}\`jugement/generation/${ESSAIS}/<modele>--<note>--<passe>.json\`${ASKED.length ? ")" : ""}.`,
     "",
   ].join("\n"),
 );

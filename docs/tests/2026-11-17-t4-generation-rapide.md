@@ -153,4 +153,4 @@ Premiers essais refusés par le code, puis rattrapés ou non au second :
 - `openai/gpt-oss-20b:fastest`, `notes-de-version/v13.md`, passe 2 : test 2 : « etapes » doit être une liste d'au moins 1 élément(s)
 - `openai/gpt-oss-20b:fastest`, `produit/liste-des-factures.md`, passe 3 : test 1 : « etapes » doit être une liste d'au moins 1 élément(s)
 
-Réponses brutes de chaque passe : `jugement/generation/essais-rapide/<modele>--<note>--<passe>.json`.
+Réponses brutes de chaque passe : gardées en local, hors du dépôt (`jugement/generation/essais-rapide/<modele>--<note>--<passe>.json`).
