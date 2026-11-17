@@ -231,3 +231,11 @@ Orchestrateur : Claude Code (Opus 5.5). Mission : J0 à J4 (scène branchée sur
 - `origin/dev` à a83067c (#18 puis #19 fusionnées par Nathan). `git merge --no-ff origin/dev` dans `dev-nathan` : aucun conflit, commit 85ae3ab, poussé.
 - `pnpm install` (verrou remis à celui de `dev`), puis `pnpm -r --if-present run check` : code 0. faux-saas 7, memoire 28, interface 8, jugement 51, agent 63 tests, aucun échec.
 - Le worktree de J1 recevra la même fusion quand Devin aura rendu la main, avant la revue.
+
+### 14 h 44, J3 tenu (Devin, `swe-2-max`), fusionné
+- Devin : 14 h 36 à 14 h 43 (7 min), sortie 0, 2 fichiers (`automatisation/scene/controle-captures.mjs`, `docs/tests/2026-11-17-j3-controle-captures.md`), commit fait par Devin lui-même. Aucun refus de son juge.
+- Rejoué par l'orchestrateur : `node automatisation/scene/controle-captures.mjs --releves automatisation/scene/essais/releves-16-11`, sortie 0. Sur les relevés réels v13 du 16/11 : tableau de bord 387 pixels différents, tous dans `ca-mois` ; liste 1 320, tous dans `export-haut` ; détail F-119 0 ; vue filtrée sans référence v12. **0 pixel hors des zones attendues.** Les 387 et 1 320 recoupent les `pixels_differents` de `faux-saas/positions.json`.
+- Contre-épreuve de l'orchestrateur (liste copiée sous le nom du tableau de bord) : 152 382 pixels hors zones, sortie 1. Contrôle de Devin (référence contre elle-même) : 0 partout.
+- Revue du code : lecture des PNG par `pngjs`, aucune tolérance, rectangles `avant` et `apres` exclus, aucun appel réseau. Accepté sans correction, à la première revue.
+- Reste pour J3 : le rejouer sur les relevés d'un parcours réel passé par la nouvelle scène (J1, avec la zone de page imposée par émulation).
+- Pendant ce temps, Nathan a fusionné la PR #20 (correction de note) dans `dev-nathan` : récupérée, check vert (jugement 52, agent 63, total 158). `dev-nathan` à c62a9a9, poussé. Vault perso : `git status` vide.
