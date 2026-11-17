@@ -61,6 +61,7 @@ export function creerCoureur({ vault, base, relever, hookTimeoutMs = 30_000, sig
       let etape = 0;
       let ended = false;
       let failed = false;
+      let failureReason: string | undefined;
       let baseFailed = false;
       const safe = async (action: () => Promise<unknown>): Promise<boolean> => {
         try { await action(); return true; }
@@ -87,13 +88,17 @@ export function creerCoureur({ vault, base, relever, hookTimeoutMs = 30_000, sig
             if (name === "terminer") {
               ended = true;
               failed = args.etat !== "reussi";
+              failureReason = failed ? (typeof args.raison === "string" && args.raison.trim() ? args.raison : "Parcours terminé en échec.") : undefined;
               return "Parcours terminé. N'effectue plus aucune action.";
             }
             if (name !== "relever") return "Outil inconnu.";
             const step = consigne.course.find((step) => step.ecran === args.ecran && step.vue === args.vue);
             if (!step) return "Relevé inconnu dans ce parcours.";
             const previous = taken.get(step.key);
-            if (previous) return previous.phrase;
+            if (previous) {
+              const next = consigne.course.find((step) => !taken.has(step.key));
+              return next ? `Déjà relevé. Relevé suivant : ecran=${next.ecran}, vue=${next.vue}.` : 'Déjà relevé. Tous les relevés sont pris. Appelle terminer(etat="reussi").';
+            }
             if (hookFailures.has(step.key)) return hookFailures.get(step.key)!;
             const testTimeouts = consigne.tests.filter((test) => test.releves.some(({ ecran, vue }) => ecran === step.ecran && vue === step.vue))
               .map((test) => test.timeout_s * 1000).filter((timeout) => Number.isFinite(timeout) && timeout > 0);
@@ -145,6 +150,7 @@ export function creerCoureur({ vault, base, relever, hookTimeoutMs = 30_000, sig
         finishing = true;
         const cancellation = signal?.aborted ? `Passage annulé : ${typeof signal.reason === "string" ? signal.reason : signal.reason instanceof Error ? signal.reason.message : "annulation demandée"}` : undefined;
         if (cancellation) signaler(`${passage.id} : ${cancellation}`);
+        const sessionFailure = result.erreur || (result.muted ? "session muette" : failureReason);
         const fin = maintenant();
         const final: Passage = { ...passage, etat: cancellation || hookFailures.size || result.muted || result.erreur || failed || !ended || baseFailed ? "echec" : "joue", fin: new Date(fin).toISOString(), duree_s: (fin - debut) / 1000, cout_usd: cout };
         const report: RapportPassage = {
@@ -152,7 +158,7 @@ export function creerCoureur({ vault, base, relever, hookTimeoutMs = 30_000, sig
           tests: consigne.tests.map((test) => {
             const captured = test.releves.filter(({ ecran, vue }) => taken.has(`${ecran}--${vue}`));
             const complete = captured.length === test.releves.length;
-            const reason = cancellation ?? test.releves.map(({ ecran, vue }) => hookFailures.get(`${ecran}--${vue}`)).find(Boolean);
+            const reason = cancellation ?? test.releves.map(({ ecran, vue }) => hookFailures.get(`${ecran}--${vue}`)).find(Boolean) ?? sessionFailure;
             return {
               test_id: test.id, session_id: result.id, etat: complete && !reason ? "termine" : "non_concluant",
               ...(reason || !complete ? { raison: reason ?? (result.muted ? "session muette" : "ecran non atteint") } : {}),
