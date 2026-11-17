@@ -175,6 +175,9 @@ process.on("SIGINT", async () => {
 });
 // The hook bound by the runner (PR #22): 45 s, well above the longest presentation measured (21,1 s on 2026-11-17).
 const HOOK_TIMEOUT_MS = 45_000;
+// Time H waits after a gesture before its next observation (PR #26): the scene holds each click 620 to 922 ms (measured
+// on 2026-11-17), and at 0,5 s the agent clicked « Factures » twice on the course of 15 h 11.
+const SETTLE_S = 1.2;
 const releverMs = []; // duration of each relever, from the tool call to the answer given to the agent
 
 const started = new Date();
@@ -484,7 +487,7 @@ try {
       const from = Date.now();
       try { return await relever(ecran, vue); } finally { releverMs.push({ releve: `${ecran}--${vue}`, ms: Date.now() - from }); }
     },
-    ...(SANS_AGENT ? { session: scriptedSession } : { h: { navigateur, key: process.env.HAI_API_KEY, signaler: say } }),
+    ...(SANS_AGENT ? { session: scriptedSession } : { h: { navigateur, settle_s: SETTLE_S, key: process.env.HAI_API_KEY, signaler: say } }),
   });
   const { passage_id } = await (pending = coureur.lancerPassage({ logiciel: LOGICIEL, version_testee: VERSION, version_reference: REFERENCE, tests: tests.map((test) => test.id), regressions: REGRESSIONS, cle: "dev" }));
   report = await (pending = coureur.attendreFin(passage_id));
@@ -614,6 +617,7 @@ writeFileSync(join(OUT, "passage.json"), `${JSON.stringify({
   relever_ms: releverMs,
   relever_max_ms: releverMs.length ? Math.max(...releverMs.map(({ ms }) => ms)) : null,
   delai_crochet_ms: HOOK_TIMEOUT_MS,
+  settle_s: SANS_AGENT ? null : SETTLE_S,
   presentations,
   film: FILM ? { dossier: FILM, images, duree_s: filmedMs / 1000 } : null,
   debut: started.toISOString(),
