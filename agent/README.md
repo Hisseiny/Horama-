@@ -24,7 +24,7 @@ Pour les tests sans H, fournir une fonction `session` : elle appelle
 `{ id, fin: Promise<ResultatSession> }`.
 
 `lancerPassage` rend l'identifiant après la création de session ; le processus
-doit rester vivant jusqu'à `attendreFin`. Une session sans première action
+doit rester vivant jusqu'à `attendreFin`. Une session sans nouvel événement
 pendant 45 secondes est abandonnée puis relancée une fois, après la pause
 de 35 secondes du port H. Les erreurs d'écriture sont signalées, sans
 interrompre les outils ; le rapport du passage finit alors en échec.

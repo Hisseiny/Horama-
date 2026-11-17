@@ -5,7 +5,7 @@ import { pathToFileURL } from "node:url";
 const escape = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 
 export async function genererPorte({ passageId, sortie, url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY, requete = fetch }) {
-  if (!passageId || !sortie || !url || !key) throw new Error("Passage, dossier de sortie et configuration Supabase serveur requis.");
+  if (!passageId || !sortie || !url || !key) throw new Error("Passage, dossier de sortie (ex. docs/tests/2026-11-16-porte-agent) et configuration Supabase serveur requis.");
   const origin = url.replace(/\/$/, "");
   const filter = encodeURIComponent(passageId);
   async function rows(table, query) {

@@ -72,7 +72,7 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | 4.4 | Roadmap jusqu'à jeudi (tirée de ce plan) | Noé | à faire |  |
 | 4.5 | Dépôt du rendu de mercredi | Noé | à faire |  |
 | 4.6 | Règle entre deux écrans prouvée par le calcul (le CA du tableau de bord égale le total de la liste) | Leslie, Ali | à faire |  |
-| 4.7 | Passage de plusieurs tests (3 en parallèle au plus) et rapport de passage (C6), écrit aussi dans le vault | Ali | en cours | Porte A3/A4 réalisée : 3 tests, rapport C6 en base, 4 captures réelles Facturo v13 et fil visibles sur la [planche](captures/2026-11-16-porte-agent/index.html). Session simulée, pas d'appel H ; écriture du rapport dans le vault et validation de la porte par Ali restent à faire. [Preuve](tests/2026-11-16-porte-agent.md). |
+| 4.7 | Passage de plusieurs tests (3 en parallèle au plus) et rapport de passage (C6), écrit aussi dans le vault | Ali | en cours | Porte A3/A4 réalisée : 3 tests, rapport C6 en base, 4 captures réelles Facturo v13 et fil visibles sur la [planche](tests/2026-11-16-porte-agent/index.html). Session simulée, pas d'appel H ; écriture du rapport dans le vault et validation de la porte par Ali restent à faire. [Preuve](tests/2026-11-16-porte-agent.md). |
 | 4.8 | Écran 11.6 : file de relecture, « C'est un bug » ou « C'est voulu » (C5) | Axil | à faire |  |
 | 4.9 | Mémoire limitée à un écart, référence mise à jour seulement quand tout est tranché, retest | Inès | à faire |  |
 | 4.10 | Faux SaaS en deux versions (12 et 13) et régressions activables selon la liste du banc | Nathan | à faire |  |

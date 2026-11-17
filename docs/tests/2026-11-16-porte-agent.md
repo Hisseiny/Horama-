@@ -33,7 +33,7 @@ au générateur committé. Utilisation directe avec les variables serveur
 `SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY` déjà définies :
 
 ```sh
-node agent/scripts/generer-porte.mjs --passage 2026-11-16-23h15-9c0a --sortie docs/captures/2026-11-16-porte-agent
+node agent/scripts/generer-porte.mjs --passage 2026-11-16-23h15-9c0a --sortie docs/tests/2026-11-16-porte-agent
 ```
 
 Le générateur lit `passages.rapport`, `captures` et `evenements` dans
@@ -53,7 +53,7 @@ quatre chemins de captures. Les quatre fichiers PNG générés font tous
 ## Présentation
 
 ```sh
-python3 -m http.server 8080 --bind 0.0.0.0 --directory /home/ubuntu/repos/Horama-/docs/captures/2026-11-16-porte-agent
+python3 -m http.server 8080 --bind 0.0.0.0 --directory /home/ubuntu/repos/Horama-/docs/tests/2026-11-16-porte-agent
 curl -sI localhost:8080/ | head -1
 ```
 

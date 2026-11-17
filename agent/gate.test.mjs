@@ -46,6 +46,7 @@ test("un rapport vide reste une planche lisible", async () => {
 test("configuration, passage absent, refus HTTP et PNG invalide échouent explicitement", async () => {
   const args = { passageId: "p1", sortie: "/unused", url: "http://localhost", key: "test-key" };
   await assert.rejects(genererPorte({ ...args, key: "" }), /requis/);
+  await assert.rejects(genererPorte({ ...args, sortie: undefined }), /docs\/tests\/2026-11-16-porte-agent/);
   await assert.rejects(genererPorte({ ...args, requete: async () => Response.json([]) }), /introuvable/);
   await assert.rejects(genererPorte({ ...args, requete: async () => new Response(null, { status: 403 }) }), /HTTP 403/);
   await assert.rejects(genererPorte({ ...args, requete: async (url) => {
