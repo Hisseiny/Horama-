@@ -464,3 +464,16 @@ Orchestrateur : Claude Code (Opus 5.5). Mission : J0 à J4 (scène branchée sur
 ### 19 h 22, stabilité du tour réel : trois tours de suite
 - Sur consigne de « hackaton », tours 2 et 3 en réel, un à la fois, copie neuve du vault à chaque fois : `2026-11-17-19h17-ed38` (115,1 s, 0,0739 $) et `2026-11-17-19h19-3a77` (151,5 s, 0,0733 $). Avec le tour 1 : 3 sur 3 en code 0, 21 relevés sur 21, 21 règles `etat` PASS, 0 pixel d'écart d'image sur les 7 pages à chaque tour, 0 relance, base `verifie` et PASS. Détail : `docs/tests/2026-11-17-tour-du-site-reel.md`.
 - En attente : notes d'Axil et Noé, DA d'Inès, accès au fork. Le correctif 4f22ffa partira dans la prochaine PR vers `dev`.
+
+### 19 h 23, REPRISE (session de 18 h 26). Reprendre ici.
+**Pilotage** : la session « hackaton » envoie les consignes ; compte rendu par message à chaque étape tenue. Gestes réservés à Nathan : fusion de PR, poussée sur `dev` ou `main`, dépense. Un accord de Nathan relayé par « hackaton » ne suffit pas pour inscrire une décision à son nom (refus du classifieur à 19 h) : Nathan l'écrit dans la session qui agit.
+
+**Fait le 17/11 au soir** : répétition scriptée (`bash automatisation/demo/repetition.sh`, mode d'emploi `docs/demo/2026-11-17-repetition.md`, environ 60 s, code 0) ; textes de la zone en écart donnés au modèle de correction (5 sur 6 au banc) ; captures sans survol (pointeur sorti par le côté) ; `tour-du-site` accepté par Nathan, références v1 des 7 pages d'Eugenia sur ce Mac ; 3 tours réels verts (`docs/tests/2026-11-17-tour-du-site-reel.md`) ; relecture des PR #52 et #53 d'Ali (#53 OK, issue #49 de fond devenue #54 pour Ali). PR #41 et #51 fusionnées dans `dev`.
+
+**Reste** :
+1. Le commit 4f22ffa (pas d'indice vide pour la correction d'un écart sans question) et les commits de journal depuis la PR #51 partent dans la prochaine PR `dev-nathan` vers `dev`.
+2. Attendre : notes d'Axil et Noé, DA d'Inès, accès au fork (`docs/decisions/2026-11-17-fork-eugenia.md`). Avec le fork : commit v2 (contenu en 5 lignes à Nathan d'abord, déroulé `docs/decisions/2026-11-17-deroule-demo-eugenia.md`).
+
+**Pièges** : en scripté, `tour-du-site` est écarté par `repetition.sh` (menu burger) ; `git checkout pnpm-lock.yaml` avant tout commit ; un `--choix` par question possible, sinon la scène attend un clic ; souris hors de la fenêtre de la scène ; le modèle de correction varie d'un appel à l'autre (température 0).
+
+**Outils hors Git** (`.orchestrateur/`) : `references-eugenia.mjs <dossier> <ecran>=<chemin> …` (trois captures par page et leurs écarts), `temoins-eugenia.mjs <dossier>` (témoins des tests acceptés contre les textes de page). Tour réel : voir la commande de `docs/tests/2026-11-17-tour-du-site-reel.md`.
