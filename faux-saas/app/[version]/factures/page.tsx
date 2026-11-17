@@ -25,7 +25,7 @@ export default async function Invoices({
   const { filtre } = await searchParams;
   const filter = filters.find((candidate) => candidate.id === filtre) ?? filters[0];
   const rows = INVOICES.filter(filter.keep);
-  const total = sum(rows) - (on("total-liste") ? 2000 : 0);
+  const total = sum(rows) - (on("total-liste") ? 2000 : 0) - (on("arrondi-total-liste") ? 1 : 0);
   const exportButton = <button type="button" className="export" data-zone="bouton-exporter">Exporter</button>;
 
   return (
@@ -75,7 +75,9 @@ export default async function Invoices({
                   ? ""
                   : on("format-date") && invoice.number === "F-121"
                     ? invoice.due
-                    : formatDate(invoice.due)}
+                    : on("echeance-decalee") && invoice.number === "F-119"
+                      ? "13/11/2026"
+                      : formatDate(invoice.due)}
               </td>
               <td className="amount" data-zone={`montant-${invoice.number}`}>
                 {on("format-montant") && invoice.number === "F-119"
