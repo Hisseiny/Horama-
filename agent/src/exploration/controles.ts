@@ -20,6 +20,11 @@ function inspectDocument() {
     for (let node: Element | null = element; node; node = node.parentElement) {
       const style = getComputedStyle(node);
       if (style.display === "none" || style.visibility !== "visible" || Number(style.opacity) === 0 || style.contentVisibility === "hidden") return false;
+      if (node !== element) {
+        const bounds = node.getBoundingClientRect();
+        if (style.overflowX !== "visible" && (box.right <= bounds.left || box.left >= bounds.right || bounds.width === 0)) return false;
+        if (style.overflowY !== "visible" && (box.bottom <= bounds.top || box.top >= bounds.bottom || bounds.height === 0)) return false;
+      }
     }
     return true;
   };
