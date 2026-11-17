@@ -57,6 +57,24 @@ function parseFindings(content: string, width: number, height: number): HoloFind
   });
 }
 
+export function filterFindings(findings: HoloFinding[], width: number, height: number): HoloFinding[] {
+  const kept: HoloFinding[] = [];
+  for (const finding of findings) {
+    if (finding.status === "INCONCLUSIVE") { kept.push(finding); continue; }
+    const box = finding.zone;
+    if (box.y + box.height >= height * 0.99 || box.x + box.width >= width * 0.99) continue;
+    const duplicate = kept.some(previous => {
+      if (previous.status !== "SUSPECTED" || previous.kind !== finding.kind) return false;
+      const other = previous.zone;
+      const intersection = Math.max(0, Math.min(box.x + box.width, other.x + other.width) - Math.max(box.x, other.x))
+        * Math.max(0, Math.min(box.y + box.height, other.y + other.height) - Math.max(box.y, other.y));
+      return intersection / (box.width * box.height + other.width * other.height - intersection) > 0.5;
+    });
+    if (!duplicate) kept.push(finding);
+  }
+  return kept;
+}
+
 export async function askHolo(png: Buffer, { url, fetch: request = fetch, timeoutMs = 8_000, apiKey = process.env.HAI_API_KEY }: HoloOptions): Promise<HoloResult> {
   const start = Date.now();
   const inconclusive = (model: HoloModel | null, message: string): HoloResult => ({
@@ -83,7 +101,7 @@ export async function askHolo(png: Buffer, { url, fetch: request = fetch, timeou
           body: JSON.stringify({
             model, temperature: 0, chat_template_kwargs: { enable_thinking: false }, max_tokens: 700,
             messages: [{ role: "user", content: [
-              { type: "text", text: `Inspect only visible visual defects in this ${width}x${height} screenshot of ${url}. Do not infer anything not visible. Allowed kinds: ${kinds.join(", ")}. Report cut-off or overlapping text, misaligned elements, distorted images, or unreadable contrast only. Return JSON with exactly d0, d1, d2, d3, d4, each a string. Each finding must use "kind | x,y,width,height | one sentence" with no other pipe characters. The zone is a tight bounding box around the affected element: four integers normalized to [0,1000] relative to the full image, origin top-left, NOT screenshot pixels. Width and height must be positive and the box fully inside the image. The caller converts these coordinates to screenshot pixels. Use an empty string for unused keys. These are doubts, not proven defects.` },
+              { type: "text", text: `Inspect only visible visual defects in this ${width}x${height} screenshot of ${url}. Do not infer anything not visible. This screenshot is only a viewport into a longer page, not the whole page. An element cut off by the screenshot edge is not a defect. Report cut-off-text only when text is truncated inside its own fully visible container: an interrupted word or sentence, such as a clipped button label or a sentence ending mid-word. A paragraph ending with a complete sentence is not cut off. Do not describe a broken image or placeholder as stretched or distorted. Allowed kinds: ${kinds.join(", ")}. Report cut-off or overlapping text, misaligned elements, distorted images, or unreadable contrast only. Return JSON with exactly d0, d1, d2, d3, d4, each a string. Each finding must use "kind | x,y,width,height | one sentence" with no other pipe characters. The zone is a tight bounding box around the affected element: four integers normalized to [0,1000] relative to the full image, origin top-left, NOT screenshot pixels. Width and height must be positive and the box fully inside the image. The caller converts these coordinates to screenshot pixels. Use an empty string for unused keys. These are doubts, not proven defects.` },
               { type: "image_url", image_url: { url: `data:image/png;base64,${png.toString("base64")}` } },
             ] }],
             response_format: { type: "json_schema", json_schema: { name: "visible_defects", schema: {
@@ -98,7 +116,7 @@ export async function askHolo(png: Buffer, { url, fetch: request = fetch, timeou
         const body = await response.json();
         const content = body?.choices?.[0]?.message?.content;
         if (typeof content !== "string") throw new Error("Missing content");
-        return { status: "SUSPECTED" as const, findings: parseFindings(content, width, height), model, durationMs: Date.now() - start };
+        return { status: "SUSPECTED" as const, findings: filterFindings(parseFindings(content, width, height), width, height), model, durationMs: Date.now() - start };
       };
       return await Promise.race([operation(), new Promise<never>((_, reject) => {
         timer = setTimeout(() => { controller.abort(); reject(new Error("Timeout")); }, timeoutMs);
