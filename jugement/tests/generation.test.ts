@@ -16,7 +16,7 @@ import { validateAnswer } from "../generation/validation.ts";
 const VAULT = fileURLToPath(new URL("../../vault-horama", import.meta.url));
 const V13 = "notes-de-version/v13.md";
 const LISTE = "produit/liste-des-factures.md";
-const MODEL = "openai/gpt-oss-120b";
+const MODEL = "openai/gpt-oss-120b:fastest";
 const recorded = (name: string) => readFileSync(new URL(`./reponses/${name}.json`, import.meta.url), "utf8");
 const notes = lireNotes(VAULT, "facturo");
 const source = (chemin: string) => ({
@@ -211,7 +211,7 @@ test("proposerTests : une réponse refusée repart au modèle avec la raison, po
 
 test("proposerTests : deux réponses refusées, erreur visible avec les raisons, pas de troisième appel, aucun test rendu", async () => {
   const requests = router(recorded("v13--choix-invalide"), recorded("v13--choix-invalide"), recorded("v13"));
-  await assert.rejects(proposerTests(VAULT, "facturo", V13), /Tests refusés après 2 essais \(openai\/gpt-oss-120b, notes-de-version\/v13\.md\) : test 1 : « questions\.choix »/);
+  await assert.rejects(proposerTests(VAULT, "facturo", V13), /Tests refusés après 2 essais \(openai\/gpt-oss-120b:fastest, notes-de-version\/v13\.md\) : test 1 : « questions\.choix »/);
   assert.equal(requests.length, 2);
 });
 
@@ -219,7 +219,7 @@ test("proposerTests : un appel en échec n'est pas masqué (code HTTP et message
   const requests = router(new Response(JSON.stringify({ error: { message: "Invalid credentials" } }), { status: 401 }), recorded("v13"));
   const calls: Array<{ status: number | null; error?: string }> = [];
   await assert.rejects(proposerTests(VAULT, "facturo", V13, { trace: (call) => calls.push(call) }), (error: Error) => {
-    assert.equal(error.message, "Génération impossible (openai/gpt-oss-120b, notes-de-version/v13.md) : HTTP 401 : Invalid credentials");
+    assert.equal(error.message, "Génération impossible (openai/gpt-oss-120b:fastest, notes-de-version/v13.md) : HTTP 401 : Invalid credentials");
     return true;
   });
   assert.equal(requests.length, 1);

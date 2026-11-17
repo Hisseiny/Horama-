@@ -87,7 +87,7 @@ Rend la `Decision` du contrat pour un constat tranché « bug » ou « voulu »,
 `proposerCorrection(vault, decision, options)` reçoit une `Decision` « voulu » (celle de `versDecision`) et rend `{ decision, raison, modele, duree_ms, essais }`. Quand la note de l'écran est contredite, `decision.correction_de_note` est rempli (`fichier`, `avant`, `apres`, `statut: "proposee"`), prêt pour `appliquerCorrection` (`@horama/memoire`) quand l'humain accepte. Sinon la décision revient sans correction et `raison` dit pourquoi, à montrer à l'humain.
 
 - Ce que voit le modèle : la note de l'écran (`entete.ecran` = `decision.ecran`), la note de version `notes-de-version/v<version>.md` si elle existe, `decision.ecart`, `decision.pourquoi`, et `options.indices`. **La scène doit passer en indice la question de `formuler`** : c'est elle qui porte la nouvelle position (« … il est maintenant en haut à droite »), que `ecart` ne dit pas.
-- Ce que fait le modèle : il recopie la phrase contredite et écrit la nouvelle (routeur Hugging Face, `DEFAULT_MODEL`, température 0).
+- Ce que fait le modèle : il recopie la phrase contredite et écrit la nouvelle (routeur Hugging Face, `CORRECTION_MODEL` = `openai/gpt-oss-120b`, la configuration mesurée, température 0).
 - Ce que vérifie le code, sinon un second essai avec les raisons, puis pas de correction :
   - `avant` apparaît exactement une fois dans la note (la même règle que `appliquerCorrection`), sur une ligne du corps : jamais l'en-tête, un titre, ni la partie « Règles » (une règle ne se corrige pas par une phrase) ;
   - `apres` est une seule phrase, différente de `avant`, sans version ; chacun de ses libellés entre « » vient de ce que le modèle a reçu (rien d'inventé) ;
