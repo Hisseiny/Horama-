@@ -197,7 +197,9 @@ function judge(regle: Regle, screens: Map<string, ScreenValues>, valeurs: Record
       for (const wanted of expected) valeurs[`${ecran}.attendu ${quote(wanted)}`] = missing.includes(wanted) ? "absent" : "affiché";
       for (const banned of forbidden) valeurs[`${ecran}.interdit ${quote(banned)}`] = shown.includes(banned) ? "affiché" : "absent";
       // The state is not proven while none of the expected texts appears: the action may never have happened.
-      if (missing.length === expected.length) unreadable(`état non atteint : aucun texte attendu n'apparaît sur ${ecran}`);
+      // A rule without a witness text never passes (memoire refuses it when reading; checked again here).
+      if (!expected.length) unreadable(`règle etat sans texte témoin sur ${ecran}`);
+      if (missing.length === expected.length) unreadable(`état non atteint en vue ${regle.vue} sur ${ecran} : aucun des textes attendus (${expected.map(quote).join(", ")}) n'apparaît`);
       const ok = !missing.length && !shown.length;
       const parts = [...missing.map((wanted) => `${quote(wanted)} attendu, absent`), ...shown.map((banned) => `${quote(banned)} interdit, affiché`)];
       return {

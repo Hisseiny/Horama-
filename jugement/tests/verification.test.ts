@@ -232,21 +232,28 @@ test("etat : défaut prouvé quand un attendu manque ou qu'un interdit s'affiche
   assert.equal(shown.statut, "VERIFIED_FAIL");
   assert.equal(shown.calcul, "« Mode sombre » interdit, affiché");
   assert.deepEqual(shown.textes_a_surligner, ["Mode sombre"]);
-  assert.deepEqual(formuler(shown).question, "« Mode sombre » s'affiche alors qu'il ne devrait pas. Bug ou voulu ?");
+  assert.deepEqual(formuler(shown).question, "« Mode sombre » est encore affiché. Bug ou voulu ?");
 
   // Manquant et interdit en même temps, les deux sont nommés.
   const both = verify(stuck, [etatRule({ texte_present: ["Revenir au mode clair", "Thème sombre"], texte_absent: ["Mode sombre"] })], [LIGHT, stuck])[0];
   assert.equal(both.calcul, "« Thème sombre » attendu, absent ; « Mode sombre » interdit, affiché");
 });
 
+// Repris de la PR #40 de Leslie Tagne : une règle sans texte témoin n'est jamais jugée réussie.
+test("etat : une règle sans texte témoin reste non concluante, jamais réussie", () => {
+  const [constat] = verify(DARK, [etatRule({ texte_present: [], texte_absent: ["Mode sombre"] })], [LIGHT, DARK]);
+  assert.equal(constat.statut, "INCONCLUSIVE");
+  assert.equal(constat.raison, "règle etat sans texte témoin sur tableau-de-bord");
+});
+
 test("etat : non concluant tant qu'aucun texte attendu n'apparaît, la comparaison ignore espaces et casse", () => {
   // Le libellé n'a jamais basculé : rien ne prouve que le clic a eu lieu.
   const [unreached] = verify(DARK, [etatRule({ texte_present: ["Relance envoyée"] })], [LIGHT, DARK]);
   assert.equal(unreached.statut, "INCONCLUSIVE");
-  assert.equal(unreached.raison, "état non atteint : aucun texte attendu n'apparaît sur tableau-de-bord");
+  assert.equal(unreached.raison, "état non atteint en vue mode-sombre sur tableau-de-bord : aucun des textes attendus (« Relance envoyée ») n'apparaît");
   assert.deepEqual(formuler(unreached), {
     annonce: "Je vérifie qu'après l'action, la page affiche « Relance envoyée ».",
-    resultat: "État non atteint : aucun texte attendu n'apparaît.",
+    resultat: "Je ne vois pas la nouveauté : l'action n'a peut-être pas été faite.",
   });
 
   // Sous-chaîne, insécables, espaces multiples, retours à la ligne et casse : tout est ignoré des deux côtés.
