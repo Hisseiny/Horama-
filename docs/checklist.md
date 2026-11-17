@@ -85,7 +85,7 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | N° | Tâche | Qui | État | Preuve |
 |---|---|---|---|---|
 | 5.1 | Écran 11.5 : comparaison des versions, côte à côte, rideau, pixels bruts ; zones d'écart entourées | Axil (écran), Leslie (zones), Nathan (script de différence de pixels) | à faire |  |
-| 5.2 | Dérive documentaire : un « voulu » qui contredit une note propose la correction (écran 11.7) ; Accepter modifie la note dans le vault | Inès (logique), Leslie (rédaction de la correction), Axil (écran) | à faire |  |
+| 5.2 | Dérive documentaire : un « voulu » qui contredit une note propose la correction (écran 11.7) ; Accepter modifie la note dans le vault | Inès (logique), Leslie (rédaction de la correction), Axil (écran) | en cours | Leslie : `proposerCorrection` dans `jugement/correction/`, 15 tests sans réseau ; mesure réelle à lancer (`jugement/scripts/t52-correction.ts`) ; branchement dans la scène à faire (couloir Nathan) |
 | 5.3 | Vérifier les 8 critères du P0 (cadrage, section 7), `main` gelé | Ali | à faire |  |
 | 5.4 | Mesures complètes, comparaisons (pixels, tests écrits à la main, sans et avec mémoire, deux modèles Hugging Face), coût et durée d'un passage, graphiques du deck | Inès | à faire |  |
 | 5.5 | Retour écrit du pilote : utiliserait-il Horama, paierait-il, combien, que manque-t-il ; point business de l'après-midi | Noé | à faire |  |
