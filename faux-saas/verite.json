@@ -134,6 +134,48 @@
     "zone": "cellule-client"
   },
   {
+    "id": "centime-detail",
+    "ecran": "detail-facture",
+    "vue": "defaut",
+    "nature": "bug",
+    "regle_touchee": "somme",
+    "entre_ecrans": true,
+    "contredit_la_doc": false,
+    "defaut_v13": false,
+    "description": "Sur la facture F-119, « Total TTC » affiche 480,01 € : un centime de plus que la somme des lignes (300,00 € + 180,00 €) et que la liste.",
+    "zone": "total-ttc",
+    "texte_avant": "480,00 €",
+    "texte_apres": "480,01 €"
+  },
+  {
+    "id": "arrondi-total-liste",
+    "ecran": "liste-des-factures",
+    "vue": "defaut",
+    "nature": "bug",
+    "regle_touchee": "somme",
+    "entre_ecrans": true,
+    "contredit_la_doc": false,
+    "defaut_v13": false,
+    "description": "La ligne « Total » de la liste affiche 1 419,99 € au lieu de 1 420,00 € : un centime de moins que la somme des lignes et que le CA du mois.",
+    "zone": "total-liste",
+    "texte_avant": "1 420,00 €",
+    "texte_apres": "1 419,99 €"
+  },
+  {
+    "id": "echeance-decalee",
+    "ecran": "liste-des-factures",
+    "vue": "defaut",
+    "nature": "bug",
+    "regle_touchee": null,
+    "entre_ecrans": false,
+    "contredit_la_doc": false,
+    "defaut_v13": false,
+    "description": "L'échéance de la facture F-119 s'affiche un jour plus tard (13/11/2026 au lieu de 12/11/2026) : le format reste bon, seule l'image change.",
+    "zone": "echeance-F-119",
+    "texte_avant": "12/11/2026",
+    "texte_apres": "13/11/2026"
+  },
+  {
     "id": "export-haut",
     "ecran": "liste-des-factures",
     "vue": "defaut",

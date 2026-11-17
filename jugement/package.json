@@ -9,7 +9,8 @@
   },
   "dependencies": {
     "@horama/contrats": "workspace:*",
-    "@horama/memoire": "workspace:*"
+    "@horama/memoire": "workspace:*",
+    "pngjs": "7.0.0"
   },
   "devDependencies": {
     "@types/node": "26.6.6",

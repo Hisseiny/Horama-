@@ -16,8 +16,8 @@ test("les identifiants du catalogue sont uniques", () => {
   assert.equal(new Set(CHANGES.map((change) => change.id)).size, CHANGES.length);
 });
 
-test("le catalogue compte 10 bugs et 5 changements voulus", () => {
-  assert.equal(CHANGES.filter((change) => change.nature === "bug").length, 10);
+test("le catalogue compte 13 bugs et 5 changements voulus", () => {
+  assert.equal(CHANGES.filter((change) => change.nature === "bug").length, 13);
   assert.equal(CHANGES.filter((change) => change.nature === "voulu").length, 5);
 });
 

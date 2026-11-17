@@ -264,6 +264,9 @@ importers:
       '@horama/memoire':
         specifier: workspace:*
         version: link:../memoire
+      pngjs:
+        specifier: 7.0.0
+        version: 7.0.0
     devDependencies:
       '@types/node':
         specifier: 26.6.6

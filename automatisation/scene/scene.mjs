@@ -1,4 +1,5 @@
-// Scene of the T7 probe: the agent's dedicated Chrome, CDP over Node's native WebSocket, the cursor layer, our captures.
+// Scene shared by the T7 probe (sonde-t7.mjs) and the live course (parcours.mjs): the agent's dedicated Chrome, CDP
+// over Node's native WebSocket, the Horama layer, our captures.
 // From Nami (tag demo-oral-2026-11-08): the Chrome flags and the reuse of a Chrome already listening on the port
 // (scripts/lancer-demo.sh), the request/response CDP client (lib/chrome-cdp.ts), Runtime.evaluate in the agent's tab
 // (lib/local-chrome.ts). New here: exact page area, layer injected by CDP, captures by Page.captureScreenshot.
@@ -8,6 +9,10 @@ import { readFileSync } from "node:fs";
 export const WIDTH = 1280;
 export const HEIGHT = 900;
 export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+export const flag = (name) => process.argv.includes(`--${name}`);
+export const option = (name, fallback) => (flag(name) ? process.argv[process.argv.indexOf(`--${name}`) + 1] : fallback);
+const t0 = Date.now();
+export const say = (text) => console.log(`[${String(Math.round((Date.now() - t0) / 1000)).padStart(3)} s] ${text}`);
 
 const http = (port, path, init) => fetch(`http://127.0.0.1:${port}${path}`, { signal: AbortSignal.timeout(2000), ...init });
 const chromeVersion = (port) => http(port, "/json/version").then((response) => response.json(), () => null);
@@ -151,21 +156,40 @@ export async function fitViewport(page) {
   return area;
 }
 
-// Puts the cursor layer in every page to come; onPress receives what the layer reports at each press.
-export async function installLayer(page, onPress) {
+// Puts the Horama layer (couche-horama.js) in every page to come, with the code of rough-notation beside it (nothing
+// is fetched by the page). onPress receives what the layer reports at each press of the agent, and again when a held
+// click is given back to the page ({ rejoue, retard_ms }); onChoice receives { id, choix } at the end of the course.
+// `passage` names the course (the layer forgets what another course left in the tab), `titre` is its banner, `direct`
+// leaves the clicks alone instead of holding them while the cursor travels.
+export async function installLayer(page, onPress, { passage = "", titre = "", direct = false, onChoice } = {}) {
   await page.send("Runtime.addBinding", { name: "horamaPress" });
-  page.on("Runtime.bindingCalled", ({ name, payload }) => name === "horamaPress" && onPress(JSON.parse(payload)));
+  await page.send("Runtime.addBinding", { name: "horamaChoix" });
+  page.on("Runtime.bindingCalled", ({ name, payload }) => (name === "horamaPress" ? onPress : name === "horamaChoix" ? onChoice : null)?.(JSON.parse(payload)));
+  const read = (file) => readFileSync(new URL(file, import.meta.url), "utf8");
   await page.send("Page.addScriptToEvaluateOnNewDocument", {
-    source: readFileSync(new URL("./couche-curseur.js", import.meta.url), "utf8"),
+    source: `(() => {\n${read("./node_modules/rough-notation/lib/rough-notation.iife.js")};\n${read("./couche-horama.js")}(${JSON.stringify(passage)}, ${JSON.stringify(titre)}, ${JSON.stringify({ direct })}, RoughNotation.annotate);\n})();`,
   });
 }
 
-// Our own capture of the page, cursor layer hidden. Field names follow Capture of contrats/types.ts.
+// Calls a command of the layer in the page (window.__horama, see couche-horama.js) and returns what it returns. Tried
+// again for a few seconds: the agent may be changing page at that moment.
+export async function layer(page, command, ...args) {
+  const expression = `window.__horama.${command}(${args.map((arg) => JSON.stringify(arg) ?? "undefined").join(", ")})`;
+  for (const end = Date.now() + 5000; ; await sleep(100)) {
+    try {
+      return await evaluate(page, expression);
+    } catch (error) {
+      if (Date.now() > end) throw error;
+    }
+  }
+}
+
+// Our own capture of the page, layer hidden. Field names follow Capture of contrats/types.ts.
 export async function capture(page) {
   try {
     const seen = await evaluate(page, `(async () => {
       scrollTo(0, 0);
-      window.__horamaLayer?.(false);
+      window.__horama?.masquer();
       await new Promise((done) => { requestAnimationFrame(() => requestAnimationFrame(done)); setTimeout(done, 300); });
       return { texte_page: document.body.innerText, url_page: location.href, defilement: [scrollX, scrollY] };
     })()`);
@@ -173,20 +197,24 @@ export async function capture(page) {
     const png = Buffer.from(data, "base64");
     return { png, largeur: png.readUInt32BE(16), hauteur: png.readUInt32BE(20), ...seen, prise_le: new Date().toISOString() };
   } finally {
-    await evaluate(page, "window.__horamaLayer?.(true)").catch(() => {});
+    await evaluate(page, "window.__horama?.montrer()").catch(() => {});
   }
 }
 
-// A real mouse click at the centre of an element, as the agent does (mode --sans-agent only).
+// A real mouse click at a point of the page, as the agent does (mode --sans-agent only).
+export async function clickAt(page, point) {
+  await page.send("Input.dispatchMouseEvent", { type: "mouseMoved", ...point });
+  for (const type of ["mousePressed", "mouseReleased"]) {
+    await page.send("Input.dispatchMouseEvent", { type, ...point, button: "left", clickCount: 1 });
+  }
+}
+
+// The same click at the centre of an element.
 export async function clickCentre(page, selector) {
   const centre = `(() => {
     const box = document.querySelector(${JSON.stringify(selector)})?.getBoundingClientRect();
     return box && box.width > 0 && box.height > 0 ? { x: Math.round(box.left + box.width / 2), y: Math.round(box.top + box.height / 2) } : null;
   })()`;
   if (!(await waitFor(page, centre, 10_000))) throw new Error(`élément introuvable dans la page : ${selector}`);
-  const point = await evaluate(page, centre);
-  await page.send("Input.dispatchMouseEvent", { type: "mouseMoved", ...point });
-  for (const type of ["mousePressed", "mouseReleased"]) {
-    await page.send("Input.dispatchMouseEvent", { type, ...point, button: "left", clickCount: 1 });
-  }
+  await clickAt(page, await evaluate(page, centre));
 }

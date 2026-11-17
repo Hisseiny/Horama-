@@ -8,7 +8,7 @@ export default async function InvoiceDetail({ params }: { params: Promise<{ vers
   const { version, on } = await openPage(segment, `/factures/${numero}`);
   const invoice = INVOICES.find((candidate) => candidate.number === numero);
   if (!invoice) notFound();
-  const total = invoice.amount - (on("total-detail") && invoice.number === "F-119" ? 2000 : 0);
+  const total = invoice.amount - (on("total-detail") && invoice.number === "F-119" ? 2000 : 0) + (on("centime-detail") && invoice.number === "F-119" ? 1 : 0);
 
   return (
     <Shell version={version} active="factures">

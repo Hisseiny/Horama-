@@ -1,6 +1,6 @@
 # Facturo, le faux SaaS de démonstration
 
-Application de facturation factice (Next.js, rendu serveur à chaque requête) qui sert de cible à l'agent H et à la comparaison de captures. Versions 12 et 13, quinze changements activables un par un, image identique d'une visite à l'autre.
+Application de facturation factice (Next.js, rendu serveur à chaque requête) qui sert de cible à l'agent H et à la comparaison de captures. Versions 12 et 13, dix-huit changements activables un par un, image identique d'une visite à l'autre.
 
 ## Lancer
 
@@ -47,7 +47,7 @@ Lu par `/vXX/entrer` seulement, qui le range dans un cookie propre à la version
 
 Sans cookie (connexion par `/login`), les pages appliquent les changements par défaut de la version.
 
-Le catalogue est dans `regressions.ts` (source unique : 10 bugs, 5 changements voulus). `verite.json` en est la copie JSON. Chaque élément touché porte un attribut `data-zone` ; la zone `cellule-client` désigne les quatre cases de la colonne Client, sa boîte dans `positions.json` est leur union.
+Le catalogue est dans `regressions.ts` (source unique : 13 bugs, dont 3 presque invisibles à l'œil, et 5 changements voulus). `verite.json` en est la copie JSON. Chaque élément touché porte un attribut `data-zone` ; la zone `cellule-client` désigne les quatre cases de la colonne Client, sa boîte dans `positions.json` est leur union.
 
 ## Scripts
 

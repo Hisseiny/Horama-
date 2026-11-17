@@ -129,3 +129,71 @@ Orchestrateur : Claude Code (Fable 5.2). Branche : `dev-nathan`. Méthode : `doc
 - Rapport : `docs/tests/2026-11-16-t7-navigateur-local.md` ; captures : `docs/captures/2026-11-16-t7/`.
 - Non mesuré : le texte de page pour le relevé des valeurs (les `.txt` existent, à exploiter en S2) ; la tenue sur plus de 3 sessions ; l'écran intégré seul du Mac (la fenêtre s'est ouverte sur l'écran externe, l'écran intégré n'a pas 900 px de haut utiles).
 - Conséquence : le plan de `docs/decisions/2026-11-16-scene-en-direct.md` tient. T1 et T2 de la spec sont répondus par ce montage (captures identiques ; le texte se lit dans la page). Suite : S1 (la scène avec la mascotte), S2 (vérification pendant le parcours).
+
+### 22 h 15, état des lieux et lancement de S1 et S2
+- PR #3 (changement de cap) fusionnée par Nathan. PR #4 ouverte : résultat de T7 pour Ali, lève l'attente sur A4.
+- Nathan demande qui fait quoi : tableau publié dans `docs/orchestrateurs/qui-fait-quoi.md` (scène : Nathan et son orchestrateur ; moteur : Ali ; visuel : le groupe). Accord de Nathan pour une mascotte provisoire très simple en attendant le visuel du groupe.
+- Quota Devin : 59 % utilisés.
+- Lancés en parallèle chez Devin (dossiers disjoints) : S1 (`automatisation/scene/` : mascotte, bulle, zones surlignées, parcours unique construit depuis les tests du vault) et S2 (`jugement/verification/` : relevé des valeurs depuis le texte de page, cinq règles, comparaison d'image selon le seuil de bruit). Interface entre les deux fixée dans les briefs : `verifierReleve(entree) → Constat[]`.
+
+### 22 h 40, S2 : vérification d'un écran pendant le parcours, tenu
+- PR #4 fusionnée par Nathan à 20 h 52 (UTC 19 h 52), `dev` récupéré. Toujours pas de branche `dev-ali` sur le dépôt.
+- Devin : 13 min, sortie 0, 10 fichiers (`jugement/` et `pnpm-lock.yaml`). `check` rejoué : 27 tests verts.
+- Sur les 4 écrans réels du parcours T7 (v13) contre les références v12 : CA du mois `VERIFIED_FAIL` à la liste (« 1 240,00 ≠ 1 420,00, écart 180,00 ») ; filtre `VERIFIED_FAIL` sur la vue filtrée (F-120, 30/11/2026, attendu avant le 18/11/2026) ; détail F-119 : égalité et somme `PASS` ; visuel : 1 zone sur la valeur du CA, bouton Exporter sur la liste, aucune zone sur le détail. Durée de `verifierReleve` avec image : 27 à 29 ms.
+- Correctif de l'orchestrateur (10 lignes, `jugement/verification/images.ts`) : une zone contenue dans la boîte d'une autre lui est rattachée. Le bouton Exporter donnait 4 zones (contour et texte, deux emplacements), il en donne 2. Règle ajoutée à `docs/decisions/2026-11-16-seuil-de-bruit.md`.
+- Choix de Devin gardés : une règle autre que `filtre` ne se lit que sur la vue `defaut` (sinon faux défaut dès que le filtre marche) ; compteur de factures contradictoire : `INCONCLUSIVE`.
+- Reste ouvert : l'ancien et le nouvel emplacement du bouton font encore deux doutes pour un seul déplacement (à relier en S3, ou par Holo).
+
+### 23 h 00, S1 tenu, et premier parcours complet : agent réel, mascotte, vérification
+- S1 (Devin, 47 min, 7 fichiers dans `automatisation/scene/`) : `couche-horama.js` (mascotte provisoire en SVG, 7 états, bulle, zones numérotées, bandeau à compteur, état gardé d'une page à l'autre), `parcours.mjs` (un seul parcours et une seule consigne depuis les tests acceptés du vault, `verifierReleve` appelé à chaque relevé, `passage.json`). Images témoins regardées par l'orchestrateur (`docs/captures/2026-11-16-scene/`). Les captures propres restent identiques à celles de T7 (0 pixel différent) : la couche ne laisse pas de trace.
+- Références v12 écrites dans le vault par un parcours scripté (`parcours.mjs --sans-agent --version 12 --ecrire-references`) : 3 écrans. Sur la v12 : 3 règles conformes, 0 doute.
+- **Parcours réel sur la v13** (`node --env-file=.env.local automatisation/scene/parcours.mjs`, session H unique, 3 tests du vault enchaînés) : 4 relevés sur 4, 13 étapes, **38,7 s**, coût rendu par H 0,031 $, aucune relance. Constats pendant le parcours : CA du mois `VERIFIED_FAIL` (1 240,00 ≠ 1 420,00), filtre `VERIFIED_FAIL` (F-120, 30/11/2026), détail F-119 : 2 `PASS`, 3 doutes visuels (valeur du CA sur le tableau de bord, bouton Exporter au nouvel et à l'ancien emplacement). Bilan dit par la mascotte à 51 s.
+- À améliorer, constaté sur ce passage : (1) 3 doutes pour 1 seul vrai doute : le doute sur la valeur du CA devrait être repris par le défaut prouvé à l'écran suivant, et les deux emplacements du bouton ne font qu'un déplacement ; (2) l'agent va plus vite que la mascotte ne parle (3 s par geste), ses bulles prennent 11 à 15 s de retard ; (3) une seule mesure : la tenue sur plusieurs passages reste à faire.
+- Passage : `.orchestrateur/passages/2026-11-16-21h45-5675/` (hors Git).
+
+### 23 h 30, retour de Nathan sur le premier parcours, et lancement de la correction
+- Verdict de Nathan (il a regardé le parcours réel) : pas de fin où il tranche chaque incohérence ; curseur et mascotte à séparer (le curseur clique, la mascotte flotte à côté et parle) ; trop saccadé, trop vite ; langage trop compliqué, « pas très UX friendly » ; il veut voir le surlignage se dessiner ; « te mettre à la place d'un lambda ». Il demande aussi de chercher des bibliothèques d'animation sur GitHub.
+- Plan annoncé avant de coder, « go » de Nathan : (1) fin de parcours où chaque problème est remis à l'écran avec deux boutons ; (2) curseur et mascotte séparés ; (3) clic de l'agent retenu environ 0,6 s le temps que le curseur arrive, et agent retenu à chaque écran tant que la mascotte parle ; (4) phrases courtes en mots simples ; (5) trait de surlignage animé ; (6) un seul doute pour un élément déplacé, et un doute remplacé par le défaut prouvé quand la preuve arrive.
+- Bibliothèques retenues pour essai (licences à vérifier dans `node_modules` avant de les garder) : `rough-notation` (trait animé), `driver.js` (mise en lumière et boutons de la fin), `ghost-cursor` (trajet du curseur, ou vingt lignes équivalentes), `motion` (ressorts).
+- Lancés en parallèle chez Devin : S3-A (`automatisation/scene/` : scène lisible et fin de parcours) et S3-B (`jugement/verification/` : `formuler`, `consoliderConstats`, déplacement en un seul constat, `versDecision`). Interface commune fixée dans les deux briefs.
+- Le Chrome de l'agent resté ouvert après le parcours a été fermé avant de lancer Devin (port 9333 libre).
+
+### 0 h 05 (mardi 17), S3-A et S3-B tenus : scène à deux personnages, fin où l'humain tranche
+- S3-B (Devin, 19 min ; son commit a été refusé par son juge, fait par l'orchestrateur) : `formuler`, `consoliderConstats`, déplacement en un seul constat, `versDecision`. 34 tests verts. Sur le parcours réel : 2 problèmes, 1 doute (le bouton), 1 doute rattaché au problème du CA. Phrase du déplacement précisée par l'orchestrateur (« a été déplacé vers le haut, il est maintenant en haut à droite »).
+- S3-A (Devin, 60 min, 8 fichiers dans `automatisation/scene/`) : curseur (flèche, trajet en courbe, clic de l'agent retenu puis rejoué) et mascotte séparés ; l'agent attend la mascotte à chaque écran (`--plafond`) ; trait dessiné par `rough-notation` 0.5.1 (MIT, seule bibliothèque gardée ; `driver.js`, `motion` et `ghost-cursor` non installées, remplacées par quelques lignes) ; fin de parcours avec assombrissement, question et deux boutons, décisions écrites par `@horama/memoire`. Captures propres toujours à 0 pixel des références. Film de 557 images livré hors Git.
+- Assemblage vérifié par l'orchestrateur : parcours scripté avec la vraie vérification sur une copie du vault (4 relevés, 3 questions, 3 décisions écrites).
+- **Parcours réel, agent H, vu et terminé par Nathan** (`node --env-file=.env.local automatisation/scene/parcours.mjs --plafond 20`) : 4 relevés sur 4, 13 étapes, parcours en 101,3 s (la mascotte présente chaque écran en 7 à 21 s), clic retenu 0,66 à 0,92 s, aucune relance. Nathan a répondu aux 3 questions à la souris (voulu, bug, voulu) ; 3 décisions écrites dans `vault-horama/facturo/decisions/` (laissées hors Git : ce sont des clics d'essai).
+- Défauts connus, listés par Devin : une règle conforme ne désigne pas ses deux valeurs sur la page ; le doute qui devient problème change de couleur hors champ ; clignotement de 54 à 76 ms de la couche à chaque capture ; pendant une question, les marques des autres constats restent visibles.
+
+### 0 h 30 (mardi 17), CLÔTURE de la session du lundi 16. Reprendre ici.
+**Consigne de Nathan** : clôturer, tout pousser pour qu'Ali puisse travailler dessus, reprendre demain avec le groupe, lui reposer les questions en attente.
+
+**État**
+- Tenus et fusionnés dans `dev-nathan` : N0 à N5, N6a, T7, S1, S2, S3-A, S3-B. Tableau à jour : `docs/orchestrateurs/qui-fait-quoi.md`.
+- Dernier parcours réel (agent H, 0 h 00) : 4 écrans, 101 s, 3 questions tranchées par Nathan à la souris, 3 décisions écrites dans le vault. Ces 3 décisions d'essai ont été **sorties du vault** après coup (`.orchestrateur/decisions-essai-2026-11-16/`, hors Git) pour que le prochain parcours reparte de zéro.
+- Plus rien ne tourne : aucun Devin, aucun pont `holo`, Chrome de l'agent et serveur local arrêtés. Aucun worktree ouvert.
+- Sur le Mac, hors Git : `~/.venvs/holo` (143 Mo), `~/.cache/selenium` (17 Mo), `.orchestrateur/` du dépôt (179 Mo, dont le profil Chrome de l'agent, 172 Mo).
+- Quota Devin : **75 % utilisés**, remise à zéro dans 5 jours (après la démo), aucun solde à la demande. Seuil d'arrêt de la méthode : 80 %.
+
+**Questions à reposer à Nathan à la reprise**
+1. Son avis sur le dernier parcours (curseur, mascotte, rythme, phrases, fin avec les boutons).
+2. Quota : (a) l'orchestrateur code lui-même les ajustements de la scène, (b) Devin gardé pour une ou deux grosses tâches, (c) achat de solde. Recommandation : (a).
+3. La réponse d'Ali sur le partage (`docs/decisions/2026-11-16-scene-en-direct.md`, dernière partie). Sa branche `dev-ali` n'existe toujours pas sur le dépôt.
+4. L'écran de la démo : au moins 900 px de haut utiles.
+
+**Suite, dans l'ordre**
+1. Corrections de la scène selon l'avis de Nathan, et ses défauts connus (voir `qui-fait-quoi.md`).
+2. Correction de la documentation après un « voulu » qui la contredit (le dernier maillon de la boucle, pas encore construit).
+3. Déclenchement par un déploiement Vercel.
+4. Tenue sur 5 à 10 parcours et vidéo de secours.
+5. Jonction avec le coureur d'Ali (écriture en base), remesure de T4, banc.
+
+**Pièges appris aujourd'hui (à relire avant de relancer)**
+- Devin se lance en `--permission-mode smart` (le mode `dangerous` est refusé à l'orchestrateur). Dans ce mode, son juge lui refuse : d'écrire hors de son worktree (rapport à la racine du worktree), de lancer un script qui appelle un service avec une clé (l'orchestrateur le lance), parfois `git commit` en fin de tâche (l'orchestrateur commite).
+- Un worktree neuf n'a pas de `node_modules` : y lancer `pnpm install` (et `pnpm install --ignore-workspace` dans `automatisation/scene/`) avant de lancer Devin.
+- `pnpm-lock.yaml` entre en conflit à chaque fusion de deux branches parallèles : garder celui du couloir, `pnpm install`.
+- Chrome visible : `--force-color-profile=srgb`, sinon 250 000 à 300 000 pixels d'écart avec les références.
+- La zone de page de 1280 × 900 ne tient pas sur l'écran intégré du Mac.
+- Le Chrome de l'agent reste ouvert après un parcours (port 9333) : le fermer avant de lancer un essai de Devin.
+- Ne jamais montrer à Nathan une commande de suppression dans un bloc de code s'il n'a pas à la taper tout de suite.
+- Le coût Devin d'une tâche d'une heure : environ 6 à 8 points de quota hebdomadaire.
