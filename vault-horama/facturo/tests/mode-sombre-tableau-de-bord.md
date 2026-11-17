@@ -26,5 +26,5 @@ Toute l'interface passe en thème sombre et le libellé du bouton devient « Rev
 - FAIL if le libellé reste « Mode sombre » ou si l'interface reste claire.
 
 ```regles
-[]
+[{ "type": "etat", "ecran": "tableau-de-bord", "vue": "mode-sombre", "texte_present": ["Revenir au mode clair"] }]
 ```

@@ -16,3 +16,5 @@ Une facture est en retard quand son échéance est strictement antérieure à la
 - Le « CA du mois » s'affiche au format des montants.
   regle: format | colonne: CA du mois | motif: montant-fr
 - Le « CA du mois » et le nombre de « Factures du mois » doivent correspondre à la liste des factures : voir [[regles-entre-ecrans]].
+- Après un clic sur « Mode sombre », le libellé du bouton devient « Revenir au mode clair ».
+  regle: etat | vue: mode-sombre | present: Revenir au mode clair
