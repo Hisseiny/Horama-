@@ -93,18 +93,21 @@ export function creerSessionH({ navigateur, key, requete = fetch, maintenant = D
       let muted = false;
       let erreur: string | undefined;
       let deadline = created + 330_000;
+      let lastActivity = created;
       const handled = new Set<string>();
       try {
         for (;;) {
           const terminal = TERMINAL.includes(status);
-          if (!terminal && !etapes && maintenant() - created > 45_000) { muted = true; break; }
+          const idle = maintenant() - lastActivity;
+          if (!terminal && idle >= 45_000) { muted = true; break; }
           if (!terminal && browser.failed?.()) { erreur = "Le pont du navigateur est interrompu."; break; }
           if (!terminal && maintenant() > deadline) { erreur = "La session n'a pas atteint d'état final dans le délai."; break; }
-          const wait = terminal ? 2 : etapes ? 20 : 5;
+          const wait = terminal ? 2 : Math.min(etapes ? 20 : 5, Math.max(1, Math.ceil((45_000 - idle) / 1000)));
           const changes = await h("GET", `/sessions/${id}/changes?from_index=${next}&wait_for_seconds=${wait}`);
           if (!changes?.new_events?.length && terminal) break;
           if (!changes) continue;
           const events = changes.new_events ?? [];
+          if (events.length) lastActivity = maintenant();
           next = (changes.first_index ?? next) + events.length;
           status = changes.status ?? status;
           metrics = changes.metrics ?? metrics;

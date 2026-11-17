@@ -5,6 +5,7 @@ import { BaseMemoire } from "./src/base.ts";
 import { creerCoureur } from "./src/coureur.ts";
 import type { ReleveCapture } from "./src/coureur.ts";
 import type { Session, SessionInput } from "./src/session.ts";
+import { creerSessionH } from "./src/session.ts";
 
 const vault = fileURLToPath(new URL("../vault-horama", import.meta.url));
 const input = { logiciel: "facturo", version_testee: "13", version_reference: "12", tests: ["ca-du-mois-egal-total", "detail-facture-total-egal-liste", "liste-factures-filtre-echeance"] };
@@ -101,6 +102,33 @@ test("une session muette peut être relancée avec succès", async () => {
   const report = await coureur.attendreFin(passage_id);
   assert.equal(report.passage.etat, "joue");
   assert.equal(report.passage.cout_usd, 0.04);
+});
+
+test("une session H qui agit puis se fige déclenche une seule relance", async () => {
+  let now = 0;
+  let attempts = 0;
+  let polls = 0;
+  let cancelled = 0;
+  const session = creerSessionH({
+    key: "test-key", maintenant: () => now, pause: async (ms) => { now += ms; },
+    navigateur: async () => ({ channel: "channel", stop() {} }),
+    requete: async (url, init) => {
+      if (String(url).endsWith("/sessions")) { polls = 0; return Response.json({ id: `stalled-${++attempts}` }); }
+      if (init?.method === "DELETE") { cancelled++; return new Response(null, { status: 204 }); }
+      if (++polls === 1) return Response.json({ status: "running", new_events: [{ type: "AgentEvent", data: { kind: "policy_event", tool_reqs: [] } }] });
+      now += 45_000;
+      return new Response(null, { status: 204 });
+    },
+  });
+  const base = new BaseMemoire();
+  const runner = creerCoureur({ vault, base, session, signaler: () => {}, relever: async (ecran, vue) => fixture(ecran, vue) });
+  const { passage_id } = await runner.lancerPassage(input);
+  const report = await runner.attendreFin(passage_id);
+  assert.equal(attempts, 2);
+  assert.equal(cancelled, 2);
+  assert.equal(base.evenements.length, 2);
+  assert.equal(report.passage.etat, "echec");
+  assert.ok(report.tests.every((test) => test.raison === "session muette"));
 });
 
 test("adresses incorrectes et outils inconnus ne produisent aucune capture", async () => {

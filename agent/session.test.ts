@@ -102,6 +102,35 @@ test("429 est réessayé deux fois et un échec de création ferme le pont sans 
   assert.deepEqual(pauses, [30_000, 30_000]);
 });
 
+test("le silence se mesure depuis le dernier événement, même après une action", async () => {
+  let now = 0;
+  let polls = 0;
+  let cancelled = 0;
+  const session = creerSessionH({
+    key: "test-key", maintenant: () => now,
+    navigateur: async () => ({ channel: "channel", stop() {} }),
+    requete: async (url, init) => {
+      if (String(url).endsWith("/sessions")) return json({ id: "stalled" });
+      if (init?.method === "DELETE") { cancelled++; return new Response(null, { status: 204 }); }
+      if (++polls === 1) {
+        now = 30_000;
+        return json({ status: "running", new_events: [{ type: "AgentEvent", data: { kind: "policy_event", tool_reqs: [] } }] });
+      }
+      if (polls === 2) {
+        now = 60_000;
+        return json({ status: "running", new_events: [{ type: "ActiveStateChangeEvent", data: { state: "running" } }] });
+      }
+      now += 15_000;
+      return new Response(null, { status: 204 });
+    },
+  });
+  const result = await (await session(defaults())).fin;
+  assert.equal(result.muted, true);
+  assert.equal(result.etapes, 1);
+  assert.equal(now, 105_000);
+  assert.equal(cancelled, 1);
+});
+
 test("réseau et pont indisponibles donnent un résultat d'échec avec nettoyage", async () => {
   let calls = 0;
   let stopped = false;
