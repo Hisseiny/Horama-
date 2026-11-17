@@ -1,54 +1,54 @@
 # D6 : tests de non-régression à chaque déploiement
 
-Date : 17 novembre 2026. Proposé par Noé (CEO). **À valider par Ali (racine, `.github/`, `agent/`), Nathan (`automatisation/`, `faux-saas/`) et Inès (`vault-horama/`)** dans cette pull request. Rien n'est codé tant qu'ils n'ont pas approuvé.
+Date : 17 novembre 2026. Proposé par Noé (CEO). **Décidé par Nathan (CAO) le 17/11 : option B, version réduite** (commentaire sur la PR #10). Mis à jour le soir même après le changement de cap vers le site d'Eugenia School (`docs/decisions/2026-11-17-deroule-demo-eugenia.md`).
 
 ## Décision
 
-Horama ajoute une fonctionnalité de non-régression, en P0, démontrée sur le faux SaaS (Facturo) :
+À chaque nouvelle version du site, Horama :
 
-1. À chaque déploiement, Horama compare le code déployé au code précédent.
-2. Il en déduit les écrans et les fonctionnalités touchés, y compris ceux que la modification ne visait pas.
-3. Il rejoue seulement les tests liés à ces écrans, plus un petit socle de tests joués à chaque fois.
-4. Il publie le résultat en commentaire de la pull request.
+1. compare le code de la nouvelle version à celui de la précédente ;
+2. en déduit les pages touchées, y compris celles que la modification ne visait pas ;
+3. rejoue seulement les tests qui relèvent ces pages, plus un petit socle joué à chaque fois, et **montre à l'écran les tests qu'il écarte** ;
+4. laisse l'humain trancher chaque écart (bug ou voulu), puis met le vault à jour.
 
-En contrepartie, la comparaison de pixels (F18 à F20, F23) passe en P1. Sans retrait, le périmètre P0 grossit encore.
+## Comment ça marche pour la démo
 
-## Comment ça marche
-
-| Étape | Outil | Détail |
+| Étape | Qui le fait | Détail |
 |---|---|---|
-| Déclenchement | GitHub Actions, événement `deployment_status` | Vercel signale à GitHub chaque déploiement réussi, avec son URL publique |
-| Diff | `git diff --name-only <commit précédent> <commit déployé>` | Liste des fichiers modifiés |
-| Impact | Table de correspondance, puis graphe des imports, puis LLM | Voir plus bas |
-| Sélection | Script | Tests du vault liés aux écrans touchés, plus le socle |
-| Passage | Agent H, navigateur cloud | Sur l'URL publique du déploiement : le navigateur de H ne voit pas `localhost`, il voit une prévisualisation Vercel |
-| Rapport | Commentaire de pull request | Fichiers modifiés, écrans touchés et pourquoi, statut de chaque test, lien de replay |
+| Réveil | `automatisation/reveil/` (issue #36) | Sur le Mac de démo. Repli local d'abord : un commit qui touche le site réveille la scène. Un déploiement Vercel ne vient qu'après l'accord de l'école |
+| Diff et sélection | `automatisation/impact/impact.mjs` (J6b, fait) | Compare les fichiers modifiés au champ `code:` des notes d'écran et aux fiches de changement. Écrit le fichier `horama-impact-1` : tests retenus, tests écartés, raison de chacun (`docs/decisions/2026-11-17-format-impact.md`) |
+| Annonce | La scène (`--impact`, fait) | La mascotte dit avant le parcours : « Nouvelle version (…) : 1 test rejoué, 1 écarté : page non touchée. » |
+| Passage | Agent H, Chrome local de la scène | Seuls les tests retenus sont joués |
+| Rapport | La scène | Récapitulatif, images avant et après, décision humaine |
 
-Pourquoi GitHub Actions : le déclencheur et le diff sont gratuits, il n'y a aucun serveur ni webhook public à monter, et le rapport arrive là où l'équipe travaille déjà. Une application GitHub ou un webhook Vercel vers notre serveur serait plus propre pour un vrai produit : c'est pour la roadmap.
+**Pas de GitHub Action pour la démo** : une Action tourne sur un serveur de GitHub et ne peut pas piloter le Chrome local de la scène.
 
-## Des fichiers aux fonctionnalités : les deux méthodes
+## Des fichiers aux pages
 
-1. **Déclaré, puis calculé (fait foi).**
-   - Chaque note d'écran du vault déclare ses fichiers de code, par exemple dans son en-tête : `code: [faux-saas/app/[version]/factures/**]`.
-   - Le graphe des imports propage ensuite le changement. Exemple : un fichier partagé comme `faux-saas/lib/data.ts` remonte à tous les écrans qui l'importent.
-   - C'est ce qui répond à « une autre fonctionnalité a été touchée ».
-2. **LLM (explique, ne décide pas).**
-   - Il lit le diff et les notes, puis rédige en une phrase pourquoi un écran est touché.
-   - Il peut proposer un écran oublié par la table, marqué « proposé par le LLM ». Cet écran n'est joué qu'après validation humaine.
+- Chaque note d'écran du vault déclare ses fichiers de code dans le champ `code:` de son en-tête, entre guillemets (fait sur Facturo, PR #24 d'Inès).
+- Comme il n'y a pas de graphe des imports, une note liste aussi les fichiers communs qu'elle utilise. Sinon, un changement d'un fichier partagé ne déclencherait aucun test.
+- Pour le site d'Eugenia, `code: []` reste vide tant que l'école n'a pas donné accès au dépôt (`docs/decisions/2026-11-17-fork-eugenia.md`). En attendant, ce sont les fiches de changement (`ecrans_vises`, `ne_doit_pas_changer`) qui désignent les pages touchées.
+- Ni graphe des imports ni LLM pour l'instant.
+
+## Ce qui reste dans le P0
+
+La comparaison d'images (F18 à F20, F23) reste dans le P0 : elle est déjà construite et marche dans la scène.
+
+## Roadmap du pitch (pas construit cette semaine)
+
+- Une GitHub Action déclenchée par chaque déploiement de prévisualisation, en navigateur cloud de H.
+- Le rapport en commentaire de la pull request.
+- Le graphe des imports, pour ne plus déclarer à la main les fichiers communs.
+- Un LLM qui explique en une phrase pourquoi une page est touchée, et propose une page oubliée (jouée seulement après validation humaine).
 
 ## Limites connues
 
-- Un diff ne voit pas tout : CSS global, configuration, données, backend. D'où le socle de tests joué à chaque déploiement.
-- **Facturo n'a pas aujourd'hui deux versions de code.** v12 et v13 sont le même code, dont les changements s'activent par le paramètre `r`. Pour la démo, il faut de vrais commits. Exemple : un commit qui modifie le calcul du total dans `lib/data.ts`, visé pour la liste des factures, et qui casse aussi le « CA du mois » du tableau de bord. Format à décider par Nathan.
-- Le pilote : il faudrait un accès à son dépôt et à ses déploiements. C'est peu probable cette semaine. La fonctionnalité se montre sur Facturo et se présente au pilote comme la suite.
-- Limites de H : 3 sessions en même temps et 8 à 10 s par étape. Sélectionner peu de tests est justement l'argument.
-- La scène en direct utilise le navigateur local (décision du 16/11). Le passage déclenché par un déploiement utilise le navigateur cloud. Les deux coexistent, à confirmer par Ali.
-- L'approche est connue sous le nom de « sélection de tests de régression » (*regression test selection*, *test impact analysis*). Elle n'est pas neuve. Notre différence : les tests viennent de la documentation, et la correspondance écran ↔ code vit dans le vault.
+- Un diff ne voit pas tout : CSS global, configuration, contenu venu d'un CMS (les textes du site d'Eugenia viennent de Sanity, pas du code). D'où le socle joué à chaque fois (`automatisation/impact/socle.json`, vide pour Eugenia aujourd'hui ; le test « tour du site » de l'issue #42 est prévu pour ça).
+- L'approche est connue sous le nom de « sélection de tests de régression » (*regression test selection*, *test impact analysis*). Elle n'est pas neuve. Notre différence : les tests viennent de la documentation, et le lien entre les pages et le code vit dans le vault.
+- Facturo est abandonné (décision de Nathan du 17/11, 17 h 54) : les « vrais commits de démo sur Facturo » prévus ici ne se font pas. Le commit de démo se fait sur le site d'Eugenia (temps 2 du déroulé).
 
 ## Questions ouvertes
 
-- Ali : un fichier `.github/workflows/horama-regression.yml` à la racine, qui appelle le coureur existant ? Le coureur accepte-t-il une liste de tests et une URL de base ?
-- Nathan : comment produire les commits de démo sur Facturo ?
-- Inès : faut-il un champ `code` dans l'en-tête des notes d'écran ? Ce n'est pas un contrat gelé, mais c'est un format partagé.
-- Qui écrit le script d'impact (diff, puis écrans, puis tests) : `automatisation/` (Nathan) ou `agent/` (Ali) ?
-- Que retire-t-on du P0 en échange ? Proposition : F18 à F20 et F23.
+- Ali (issue #36) : le réveil appelle-t-il la scène quand aucun test n'est retenu ?
+- Nathan : quel test va dans le socle d'Eugenia (`socle.json`) ?
+- Noé et Axil : écrire les notes d'écran d'Eugenia, sans lesquelles aucune règle de page n'existe.
