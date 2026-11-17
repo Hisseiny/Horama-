@@ -1,6 +1,6 @@
 # D7 : trois sortes de vérification, et le vault comme mémoire des agents
 
-Date : 17 novembre 2026. Décidé par Nathan (CAO) pour le fond : les méthodes 1 et 2 ci-dessous en P0. **Le nouveau type de règle (section 3) modifie `contrats-v1` : accepté par Ali (CTO), gardien des contrats, avec 4 conditions intégrées en section 3** (commentaire de la PR #21). Complète D6 option B (commentaire de la PR #10) et la décision de jonction (`2026-11-17-jonction-scene-coureur.md`).
+Date : 17 novembre 2026. Décidé par Nathan (CAO) pour le fond : les méthodes 1 et 2 ci-dessous en P0. **Le nouveau type de règle (section 3) modifie `contrats-v1` : accepté par Ali (CTO), gardien des contrats, avec 4 conditions intégrées en section 3** (commentaire de la PR #21). Complète D6 option B (commentaire de la PR #10) et la décision de jonction (`2026-11-17-jonction-scene-coureur.md`). Relue par Inès (CDO, gardienne du vault) : ses 4 corrections et sa demande de champ `ne_doit_pas_changer` sont intégrées.
 
 ## 1. Le constat
 
@@ -42,7 +42,7 @@ La méthode 1 ne demande aucun changement de contrat : les vues et les référen
 - **La vue** (condition 3) : `etat` se juge sur le relevé de la `vue` de la règle. Aujourd'hui, `jugement/verification/index.ts` ne garde que la vue `defaut` (sauf pour `filtre`) : à étendre. Les `switch (regle.type)` de `jugement/verification/rules.ts`, `jugement/verification/wording.ts` et `memoire/src/rules.ts` gèrent `etat` **dans le même lot**, sinon `pnpm -r check` casse dès l'arrivée du type.
 - **Un seul changement de contrat, au bon moment** (condition 4) : Ali ajoute le type dans `contrats/types.ts` et `contrats/exemples.ts` et pose l'étiquette `contrats-v2` **quand le jugement de `etat` est prêt à être fusionné juste après**, jamais avant, pour ne pas laisser `dev` avec un type que personne ne juge.
 - Limite : `etat` ne voit que le texte. Un mode sombre cassé seulement dans ses couleurs relève de la méthode 1 (comparaison d'images), pas de `etat`. D'où les deux méthodes ensemble dans le scénario.
-- Écrit dans les notes du vault comme les autres règles : `regle: etat | vue: mode-sombre | present: Revenir au mode clair`.
+- Écrit dans les notes du vault comme les autres règles, dans la note de l'écran où l'état se vérifie (le lecteur prend l'écran dans l'en-tête de la note : jamais dans `_regles-communes.md`, qui n'a pas d'écran). Plusieurs textes dans un même champ se séparent par ` ; ` (un second champ `present:` écraserait le premier) : `regle: etat | vue: mode-sombre | present: Revenir au mode clair ; Thème sombre`.
 - Volontairement limité au texte visible : Horama reste une boîte noire qui voit ce que voit un utilisateur, ce qui marche aussi sur un logiciel dont on n'a pas le code (Dolibarr, le pilote).
 
 Fichiers touchés : `contrats/types.ts` et `contrats/exemples.ts` (accord Nathan et Ali), `jugement/verification/` (couloir Nathan), `memoire/` pour lire la ligne `regle: etat` (couloir Nathan), consigne de génération Hugging Face (`jugement/generation/`, Leslie ou couloir Nathan). Étiquette après accord : `contrats-v2`.
@@ -59,8 +59,9 @@ Chaque développement qui part en déploiement a sa fiche dans le vault : `vault
 ---
 id: bouton-relancer
 pr: 42
-code: [faux-saas/app/[version]/factures/**, faux-saas/lib/relances.ts]
+code: ["faux-saas/app/[version]/factures/page.tsx", "faux-saas/lib/relances.ts"]
 ecrans_vises: [liste-des-factures]
+ne_doit_pas_changer: [tableau-de-bord]
 ---
 
 # Bouton « Relancer » sur la liste des factures
@@ -71,7 +72,8 @@ Ce qui ne doit pas changer : le reste de la liste, le mode sombre, l'export.
 
 Ce qu'Horama en fait :
 - **Sorte 2** : il génère le test de la nouveauté depuis « Ce qui change » (règle `etat` : présent « Relance envoyée » après le clic).
-- **Sorte 3** : il choisit les tests à rejouer. Ceux des écrans dont les notes déclarent les mêmes fichiers dans leur champ `code:` (D6 option B), ceux que la fiche cite dans « Ce qui ne doit pas changer », et le socle joué à chaque fois.
+- **Sorte 3** : il choisit les tests à rejouer. Ceux des écrans dont les notes déclarent les mêmes fichiers dans leur champ `code:` (D6 option B), ceux des écrans listés dans le champ `ne_doit_pas_changer` de l'en-tête (le texte « Ce qui ne doit pas changer » reste pour l'humain, le champ est pour le script), et le socle joué à chaque fois.
+- Syntaxe de l'en-tête (relecture d'Inès) : les chemins de `code:` sont **entre guillemets**, sinon les crochets de `[version]` rendent l'en-tête illisible pour `@horama/memoire` ; on déclare le fichier exact de chaque page, jamais `factures/**` (qui attraperait aussi le détail `factures/[numero]/`), plus les fichiers communs (PR #24). Inès écrit un modèle de fiche dans `vault-horama/_modeles/`.
 - Après validation du déploiement, la fiche nourrit la documentation du produit : la dérive documentaire (correction de note de Leslie, PR #11 et #20) propose de reporter le changement dans la note de l'écran.
 
 ### 4.2 La branche Git porte sa propre documentation
@@ -94,8 +96,8 @@ La mémoire de travail de l'agent passe en P1 : elle n'est utile qu'au-delà de 
 
 ## 5. Le scénario de démonstration sur Facturo
 
-1. Facturo reçoit une fonctionnalité existante et sans rapport avec les factures : **un bouton Mode sombre** dans l'en-tête, en v12 et en v13. Sa note d'écran (`_regles-communes.md` ou une note `en-tete.md`) dit : « Le bouton Mode sombre passe toute l'interface en thème sombre ; son libellé devient Revenir au mode clair. » Les références de la vue `mode-sombre` sont prises sur le Mac de démo.
-2. Le commit de démo ajoute le bouton « Relancer » (sa fiche de changement dans le même commit) et, par effet de bord, casse le mode sombre (une classe CSS écrasée, le libellé ne change plus).
+1. Facturo reçoit une fonctionnalité existante et sans rapport avec les factures : **un bouton Mode sombre** dans l'en-tête, en v12 et en v13. La note `tableau-de-bord.md` (l'écran où le test bascule le thème ; pas `_regles-communes.md`, qui n'a pas d'écran) dit : « Le bouton Mode sombre passe toute l'interface en thème sombre ; son libellé devient Revenir au mode clair. » Les références de la vue `mode-sombre` sont prises sur le Mac de démo.
+2. Le commit de démo ajoute le bouton « Relancer » (sa fiche de changement dans le même commit, `ne_doit_pas_changer: [tableau-de-bord]`) et, par effet de bord, casse le mode sombre (une classe CSS écrasée, le libellé ne change plus). Il touche la page de la liste, pas les fichiers communs : sinon tous les écrans sont sélectionnés et la démo ne montre plus de sélection.
 3. Le déploiement réveille la scène (D6 option B). Horama lit la fiche, joue le test de la nouveauté (Relancer marche : `PASS`) et rejoue celui du mode sombre, que la fiche cite dans « Ce qui ne doit pas changer ».
 4. La scène montre le défaut prouvé (« Revenir au mode clair » absent après le clic) et l'écart d'image de la vue `mode-sombre` contre la référence.
 5. La phrase du pitch : « Le développeur a ajouté un bouton. Il n'a pas touché au mode sombre. Horama l'a quand même vérifié, parce que la doc dit ce qui ne doit pas changer, et il a trouvé la casse. »
