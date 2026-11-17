@@ -2,6 +2,7 @@
 ecran: liste-des-factures
 chemin: Menu > Factures
 url: /factures
+code: ["faux-saas/app/[version]/factures/page.tsx", "faux-saas/lib/data.ts", "faux-saas/lib/session.ts", "faux-saas/app/shell.tsx", "faux-saas/app/layout.tsx", "faux-saas/app/styles.ts", "faux-saas/regressions.ts"]
 ---
 
 # Liste des factures
