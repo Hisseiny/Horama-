@@ -1,10 +1,12 @@
 import type { Decision } from "@horama/contrats";
 import { lireNotes } from "@horama/memoire";
-import { DEFAULT_MODEL } from "../generation/index.ts";
 import { callModel } from "../generation/router.ts";
 import type { ModelCall } from "../generation/router.ts";
 import { buildMessages, nudgeMessage, retryMessage } from "./prompt.ts";
 import { editableLines, labels, validateAnswer } from "./validation.ts";
+
+// The configuration measured at 15 sur 15 (docs/tests/2026-11-17-correction.md); the router's default provider.
+export const CORRECTION_MODEL = "openai/gpt-oss-120b";
 
 export interface CorrectionOptions {
   modele?: string;
@@ -23,7 +25,7 @@ export interface CorrectionProposal {
 // Proposes the note correction of a "voulu" decision. Never throws for a model or network failure: the decision comes back
 // without correction and `raison` says why. `appliquerCorrection` (@horama/memoire) applies it once the human accepts.
 export async function proposerCorrection(vault: string, decision: Decision, options: CorrectionOptions = {}): Promise<CorrectionProposal> {
-  const modele = options.modele ?? DEFAULT_MODEL;
+  const modele = options.modele ?? CORRECTION_MODEL;
   const start = Date.now();
   const none = (raison: string, essais = 0): CorrectionProposal => ({ decision, raison, modele, duree_ms: Date.now() - start, essais });
   if (decision.decision !== "voulu") return none("Un bug ne change pas la documentation.");
