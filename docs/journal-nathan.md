@@ -226,3 +226,8 @@ Orchestrateur : Claude Code (Opus 5.5). Mission : J0 à J4 (scène branchée sur
 - Lu dans le diff de #19, ce qui touche J1 : `BasePassages` gagne `enregistrerResultat` (une base enveloppée doit le transmettre) ; `bonneAdresse` exige tous les paramètres de l'adresse attendue (la scène rend `location.href` : compatible) ; `settle_s` toujours à 0,5.
 - Conséquence à savoir : le C4 du coureur est calculé à la fin de la session H, donc **avant** que l'humain tranche à la fin de la scène. Un « voulu » pris à la fin n'apparaît pas dans `resultats` (pas d'`EcartVisuel` en `PASS` avec `decision_id`) ; il est dans `decisions`. Au parcours suivant, le coureur lit les décisions du vault : l'écart est alors neutralisé.
 - Suite : Nathan fusionne #18 puis #19 dans `dev` ; ensuite `git merge origin/dev` dans `dev-nathan`, et dans le worktree de J1 une fois Devin fini, avant la revue ; vérification générale relancée.
+
+### 14 h 39, PR #18 et #19 fusionnées dans `dev`, récupérées dans `dev-nathan`
+- `origin/dev` à a83067c (#18 puis #19 fusionnées par Nathan). `git merge --no-ff origin/dev` dans `dev-nathan` : aucun conflit, commit 85ae3ab, poussé.
+- `pnpm install` (verrou remis à celui de `dev`), puis `pnpm -r --if-present run check` : code 0. faux-saas 7, memoire 28, interface 8, jugement 51, agent 63 tests, aucun échec.
+- Le worktree de J1 recevra la même fusion quand Devin aura rendu la main, avant la revue.
