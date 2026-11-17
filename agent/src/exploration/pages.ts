@@ -24,9 +24,15 @@ function attribute(tag: string, name: string): string | undefined {
   return match ? decodeEntities(match[1] ?? match[2] ?? match[3]) : undefined;
 }
 
-function locations(xml: string): string[] {
-  return [...xml.matchAll(/<(?:[\w-]+:)?loc\b[^>]*>([\s\S]*?)<\/(?:[\w-]+:)?loc\s*>/gi)]
-    .map((match) => decodeEntities(match[1].trim()));
+function locations(xml: string, entry: "url" | "sitemap"): string[] {
+  const result: string[] = [];
+  const entries = new RegExp(`<((?:[\\w-]+:)?${entry})\\b[^>]*>([\\s\\S]*?)<\\/\\1\\s*>`, "gi");
+  for (const match of xml.replace(/<!--[\s\S]*?-->/g, "").matchAll(entries)) {
+    for (const child of match[2].matchAll(/<((?:[\w-]+:)?[\w-]+)\b[^>]*?(?:\/>|>([\s\S]*?)<\/\1\s*>)/gi)) {
+      if (child[1].split(":").at(-1) === "loc" && child[2]) result.push(decodeEntities(child[2].trim()));
+    }
+  }
+  return result;
 }
 
 interface RobotRule { pattern: RegExp; length: number; allow: boolean }
@@ -173,9 +179,9 @@ export async function discoverPages(url: string, { max = 15, fetch: request = gl
     const document = await read(parsed.href, "sitemap");
     if (!document?.body) return;
     if (/<(?:[\w-]+:)?sitemapindex\b/i.test(document.body)) {
-      for (const location of locations(document.body)) await readSitemap(location, document.url);
+      for (const location of locations(document.body, "sitemap")) await readSitemap(location, document.url);
     } else if (/<(?:[\w-]+:)?urlset\b/i.test(document.body)) {
-      for (const location of locations(document.body)) enqueue(location, document.url);
+      for (const location of locations(document.body, "url")) enqueue(location, document.url);
     } else {
       result.errors.push({ url: document.url, message: "Plan du site XML non reconnu (urlset ou sitemapindex attendu)." });
     }

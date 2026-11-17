@@ -47,6 +47,8 @@ Les réponses factices couvrent : robots et arrêt fermé, sitemap XML, index im
 
 Régression reproduite hors réseau : `/sitemap.xml` redirigé vers `/`, dont le HTML lie `/second`, donnait une liste vide. Le dédoublonnage des lectures distingue maintenant robots, sitemap et page : l'accueil reste lisible comme page, avec ses liens, après le rejet du HTML comme sitemap. La boucle de redirection reste bornée par rôle. Le test passe après correction ; aucun nouvel essai réel.
 
+Autre régression reproduite : douze `image:loc` internes sans extension après une première page du sitemap épuisent les tentatives avant la deuxième page HTML (`max: 3`). L'extraction ne retient désormais que les `loc` enfants directs des entrées `url` ou `sitemap`, pas ceux imbriqués dans les extensions image/vidéo. Le test couvre aussi les entrées préfixées ; aucun GET d'image n'est émis et les trois pages attendues sont trouvées.
+
 ## Essai réel unique — Eugenia School
 
 Appel : `await discoverPages("https://www.eugeniaschool.com", { max: 15 })`, avec un wrapper de `fetch` pour journaliser les réponses, sans modifier leur contenu.

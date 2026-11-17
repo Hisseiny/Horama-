@@ -70,6 +70,23 @@ test("normalise www, protocole, fragments, suivi, slash final et ordre des param
   assert.deepEqual(result.errors, []);
 });
 
+test("les image:loc sans extension ne consomment pas le budget des pages HTML", async () => {
+  for (const prefix of ["", "sm:"]) {
+    const images = Array.from({ length: 12 }, (_, i) => `<image:image><image:loc>/asset-${i}</image:loc></image:image>`).join("");
+    const routes: Record<string, Reply> = {
+      "/sitemap.xml": `<${prefix}urlset><${prefix}url><${prefix}loc>/first</${prefix}loc>${images}</${prefix}url><${prefix}url><${prefix}loc>/second</${prefix}loc></${prefix}url></${prefix}urlset>`,
+      "/": "", "/first": "", "/second": "",
+    };
+    for (let i = 0; i < 12; i++) routes[`/asset-${i}`] = () => new Response("Image", { headers: { "content-type": "image/png" } });
+    const setup = fixture(routes);
+    const result = await discoverPages(origin, { ...setup, max: 3 });
+    assert.deepEqual(result.pages, ["/", "/first", "/second"].map((path) => origin + path));
+    assert.deepEqual(result.errors, []);
+    assert.ok(!setup.calls.some((url) => url.includes("/asset-")));
+    assert.ok(!result.excluded.some((item) => item.reason === "request-limit"));
+  }
+});
+
 test("robots * avant tout GET, groupes multiples, Allow spécifique, wildcard et fin de chaîne", async () => {
   const setup = fixture({
     "/robots.txt": "User-agent: OtherBot\nDisallow: /public\n\nUser-agent: *\nDisallow: /private\nAllow: /private/open\nDisallow: /*?secret=*$\nDisallow: /exact$\n\nUser-agent: *\nDisallow: /second\n\nUser-agent: AnotherBot\nDisallow: /",
