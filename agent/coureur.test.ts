@@ -309,7 +309,8 @@ test("une vue déclarée dans la note, sans adresse propre, est relevée quel qu
   const testFile = join(vault, "facturo/tests/ca-du-mois-egal-total.md");
   writeFileSync(testFile, readFileSync(testFile, "utf8").replace("{ ecran: tableau-de-bord, vue: defaut }", "{ ecran: tableau-de-bord, vue: langue-en }"));
   const noteFile = join(vault, "facturo/produit/tableau-de-bord.md");
-  writeFileSync(noteFile, readFileSync(noteFile, "utf8").replace(/^url: .*$/m, "$&\nvues: [langue-en]"));
+  const note = readFileSync(noteFile, "utf8");
+  writeFileSync(noteFile, /^vues:/m.test(note) ? note.replace(/^vues:.*$/m, "vues: [langue-en]") : note.replace(/^url: .*$/m, "$&\nvues: [langue-en]"));
   const base = new BaseMemoire();
   const session = fakeSession(async ({ consigne, onTool }) => {
     const step = consigne.course.find(({ vue }) => vue === "langue-en")!;
