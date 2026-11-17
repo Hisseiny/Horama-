@@ -136,6 +136,7 @@ export function creerSessionH({ navigateur, key, requete = fetch, maintenant = D
         if (!TERMINAL.includes(status)) await h("DELETE", `/sessions/${id}`).catch(() => {});
         await browser.stop();
       }
+      if (status === "failed") erreur ??= "La session H a échoué.";
       return { id, muted, cout_usd: metrics?.total_cost ?? null, etapes, ...(erreur ? { erreur } : {}) };
     })();
     return { id, fin };

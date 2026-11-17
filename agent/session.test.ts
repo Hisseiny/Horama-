@@ -71,6 +71,26 @@ test("45 secondes sans action : annulation, puis nouveau pont après 35 secondes
   assert.equal(methods.filter((method) => method === "DELETE").length, 2);
 });
 
+test("un statut failed après terminer reste un échec même sans erreur explicite", async () => {
+  let polls = 0;
+  let ended = false;
+  const session = creerSessionH({
+    key: "test-key", navigateur: async () => ({ channel: "channel", stop() {} }),
+    requete: async (url) => {
+      if (String(url).endsWith("/sessions")) return json({ id: "failed-after-end" });
+      if (String(url).endsWith("/tool_results")) return new Response(null, { status: 204 });
+      if (++polls === 1) return json({ status: "running", new_events: [], pending_tool_calls: [{ id: "end", tool_name: "terminer", args: { etat: "reussi" } }] });
+      if (polls === 2) return json({ status: "failed", metrics: { total_cost: 0.02 }, new_events: [] });
+      return new Response(null, { status: 204 });
+    },
+  });
+  const result = await (await session({ ...defaults(), onTool: async () => { ended = true; return "Terminé."; } })).fin;
+  assert.equal(ended, true);
+  assert.match(result.erreur!, /échoué/);
+  assert.equal(result.muted, false);
+  assert.equal(result.cout_usd, 0.02);
+});
+
 test("429 est réessayé deux fois et un échec de création ferme le pont sans exposer la clé", async () => {
   let posts = 0;
   let stopped = false;
