@@ -19,7 +19,20 @@ test("les 6 notes du vault sont lues avec leur en-tête et leur titre", () => {
   ]);
   const liste = notes[2];
   assert.equal(liste.titre, "Liste des factures");
-  assert.deepEqual(liste.entete, { ecran: "liste-des-factures", chemin: "Menu > Factures", url: "/factures" });
+  assert.deepEqual(liste.entete, {
+    ecran: "liste-des-factures",
+    chemin: "Menu > Factures",
+    url: "/factures",
+    code: [
+      "faux-saas/app/[version]/factures/page.tsx",
+      "faux-saas/lib/data.ts",
+      "faux-saas/lib/session.ts",
+      "faux-saas/app/shell.tsx",
+      "faux-saas/app/layout.tsx",
+      "faux-saas/app/styles.ts",
+      "faux-saas/regressions.ts",
+    ],
+  });
   assert.ok(liste.texte.startsWith("---\necran: liste-des-factures\n"));
   assert.deepEqual(notes[5].entete, { version: 13, date: "2026-11-18" });
   assert.deepEqual(notes[5].regles, []);
@@ -46,13 +59,13 @@ test("une puce sans ligne regle: est rendue avec null, avec sa phrase et sa lign
     note.regles.filter(({ regle }) => regle === null).map(({ phrase, ligne }) => [note.chemin, ligne, phrase]),
   );
   assert.deepEqual(untested, [
-    ["produit/detail-facture.md", 16, "Le « Total TTC » doit être égal au montant de la facture dans la liste : voir [[regles-entre-ecrans]]."],
-    ["produit/liste-des-factures.md", 22, "Sous le tableau, le nombre de factures affichées est indiqué (« 4 factures »)."],
-    ["produit/tableau-de-bord.md", 16, "Le « CA du mois » et le nombre de « Factures du mois » doivent correspondre à la liste des factures : voir [[regles-entre-ecrans]]."],
+    ["produit/detail-facture.md", 17, "Le « Total TTC » doit être égal au montant de la facture dans la liste : voir [[regles-entre-ecrans]]."],
+    ["produit/liste-des-factures.md", 23,"Sous le tableau, le nombre de factures affichées est indiqué (« 4 factures »)."],
+    ["produit/tableau-de-bord.md", 17,"Le « CA du mois » et le nombre de « Factures du mois » doivent correspondre à la liste des factures : voir [[regles-entre-ecrans]]."],
   ]);
   const first = lireNotes(vault, "facturo")[2].regles[0];
   assert.equal(first.phrase, "Le total en bas du tableau est la somme de la colonne « Montant TTC ».");
-  assert.equal(first.ligne, 14);
+  assert.equal(first.ligne, 15);
 });
 
 test("analyserLigneRegle lit les cinq types", () => {
@@ -102,7 +115,7 @@ test("verifierRegle rend la règle du contrat sans champ en trop, et dit pourquo
 test("une ligne regle: invalide dans une note nomme le fichier et la ligne", () => {
   const broken = temporaryVault();
   appendFileSync(join(broken, "facturo/produit/tableau-de-bord.md"), "- Règle mal écrite.\n  regle: somme | colonne: CA\n");
-  assert.throws(() => lireNotes(broken, "facturo"), /facturo\/produit\/tableau-de-bord\.md, ligne 18 : .*champ « cible » manquant/);
+  assert.throws(() => lireNotes(broken, "facturo"), /facturo\/produit\/tableau-de-bord\.md, ligne 19 :.*champ « cible » manquant/);
 });
 
 test("urlDepart compose l'entrée authentifiée depuis l'url de la note de l'écran", () => {
