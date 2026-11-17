@@ -13,7 +13,7 @@ La scène de `docs/decisions/2026-11-16-scene-en-direct.md` : le logiciel testé
 - Essai complet sans rien écrire dans le vault du repo (depuis ce dossier) :
   ```
   cp -R ../../vault-horama essais/vault-copie
-  node parcours.mjs --sans-agent --choix bug,bug,voulu --vault essais/vault-copie --verification essais/fausse-verification.mjs --sortie essais/passage-1 --temoins essais/temoins --film essais/film --fermer-chrome
+  node parcours.mjs --sans-agent --choix bug,bug,voulu --vault essais/vault-copie --sortie essais/passage-1 --temoins essais/temoins --film essais/film --fermer-chrome
   ```
 - Écrire les références de la version 12 dans le vault : `node automatisation/scene/parcours.mjs --version 12 --ecrire-references --sans-agent --sans-fin`
 
@@ -77,7 +77,7 @@ Zone de page : `fitViewport` (`scene.mjs`) règle d'abord la fenêtre, puis impo
 
 ### Le module de vérification
 
-La scène ne fabrique aucune phrase sur un constat : elle les demande au module, qui doit exporter les quatre fonctions ci-dessous. Sans elles le script s'arrête avant tout lancement (sortie 2). Tant que `jugement/verification/` ne les a pas, lancer avec `--verification essais/fausse-verification.mjs`.
+La scène ne fabrique aucune phrase sur un constat : elle les demande au module, qui doit exporter les quatre fonctions ci-dessous. Sans elles le script s'arrête avant tout lancement (sortie 2). `jugement/verification/` les exporte toutes les quatre depuis S3-B.
 
 ```ts
 verifierReleve(entree): Constat[]
