@@ -6,7 +6,9 @@ releves: [{ ecran: accueil, vue: defaut }, { ecran: bachelor, vue: defaut }, { e
 url_depart: /
 version_cible: "1"
 timeout_s: 240
-statut: propose
+statut: accepte
+accepte_par: Nathan
+accepte_le: 2026-11-17
 ---
 
 # Tour du site d'Eugenia : sept pages par les liens et le menu

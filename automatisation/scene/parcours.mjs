@@ -196,6 +196,7 @@ const queued = new Set(); // ids of the findings given to the mascot
 const revealed = new Set(); // ids of the findings the mascot has shown
 const marks = new Map(); // per finding id, what is drawn on the page: { address, rects, genre, avant }
 const frames = new Map(); // per visual finding id, the rectangle that holds its zone and the text at its centre
+const zoneTexts = new Map(); // per visual finding id, every text shown inside its zone when it was taken
 const decisions = [];
 let capturing = false;
 
@@ -321,9 +322,10 @@ async function findings(step, releve) {
   const nameZones = async (list) => {
     for (const constat of list) {
       if (constat.genre !== "visuel" || !constat.zone || constat.texte_zone !== undefined || !onScreen(constat)) continue;
-      const { texte, cadre } = await mascot("autour", constat.zone);
+      const { texte, cadre, textes } = await mascot("autour", constat.zone);
       constat.texte_zone = texte;
       frames.set(constat.id, cadre);
+      zoneTexts.set(constat.id, textes);
     }
   };
   await nameZones(found);
@@ -580,7 +582,13 @@ if (page) {
           let failure = null;
           let proposal = null;
           try {
-            proposal = await proposerCorrection(VAULT, decision, { indices: [question] });
+            // A visual doubt says where, not what: the texts the zone shows now, when the note does not cite them yet,
+            // give the model the state since the change. Texts the note already cites say nothing new (a colour changed).
+            const noteText = (lireNotes(VAULT, LOGICIEL).find(({ entete }) => entete.ecran === constat.ecran)?.texte ?? "").toUpperCase();
+            const shown = (zoneTexts.get(constat.id) ?? []).filter((text) => !noteText.includes(text.toUpperCase()));
+            const indices = [question, ...(shown.length ? [`Textes affichés aujourd'hui dans la zone qui a changé, lus sur la page : ${shown.map((text) => `« ${text} »`).join(", ")}. La note ne les cite nulle part : la phrase de la note qui décrit l'élément de cette zone porte encore le texte d'avant le changement.`] : [])];
+            if (shown.length) say(`Textes de la zone donnés au modèle de correction : ${shown.join(" | ")}`);
+            proposal = await proposerCorrection(VAULT, decision, { indices });
             decision = proposal.decision;
           } catch (error) {
             failure = error;

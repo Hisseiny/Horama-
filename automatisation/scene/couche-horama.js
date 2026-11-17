@@ -590,13 +590,33 @@
     autour(zone) {
       const found = document.elementFromPoint(zone.x + zone.largeur / 2 - scrollX, zone.y + zone.hauteur / 2 - scrollY);
       const texte = norm(found?.innerText);
-      if (!texte || texte.length > 40) return { texte: "", cadre: zone };
+      // Every visible text of the page centred inside the zone, in document order: what the zone says now, for the note
+      // correction. A hidden text (closed menu, screen reader only) does not count.
+      const textes = [];
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const raw = norm(node.textContent);
+        if (!raw || !node.parentElement?.checkVisibility({ opacityProperty: true, visibilityProperty: true })) continue;
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        const inside = [...range.getClientRects()].some(({ left, top, right, bottom }) => {
+          const x = (left + right) / 2 + scrollX;
+          const y = (top + bottom) / 2 + scrollY;
+          return right - left > 1 && bottom - top > 1 && x >= zone.x && x <= zone.x + zone.largeur && y >= zone.y && y <= zone.y + zone.hauteur;
+        });
+        if (!inside) continue;
+        // As shown on the screen: the case the style imposes, like innerText.
+        const transform = getComputedStyle(node.parentElement).textTransform;
+        const text = transform === "uppercase" ? raw.toUpperCase() : transform === "lowercase" ? raw.toLowerCase() : raw;
+        if (!textes.includes(text)) textes.push(text);
+      }
+      if (!texte || texte.length > 40) return { texte: "", cadre: zone, textes };
       const range = document.createRange();
       range.selectNodeContents(found);
       const { left, top, right, bottom } = range.getBoundingClientRect();
       const x = Math.min(zone.x, left + scrollX);
       const y = Math.min(zone.y, top + scrollY);
-      return { texte, cadre: rounded({ x, y, largeur: Math.max(zone.x + zone.largeur, right + scrollX) - x, hauteur: Math.max(zone.y + zone.hauteur, bottom + scrollY) - y }) };
+      return { texte, cadre: rounded({ x, y, largeur: Math.max(zone.x + zone.largeur, right + scrollX) - x, hauteur: Math.max(zone.y + zone.hauteur, bottom + scrollY) - y }), textes };
     },
     // Draws a line around rectangles of the page `adresse` (pathname and search), for the finding `id`; genre: "doute" or
     // "defaut"; avant: where the thing used to be, framed with dashes. Kept for when the page is that address again;
