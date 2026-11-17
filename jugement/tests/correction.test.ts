@@ -80,9 +80,18 @@ test("phrase contredite mais nouvel état inconnu : pas de correction, rien n'es
 test("un libellé renommé est accepté quand le changement le donne", () => {
   const before = "Le tableau a quatre colonnes : « Numéro », « Client », « Échéance », « Montant TTC ».";
   const after = "Le tableau a quatre colonnes : « Numéro », « Société », « Échéance », « Montant TTC ».";
-  const sources = `${LISTE.texte}\nChangement validé comme voulu : Quelque chose a changé ici, autour de « Société ».`;
-  assert.deepEqual(validateAnswer(answer(before, after), LISTE, "13", sources).reasons, []);
+  const change = "Quelque chose a changé ici, autour de « Société ».";
+  const sources = `${LISTE.texte}\nChangement validé comme voulu : ${change}`;
+  assert.deepEqual(validateAnswer(answer(before, after), LISTE, "13", sources, change).reasons, []);
   assert.match(validateAnswer(answer(before, after), LISTE, "13").reasons[0], /« Société »/, "sans le changement, « Société » est inventé");
+});
+
+test("refusé : une correction qui ne parle pas du changement (la note de version en annonce un autre)", () => {
+  const change = "Quelque chose a changé ici, autour de « Nouvelle facture ».";
+  const { reasons } = validateAnswer(GOOD, LISTE, "13", LISTE.texte, change);
+  assert.match(reasons[0], /ne parle pas de ce changement \(« Nouvelle facture »\)/);
+  assert.deepEqual(validateAnswer(GOOD, LISTE, "13", LISTE.texte, "« Exporter » a changé de place.").reasons, [], "le bon changement passe");
+  assert.deepEqual(validateAnswer(GOOD, LISTE, "13", LISTE.texte, "Quelque chose a changé ici.").reasons, [], "sans libellé, pas de contrôle");
 });
 
 test("refusé : une phrase paraphrasée, qui n'est pas mot pour mot dans la note", () => {
@@ -142,6 +151,15 @@ test("proposerCorrection : la correction proposée s'applique au vault par @hora
   assert.equal(applied.correction_de_note?.statut, "acceptee");
   assert.equal(lireDecisions(vault, "facturo")[0].correction_de_note?.statut, "acceptee");
   assert.equal(lireNotes(vault, "facturo").find(({ chemin }) => chemin === "produit/liste-des-factures.md")!.regles.length, 5, "les règles se lisent toujours");
+});
+
+test("proposerCorrection : une correction d'un autre changement est refusée, le second essai rend « pas de correction »", async () => {
+  const requests = router(GOOD, answer(null, null, "La note ne parle pas du bouton « Nouvelle facture »."));
+  const decision: Decision = { ...EXPORTER, ecart: "Quelque chose a changé ici, autour de « Nouvelle facture »." };
+  const proposal = await proposerCorrection(VAULT, decision);
+  assert.equal(proposal.decision.correction_de_note, undefined);
+  assert.equal(proposal.essais, 2);
+  assert.match(requests[1].messages[3].content, /ne parle pas de ce changement/);
 });
 
 test("proposerCorrection : une réponse refusée repart au modèle avec la raison, pour un second essai", async () => {

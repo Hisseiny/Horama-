@@ -1,7 +1,7 @@
 // Measure of task 5.2: the note correction proposed after a "voulu", on the 5 intended changes of Facturo (faux-saas/verite.json).
 // Usage, from the root of the repo: node --env-file=.env.local jugement/scripts/t52-correction.ts [model ...]
-// Writes docs/tests/2026-11-17-correction.md. No number of that file is written by hand.
-import { readFileSync, writeFileSync } from "node:fs";
+// Adds one run to docs/tests/2026-11-17-correction.md (earlier runs are kept). No number of that file is written by hand.
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import type { Decision } from "@horama/contrats";
@@ -29,6 +29,8 @@ const CASES: Record<string, { ecart: string; indice?: string; avant?: string; ap
   },
   "colonne-renommee": {
     ecart: "Quelque chose a changé ici, autour de « Société ».",
+    // Only if the scene reads the text of the same zone on the reference capture: demand made to Nathan in PR #11.
+    indice: "Dans la version de référence, à cet endroit : « Client ».",
     avant: "Le tableau a quatre colonnes : « Numéro », « Client », « Échéance », « Montant TTC ».",
     apresContient: "« Société »",
   },
@@ -84,19 +86,22 @@ for (const modele of models) {
   lines.push(`- \`${modele}\` : **${right} sur ${total}** propositions justes ; temps médian ${seconds(median(durations))}.`);
 }
 
+const header = existsSync(OUTPUT)
+  ? [readFileSync(OUTPUT, "utf8").trimEnd(), "", "---", ""]
+  : ["# 5.2 : correction de note proposée après un « voulu »", "", "Fichier écrit par `jugement/scripts/t52-correction.ts` : aucun chiffre n'y est écrit à la main. Une section par lancement.", ""];
 writeFileSync(OUTPUT, [
-  "# 5.2 : correction de note proposée après un « voulu »",
+  ...header,
+  `## Lancement du ${start.toISOString()}`,
   "",
-  "Fichier écrit par `jugement/scripts/t52-correction.ts` : aucun chiffre n'y est écrit à la main.",
-  "",
-  "## Ce qui a été lancé",
+  "### Ce qui a été lancé",
   "",
   "- Commande, depuis la racine : `node --env-file=.env.local jugement/scripts/t52-correction.ts " + models.join(" ") + "`",
   `- Début : ${start.toISOString()} ; code : commit \`${commit}\`.`,
+  "- Indices donnés : la question de la mascotte pour `export-haut` ; le texte de la même zone dans la version de référence pour `colonne-renommee` (à fournir par la scène, demandé à Nathan).",
   `- Cas : les ${truth.length} changements « voulu » de \`faux-saas/verite.json\`, ${PASSES} passes chacun, température 0, un second essai au plus après un refus du code.`,
   "- Juste : pour un changement qui contredit la doc, la phrase remplacée est la bonne phrase de la note et la nouvelle dit le nouvel état ; pour un changement qui ne la contredit pas, aucune correction n'est proposée.",
   "",
-  "## Ce qui en est sorti",
+  "### Ce qui en est sorti",
   "",
   ...lines,
   "- Critère de la tâche 5.2 : correction juste 3 cas sur 3 (ici, toutes les passes des cas qui contredisent la doc).",

@@ -30,7 +30,8 @@ export function withVersion(sentence: string, version: Version): string {
 }
 
 // `sources`: everything the model was given (note, change, release note, hints). A label of the new sentence must come from it.
-export function validateAnswer(content: string, note: Note, version: Version, sources: string = note.texte): Checked {
+// `change`: what is said of this change (ecart, pourquoi, hints). When it names labels, the correction must be about one of them.
+export function validateAnswer(content: string, note: Note, version: Version, sources: string = note.texte, change = ""): Checked {
   let answer: unknown;
   try {
     answer = JSON.parse(content.trim().replace(/^```(?:json)?\s*|\s*```$/g, ""));
@@ -53,6 +54,11 @@ export function validateAnswer(content: string, note: Note, version: Version, so
   }
   // The note is contradicted but nothing says the new state: no correction, and the caller says why.
   if (after === null) return { raison: why, reasons };
+  const named = labels(change);
+  const touched = new Set([...labels(avant), ...(typeof after === "string" ? labels(after) : [])]);
+  if (named.size && ![...named].some((label) => touched.has(label))) {
+    reasons.push(`la correction ne parle pas de ce changement (${[...named].map((label) => `« ${label} »`).join(", ")}) : ne corrige que ce qui concerne ce changement, sinon réponds null`);
+  }
   if (typeof after !== "string" || !after.trim()) return { raison: why, reasons: [...reasons, "« nouvelle_phrase » doit être une phrase, ou null"] };
   const sentence = after.trim();
   if (sentence.includes("\n")) reasons.push("« nouvelle_phrase » tient sur plusieurs lignes : une seule phrase est attendue");

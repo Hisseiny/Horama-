@@ -33,11 +33,12 @@ export async function proposerCorrection(vault: string, decision: Decision, opti
   const releaseNote = notes.find(({ chemin }) => chemin === `notes-de-version/v${decision.version}.md`);
   const messages = buildMessages(decision, note, releaseNote, options.indices ?? []);
   const sources = messages.map(({ content }) => content).join("\n");
+  const change = [decision.ecart, decision.pourquoi ?? "", ...(options.indices ?? [])].join("\n");
 
   let reasons: string[] = [];
   for (let essais = 1; essais <= 2; essais++) {
     const call = await callModel(modele, messages);
-    const checked = call.content === undefined ? undefined : validateAnswer(call.content, note, decision.version, sources);
+    const checked = call.content === undefined ? undefined : validateAnswer(call.content, note, decision.version, sources, change);
     options.trace?.({ ...call, rejections: checked?.reasons });
     if (!checked) return none(`Pas de correction proposée : le modèle n'a pas répondu (${call.error}).`, essais);
     if (!checked.reasons.length) {
