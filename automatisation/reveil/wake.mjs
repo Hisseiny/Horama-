@@ -1,6 +1,6 @@
 // Local fallback for issue #36: a commit touching site-eugenia/ wakes impact, then the scripted scene.
 import { execFileSync, spawn } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { setTimeout } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
@@ -39,8 +39,8 @@ function runNode(root, args, capture = false) {
 
 export async function wakeCommit({ root = ROOT, before, after, baseUrl, software = "eugenia", output, sceneArgs = [] }, run = runNode) {
   const started = performance.now();
-  const folder = join(output, after);
-  mkdirSync(folder, { recursive: true });
+  mkdirSync(output, { recursive: true });
+  const folder = mkdtempSync(join(output, `${after}-`));
   const impactFile = join(folder, "impact.json");
   const reportFile = join(folder, "reveil.json");
   const report = { depuis: before, vers: after, recu_le: new Date().toISOString(), base_url: baseUrl, etat: "impact" };

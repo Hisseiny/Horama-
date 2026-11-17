@@ -17,14 +17,14 @@ Sur Mac, omettre `DISPLAY` et adapter `CHROME_BIN` (par défaut de la scène : `
 
 Au démarrage, le sommet de la branche devient le point de départ ; les commits existants ne sont pas rejoués. `--depuis <commit>` permet un rattrapage explicite, `--une-fois` attend/traite le premier commit pertinent puis sort. La surveillance interroge Git toutes les 500 ms (`--intervalle` en ms). Les commits sans changement du site sont ignorés ; plusieurs commits entre deux interrogations sont traités dans l'ordre, sans chevauchement. Un recul/divergence de la branche ou un échec d'impact/scène arrête visiblement le programme (sortie 2) ; corriger puis reprendre avec `--depuis <dernier commit traité avec succès>`. Ctrl+C arrête la surveillance. Il ne fait ni fetch ni push.
 
-À chaque réveil, dans `.orchestrateur/reveil/<commit>/` (ou `--sortie <dossier>`) :
+À chaque réveil, dans `.orchestrateur/reveil/<commit>-<suffixe unique>/` (ou `--sortie <dossier>`) :
 
 - `impact.json` : **sortie exacte** de `impact.mjs --depuis <avant> --vers <après> --logiciel eugenia --json`, format `horama-impact-1`, retenus ET écartés avec raisons ;
 - `vault-horama/` : export Git du même commit, copie privée pour les écritures de la scène ; le vault du dépôt reste intact ;
 - `scene/` : résultat de `parcours.mjs --sans-agent --sans-base --impact <fichier> --base-url <adresse> --logiciel eugenia` ; aucun `--tests` ne remplace la sélection ;
 - `reveil.json` : heures, délai détection → lancement du processus scène (`scene_lancee_ms`, **pas** la durée du parcours), durée complète si terminé (`total_ms`), état ou erreur.
 
-Un impact vide est écrit, annoncé et ne lance pas la scène (qui refuserait une sélection vide). `--une-fois` sort alors normalement. Le profil Chrome est dans `<sortie>/profil`. Les options après `--` sont transmises à la scène ; sélection, cible, vault, profil, sortie et `--avec-base` sont réservés au réveil. `--sans-presentation` accélère la scène pour mesurer le déclenchement ; sans cette option, elle montre la bulle de sélection. `--sans-fin` évite d'attendre une décision humaine pendant un essai ; ce n'est pas un verdict de réussite du produit.
+Un impact vide est écrit, annoncé et ne lance pas la scène (qui refuserait une sélection vide). `--une-fois` sort alors normalement. Un rejeu du même commit reçoit un dossier neuf : il conserve les preuves précédentes sans recharger leurs décisions. Le profil Chrome est dans `<sortie>/profil`. Les options après `--` sont transmises à la scène ; sélection, cible, vault, profil, sortie et `--avec-base` sont réservés au réveil. `--sans-presentation` accélère la scène pour mesurer le déclenchement ; sans cette option, elle montre la bulle de sélection. `--sans-fin` évite d'attendre une décision humaine pendant un essai ; ce n'est pas un verdict de réussite du produit.
 
 ## Préparer le vrai site avec l'équipe
 

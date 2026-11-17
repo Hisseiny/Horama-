@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -77,7 +77,25 @@ test("écrit le JSON intact avant la scène, transmet sélection/cible et protè
   assert.equal(report.etat, "termine");
   assert.ok(report.scene_lancee_ms >= report.impact_ms);
   assert.equal(readFileSync(join(root, "vault-horama/eugenia/produit/accueil.md"), "utf8"), "note d'essai\n");
-  assert.equal(JSON.parse(readFileSync(join(output, after, "reveil.json"))).etat, "termine");
+  assert.equal(JSON.parse(readFileSync(join(output, readdirSync(output)[0], "reveil.json"))).etat, "termine");
+});
+
+test("rejouer le même commit conserve les preuves mais ne recharge pas les décisions du premier passage", async (t) => {
+  const { root, before, output } = fixture(t);
+  const vaults = [];
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await wakeCommit({ root, before, after: before, output }, async (_cwd, args, capture) => {
+      if (capture) return JSON.stringify(impactFor());
+      const vault = args[args.indexOf("--vault") + 1];
+      vaults.push(vault);
+      const decision = join(vault, "eugenia/decisions/essai.md");
+      assert.equal(existsSync(decision), false);
+      mkdirSync(join(vault, "eugenia/decisions"), { recursive: true });
+      writeFileSync(decision, "décision du passage\n");
+    });
+  }
+  assert.notEqual(vaults[0], vaults[1]);
+  assert.equal(readFileSync(join(vaults[0], "eugenia/decisions/essai.md"), "utf8"), "décision du passage\n");
 });
 
 test("un impact vide est conservé sans lancer la scène", async (t) => {
@@ -89,7 +107,7 @@ test("un impact vide est conservé sans lancer la scène", async (t) => {
   });
   assert.equal(calls, 1);
   assert.equal(report.etat, "aucun-test");
-  assert.deepEqual(JSON.parse(readFileSync(join(output, before, "impact.json"))).retenus, []);
+  assert.deepEqual(JSON.parse(readFileSync(join(output, readdirSync(output)[0], "impact.json"))).retenus, []);
 });
 
 test("une erreur impact, un format invalide ou une erreur scène est visible et arrête la suite", async (t) => {
@@ -103,7 +121,7 @@ test("une erreur impact, un format invalide ou une erreur scène est visible et 
       return JSON.stringify(stage === "format" ? { ...impactFor(), format: "inconnu" } : impactFor());
     }));
     assert.equal(calls, stage === "scene" ? 2 : 1);
-    const report = JSON.parse(readFileSync(join(target, before, "reveil.json")));
+    const report = JSON.parse(readFileSync(join(target, readdirSync(target)[0], "reveil.json")));
     assert.equal(report.etat, "echec");
     assert.ok(report.erreur);
   }
