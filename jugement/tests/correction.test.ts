@@ -59,13 +59,13 @@ test("la version est ajoutée par le code, avant le point final", () => {
 });
 
 test("une bonne réponse donne avant (recopié de la note) et après (avec la version)", () => {
-  assert.deepEqual(validateAnswer(GOOD, LISTE, "13"), {
+  assert.deepEqual(validateAnswer(GOOD, LISTE, "13", "Exporter"), {
     avant: EXPORTER_BEFORE,
     apres: "Le bouton « Exporter » se trouve en haut à droite du tableau (depuis la version 13).",
     raison: "La note de version dit que le bouton passe en haut à droite.",
     reasons: [],
   });
-  assert.deepEqual(validateAnswer("```json\n" + GOOD + "\n```", LISTE, "13").reasons, [], "un bloc de code autour est toléré");
+  assert.deepEqual(validateAnswer("```json\n" + GOOD + "\n```", LISTE, "13", "Exporter").reasons, [], "un bloc de code autour est toléré");
 });
 
 test("aucune phrase contredite : pas de correction, et ce n'est pas une erreur", () => {
@@ -118,6 +118,34 @@ test("refusé : version écrite par le modèle, libellé inventé, phrase identi
 
 // ---------- proposerCorrection, with the router replaced ----------
 
+test("un libellé de la note seule ne prouve pas qu'il a été lu sur la page", () => {
+  const before = "Le bouton « CANDIDATER → » est gris.";
+  const note = { ...LISTE, texte: before };
+  const correction = answer(before, "Le bouton « CANDIDATER → » n'est plus gris.");
+  assert.match(validateAnswer(correction, note, "13").reasons.join(" ; "), /« CANDIDATER → »/);
+  assert.deepEqual(validateAnswer(correction, note, "13", "  candidater\u00a0  → ").reasons, []);
+});
+
+test("POSTULER devient CANDIDATER avec un indice lu, jamais avec la note seule", () => {
+  const before = "Le bouton « POSTULER → » ouvre le formulaire.";
+  const note = { ...LISTE, texte: before };
+  const correction = answer(before, "Le bouton « CANDIDATER → » ouvre le formulaire.");
+  assert.deepEqual(validateAnswer(correction, note, "13", "CANDIDATER →").reasons, []);
+  assert.ok(validateAnswer(correction, note, "13", "POSTULER →").reasons.length);
+  assert.ok(validateAnswer(correction, note, "13", "CANDIDATER").reasons.length);
+});
+
+test("proposerCorrection : sans indice, le libellé de la note est refusé deux fois puis la décision reste intacte", async () => {
+  const requests = router(GOOD, GOOD);
+  const proposal = await proposerCorrection(VAULT, EXPORTER);
+  assert.equal(proposal.decision, EXPORTER);
+  assert.equal(proposal.decision.correction_de_note, undefined);
+  assert.equal(proposal.essais, 2);
+  assert.equal(requests.length, 2);
+  assert.match(requests[1].messages[3].content, /cite des libellés que rien ne donne : « Exporter »/);
+  assert.match(proposal.raison, /Pas de correction proposée : réponse refusée après 2 essais/);
+});
+
 test("proposerCorrection : la note de l'écran, la note de version et l'écart partent au modèle, à température 0", async () => {
   const requests = router(GOOD);
   const proposal = await proposerCorrection(VAULT, EXPORTER, { indices: ["La mascotte a demandé : « Exporter » est passé du bas au haut à droite. Bug ou voulu ?"] });
@@ -142,7 +170,7 @@ test("proposerCorrection : la correction proposée s'applique au vault par @hora
   after(() => rmSync(vault, { recursive: true, force: true }));
   cpSync(join(VAULT, "facturo", "produit"), join(vault, "facturo", "produit"), { recursive: true });
   cpSync(join(VAULT, "facturo", "notes-de-version"), join(vault, "facturo", "notes-de-version"), { recursive: true });
-  const { decision } = await proposerCorrection(vault, EXPORTER);
+  const { decision } = await proposerCorrection(vault, EXPORTER, { indices: ["Exporter"] });
   ecrireDecision(vault, decision);
   const applied = appliquerCorrection(vault, decision);
   const note = readFileSync(join(vault, "facturo", "produit", "liste-des-factures.md"), "utf8");
@@ -166,7 +194,7 @@ test("proposerCorrection : un null alors que la note cite l'ancien libellé repa
   const before = "Le tableau a quatre colonnes : « Numéro », « Client », « Échéance », « Montant TTC ».";
   const renamed = answer(before, "Le tableau a quatre colonnes : « Numéro », « Société », « Échéance », « Montant TTC ».");
   const decision: Decision = { ...EXPORTER, ecart: "Quelque chose a changé ici, autour de « Société »." };
-  const indices = ["Dans la version de référence, à cet endroit : « Client »."];
+  const indices = ["Dans la version de référence, à cet endroit : « Client ».", "Numéro Société Échéance Montant TTC"];
   const requests = router(answer(null, null, "La note ne cite pas « Société »."), renamed);
   const proposal = await proposerCorrection(VAULT, decision, { indices });
   assert.equal(proposal.essais, 2);
@@ -184,7 +212,7 @@ test("proposerCorrection : un null alors que la note cite l'ancien libellé repa
 
 test("proposerCorrection : une réponse refusée repart au modèle avec la raison, pour un second essai", async () => {
   const requests = router(answer("Le bouton Exporter est en bas du tableau.", "Le bouton « Exporter » est en haut à droite."), GOOD);
-  const proposal = await proposerCorrection(VAULT, EXPORTER);
+  const proposal = await proposerCorrection(VAULT, EXPORTER, { indices: ["Exporter"] });
   assert.equal(proposal.essais, 2);
   assert.equal(proposal.decision.correction_de_note?.avant, EXPORTER_BEFORE);
   assert.deepEqual(requests[1].messages.map(({ role }) => role), ["system", "user", "assistant", "user"]);
