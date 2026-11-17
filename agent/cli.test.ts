@@ -12,6 +12,25 @@ import { HELP, lancerCommande, lireArguments } from "./src/cli.ts";
 const args = ["--logiciel", "facturo", "--version", "13", "--reference", "12"];
 const report: RapportPassage = { passage: { id: "p1", logiciel: "facturo", version_testee: "13", version_reference: "12", etat: "joue", debut: "2026-11-17T12:00:00Z" }, tests: [] };
 
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  test(`${signal} ferme le runtime avant de sortir et retire les écouteurs`, async () => {
+    const before = [process.listenerCount("SIGINT"), process.listenerCount("SIGTERM")];
+    const calls: (string | number)[] = [];
+    await lancerCommande(lireArguments(args)!, {
+      base: new BaseMemoire(), session: async () => { throw new Error("Non appelée."); }, output() {},
+      runtime: { relever: async () => { throw new Error(); }, navigateur: async () => { throw new Error(); }, close() { calls.push("close"); } },
+      exit(code) { calls.push(code); },
+      createRunner: () => ({ async lancerPassage() { return { passage_id: "p1" }; }, async attendreFin() {
+        process.emit(signal);
+        assert.deepEqual(calls, ["close", signal === "SIGINT" ? 130 : 143]);
+        return report;
+      } }),
+    });
+    assert.deepEqual(calls, ["close", signal === "SIGINT" ? 130 : 143]);
+    assert.deepEqual([process.listenerCount("SIGINT"), process.listenerCount("SIGTERM")], before);
+  });
+}
+
 test("arguments du banc, listes, valeurs par défaut et aide sans dépendances", () => {
   assert.equal(lireArguments(["--", "--help"]), null);
   assert.match(HELP, /SUPABASE_URL/);

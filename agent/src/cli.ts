@@ -71,6 +71,7 @@ export function lireArguments(args: string[]): PassageOptions | null {
 export async function lancerCommande(options: PassageOptions, dependencies: {
   base?: BasePassages; runtime?: BrowserRuntime; session?: Session; env?: NodeJS.ProcessEnv;
   output?: (line: string) => void; createRunner?: typeof creerCoureur; createSession?: typeof creerSessionH;
+  exit?: (code: number) => void;
 } = {}) {
   const env = dependencies.env ?? process.env;
   const input: LancementPassage = { logiciel: options.logiciel, version_testee: options.version, version_reference: options.reference,
@@ -79,6 +80,15 @@ export async function lancerCommande(options: PassageOptions, dependencies: {
   if (!dependencies.session && !key) throw new Error("Clé H absente pour ce passage.");
   const base = dependencies.base ?? creerBaseSupabase({ url: env.SUPABASE_URL, key: env.SUPABASE_SERVICE_ROLE_KEY });
   const runtime = dependencies.runtime ?? await navigateurLocal(options.port);
+  let closed = false;
+  const close = () => { if (!closed) { closed = true; runtime.close(); } };
+  const interrupt = (code: number) => {
+    try { close(); } finally { (dependencies.exit ?? process.exit)(code); }
+  };
+  const onInterrupt = () => interrupt(130);
+  const onTerminate = () => interrupt(143);
+  process.once("SIGINT", onInterrupt);
+  process.once("SIGTERM", onTerminate);
   try {
     const runner = (dependencies.createRunner ?? creerCoureur)({ vault: options.vault, base, baseUrl: options.baseUrl ?? env.FAUX_SAAS_URL,
       session: dependencies.session ?? (dependencies.createSession ?? creerSessionH)({ key, navigateur: () => runtime.navigateur() }), relever: (ecran, vue) => runtime.relever(ecran, vue),
@@ -86,5 +96,9 @@ export async function lancerCommande(options: PassageOptions, dependencies: {
     const { passage_id } = await runner.lancerPassage(input);
     (dependencies.output ?? console.log)(passage_id);
     return await runner.attendreFin(passage_id);
-  } finally { runtime.close(); }
+  } finally {
+    process.off("SIGINT", onInterrupt);
+    process.off("SIGTERM", onTerminate);
+    close();
+  }
 }
