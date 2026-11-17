@@ -12,6 +12,10 @@ Date : 17 novembre 2026. Couloir Nathan. Contexte : nouveau cap de Nathan (optio
 
 ## Demandé au couloir Ali (`agent/`)
 
+Suivi par Ali dans l'issue #35 (https://github.com/Hisseiny/Horama-/issues/35 : `contrats-v2` avec la règle `etat`, vues lues dans le vault, site sans version dans l'adresse). Ali commence par `contrats-v2`.
+
+Facturo est abandonné par décision de Nathan (17/11) : plus de démo de secours. Les points ci-dessous valent pour tout logiciel sans versions dans l'adresse, d'abord la copie du site d'Eugenia.
+
 | N° | Où | Ce qui suppose Facturo | Proposition |
 |---|---|---|---|
 | 1 | `agent/src/consigne.ts`, `VIEWS` | Les vues nommées sont en dur : `defaut`, et `filtre-echeance` (paramètre `?filtre=echeance-depassee`, vue apparue en version 13). Toute autre vue fait échouer `construireConsigne` (« Vue inconnue »), donc tout le parcours | Lire les vues dans le champ `vues:` de la note de l'écran (déjà lu par `memoire`, PR #23). Une vue sans précision a l'adresse de `defaut` (cas de `mode-sombre`, atteinte par un clic) ; garder `filtre-echeance` comme cas particulier tant que la note ne sait pas dire son paramètre, ou ajouter ce paramètre à la note (à voir avec Inès) |
