@@ -69,18 +69,30 @@ export function construireConsigne({ vault, logiciel, version, ids, baseUrl = pr
       if (typeof url !== "string") missing.push(`Aucune note de ${logiciel} ne donne l'adresse de l'écran « ${ecran} » (champ url de son en-tête).`);
       if (!VIEWS[vue]) missing.push(`Vue « ${vue} » inconnue : son adresse est à ajouter dans VIEWS (parcours.mjs).`);
       const numbers = [...new Set(test.markdown.match(/\bF-\d+\b/g) ?? [])];
-      const path = `/v${version}${url}`.replaceAll("<numero>", numbers.length === 1 ? numbers[0] : "<numero>");
+      const versioned = /^\/v\d+\//.test(test.url_depart);
+      const address = new URL(`${versioned ? `/v${version}` : ""}${url}`.replaceAll("<numero>", numbers.length === 1 ? numbers[0] : "<numero>"), baseUrl);
+      const departure = new URL(test.url_depart, baseUrl);
+      if (!versioned && address.origin === departure.origin) {
+        departure.searchParams.forEach((value, key) => {
+          if (!address.searchParams.has(key)) address.searchParams.set(key, value);
+        });
+      }
+      const filtre = VIEWS[vue]?.filtre;
+      if (filtre) address.searchParams.set("filtre", filtre);
+      const path = decodeURI(address.pathname);
       const pattern = `^${path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/<[^>]+>/g, "[^/]+")}$`;
-      const filtre = VIEWS[vue]?.filtre ?? null;
+      const query = [...address.searchParams].map(([key, value]) => `new URLSearchParams(location.search).get(${JSON.stringify(key)}) === ${JSON.stringify(value)}`);
+      if (!address.searchParams.has("filtre")) query.push('new URLSearchParams(location.search).get("filtre") === null');
       course.push({
         ecran, vue, key: keyOf({ ecran, vue }), part: index + 1, test_id: test.id,
-        address: `${path}${filtre ? `?filtre=${filtre}` : ""}`,
-        here: `new RegExp(${JSON.stringify(pattern)}).test(location.pathname) && new URLSearchParams(location.search).get("filtre") === ${JSON.stringify(filtre)}`,
+        address: `${address.origin === new URL(baseUrl).origin ? "" : address.origin}${path}${address.search}`,
+        here: `new RegExp(${JSON.stringify(pattern)}).test(location.pathname) && ${query.join(" && ")}`,
       });
     }
   });
   if (missing.length) throw new Error(missing.join("\n"));
-  const start = `${baseUrl.replace(/\/$/, "")}${tests[0].url_depart.replaceAll(`/v${tests[0].version_cible}/`, `/v${version}/`)}${regressions.length ? `&r=${regressions.join(",")}` : ""}`;
+  const departure = `${baseUrl.replace(/\/$/, "")}${tests[0].url_depart.replaceAll(`/v${tests[0].version_cible}/`, `/v${version}/`)}`;
+  const start = `${departure}${regressions.length ? `${departure.includes("?") ? "&" : "?"}r=${regressions.join(",")}` : ""}`;
   const instructions = [`Tu joues un parcours de test sur le logiciel ${logiciel}, dans le seul onglet ouvert du navigateur.`, ...COURSE_RULES].join("\n");
   const task = [
     `Ouvre ${start} dans l'onglet courant avec go_to, sans chercher ni changer d'onglet. Puis joue ${tests.length > 1 ? `les ${tests.length} parties ci-dessous, dans l'ordre` : "la partie ci-dessous"}. Ne rouvre jamais cette adresse : on passe d'une partie à la suivante par les menus et les liens du logiciel.`,
