@@ -24,7 +24,7 @@ test("un fichier propre à la page de la liste ne retient que les tests qui rel�
   const resultat = choix(["faux-saas/app/[version]/factures/page.tsx"]);
   assert.deepEqual(resultat.ids, ["ca-du-mois-egal-total", "detail-facture-total-egal-liste", "liste-factures-filtre-echeance"]);
   assert.deepEqual(resultat.ecrans, [{ ecran: "liste-des-factures", raisons: ["code de la note produit/liste-des-factures.md : faux-saas/app/[version]/factures/page.tsx"] }]);
-  assert.deepEqual(resultat.ecartes, [{ id: "mode-sombre-tableau-de-bord" }]);
+  assert.deepEqual(resultat.ecartes, [{ id: "mode-sombre-tableau-de-bord", raison: "page non touchée" }]);
 });
 
 test("un fichier commun à toutes les notes retient tous les tests", () => {

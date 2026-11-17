@@ -59,7 +59,7 @@ export function choisirTests({ fichiers, notes, fiches, tests, socle }) {
     ids,
     ecrans: [...ecrans.keys()].sort().map((ecran) => ({ ecran, raisons: ecrans.get(ecran) })),
     retenus: ids.map((id) => ({ id, raisons: kept.get(id) })),
-    ecartes: tests.filter((test) => !kept.has(test.id)).map((test) => ({ id: test.id })),
+    ecartes: tests.filter((test) => !kept.has(test.id)).map((test) => ({ id: test.id, raison: "page non touchée" })),
     socle_inconnus,
   };
 }
@@ -96,7 +96,7 @@ function detail(resultat, { depuis, vers, logiciel, fichiers, fiches, socle }) {
   for (const { id, raisons } of resultat.retenus) lines.push(`  ${id} : ${raisons.join(" ; ")}`);
   if (!resultat.retenus.length) lines.push("  (aucun)");
   lines.push("", `Tests écartés (${resultat.ecartes.length}) :`);
-  for (const { id } of resultat.ecartes) lines.push(`  ${id}`);
+  for (const { id, raison } of resultat.ecartes) lines.push(`  ${id} : ${raison}`);
   if (!resultat.ecartes.length) lines.push("  (aucun)");
   lines.push("", `Socle : ${socle.join(", ") || "(vide)"}${resultat.socle_inconnus.length ? ` ; inconnus : ${resultat.socle_inconnus.join(", ")}` : ""}`);
   return lines.join("\n");
@@ -144,7 +144,8 @@ function main() {
   }
   const { resultat, fiches } = sortie;
   if (flag("json")) {
-    process.stdout.write(`${JSON.stringify({ depuis: DEPUIS, vers: VERS, logiciel: LOGICIEL, fichiers, fiches_retenues: fiches.map(({ id }) => id), socle, ...resultat }, null, 2)}\n`);
+    // Format: docs/decisions/2026-11-17-format-impact.md
+    process.stdout.write(`${JSON.stringify({ format: "horama-impact-1", le: new Date().toISOString(), depuis: DEPUIS, vers: VERS, logiciel: LOGICIEL, fichiers, fiches_retenues: fiches.map(({ id }) => id), socle, ...resultat }, null, 2)}\n`);
     return;
   }
   console.error(detail(resultat, { depuis: DEPUIS, vers: VERS, logiciel: LOGICIEL, fichiers, fiches, socle }));

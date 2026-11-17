@@ -49,6 +49,9 @@ const PAR = option("par", "Nathan");
 const CHECK_FILE = resolve(option("verification", join(HERE, "../../jugement/verification/index.ts")));
 const CORRECTION_FILE = resolve(option("correction", join(HERE, "../../jugement/correction/index.ts")));
 const CORRECTION_CHOICE = option("correction-choix");
+// The choice of the tests made from a change (docs/decisions/2026-11-17-format-impact.md): shown before the course,
+// and, without --tests, the tests the scene plays.
+const IMPACT_FILE = option("impact") ? resolve(option("impact")) : null;
 const CHROME_BIN = process.env.CHROME_BIN || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const BASE = option("base-url", process.env.FAUX_SAAS_URL || "https://facturo-demo.vercel.app").replace(/\/$/, "");
 
@@ -57,10 +60,21 @@ const BASE = option("base-url", process.env.FAUX_SAAS_URL || "https://facturo-de
 // and how to recognise each page. The scene plays that same course, so what is particular to the tested software
 // (views, version in the address, entrance) is written in one place only.
 const missing = [];
+let impact = null;
+if (IMPACT_FILE) {
+  try {
+    impact = JSON.parse(readFileSync(IMPACT_FILE, "utf8"));
+    if (impact.format !== "horama-impact-1" || !Array.isArray(impact.retenus) || !Array.isArray(impact.ecartes)) throw new Error("ce n'est pas un fichier horama-impact-1");
+    if (impact.logiciel !== LOGICIEL) throw new Error(`il porte sur ${impact.logiciel}, pas sur ${LOGICIEL}`);
+  } catch (error) {
+    missing.push(`--impact ${IMPACT_FILE} illisible : ${error.message}`);
+    impact = null;
+  }
+}
 const REGRESSIONS = flag("r") ? option("r").split(",") : undefined;
 let consigne = null;
 try {
-  consigne = construireConsigne({ vault: VAULT, logiciel: LOGICIEL, version: VERSION, ids: flag("tests") ? option("tests").split(",") : undefined, baseUrl: BASE, regressions: REGRESSIONS });
+  consigne = construireConsigne({ vault: VAULT, logiciel: LOGICIEL, version: VERSION, ids: flag("tests") ? option("tests").split(",") : impact?.retenus.map(({ id }) => id), baseUrl: BASE, regressions: REGRESSIONS });
 } catch (error) {
   missing.push(`La consigne du coureur ne se construit pas : ${error.message}`);
 }
@@ -462,6 +476,20 @@ try {
     throw new Error(`zone de page ${area.largeur} × ${area.hauteur} à la densité ${area.densite} au lieu de ${WIDTH} × ${HEIGHT} à la densité 1 (émulation refusée ou zoom de page) : parcours non joué`);
   }
   if (FILM) film();
+  if (impact) {
+    // What the change asks to replay, said once before the agent starts, on its departure page.
+    const plural = (n, one, many) => `${n} ${n > 1 ? many : one}`;
+    const reasons = [...new Set(impact.ecartes.map(({ raison }) => raison).filter(Boolean))];
+    const text = `Nouvelle version${impact.vers ? ` (${String(impact.vers).slice(0, 7)})` : ""} : ${plural(impact.retenus.length, "test rejoué", "tests rejoués")}${impact.ecartes.length ? `, ${plural(impact.ecartes.length, "écarté", "écartés")}${reasons.length ? ` : ${reasons.join(", ")}` : ""}` : ""}.`;
+    say(`Sélection : ${text} Retenus : ${impact.retenus.map(({ id, raisons }) => `${id} (${(raisons ?? []).join(" ; ")})`).join(", ")}. Écartés : ${impact.ecartes.map(({ id, raison }) => `${id} (${raison})`).join(", ") || "aucun"}.`);
+    if (!SANS_PRESENTATION) {
+      await navigate(page, START);
+      await mascot("bulle", text, "", null);
+      await witness("selection");
+      await sleep(reading(text));
+      await mascot("bulle", null);
+    }
+  }
   const coureur = creerCoureur({
     vault: VAULT, base, baseUrl: BASE, identifiant: () => ID, signaler: say, hookTimeoutMs: HOOK_TIMEOUT_MS, signal: arret.signal,
     relever: async (ecran, vue) => {
@@ -656,6 +684,7 @@ writeFileSync(join(OUT, "passage.json"), `${JSON.stringify({
   clic_retenu: !DIRECT,
   retard_par_clic_ms: delays.length ? { min: Math.min(...delays), max: Math.max(...delays), moyenne: Math.round(delays.reduce((sum, ms) => sum + ms, 0) / delays.length) } : null,
   sans_presentation: SANS_PRESENTATION,
+  impact: impact && { fichier: IMPACT_FILE, depuis: impact.depuis ?? null, vers: impact.vers ?? null, retenus: impact.retenus.map(({ id }) => id), ecartes: impact.ecartes },
   relever_ms: releverMs,
   relever_max_ms: releverMs.length ? Math.max(...releverMs.map(({ ms }) => ms)) : null,
   delai_crochet_ms: HOOK_TIMEOUT_MS,
