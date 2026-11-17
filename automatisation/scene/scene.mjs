@@ -100,11 +100,14 @@ export async function connectTab(port) {
   return page;
 }
 
-export async function evaluate(page, expression) {
-  const { result, exceptionDetails } = await page.send("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true });
+async function run(page, expression, context = {}) {
+  const { result, exceptionDetails } = await page.send("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true, ...context });
   if (exceptionDetails) throw new Error(exceptionDetails.exception?.description ?? exceptionDetails.text);
   return result.value;
 }
+
+// Evaluates in the main world of the page, the one of the tested software.
+export const evaluate = (page, expression) => run(page, expression);
 
 // True as soon as the expression is true in the page. An evaluation that fails (page being replaced) is tried again.
 export async function waitFor(page, expression, timeoutMs) {
@@ -160,28 +163,52 @@ export async function fitViewport(page) {
   return measure(page);
 }
 
+const WORLD = "horama";
+const worlds = new WeakMap(); // per tab: its main frame and the id of the world of the layer in its current page
+
 // Puts the Horama layer (couche-horama.js) in every page to come, with the code of rough-notation beside it (nothing
 // is fetched by the page). onPress receives what the layer reports at each press of the agent, and again when a held
 // click is given back to the page ({ rejoue, retard_ms }); onChoice receives { id, choix } at the end of the course.
 // `passage` names the course (the layer forgets what another course left in the tab), `titre` is its banner, `direct`
 // leaves the clicks alone instead of holding them while the cursor travels.
+// The layer and its two bindings live in an isolated world of the page, named WORLD, as the content script of an
+// extension: same DOM (it draws in the page and sees the trusted clicks of the agent), but the code of the tested
+// software sees neither window.__horama nor horamaPress nor horamaChoix, so it cannot answer in place of the human.
 export async function installLayer(page, onPress, { passage = "", titre = "", direct = false, onChoice } = {}) {
-  await page.send("Runtime.addBinding", { name: "horamaPress" });
-  await page.send("Runtime.addBinding", { name: "horamaChoix" });
+  const { frameTree } = await page.send("Page.getFrameTree");
+  const world = { frame: frameTree.frame.id, id: null };
+  worlds.set(page, world);
+  // The world of the layer is created anew with each document of the main frame: its id is followed here.
+  page.on("Runtime.executionContextCreated", ({ context }) => {
+    if (context.name === WORLD && context.auxData?.frameId === world.frame) world.id = context.id;
+  });
+  page.on("Runtime.executionContextDestroyed", ({ executionContextId }) => {
+    if (executionContextId === world.id) world.id = null;
+  });
+  page.on("Runtime.executionContextsCleared", () => (world.id = null));
+  for (const name of ["horamaPress", "horamaChoix"]) await page.send("Runtime.addBinding", { name, executionContextName: WORLD });
   page.on("Runtime.bindingCalled", ({ name, payload }) => (name === "horamaPress" ? onPress : name === "horamaChoix" ? onChoice : null)?.(JSON.parse(payload)));
   const read = (file) => readFileSync(new URL(file, import.meta.url), "utf8");
   await page.send("Page.addScriptToEvaluateOnNewDocument", {
     source: `(() => {\n${read("./node_modules/rough-notation/lib/rough-notation.iife.js")};\n${read("./couche-horama.js")}(${JSON.stringify(passage)}, ${JSON.stringify(titre)}, ${JSON.stringify({ direct })}, RoughNotation.annotate);\n})();`,
+    worldName: WORLD,
   });
 }
 
-// Calls a command of the layer in the page (window.__horama, see couche-horama.js) and returns what it returns. Tried
+// Evaluates in the world of the layer, in the current page of the main frame.
+const inLayer = (page, expression) => {
+  const id = worlds.get(page)?.id;
+  if (!id) return Promise.reject(new Error("couche Horama absente de la page"));
+  return run(page, expression, { contextId: id });
+};
+
+// Calls a command of the layer (window.__horama of its world, see couche-horama.js) and returns what it returns. Tried
 // again for a few seconds: the agent may be changing page at that moment.
 export async function layer(page, command, ...args) {
   const expression = `window.__horama.${command}(${args.map((arg) => JSON.stringify(arg) ?? "undefined").join(", ")})`;
   for (const end = Date.now() + 5000; ; await sleep(100)) {
     try {
-      return await evaluate(page, expression);
+      return await inLayer(page, expression);
     } catch (error) {
       if (Date.now() > end) throw error;
     }
@@ -191,9 +218,9 @@ export async function layer(page, command, ...args) {
 // Our own capture of the page, layer hidden. Field names follow Capture of contrats/types.ts.
 export async function capture(page) {
   try {
+    await inLayer(page, "window.__horama?.masquer()").catch(() => {});
     const seen = await evaluate(page, `(async () => {
       scrollTo(0, 0);
-      window.__horama?.masquer();
       await new Promise((done) => { requestAnimationFrame(() => requestAnimationFrame(done)); setTimeout(done, 300); });
       return { texte_page: document.body.innerText, url_page: location.href, defilement: [scrollX, scrollY] };
     })()`);
@@ -201,7 +228,7 @@ export async function capture(page) {
     const png = Buffer.from(data, "base64");
     return { png, largeur: png.readUInt32BE(16), hauteur: png.readUInt32BE(20), ...seen, prise_le: new Date().toISOString() };
   } finally {
-    await evaluate(page, "window.__horama?.montrer()").catch(() => {});
+    await inLayer(page, "window.__horama?.montrer()").catch(() => {});
   }
 }
 

@@ -568,8 +568,16 @@ if (page) {
         let decision = versDecision(constat, choix, { passage_id: ID, test_id: testOf(constat), logiciel: LOGICIEL, version: VERSION, par: PAR, le });
         let file;
         if (choix === "voulu") {
-          const proposal = await proposerCorrection(VAULT, decision, { indices: [question] });
-          decision = proposal.decision;
+          // A correction that cannot be proposed, applied or refused leaves the decision as versDecision made it.
+          const plain = decision;
+          let failure = null;
+          let proposal = null;
+          try {
+            proposal = await proposerCorrection(VAULT, decision, { indices: [question] });
+            decision = proposal.decision;
+          } catch (error) {
+            failure = error;
+          }
           if (decision.correction_de_note) {
             await navigate(page, taken.get(`${constat.ecran}--${constat.vue}`).url);
             const answer = new Promise((resolve) => (chosen = resolve));
@@ -579,17 +587,28 @@ if (page) {
             await witness("correction-proposee");
             if (CORRECTION_CHOICE) sleep(SANS_PRESENTATION ? 0 : reading(correction.avant + correction.apres)).then(() => mascot("chooseCorrection", CORRECTION_CHOICE, decision.id)).catch(() => {});
             const { choix: correctionChoice } = await answer;
-            decision = correctionChoice === "accepter" ? appliquerCorrection(VAULT, decision) : refuserCorrection(VAULT, decision);
-            // The memory operation already wrote this final decision; do not overwrite it with an earlier version.
-            file = `${decision.logiciel}/decisions/${decision.id}.md`;
-            await mascot("correctionResult", decision.correction_de_note.statut);
-            say(`Correction ${decision.correction_de_note.statut} : ${correction.fichier}.`);
-            await hold(900);
-            await witness(`correction-${decision.correction_de_note.statut}`);
+            try {
+              decision = correctionChoice === "accepter" ? appliquerCorrection(VAULT, decision) : refuserCorrection(VAULT, decision);
+              // The memory operation already wrote this final decision; do not overwrite it with an earlier version.
+              file = `${decision.logiciel}/decisions/${decision.id}.md`;
+            } catch (error) {
+              failure = error;
+              decision = plain;
+            }
+            if (!failure) {
+              await mascot("correctionResult", decision.correction_de_note.statut);
+              say(`Correction ${decision.correction_de_note.statut} : ${correction.fichier}.`);
+              await hold(900);
+              await witness(`correction-${decision.correction_de_note.statut}`);
+            }
             await mascot("bulle", null);
-          } else {
+          } else if (proposal) {
             say(proposal.raison);
             await speak(proposal.raison, "", null, "correction-absente");
+          }
+          if (failure) {
+            say(`Correction de note impossible, décision gardée sans correction : ${failure.message}`);
+            await speak("Je n'ai pas pu corriger la note : je garde ta décision sans correction.", "", null, "correction-impossible");
           }
         }
         decisions.push({ fichier: file ?? ecrireDecision(VAULT, decision), decision });

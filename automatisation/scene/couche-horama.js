@@ -5,6 +5,8 @@
 // From the cursor layer of the T7 probe (itself from Nami, extension/agent-overlay.js): the closed Shadow DOM, the
 // trusted presses followed and reported through the CDP binding horamaPress, the layer hidden for a capture.
 // Everything drawn lives in that Shadow DOM, and the whole state lives in sessionStorage: it survives a change of page.
+// The script runs in the isolated world « horama » of the page: the page's own code reaches neither window.__horama
+// nor the bindings horamaPress and horamaChoix, which only exist in that world.
 // This file is one function expression: installLayer calls it with the id of the course (a new id forgets what an
 // earlier course left), the title of the banner ("" in the probe: the cursor alone, shown at the first click), the
 // options ({ direct }: the click is not held) and `annotate` of rough-notation.
