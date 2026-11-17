@@ -3,7 +3,7 @@
 // arrives. At each relever: our capture (layer hidden), the check (jugement/verification), then the mascot presents
 // what was found on this screen, one thing at a time, and the agent only gets its answer once it has finished (or at
 // the cap). At the end the course goes back over each defect and each doubt, a human says « bug » or « voulu », and
-// each choice is written in the vault as a decision.
+// each choice is written in the vault as a decision, then in the base, then the passage is marked « verifie ».
 // The passage is run by Ali's runner (agent/index.ts): it creates the H session (or plays the scripted one), relaunches
 // a mute session, writes passages, evenements and captures in the base and the report in the vault. The scene gives it
 // the Chrome and its bridge (navigateur) and the relevé hook; the Chrome and the bridge come from the T7 probe.
@@ -24,6 +24,7 @@ import { BaseMemoire, construireConsigne, creerBaseSupabase, creerCoureur } from
 import { libelleAction } from "../../agent/src/session.ts";
 import { ecrireDecision, ecrireReference, lireDecisions, lireNotes, lireReferences, lireTestsAcceptes } from "../../memoire/index.ts";
 import { findHolo, startBridge, stopIfMissing } from "./agent-h.mjs";
+import { creerEcrivainMemoire, creerEcrivainSupabase } from "./decisions.mjs";
 import { HEIGHT, WIDTH, capture, clickAt, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, layer, navigate, openChrome, option, say, sleep, waitFor } from "./scene.mjs";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
@@ -109,8 +110,10 @@ for (const name of ["temoins", "film"]) if (flag(name) && !option(name)) missing
 // shared base), unless --sans-base or --avec-base says otherwise.
 if (flag("sans-base") && flag("avec-base")) missing.push("--sans-base et --avec-base s'excluent.");
 let base = null;
+let ecrivain = null;
 try {
   base = (SANS_AGENT ? flag("avec-base") : !flag("sans-base")) ? creerBaseSupabase() : new BaseMemoire();
+  ecrivain = base instanceof BaseMemoire ? creerEcrivainMemoire(base) : creerEcrivainSupabase();
 } catch (error) {
   missing.push(`${error.message} (sans base partagée : --sans-base).`);
 }
@@ -545,12 +548,37 @@ if (page) {
     errors.push(`Fin du parcours : ${error.message}`);
   }
 }
+// The decisions of the human, then the state of the passage, in the base, only when the runner rendered the
+// passage as played. A refused write is said (its message only gives the HTTP code), the next ones are still
+// tried, and the state is not set to verifie when one was refused.
+if (report?.passage.etat === "joue") {
+  let refused = false;
+  for (const { decision } of decisions) {
+    try {
+      await ecrivain.ecrireDecision(decision);
+    } catch (error) {
+      refused = true;
+      errors.push(`Décision ${decision.id} en base : ${error.message}`);
+      say(`Décision ${decision.id} en base : ${error.message}`);
+    }
+  }
+  if (refused) say("Au moins une décision a été refusée : l'état du passage n'est pas passé à « verifie » en base.");
+  else {
+    try {
+      await ecrivain.marquerVerifie(ID);
+      say(`${decisions.length ? `${count(decisions.length, "décision écrite", "décisions écrites")} en base, ` : "Aucune décision, "}passage « verifie » en base.`);
+    } catch (error) {
+      errors.push(`État du passage en base : ${error.message}`);
+      say(`État du passage en base : ${error.message}`);
+    }
+  }
+} else say(`Passage ${report?.passage.etat ?? "non rendu"} : aucune décision ni état « verifie » en base.`);
 filming = false;
 const delays = clics.map((click) => click.retard_ms).filter((ms) => ms !== undefined);
 // The totals come from rapport.passage; the steps, the session and the replay are repeated in each test entry.
 const { duree_s: dureeS = null, cout_usd: coutUsd = null } = report?.passage ?? {};
 const played = report?.tests[0];
-const stored = base instanceof BaseMemoire ? { passages: base.passages.size, captures: base.captures.size, evenements: base.evenements.length } : "supabase";
+const stored = base instanceof BaseMemoire ? { passages: base.passages.size, captures: base.captures.size, evenements: base.evenements.length, decisions: ecrivain.decisions.size, etat: base.passages.get(ID)?.etat ?? null } : "supabase";
 writeFileSync(join(OUT, "passage.json"), `${JSON.stringify({
   id: ID,
   logiciel: LOGICIEL,
@@ -585,7 +613,7 @@ writeFileSync(join(OUT, "passage.json"), `${JSON.stringify({
   erreurs: errors,
 }, null, 2)}\n`);
 say(`Passage écrit : ${join(OUT, "passage.json")} (${taken.size} relevé(s) sur ${course.length}, ${clics.length} clic(s) vus, durée ${dureeS === null ? "à mesurer" : `${dureeS.toFixed(1).replace(".", ",")} s`}).`);
-if (stored !== "supabase") say(`Base en mémoire : ${count(stored.passages, "passage", "passages")}, ${count(stored.captures, "capture", "captures")}, ${count(stored.evenements, "événement", "événements")}.`);
+if (stored !== "supabase") say(`Base en mémoire : ${count(stored.passages, "passage", "passages")}, ${count(stored.captures, "capture", "captures")}, ${count(stored.evenements, "événement", "événements")}, ${count(stored.decisions, "décision", "décisions")}, état « ${stored.etat} ».`);
 for (const { releve, duree_s, dits, sans_phrase } of presentations) say(`Présentation de ${releve} : ${duree_s === null ? "interrompue" : `${duree_s.toFixed(1).replace(".", ",")} s`}, ${count(dits, "constat dit", "constats dits")}${sans_phrase ? `, ${sans_phrase} montré(s) sans phrase (plafond de ${CAP_MS / 1000} s)` : ""}.`);
 if (delays.length) say(`Retard ajouté par clic retenu : de ${Math.min(...delays)} à ${Math.max(...delays)} ms (${delays.length} clics).`);
 if (FILM) say(`Film : ${images} images sur ${(filmedMs / 1000).toFixed(1).replace(".", ",")} s, dans ${FILM}.`);
