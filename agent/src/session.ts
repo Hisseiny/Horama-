@@ -75,7 +75,7 @@ export function creerSessionH({ navigateur, key, requete = fetch, maintenant = D
     try {
       session = await h("POST", "/sessions", {
         agent: {
-          name: "horama-testeur", description: "Horama : joue un parcours sur Facturo dans un Chrome local.",
+          name: "horama-testeur", description: "Horama : joue un parcours sur le logiciel cible dans un Chrome local.",
           model: process.env.HAI_AGENT_MODEL || "holo4-27b", reasoning_effort: process.env.HAI_AGENT_REASONING || "medium",
           instructions: input.consigne.instructions,
           environments: [{ id: "browser", kind: "web", host: "user_device", session_id: browser.channel, settle_s: 0.5, mode: { type: "visual", markdown: true } }],

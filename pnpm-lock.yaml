@@ -171,6 +171,9 @@ importers:
       '@horama/contrats':
         specifier: workspace:*
         version: link:../contrats
+      '@horama/jugement':
+        specifier: workspace:*
+        version: link:../jugement
       '@horama/memoire':
         specifier: workspace:*
         version: link:../memoire

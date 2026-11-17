@@ -6,6 +6,7 @@ import { construireConsigne } from "./consigne.ts";
 import type { CourseStep } from "./consigne.ts";
 import { creerSessionH } from "./session.ts";
 import type { OptionsSessionH, ResultatSession, Session } from "./session.ts";
+import { verifierTest } from "./verification.ts";
 
 export interface ReleveCapture {
   png: Uint8Array;
@@ -36,6 +37,7 @@ function bonneAdresse(step: CourseStep, address: string, start: string): boolean
     const expected = new URL(step.address, start);
     const pattern = `^${decodeURI(expected.pathname).replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/<[^>]+>/g, "[^/]+")}$`;
     return actual.origin === expected.origin && new RegExp(pattern).test(actual.pathname)
+      && [...expected.searchParams].every(([key, value]) => actual.searchParams.get(key) === value)
       && actual.searchParams.get("filtre") === expected.searchParams.get("filtre");
   } catch { return false; }
 }
@@ -48,7 +50,7 @@ export function creerCoureur({ vault, base, relever, session = creerSessionH(), 
       const consigne = construireConsigne({ vault, logiciel: input.logiciel, version: input.version_testee, ids: input.tests, baseUrl, regressions: input.regressions });
       const debut = maintenant();
       const passage: Passage = { id: identifiant(), logiciel: input.logiciel, version_testee: input.version_testee, version_reference: input.version_reference, etat: "en_cours", debut: new Date(debut).toISOString() };
-      const taken = new Map<string, { capture: Capture; phrase: string }>();
+      const taken = new Map<string, { capture: Capture; phrase: string; png: Uint8Array }>();
       let sessionId = "";
       let etape = 0;
       let ended = false;
@@ -98,7 +100,7 @@ export function creerCoureur({ vault, base, relever, session = creerSessionH(), 
             };
             await base.enregistrerCapture(capture);
           });
-          if (written && capture) taken.set(step.key, { capture, phrase: result.phrase });
+          if (written && capture) taken.set(step.key, { capture, phrase: result.phrase, png: result.png.slice() });
           return written ? result.phrase : `${result.phrase}\nAttention : capture non enregistrée, base indisponible.`;
         },
       });
@@ -119,7 +121,14 @@ export function creerCoureur({ vault, base, relever, session = creerSessionH(), 
             };
           }),
         };
-        try { writeReport(vault, report, []); }
+        const results = consigne.tests.map((test) => verifierTest({ vault, logiciel: input.logiciel, test,
+          acquired: [...taken.values()], passageId: passage.id, version: input.version_testee, referenceVersion: input.version_reference,
+          sessionFailed: !!(result.muted || result.erreur || failed || !ended), replayUrl: result.replay_url }));
+        for (const verification of results) {
+          try { await base.enregistrerResultat(verification); }
+          catch { signaler(`Passage ${passage.id} : résultat C4 non enregistré pour ${verification.test_id} ; le passage continue.`); }
+        }
+        try { writeReport(vault, report, results); }
         catch {
           report.passage.etat = "echec";
           signaler(`Passage ${passage.id} : écriture du rapport dans le vault impossible ; le passage sera en échec.`);
