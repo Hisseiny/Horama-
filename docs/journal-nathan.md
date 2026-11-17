@@ -256,3 +256,7 @@ Orchestrateur : Claude Code (Opus 5.5). Mission : J0 à J4 (scène branchée sur
 - Correctif de l'orchestrateur (2 lignes) : exemple du README sans `--verification essais/fausse-verification.mjs` (le fichier n'existe plus, `jugement/verification/` exporte les quatre fonctions).
 - Demandes pour Ali, aucune bloquante : `docs/decisions/2026-11-17-demandes-coureur-scene.md` (`settle_s` réglable, annulation de la session sur Ctrl+C, raison d'échec dans le rapport, phrase d'un relevé déjà pris, README sur le lien de partage).
 - J1 : accepté à la première revue, aucune correction demandée à Devin.
+
+### 14 h 56, J2 lancé chez Devin (`swe-2-max`), mesure du quota
+- Quota Devin juste avant J2 : **76 %** (75 % à 14 h 12). J1 (Opus, 15 min) et J3 (SWE-2, 7 min) ont coûté un point à eux deux ; la page n'affiche que des points entiers.
+- J2 réduit selon la consigne de Nathan (décisions C5 en base, puis `passages.etat = 'verifie'`, aucun `resultats`). Brief : `.orchestrateur/briefs/j2-resultats-decisions.md`, worktree `../horama-wt/j2-decisions`. Devin ne lancera que le mode mémoire ; l'orchestrateur lance le mode Supabase.
