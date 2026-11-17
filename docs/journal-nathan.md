@@ -260,3 +260,10 @@ Orchestrateur : Claude Code (Opus 5.5). Mission : J0 à J4 (scène branchée sur
 ### 14 h 56, J2 lancé chez Devin (`swe-2-max`), mesure du quota
 - Quota Devin juste avant J2 : **76 %** (75 % à 14 h 12). J1 (Opus, 15 min) et J3 (SWE-2, 7 min) ont coûté un point à eux deux ; la page n'affiche que des points entiers.
 - J2 réduit selon la consigne de Nathan (décisions C5 en base, puis `passages.etat = 'verifie'`, aucun `resultats`). Brief : `.orchestrateur/briefs/j2-resultats-decisions.md`, worktree `../horama-wt/j2-decisions`. Devin ne lancera que le mode mémoire ; l'orchestrateur lance le mode Supabase.
+
+### 15 h 03, PR #22 d'Ali récupérée (crochet relever borné, annulation)
+- Le couloir Ali a fusionné la PR #22 dans `dev` (dc4beb4) : le coureur borne le crochet `relever` (30 s par défaut, option `hookTimeoutMs`, troisième argument `AbortSignal`) et accepte une option `signal` (annulation : pont arrêté, `DELETE /sessions/{id}`).
+- `git merge --no-ff origin/dev` dans `dev-nathan` : aucun conflit. `pnpm -r --if-present run check` : code 0 (faux-saas 7, memoire 28, interface 8, jugement 52, agent 73).
+- Lu dans le code : le délai réel du crochet est le minimum de `hookTimeoutMs` et du `timeout_s` des tests qui demandent l'écran ; les 3 tests de Facturo ont `timeout_s: 180`, donc `hookTimeoutMs` décide. Un relevé qui dépasse est noté en échec et l'agent est envoyé aux relevés suivants.
+- **Consigne de Nathan, avant J4** : dans `parcours.mjs`, passer `hookTimeoutMs` explicitement (au moins 45 s : les présentations ont pris jusqu'à 21,1 s au parcours de 14 h 51) ; brancher `signal` sur l'arrêt de la scène (Ctrl+C) ; en J4, mesurer la durée la plus longue d'un `relever`. Fait par l'orchestrateur après la fusion de J2, qui modifie le même fichier.
+- Demande « annulation sur Ctrl+C » retirée de `docs/decisions/2026-11-17-demandes-coureur-scene.md` (couverte par la PR #22).
