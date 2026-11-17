@@ -22,7 +22,7 @@ import { join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { BaseMemoire, construireConsigne, creerBaseSupabase, creerCoureur } from "../../agent/index.ts";
 import { libelleAction } from "../../agent/src/session.ts";
-import { ecrireDecision, ecrireReference, lireDecisions, lireNotes, lireReferences, lireTestsAcceptes } from "../../memoire/index.ts";
+import { appliquerCorrection, ecrireDecision, ecrireReference, lireDecisions, lireNotes, lireReferences, lireTestsAcceptes, refuserCorrection } from "../../memoire/index.ts";
 import { findHolo, startBridge, stopIfMissing } from "./agent-h.mjs";
 import { creerEcrivainMemoire, creerEcrivainSupabase } from "./decisions.mjs";
 import { HEIGHT, WIDTH, capture, clickAt, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, layer, navigate, openChrome, option, say, sleep, waitFor } from "./scene.mjs";
@@ -46,6 +46,8 @@ const CAP_MS = Number(option("plafond", 12)) * 1000;
 const CHOICES = flag("choix") ? option("choix").split(",") : [];
 const PAR = option("par", "Nathan");
 const CHECK_FILE = resolve(option("verification", join(HERE, "../../jugement/verification/index.ts")));
+const CORRECTION_FILE = resolve(option("correction", join(HERE, "../../jugement/correction/index.ts")));
+const CORRECTION_CHOICE = option("correction-choix");
 const CHROME_BIN = process.env.CHROME_BIN || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const BASE = (process.env.FAUX_SAAS_URL || "https://facturo-demo.vercel.app").replace(/\/$/, "");
 
@@ -102,6 +104,14 @@ try {
   missing.push(`La vérification ne se charge pas (${CHECK_FILE}) : ${error.message.split("\n")[0]}`);
 }
 const { verifierReleve, consoliderConstats, formuler, versDecision } = check;
+let proposerCorrection;
+try {
+  ({ proposerCorrection } = await import(pathToFileURL(CORRECTION_FILE)));
+  if (typeof proposerCorrection !== "function") throw new Error("le fichier n'exporte pas proposerCorrection");
+} catch (error) {
+  missing.push(`La correction ne se charge pas (${CORRECTION_FILE}) : ${error.message.split("\n")[0]}`);
+}
+if (flag("correction-choix") && !["accepter", "refuser"].includes(CORRECTION_CHOICE)) missing.push("--correction-choix attend accepter ou refuser.");
 if (flag("rythme") && !(RYTHME > 0)) missing.push("--rythme doit être un nombre de secondes positif.");
 if (!(CAP_MS > 0)) missing.push("--plafond doit être un nombre de secondes positif.");
 if (CHOICES.some((choix) => choix !== "bug" && choix !== "voulu")) missing.push("--choix attend une liste de « bug » et de « voulu », séparés par des virgules.");
@@ -537,7 +547,7 @@ if (page) {
         if (CHOICES[index]) sleep(reading(text)).then(() => mascot("choisir", CHOICES[index])).catch(() => {});
         const { choix } = await answer;
         say(`Question ${index + 1} sur ${review.length} : ${text} Réponse : ${choix}${CHOICES[index] ? " (--choix)" : ""}.`);
-        choices.push({ constat, choix });
+        choices.push({ constat, choix, question });
         await sleep(900);
         await witness(`reponse-${index + 1}`);
         await mascot("bulle", null);
@@ -547,9 +557,35 @@ if (page) {
       await mascot("etat", "repos");
       await speak("Je range tout ça.", "", null, "rangement");
       const le = new Date().toISOString();
-      for (const { constat, choix } of choices) {
-        const decision = versDecision(constat, choix, { passage_id: ID, test_id: testOf(constat), logiciel: LOGICIEL, version: VERSION, par: PAR, le });
-        decisions.push({ fichier: ecrireDecision(VAULT, decision), decision });
+      for (const { constat, choix, question } of choices) {
+        let decision = versDecision(constat, choix, { passage_id: ID, test_id: testOf(constat), logiciel: LOGICIEL, version: VERSION, par: PAR, le });
+        let file;
+        if (choix === "voulu") {
+          const proposal = await proposerCorrection(VAULT, decision, { indices: [question] });
+          decision = proposal.decision;
+          if (decision.correction_de_note) {
+            await navigate(page, taken.get(`${constat.ecran}--${constat.vue}`).url);
+            const answer = new Promise((resolve) => (chosen = resolve));
+            const correction = decision.correction_de_note;
+            await mascot("correction", { id: decision.id, file: correction.fichier, before: correction.avant, after: correction.apres });
+            say(`Correction proposée pour ${correction.fichier} : ${correction.avant} → ${correction.apres}`);
+            await witness("correction-proposee");
+            if (CORRECTION_CHOICE) sleep(reading(correction.avant + correction.apres)).then(() => mascot("chooseCorrection", CORRECTION_CHOICE, decision.id)).catch(() => {});
+            const { choix: correctionChoice } = await answer;
+            decision = correctionChoice === "accepter" ? appliquerCorrection(VAULT, decision) : refuserCorrection(VAULT, decision);
+            // The memory operation already wrote this final decision; do not overwrite it with an earlier version.
+            file = `${decision.logiciel}/decisions/${decision.id}.md`;
+            await mascot("correctionResult", decision.correction_de_note.statut);
+            say(`Correction ${decision.correction_de_note.statut} : ${correction.fichier}.`);
+            await sleep(900);
+            await witness(`correction-${decision.correction_de_note.statut}`);
+            await mascot("bulle", null);
+          } else {
+            say(proposal.raison);
+            await speak(proposal.raison, "", null, "correction-absente");
+          }
+        }
+        decisions.push({ fichier: file ?? ecrireDecision(VAULT, decision), decision });
       }
       const written = lireDecisions(VAULT, LOGICIEL);
       for (const { fichier, decision } of decisions) if (!written.some((candidate) => same(candidate, decision))) errors.push(`Décision écrite mais pas relue à l'identique : ${fichier}`);
