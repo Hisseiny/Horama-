@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -21,6 +21,28 @@ function captures(total = "1 420,00 €"): AcquiredCapture[] {
   } }));
 }
 function options() { return { vault, logiciel: "facturo", test: accepted, acquired: captures(), passageId: "p", version: "13", referenceVersion: "12", sessionFailed: false }; }
+
+test("les zones ignorées de la note masquent seulement les pixels de cet écran dans C4", () => {
+  const reference = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAACgAAAAKCAYAAADGmhxQAAAAI0lEQVR4nGP4P8gBw0A7gBAYdSClYNSBlIJRB1IKRh1IKQAAxLY6GzXsph8AAAAASUVORK5CYII=", "base64");
+  const inside = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAACgAAAAKCAYAAADGmhxQAAAALElEQVR4nGP4P8gBw0A7gBCAO5CBgQErHmgw8C4gAEYdSCkYdSClYNSBlAIA8KcoLbZ8MT8AAAAASUVORK5CYII=", "base64");
+  const outside = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAACgAAAAKCAYAAADGmhxQAAAALUlEQVR4nGP4P8gBw0A7gBCgugMZGBiwYrLNo6LbaAJGHUgpGHUgpWDUgZQCAPviKC2uLjJ4AAAAAElFTkSuQmCC", "base64");
+  const screen = accepted.releves[0].ecran;
+  ecrireReference(vault, "facturo", screen, "defaut", "12", reference);
+  mkdirSync(join(vault, "facturo/produit"), { recursive: true });
+  const note = join(vault, "facturo/produit/screen.md");
+  for (const zones of [undefined, "[]", "[{ x: 2, y: 2, largeur: 6, hauteur: 1 }]"]) {
+    writeFileSync(note, `---\necran: ${screen}\n${zones ? `zones_ignorees: ${zones}\n` : ""}---\n# Écran\n`);
+    for (const [png, ignored] of [[inside, !!zones && zones !== "[]"], [outside, false]] as const) {
+      const acquired = captures();
+      acquired[0].png = png;
+      const output = verifierTest({ ...options(), acquired });
+      assert.equal(output.statut, ignored ? "PASS" : "SUSPECTED");
+      assert.equal(output.ecarts_visuels.length, ignored ? 0 : 1);
+    }
+  }
+  writeFileSync(note, `---\necran: ${screen}\nzones_ignorees: [\n---\n`);
+  assert.equal(verifierTest(options()).statut, "INCONCLUSIVE");
+});
 
 test("C4 calculé PASS, captures mutualisées, ordre et préfixes d’acquisition", () => {
   const lengths: number[] = [];
