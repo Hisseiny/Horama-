@@ -68,7 +68,8 @@ export function construireConsigne({ vault, logiciel, version, ids, baseUrl = pr
       const url = notes.find((note) => note.entete.ecran === ecran)?.entete.url;
       if (typeof url !== "string") missing.push(`Aucune note de ${logiciel} ne donne l'adresse de l'écran « ${ecran} » (champ url de son en-tête).`);
       if (!VIEWS[vue]) missing.push(`Vue « ${vue} » inconnue : son adresse est à ajouter dans VIEWS (parcours.mjs).`);
-      const path = `/v${version}${url}`;
+      const numbers = [...new Set(test.markdown.match(/\bF-\d+\b/g) ?? [])];
+      const path = `/v${version}${url}`.replaceAll("<numero>", numbers.length === 1 ? numbers[0] : "<numero>");
       const pattern = `^${path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/<[^>]+>/g, "[^/]+")}$`;
       const filtre = VIEWS[vue]?.filtre ?? null;
       course.push({

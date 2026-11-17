@@ -167,6 +167,25 @@ test("une erreur réseau de base est visible sans interrompre les outils", async
   assert.equal(report.passage.etat, "echec");
 });
 
+test("le détail F-118 est refusé lorsque le test accepté demande F-119", async () => {
+  const base = new BaseMemoire();
+  let correct = false;
+  const session = fakeSession(async ({ consigne, onTool }) => {
+    const step = consigne.course.find(({ ecran }) => ecran === "detail-facture")!;
+    assert.equal(step.address, "/v13/factures/F-119");
+    assert.match(await onTool("relever", { ...step }), /écran non atteint/);
+    assert.equal(base.captures.size, 0);
+    correct = true;
+    assert.equal(await onTool("relever", { ...step }), "Continue le parcours.");
+    assert.equal(base.captures.size, 1);
+    await onTool("terminer", { etat: "echec" });
+  });
+  const runner = creerCoureur({ vault, base, session, baseUrl: "http://localhost:3100", relever: async (ecran, vue) => ({ ...fixture(ecran, vue), url_page: `http://localhost:3100/v13/factures/${correct ? "F-119" : "F-118"}` }) });
+  const { passage_id } = await runner.lancerPassage(input);
+  await runner.attendreFin(passage_id);
+  assert.equal([...base.captures.values()][0].url_page, "http://localhost:3100/v13/factures/F-119");
+});
+
 test("erreurs de capture, création, session et finalisation restent explicites", async () => {
   const base = new BaseMemoire();
   const session = fakeSession(async ({ consigne, onTool }) => {

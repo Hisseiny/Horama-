@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { construireConsigne } from "./src/consigne.ts";
@@ -33,7 +35,23 @@ test("ordre demandé, version et régressions suivent le parcours de référence
   assert.equal(result.tests[0].id, "detail-facture-total-egal-liste");
   assert.equal(result.start, "http://localhost:3100/v12/entrer?suite=/v12/factures&r=ca-mois");
   assert.equal(result.course[0].test_id, "detail-facture-total-egal-liste");
-  assert.ok(result.course[1].here.includes("[^/]+"));
+  assert.equal(result.course[1].address, "/v12/factures/F-119");
+  assert.ok(result.course[1].here.includes("F-119"));
+  assert.ok(!result.course[1].here.includes("[^/]+"));
+});
+
+test("le numéro vient du test et le joker ne reste que sans numéro unique connu", () => {
+  const temporary = mkdtempSync(join(tmpdir(), "horama-address-"));
+  try {
+    cpSync(join(vault, "facturo"), join(temporary, "facturo"), { recursive: true });
+    const file = join(temporary, "facturo/tests/detail-facture-total-egal-liste.md");
+    const original = readFileSync(file, "utf8");
+    for (const [number, expected] of [["F-120", "/v13/factures/F-120"], ["sélectionnée", "/v13/factures/<numero>"], ["F-119 ou F-120", "/v13/factures/<numero>"]]) {
+      writeFileSync(file, original.replaceAll("F-119", number));
+      const course = construireConsigne({ ...options, vault: temporary }).course;
+      assert.equal(course.find(({ ecran }) => ecran === "detail-facture")!.address, expected);
+    }
+  } finally { rmSync(temporary, { recursive: true, force: true }); }
 });
 
 test("liste vide, identifiant absent et version sans test signalent une erreur", () => {
