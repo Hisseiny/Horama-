@@ -170,7 +170,7 @@ export function creerCoureur({ vault, base, relever, hookTimeoutMs = 30_000, sig
         };
         const results = consigne.tests.map((test) => verifierTest({ vault, logiciel: input.logiciel, test,
           acquired: [...taken.values()], passageId: passage.id, version: input.version_testee, referenceVersion: input.version_reference,
-          sessionFailed: !!(cancellation || result.muted || result.erreur || failed || !ended), replayUrl: result.replay_url }));
+          sessionFailed: !!(cancellation || result.muted || result.erreur || failed || !ended), replayUrl: result.replay_url, passageTests: consigne.tests }));
         for (const verification of results) {
           const reason = report.tests.find((test) => test.test_id === verification.test_id)?.raison;
           if (cancellation || hookFailures.size && reason) {
