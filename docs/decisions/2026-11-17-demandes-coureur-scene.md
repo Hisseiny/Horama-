@@ -20,3 +20,7 @@ La scène (`automatisation/scene/parcours.mjs`) appelle maintenant `creerCoureur
 Retirée : l'annulation de la session H sur Ctrl+C de la scène est couverte par la PR #22 (option `signal` de `creerCoureur`, `DELETE /sessions/{id}`), fusionnée dans `dev` le 17/11.
 
 Pour info, sans demande : la zone de page est désormais imposée par `Emulation.setDeviceMetricsOverride` dans `fitViewport` (`automatisation/scene/scene.mjs`), que `agent/src/browser.ts` appelle aussi ; elle tient tant que la connexion CDP qui l'a posée reste ouverte.
+
+## Demande ajoutée le 17/11 au soir (J6, non-régression du mode sombre)
+
+5. **Vue `mode-sombre` connue du coureur** : `construireConsigne` refuse toute vue absente de `VIEWS` (`agent/src/consigne.ts`, « Vue inconnue »). Le test C2 du mode sombre relève `{ ecran: tableau-de-bord, vue: mode-sombre }`, un état atteint par un clic, à la même adresse que `defaut`. Proposition : ajouter `"mode-sombre": { filtre: null }` à `VIEWS`, ou mieux, accepter toute vue déclarée dans le champ `vues:` de la note de l'écran (PR #23), avec la même adresse que `defaut` quand la vue n'a pas de filtre. Tant que ce n'est pas fait, le test reste `statut: propose` dans le vault (il n'est pas joué). La scène fera le même changement de son côté (`automatisation/scene/parcours.mjs`, `VIEWS`).
