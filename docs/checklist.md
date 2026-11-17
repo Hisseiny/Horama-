@@ -59,7 +59,7 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | 3.8 | Workflow n8n : « cas à relire » (C7) devient une notification, et une ligne de mesure part en base | Nathan | à faire |  |
 | 3.9 | Banc : liste d'environ 10 régressions (dont 3 entre écrans) et 5 changements voulus (dont 2 contredisent la doc), vérité écrite à l'avance, cas gardés cachés jusqu'à la mesure | Inès | à faire |  |
 | 3.10 | Chiffres du pilote (temps de recette, bugs arrivés chez des clients), sa documentation transmise à Inès, premier jet du go-to-market | Noé | à faire |  |
-| 3.11 | Intégration : la boucle complète sur 1 écran, sans toucher au code entre deux passages ; `main` gelé pendant le test | Ali | à faire |  |
+| 3.11 | Intégration : la boucle complète sur 1 écran, sans toucher au code entre deux passages ; `main` gelé pendant le test | Ali | à faire | Bloqué avant H : configuration serveur Supabase absente ; deux passages et décision à mesurer. Voir docs/tests/2026-11-17-3.11-integration-eugenia.md. |
 | 3.12 | Peer review du soir | Tous | à faire |  |
 
 ## Phase 4. Mercredi : le rendu de 17 h et la boucle sur plusieurs écrans
