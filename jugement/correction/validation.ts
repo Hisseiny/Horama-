@@ -30,7 +30,7 @@ export function withVersion(sentence: string, version: Version): string {
   return /[.!]$/.test(sentence) ? `${sentence.slice(0, -1)} ${mark}${sentence.slice(-1)}` : `${sentence} ${mark}`;
 }
 
-// `sources`: observed text passed as hints, not the old note or the model's instructions.
+// `sources`: the decision and hints, not the whole note or the model's instructions.
 // `change`: what is said of this change (ecart, pourquoi, hints). When it names labels, the correction must be about one of them.
 export function validateAnswer(content: string, note: Note, version: Version, sources = "", change = ""): Checked {
   let answer: unknown;
@@ -65,8 +65,8 @@ export function validateAnswer(content: string, note: Note, version: Version, so
   if (sentence.includes("\n")) reasons.push("« nouvelle_phrase » tient sur plusieurs lignes : une seule phrase est attendue");
   if (sentence === avant) reasons.push("« nouvelle_phrase » est identique à « phrase_contredite »");
   if (/\bversion\b/i.test(sentence)) reasons.push("« nouvelle_phrase » cite une version : le programme l'ajoute lui-même");
-  const known = key(sources);
-  const invented = [...labels(sentence)].filter((label) => !known.includes(key(label)));
+  const known = new Set([...sources.split(/\r?\n/), ...labels(sources), ...labels(avant)].map(key));
+  const invented = [...labels(sentence)].filter((label) => !known.has(key(label)));
   if (invented.length) reasons.push(`« nouvelle_phrase » cite des libellés que rien ne donne : ${invented.map((label) => `« ${label} »`).join(", ")}`);
   return reasons.length ? { raison: why, reasons } : { avant, apres: withVersion(sentence, version), raison: why, reasons };
 }

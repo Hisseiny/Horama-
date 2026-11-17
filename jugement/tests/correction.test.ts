@@ -118,9 +118,9 @@ test("refusé : version écrite par le modèle, libellé inventé, phrase identi
 
 // ---------- proposerCorrection, with the router replaced ----------
 
-test("un libellé de la note seule ne prouve pas qu'il a été lu sur la page", () => {
-  const before = "Le bouton « CANDIDATER → » est gris.";
-  const note = { ...LISTE, texte: before };
+test("un libellé absent des indices et de la phrase remplacée est refusé", () => {
+  const before = "Le bouton est gris.";
+  const note = { ...LISTE, texte: `${before}\nAutre bouton : « CANDIDATER → ».` };
   const correction = answer(before, "Le bouton « CANDIDATER → » n'est plus gris.");
   assert.match(validateAnswer(correction, note, "13").reasons.join(" ; "), /« CANDIDATER → »/);
   assert.deepEqual(validateAnswer(correction, note, "13", "  candidater\u00a0  → ").reasons, []);
@@ -135,15 +135,45 @@ test("POSTULER devient CANDIDATER avec un indice lu, jamais avec la note seule",
   assert.ok(validateAnswer(correction, note, "13", "CANDIDATER").reasons.length);
 });
 
-test("proposerCorrection : sans indice, le libellé de la note est refusé deux fois puis la décision reste intacte", async () => {
-  const requests = router(GOOD, GOOD);
+test("un indice Réexporter ne permet pas de citer Exporter", () => {
+  const before = "Le bouton est en bas.";
+  const note = { ...LISTE, texte: before };
+  const correction = answer(before, "Le bouton « Exporter » est en haut.");
+  for (const hint of ["Réexporter", "Le bouton « Réexporter » est visible.", "Le bouton Exporter est visible."]) {
+    assert.match(validateAnswer(correction, note, "13", hint).reasons.join(" ; "), /« Exporter »/);
+  }
+  for (const hint of ["Autre indice\n  exporter  ", "Le bouton « EXPORTER » est visible."]) {
+    assert.deepEqual(validateAnswer(correction, note, "13", hint).reasons, []);
+  }
+});
+
+test("proposerCorrection : un libellé inventé est refusé deux fois puis la décision reste intacte", async () => {
+  const invented = answer(EXPORTER_BEFORE, "Le bouton « CANDIDATER → » n'est plus gris.");
+  const requests = router(invented, invented);
   const proposal = await proposerCorrection(VAULT, EXPORTER);
   assert.equal(proposal.decision, EXPORTER);
   assert.equal(proposal.decision.correction_de_note, undefined);
   assert.equal(proposal.essais, 2);
   assert.equal(requests.length, 2);
-  assert.match(requests[1].messages[3].content, /cite des libellés que rien ne donne : « Exporter »/);
+  assert.match(requests[1].messages[3].content, /cite des libellés que rien ne donne : « CANDIDATER → »/);
   assert.match(proposal.raison, /Pas de correction proposée : réponse refusée après 2 essais/);
+});
+
+test("Eugenia : la question et la phrase remplacée fournissent les deux libellés", () => {
+  const before = "Le bouton « TÉLÉCHARGER LA BROCHURE » est seul.";
+  const note = { ...LISTE, texte: before };
+  const change = "Un changement autour de « CANDIDATER → ».";
+  const hint = "Quelque chose a changé autour de « CANDIDATER → ». Bug ou voulu ?";
+  const correction = answer(before, "Sur la page, le bouton « CANDIDATER → » est à côté de « TÉLÉCHARGER LA BROCHURE ».");
+  assert.deepEqual(validateAnswer(correction, note, "13", `${change}\n${hint}`, change).reasons, []);
+});
+
+test("proposerCorrection : un écart calculé fournit le libellé sans question ni indice", async () => {
+  const before = "Liste toutes les factures du mois, par numéro croissant.";
+  router(answer(before, "Le bouton « Exporter » affiche les factures du mois."));
+  const proposal = await proposerCorrection(VAULT, { ...EXPORTER, ecart: "La règle attend le bouton « Exporter »." });
+  assert.equal(proposal.essais, 1);
+  assert.equal(proposal.decision.correction_de_note?.avant, before);
 });
 
 test("proposerCorrection : la note de l'écran, la note de version et l'écart partent au modèle, à température 0", async () => {
@@ -194,7 +224,7 @@ test("proposerCorrection : un null alors que la note cite l'ancien libellé repa
   const before = "Le tableau a quatre colonnes : « Numéro », « Client », « Échéance », « Montant TTC ».";
   const renamed = answer(before, "Le tableau a quatre colonnes : « Numéro », « Société », « Échéance », « Montant TTC ».");
   const decision: Decision = { ...EXPORTER, ecart: "Quelque chose a changé ici, autour de « Société »." };
-  const indices = ["Dans la version de référence, à cet endroit : « Client ».", "Numéro Société Échéance Montant TTC"];
+  const indices = ["Dans la version de référence, à cet endroit : « Client ».", "« Numéro » « Société » « Échéance » « Montant TTC »"];
   const requests = router(answer(null, null, "La note ne cite pas « Société »."), renamed);
   const proposal = await proposerCorrection(VAULT, decision, { indices });
   assert.equal(proposal.essais, 2);
