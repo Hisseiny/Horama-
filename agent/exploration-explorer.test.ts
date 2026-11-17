@@ -221,6 +221,9 @@ test("identifiants normalisés, dédoublonnés et tronqués", async () => {
     return new Response(path === "/robots.txt" ? "" : path === "/sitemap.xml" ? `<urlset>${paths.map(path => `<url><loc>https://example.org${path}</loc></url>`).join("")}</urlset>` : "<html>Page</html>", { headers: { "Content-Type": path.endsWith(".xml") ? "application/xml" : "text/html" } });
   } } });
   assert.deepEqual(result.pages.map(page => page.ecran), ["accueil", "ecole", "ecole-2", "a".repeat(60)]);
+  assert.equal(result.totaux.pages_visitees, 4);
+  assert.equal(result.etat, "fini");
+  assert.ok(result.pages.every(page => page.etat === "visitee" && page.capture));
 });
 
 test("arguments, aide, valeurs par défaut et erreurs", () => {
