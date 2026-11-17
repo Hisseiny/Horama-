@@ -304,3 +304,21 @@ test("un échec d’écriture du rapport dans le vault reste visible et est pers
   assert.equal(messages.length, 1);
   assert.match(messages[0], /rapport dans le vault impossible/);
 });
+
+test("une vue déclarée dans la note, sans adresse propre, est relevée quel que soit le filtre", async () => {
+  const testFile = join(vault, "facturo/tests/ca-du-mois-egal-total.md");
+  writeFileSync(testFile, readFileSync(testFile, "utf8").replace("{ ecran: tableau-de-bord, vue: defaut }", "{ ecran: tableau-de-bord, vue: langue-en }"));
+  const noteFile = join(vault, "facturo/produit/tableau-de-bord.md");
+  writeFileSync(noteFile, readFileSync(noteFile, "utf8").replace(/^url: .*$/m, "$&\nvues: [langue-en]"));
+  const base = new BaseMemoire();
+  const session = fakeSession(async ({ consigne, onTool }) => {
+    const step = consigne.course.find(({ vue }) => vue === "langue-en")!;
+    assert.equal(await onTool("relever", { ...step }), "Continue le parcours.");
+    assert.match(await onTool("relever", { ecran: "liste-des-factures", vue: "defaut" }), /écran non atteint/);
+    await onTool("terminer", { etat: "echec" });
+  });
+  const runner = creerCoureur({ vault, base, session, baseUrl: "http://localhost:3100", relever: async (ecran, vue) => ({ ...fixture(ecran, vue), url_page: `${fixture(ecran, vue).url_page}?filtre=payees` }) });
+  const { passage_id } = await runner.lancerPassage({ ...input, tests: ["ca-du-mois-egal-total"] });
+  await runner.attendreFin(passage_id);
+  assert.equal(base.captures.size, 1);
+});
