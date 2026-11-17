@@ -48,7 +48,7 @@ export async function proposerTests(vault: string, logiciel: string, cheminNote:
 }
 
 // The « vues » of a screen note: a YAML list (« [filtre-echeance] ») or a line of names separated by commas.
-function declaredViews(value: unknown): string[] {
+export function declaredViews(value: unknown): string[] {
   const names = Array.isArray(value) ? value : typeof value === "string" ? value.split(",") : [];
   return names.filter((name): name is string => typeof name === "string").map((name) => name.trim()).filter((name) => name && name !== "defaut");
 }
