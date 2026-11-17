@@ -37,16 +37,52 @@ Contrats : compilation terminée sans erreur. Les étapes de typage et le lint d
 
 Statut : **codé non testé** (aucune attestation d'une autre personne). Pas de ligne #54 dans `docs/checklist.md` ; la ligne partagée 5.2 n'est pas réécrite.
 
-## Banc réel — à mesurer
+## Banc réel — tentative du 17 novembre, bloquée par HTTP 402
 
-`HF_TOKEN` indisponible : aucun appel au modèle effectué. Aucun résultat ni taux de réussite annoncé. L'efficacité de la consigne et le rendu à l'écran restent non vérifiés.
+Début : `2026-11-17T18:24:11Z`. Commit exécuté : `8af8bdd69347e8a956480aae6a153d8ccbb62d65`. Modèle : `openai/gpt-oss-120b`, température 0. Le secret org `HF_TOKEN` a été lié à l'environnement sans être affiché ni enregistré dans un fichier. Le lancement a terminé avec le code 1.
 
-Avant le lancement, demander à Nathan les entrées exactes de la scène pour les deux cas (ne pas les reconstituer à partir de la note) : décision C5, note de l'écran chargée, note de version chargée éventuelle, indices transmis. Sans ces entrées, la mesure conforme à l'issue reste bloquée.
+Les **12 requêtes ont toutes reçu HTTP 402**, sans réponse du modèle :
+
+```text
+HTTP 402 : Purchase pre-paid credits to continue using Inference Providers. Alternatively, subscribe to PRO to get monthly included credits.
+```
+
+Aucun nouvel essai effectué. Action humaine nécessaire : créditer le compte Hugging Face associé ou résoudre l'accès facturé aux Inference Providers. Une réponse de `whoami` ne garantit pas le crédit d'inférence.
+
+| Cas | Appel | Durée (ms) | nouvelle_phrase | Validateur | Erreur |
+|---|---|---:|---|---|---|
+| bouton gris | 1 | 166 | aucune réponse | non exécuté | HTTP 402 |
+| bouton gris | 2 | 114 | aucune réponse | non exécuté | HTTP 402 |
+| bouton gris | 3 | 96 | aucune réponse | non exécuté | HTTP 402 |
+| bouton gris | 4 | 97 | aucune réponse | non exécuté | HTTP 402 |
+| bouton gris | 5 | 99 | aucune réponse | non exécuté | HTTP 402 |
+| bouton gris | 6 | 92 | aucune réponse | non exécuté | HTTP 402 |
+| A | 1 | 98 | aucune réponse | non exécuté | HTTP 402 |
+| A | 2 | 103 | aucune réponse | non exécuté | HTTP 402 |
+| A | 3 | 95 | aucune réponse | non exécuté | HTTP 402 |
+| A | 4 | 94 | aucune réponse | non exécuté | HTTP 402 |
+| A | 5 | 96 | aucune réponse | non exécuté | HTTP 402 |
+| A | 6 | 89 | aucune réponse | non exécuté | HTTP 402 |
+
+Bilan : bouton gris, 6 erreurs sur 6 requêtes, 0 réponse évaluable ; A, 6 erreurs sur 6 requêtes, 0 réponse évaluable. **Ni le critère « 0 invention sur 6 », ni le critère « A juste au moins 5 sur 6 » n'est démontré**. Ils restent **à mesurer** ; aucune erreur ne compte comme une réussite. L'efficacité de la consigne et le rendu à l'écran restent non vérifiés.
+
+Après cette tentative : `git fetch origin && git merge origin/dev` répond « Already up to date. » ; `pnpm -r --if-present run check` termine avec le code 0 (jugement 81/81, agent 88/88, autres résultats identiques à la section sans réseau). Aucune modification de la consigne après la mesure.
+
+### Entrées reconstruites et provenance
+
+Ces entrées sont **reconstruites**, pas les entrées capturées de la scène. Elles ne constituent pas une reproduction exacte du parcours de Nathan. Fichier utilisé : `/home/ubuntu/t54-entrees.json` ; sortie brute : `/home/ubuntu/t54-resultats.jsonl` (messages inclus).
+
+- Écart commun, repris littéralement du test « Eugenia : la question et la phrase remplacée fournissent les deux libellés » dans `jugement/tests/correction.test.ts` : `Un changement autour de « CANDIDATER → ».` Aucun `pourquoi` et aucune note de version.
+- `gray` : phrase reconstruite à partir du défaut décrit dans les issues [#49](https://github.com/Hisseiny/Horama-/issues/49), [#54](https://github.com/Hisseiny/Horama-/issues/54) et du [commentaire de Nathan sur #53](https://github.com/Hisseiny/Horama-/pull/53#issuecomment-6956805309) : `Le bouton « CANDIDATER → » est gris, à côté de « TÉLÉCHARGER LA BROCHURE ».` Indices : `[]`, conformément au cas demandé sans indice de texte. Aucune source ne donne la nouvelle couleur.
+- `caseA` : phrase reconstruite à partir du changement POSTULER → CANDIDATER de #49 et du libellé voisin du cas A dans le commentaire de Nathan : `Le bouton « POSTULER → » est à côté de « TÉLÉCHARGER LA BROCHURE ».` Ce n'est pas la phrase « … est seul. » du test unitaire, qui ne documenterait pas la position conservée.
+- Indices A : `Quelque chose a changé autour de « CANDIDATER → ». Bug ou voulu ?` (texte exact du test Eugenia) ; `Dans la version de référence, à cet endroit : « POSTULER → ».` (gabarit de `jugement/scripts/t52-correction.ts`, cas `colonne-renommee`, avec l'ancien libellé de #49 substitué) ; `CANDIDATER →` (indice lu du test « POSTULER devient CANDIDATER avec un indice lu »). Cette combinaison est reconstruite, non relevée dans la scène.
+- Enveloppe synthétique commune : logiciel `eugenia`, écran `accueil`, vue `defaut`, version `13`, note `produit/accueil.md`, titre `Accueil`, entête vide et aucune règle. Identifiants `t54-gray` / `t54-case-a`, passage `t54-reconstruction`, auteur `Banc reconstruit`, horodatage de fixture `2026-11-17T00:00:00.000Z` : ce ne sont pas des métadonnées de parcours réel.
+
+### Relancer après résolution du blocage
 
 Préparer hors du dépôt `/home/ubuntu/t54-entrees.json`, objet avec les clés `gray` et `caseA`. Chaque valeur a la forme `{ "decision": <Decision C5>, "note": <Note de @horama/memoire>, "releaseNote": <Note facultative>, "indices": <tableau de chaînes exactes> }`.
 
-- `gray` : cas « bouton gris » sans indice de texte donnant le nouvel état ; conserver les autres indices exacts, notamment la question si elle était transmise.
-- `caseA` : cas A de #53, remplacement de « POSTULER → » par « CANDIDATER → », avec le libellé voisin « TÉLÉCHARGER LA BROCHURE » dans la phrase remplacée et les indices exacts de la scène.
+- Pour rejouer cette tentative, utiliser les entrées reconstruites détaillées ci-dessus. Pour valider le parcours réel de l'issue, obtenir séparément les entrées capturées auprès de Nathan et les identifier comme telles.
 - Ne mettre aucun jeton ni identifiant sensible dans ce fichier ; `Note` est le type exporté par `@horama/memoire` (`memoire/src/notes.ts`).
 
 Une fois `HF_TOKEN` lié à l'environnement du shell, depuis la racine :
