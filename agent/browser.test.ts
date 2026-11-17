@@ -24,7 +24,7 @@ test("capture CDP sans navigation et nouveau pont pour chaque tentative", async 
   assert.equal(shot.texte, "Factures");
   assert.equal(shot.url_page, "http://localhost:3100/v13/factures");
   assert.deepEqual(shot.png, new Uint8Array(Buffer.from("png")));
-  assert.deepEqual(setup.calls.map(([method]) => method), ["Page.captureScreenshot"]);
+  assert.deepEqual(setup.calls, [["Input.dispatchMouseEvent", { type: "mouseMoved", x: -10, y: 450 }], ["Page.captureScreenshot", { format: "png", fromSurface: true, captureBeyondViewport: false }]]);
   const first = await runtime.navigateur();
   first.stop();
   const second = await runtime.navigateur();
