@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { lireNotes } from "@horama/memoire";
 import { ceQuiChange, proposerTestDepuisFiche } from "../index.ts";
 import type { FicheDeChangement } from "../index.ts";
+import type { RegleEtat } from "../generation/fiche.ts";
 import { validateFicheAnswer } from "../generation/fiche.ts";
 
 // No test reaches the network: fetch is replaced. The model answers are written by hand. The sheet is the example of the
@@ -73,7 +74,7 @@ test("une bonne réponse donne un test avec sa règle etat ; une liste texte_abs
 test("un texte absent est gardé quand la fiche le cite", () => {
   const { tests, reasons } = validateFicheAnswer(answer((t) => (t.regles_calculables[0].texte_absent = ["Relancer"])), FICHE, SOURCE);
   assert.deepEqual(reasons, []);
-  assert.deepEqual((tests[0].regles_calculables[0] as unknown as { texte_absent: string[] }).texte_absent, ["Relancer"]);
+  assert.deepEqual((tests[0].regles_calculables[0] as RegleEtat).texte_absent, ["Relancer"]);
 });
 
 test("refusé : un texte inventé, un « ; », pas de texte témoin, un même texte présent et absent", () => {

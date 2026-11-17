@@ -107,4 +107,4 @@ Mesure : `node --env-file=.env.local jugement/scripts/t52-correction.ts [modèle
   - au moins un `texte_present` témoin, et aucun texte à la fois présent et absent ;
   - l'écran fait partie de `ecrans_vises`, la vue vaut `defaut` ou est déclarée dans l'en-tête de la note de l'écran (`vues`), et ce relevé est dans `releves` ;
   - le reste du test est contrôlé comme pour une note (`validateAnswer`) : passages recopiés de la fiche, au moins une étape.
-- **Provisoire jusqu'à `contrats-v2`** : le type `etat` est défini dans `fiche.ts` (`RegleEtat`) et passé dans `regles_calculables` par une conversion de type. Ne pas fusionner dans `dev` avant l'étiquette (D7, condition 4).
+- **Type `etat`** : celui de `contrats/types.ts` (`contrats-v2`), repris dans `fiche.ts` sous le nom `RegleEtat`.

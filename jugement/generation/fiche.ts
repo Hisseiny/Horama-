@@ -10,14 +10,8 @@ import type { Message } from "./router.ts";
 import { callModel } from "./router.ts";
 import { validateAnswer } from "./validation.ts";
 
-// Provisional, until « etat » enters contrats/types.ts with the tag contrats-v2 (D7, section 3, condition 4). Same fields as D7.
-export interface RegleEtat {
-  type: "etat";
-  ecran: IdEcran;
-  vue: Vue;
-  texte_present?: string[];
-  texte_absent?: string[];
-}
+// The rule « etat » of contrats-v2 (D7, section 3).
+export type RegleEtat = Extract<Regle, { type: "etat" }>;
 
 export interface FicheDeChangement {
   chemin: string; // e.g. "changements/bouton-relancer.md", relative to the folder of the software
@@ -117,8 +111,7 @@ export function validateFicheAnswer(content: string, fiche: FicheDeChangement, s
   const etat = checkEtat(regles_calculables, fiche, source.views, common.tests[0]?.releves ?? []);
   const reasons = [...common.reasons, ...etat.reasons.map((reason) => `test 1 : ${reason}`)];
   if (reasons.length) return { tests: [], reasons };
-  // Cast until contrats-v2: Regle does not have « etat » yet (D7, condition 4). Do not merge this file before the tag.
-  return { tests: [{ ...common.tests[0], regles_calculables: [etat.regle as unknown as Regle] }], reasons };
+  return { tests: [{ ...common.tests[0], regles_calculables: [etat.regle!] }], reasons };
 }
 
 export async function proposerTestDepuisFiche(vault: string, logiciel: string, fiche: FicheDeChangement, options: Options = {}): Promise<Proposal> {
