@@ -9,7 +9,7 @@
 // the Chrome and its bridge (navigateur) and the relevé hook; the Chrome and the bridge come from the T7 probe.
 //
 // Usage: node [--env-file=<.env.local>] automatisation/scene/parcours.mjs [--sans-agent] [--sans-base | --avec-base]
-//          [--rythme <s>] [--plafond <s>] [--clic-direct] [--choix bug,voulu,...] [--sans-fin] [--par <nom>]
+//          [--rythme <s>] [--plafond <s>] [--sans-presentation] [--clic-direct] [--choix bug,voulu,...] [--sans-fin] [--par <nom>]
 //          [--vault <dir>] [--logiciel facturo] [--version 13] [--reference 12] [--tests a,b,c] [--r <ids>]
 //          [--verification <file>] [--ecrire-references] [--temoins <dir>] [--film <dir>] [--sortie <dir>]
 //          [--port 9333] [--profil <dir>] [--fermer-chrome]
@@ -43,6 +43,8 @@ const WITNESSES = option("temoins") ? resolve(option("temoins")) : null;
 const FILM = option("film") ? resolve(option("film")) : null;
 const DIRECT = flag("clic-direct");
 const CAP_MS = Number(option("plafond", 12)) * 1000;
+// For continuous integration: the same course without the mascot's presentations nor the reading pauses.
+const SANS_PRESENTATION = flag("sans-presentation");
 const CHOICES = flag("choix") ? option("choix").split(",") : [];
 const PAR = option("par", "Nathan");
 const CHECK_FILE = resolve(option("verification", join(HERE, "../../jugement/verification/index.ts")));
@@ -149,6 +151,8 @@ const START = `${BASE}${versioned(tests[0], tests[0].url_depart)}${flag("r") ? `
 const count = (number, one, many) => `${number} ${number > 1 ? many : one}`;
 // A bubble stays at least this long: 2.5 s, plus 50 ms per character.
 const reading = (text) => 2500 + 50 * text.length;
+// A pause for the audience: none with --sans-presentation.
+const hold = (ms) => (SANS_PRESENTATION ? null : sleep(ms));
 // State of the mascot and colour of its bubble, per status of a finding.
 const KIND = { PASS: ["conforme", "conforme"], VERIFIED_FAIL: ["defaut", "defaut"], SUSPECTED: ["interrogation", "doute"], INCONCLUSIVE: ["repos", ""] };
 const STROKE_MS = 800; // time the layer takes to draw a line (STROKE in couche-horama.js)
@@ -247,6 +251,7 @@ let chosen = null;
 
 const mascot = (command, ...args) => layer(page, command, ...args);
 async function speak(text, genre, cible, label) {
+  if (SANS_PRESENTATION) return;
   await mascot("bulle", text, genre, cible);
   await witness(label);
   await sleep(reading(text));
@@ -272,13 +277,14 @@ async function reveal(constat) {
 }
 
 // One finding, one thing at a time: what is checked, the line drawn around what was found, then the result.
-// `quiet`: the cap of this screen is passed, the finding is drawn and counted without a word (the end comes back to it).
+// `quiet`: the cap of this screen is passed (or --sans-presentation), the finding is drawn and counted without a word
+// (the end comes back to it).
 async function play(constat, quiet) {
   const mark = marks.get(constat.id);
   const { annonce, resultat } = formuler(constat);
   const cible = mark?.rects[0] ?? constat.zone ?? null;
   const [etat, genre] = KIND[constat.statut];
-  say(`Mascotte, ${constat.id} : ${quiet ? `montré sans phrase (plafond de ${CAP_MS / 1000} s)` : [annonce, resultat].filter(Boolean).join(" ")}`);
+  say(`Mascotte, ${constat.id} : ${quiet ? `montré sans phrase (${SANS_PRESENTATION ? "--sans-presentation" : `plafond de ${CAP_MS / 1000} s`})` : [annonce, resultat].filter(Boolean).join(" ")}`);
   await mascot("etat", "verification");
   if (annonce && !quiet) await speak(annonce, "", cible, "annonce");
   if (mark) {
@@ -304,11 +310,12 @@ async function present(step, units) {
     const from = Date.now();
     if (!units.length) {
       await mascot("etat", "verification");
-      await sleep(1200);
+      await hold(1200);
     }
     for (const unit of units) {
-      measure[capped ? "sans_phrase" : "dits"]++;
-      await play(unit, capped);
+      const quiet = capped || SANS_PRESENTATION;
+      measure[quiet ? "sans_phrase" : "dits"]++;
+      await play(unit, quiet);
     }
     await mascot("etat", "repos");
     measure.duree_s = (Date.now() - from) / 1000;
@@ -528,11 +535,11 @@ say(summary);
 const testOf = (constat) => (tests.find((test) => constat.regle && test.regles.some((rule) => same(rule, constat.regle))) ?? tests[course.find((step) => step.ecran === constat.ecran && step.vue === constat.vue).part - 1]).id;
 if (page) {
   try {
-    await mascot("bulle", summary, "", null);
-    await sleep(350);
+    if (!SANS_PRESENTATION) await mascot("bulle", summary, "", null);
+    await hold(350);
     await witness("bilan");
     if (review.length) {
-      await sleep(reading(summary));
+      await hold(reading(summary));
       await mascot("bulle", null);
       await mascot("revue", true);
       const choices = [];
@@ -544,11 +551,11 @@ if (page) {
         await mascot("question", { id: constat.id, texte: text, rang: `${index + 1} sur ${review.length}`, etat: KIND[constat.statut][0] });
         await witness(`question-${index + 1}`);
         // --choix answers by itself, after the time it takes to read the question.
-        if (CHOICES[index]) sleep(reading(text)).then(() => mascot("choisir", CHOICES[index])).catch(() => {});
+        if (CHOICES[index]) sleep(SANS_PRESENTATION ? 0 : reading(text)).then(() => mascot("choisir", CHOICES[index])).catch(() => {});
         const { choix } = await answer;
         say(`Question ${index + 1} sur ${review.length} : ${text} Réponse : ${choix}${CHOICES[index] ? " (--choix)" : ""}.`);
         choices.push({ constat, choix, question });
-        await sleep(900);
+        await hold(900);
         await witness(`reponse-${index + 1}`);
         await mascot("bulle", null);
       }
@@ -570,14 +577,14 @@ if (page) {
             await mascot("correction", { id: decision.id, file: correction.fichier, before: correction.avant, after: correction.apres });
             say(`Correction proposée pour ${correction.fichier} : ${correction.avant} → ${correction.apres}`);
             await witness("correction-proposee");
-            if (CORRECTION_CHOICE) sleep(reading(correction.avant + correction.apres)).then(() => mascot("chooseCorrection", CORRECTION_CHOICE, decision.id)).catch(() => {});
+            if (CORRECTION_CHOICE) sleep(SANS_PRESENTATION ? 0 : reading(correction.avant + correction.apres)).then(() => mascot("chooseCorrection", CORRECTION_CHOICE, decision.id)).catch(() => {});
             const { choix: correctionChoice } = await answer;
             decision = correctionChoice === "accepter" ? appliquerCorrection(VAULT, decision) : refuserCorrection(VAULT, decision);
             // The memory operation already wrote this final decision; do not overwrite it with an earlier version.
             file = `${decision.logiciel}/decisions/${decision.id}.md`;
             await mascot("correctionResult", decision.correction_de_note.statut);
             say(`Correction ${decision.correction_de_note.statut} : ${correction.fichier}.`);
-            await sleep(900);
+            await hold(900);
             await witness(`correction-${decision.correction_de_note.statut}`);
             await mascot("bulle", null);
           } else {
@@ -592,7 +599,7 @@ if (page) {
       const made = (choix) => decisions.filter(({ decision }) => decision.decision === choix).length;
       const tally = [made("bug") && count(made("bug"), "bug à corriger", "bugs à corriger"), made("voulu") && count(made("voulu"), "changement validé", "changements validés")].filter(Boolean).join(", ");
       await mascot("fin", { titre: "C'est rangé.", compte: tally, legende: "Écrit dans la documentation :", fichiers: decisions.map(({ fichier }) => fichier) });
-      await sleep(900);
+      await hold(900);
       await witness("fin");
       say(`${tally}. ${count(decisions.length, "décision écrite", "décisions écrites")} dans ${VAULT} : ${decisions.map(({ fichier }) => fichier).join(", ")}.`);
     }
@@ -650,6 +657,7 @@ writeFileSync(join(OUT, "passage.json"), `${JSON.stringify({
   clic_retenu: !DIRECT,
   retard_par_clic_ms: delays.length ? { min: Math.min(...delays), max: Math.max(...delays), moyenne: Math.round(delays.reduce((sum, ms) => sum + ms, 0) / delays.length) } : null,
   plafond_s: CAP_MS / 1000,
+  sans_presentation: SANS_PRESENTATION,
   relever_ms: releverMs,
   relever_max_ms: releverMs.length ? Math.max(...releverMs.map(({ ms }) => ms)) : null,
   delai_crochet_ms: HOOK_TIMEOUT_MS,
@@ -670,7 +678,7 @@ writeFileSync(join(OUT, "passage.json"), `${JSON.stringify({
 }, null, 2)}\n`);
 say(`Passage écrit : ${join(OUT, "passage.json")} (${taken.size} relevé(s) sur ${course.length}, ${clics.length} clic(s) vus, durée ${dureeS === null ? "à mesurer" : `${dureeS.toFixed(1).replace(".", ",")} s`}).`);
 if (stored !== "supabase") say(`Base en mémoire : ${count(stored.passages, "passage", "passages")}, ${count(stored.captures, "capture", "captures")}, ${count(stored.evenements, "événement", "événements")}, ${count(stored.decisions, "décision", "décisions")}, état « ${stored.etat} ».`);
-for (const { releve, duree_s, dits, sans_phrase } of presentations) say(`Présentation de ${releve} : ${duree_s === null ? "interrompue" : `${duree_s.toFixed(1).replace(".", ",")} s`}, ${count(dits, "constat dit", "constats dits")}${sans_phrase ? `, ${sans_phrase} montré(s) sans phrase (plafond de ${CAP_MS / 1000} s)` : ""}.`);
+for (const { releve, duree_s, dits, sans_phrase } of presentations) say(`Présentation de ${releve} : ${duree_s === null ? "interrompue" : `${duree_s.toFixed(1).replace(".", ",")} s`}, ${count(dits, "constat dit", "constats dits")}${sans_phrase ? `, ${sans_phrase} montré(s) sans phrase (${SANS_PRESENTATION ? "--sans-presentation" : `plafond de ${CAP_MS / 1000} s`})` : ""}.`);
 if (releverMs.length) say(`Relevé le plus long : ${Math.max(...releverMs.map(({ ms }) => ms))} ms (délai du crochet : ${HOOK_TIMEOUT_MS} ms).`);
 if (delays.length) say(`Retard ajouté par clic retenu : de ${Math.min(...delays)} à ${Math.max(...delays)} ms (${delays.length} clics).`);
 if (FILM) say(`Film : ${images} images sur ${(filmedMs / 1000).toFixed(1).replace(".", ",")} s, dans ${FILM}.`);
