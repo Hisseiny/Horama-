@@ -546,3 +546,21 @@ Orchestrateur : Claude Code (Opus 5.5). Mission : J0 à J4 (scène branchée sur
 
 ### 18/11, 13 h 35 : PR de la vitrine (#94), branchement de #93
 - PR #94 (vitrine) ouverte depuis `dev-nathan`. Branchement de #93 sur une branche à part `nathan-91-scene` (depuis `dev`) : `--pages-cliquees`, `passage-reel.sh` en `--max 8 --pages-cliquees 4 --vitrine` (la vitrine prend effet quand #94 est fusionnée), le champ `arrivee` affiché s'il est présent (scène, note du passage, extension). Essai scripté avec #93 : code 0. Le champ n'est pas encore écrit par #93 (une ligne côté Ali).
+
+### 18/11, soir : FIN DE JOURNÉE. Reprendre ici.
+- **Fusionné depuis 13 h 35**, dans `dev` :
+  - mode dev sur le clone : vault du clone (#103), références reprises sur sa production (#137), réveil à blanc (#105), réveil par le statut, le contrôle et le commentaire de Vercel (#114, #128), exploration de tout le site après les tests du vault (#123), langue changée = tests écartés (#125), réponse sur la PR avec les « voulu » retenus (#126), captures sur la branche `horama/captures` du clone (#129) ;
+  - scène : un seul onglet (#110), cookies avant capture (#104), raison quand rien n'est visité (#118), mascotte de la charte animée (#138), charte « L'envoyé » et ses détails (#140, #142) ;
+  - extension dans la charte (#144) ; page d'accueil et charte (#131) ; machine de démo (#146) ; « Essayer Horama » et paquet de l'extension (#147) ; doc de Noé (#141).
+- **Ouverte** : #150, la page d'accueil branchée sur le service. `accueil/service.js` contient `SERVICE` et `RAPPORT_URL` (vide : suivi en texte ; remplie : envoi vers le tableau de bord, construit à part).
+- **Ce qui attend Ali** :
+  - couper la barre d'outils Vercel des prévisualisations du clone (sinon un écart d'image sur chaque page) ;
+  - la PR qui traduit le clone en allemand (#122) ;
+  - l'adresse du service sur Railway (#68) ;
+  - la page d'accueil en ligne sur Vercel (#136).
+- **Ce que je fais dès que ça arrive** :
+  1. **PR en allemand** : `node automatisation/reveil/pr.mjs --depot Hisseiny/eugenia-school-website --logiciel eugenia-clone --a-blanc` (tests du vault écartés pour la langue, prévisualisation ouverte), puis le passage réel avec H **seulement sur le go de Nathan tapé dans cette session**.
+  2. **Adresse Railway** : une ligne dans `DEFAULT_SERVICE` (`extension/service.js`) et une dans `SERVICE` (`accueil/service.js`), puis `sh extension/empaqueter.sh` ; release GitHub du `.zip` sur go de Nathan.
+  3. Puis #132 (déroulé de la démo, avec Nathan) et, jeudi soir, la PR `dev` vers `main` (#134), fusionnée par Nathan.
+- **Règles qui tiennent** : aucune session H ni dépense sans le go de Nathan tapé ici ; sur le clone, seule la branche `horama/captures` est autorisée (go de Nathan), rien d'autre ; plus de `pnpm store prune` ; `bash automatisation/demo/verifier-machine.sh` avant la répétition.
+- **État de la machine** : aucun serveur ni Chrome laissé tourner, ports 9333, 9400 et 8787 libres. Les patchs de démonstration du clone (régression « 4 ans », titre « Bachelor IA ») restent en local dans `automatisation/demo/clone/`, non versionnés.
