@@ -337,6 +337,25 @@ test("références préexistantes sans historique : conservées et comparées d�
   }
 });
 
+test("une référence décimale est comparée sans être remplacée", async () => {
+  const site = join(root, "vault/example-org");
+  const folder = join(site, "references/accueil");
+  mkdirSync(folder, { recursive: true });
+  writeFileSync(join(folder, "defaut--v1.1.png"), original);
+  mkdirSync(join(site, "passages"), { recursive: true });
+  writeFileSync(join(site, "passages/precedent.md"), '---\nversion_testee: "1"\n---\n');
+
+  const { result, base } = await run({ png: changed });
+  const page = result.pages.find(page => page.ecran === "accueil")!;
+  assert.equal(page.statut, "SUSPECTED");
+  assert.equal(page.reference?.version, "1.1");
+  assert.equal(result.version, "2");
+  assert.equal(result.version_reference, "1.1");
+  assert.equal(base.resultats.find(item => item.test_id === "exploration--accueil")?.ecarts_visuels.length, 1);
+  assert.deepEqual(readFileSync(join(folder, "defaut--v1.1.png")), original);
+  assert.equal(existsSync(join(folder, "defaut--v2.png")), false);
+});
+
 test("navigateur sur la dernière page : une fin prématurée est refusée et les relevés reprennent", async () => {
   await run();
   const { result, base } = await run({ earlyEnd: true });

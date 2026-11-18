@@ -159,13 +159,13 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
   const folder = join(vault, site, "passages");
   const passages = existsSync(folder) ? readdirSync(folder, { withFileTypes: true }).filter(entry => entry.isFile() && entry.name.endsWith(".md")) : [];
   const referenceEntries = lireReferences(vault, site).filter(ref => ref.vue === "defaut");
-  const references = referenceEntries.filter(ref => /^\d+$/.test(ref.version) && Number.isSafeInteger(Number(ref.version))).sort((a, b) => Number(b.version) - Number(a.version));
+  const references = referenceEntries.filter(ref => Number.isSafeInteger(Math.floor(Number(ref.version)))).sort((a, b) => Number(b.version) - Number(a.version));
   const versionReference = references[0]?.version ?? null;
   const latestVersion = passages.reduce((latest, entry) => {
     const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(readFileSync(join(folder, entry.name), "utf8"))?.[1];
     const recorded = Number(/^version_testee:[ \t]*(?:"(\d+)"|(\d+))[ \t]*\r?$/m.exec(frontmatter ?? "")?.slice(1).find(Boolean));
     return Number.isSafeInteger(recorded) ? Math.max(latest, recorded) : latest;
-  }, Math.max(passages.length, Number(versionReference)));
+  }, Math.max(passages.length, Math.floor(Number(versionReference))));
   const version = String(latestVersion + 1);
   const notes = lireNotes(vault, site);
   const decisions = lireDecisions(vault, site);

@@ -75,3 +75,16 @@ Journaux bruts : `$run/corrige-1.log`, `$run/corrige-2.log` et `$run/corrige-{1,
 ### Limites
 
 L’exploration conserve les références françaises de production et continue à comparer avec elles : les écarts visuels de comparaison sont des doutes, pas des défauts prouvés. Aucun commentaire n’a été publié sur la PR cible pendant la mesure. Le réveil du mode dev, ses décisions humaines et la publication de captures sur une branche cible n’ont pas été rejoués.
+
+## Suivi de la revue de la PR #180 : référence décimale
+
+`node --test --test-name-pattern='une référence décimale' agent/exploration-explorer.test.ts`, avant correction : code 1, statut observé `PASS` au lieu de `SUSPECTED`. Le test utilise une référence `1.1`, un rapport existant et une capture différente. Après correction, il vérifie que la comparaison a lieu, que le passage prend la version entière `2`, et que la référence `1.1` reste identique, sans création d’une v2 pour la même page.
+
+`pnpm -r --if-present run check` après correction : code 0.
+
+```text
+agent check: ok 82 - une référence décimale est comparée sans être remplacée
+agent check: # tests 266
+agent check: # pass 266
+agent check: # fail 0
+```
