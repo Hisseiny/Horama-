@@ -101,7 +101,7 @@ export function creerCoureur({ vault, base, relever, hookTimeoutMs = 30_000, sig
               const next = consigne.course.find((step) => !taken.has(step.key));
               return next ? `Déjà relevé. Relevé suivant : ecran=${next.ecran}, vue=${next.vue}.` : 'Déjà relevé. Tous les relevés sont pris. Appelle terminer(etat="reussi").';
             }
-            if (hookFailures.has(step.key)) return hookFailures.get(step.key)!;
+            if (hookFailures.has(step.key)) return `${hookFailures.get(step.key)} Continue les autres relevés, puis termine le parcours.`;
             const testTimeouts = consigne.tests.filter((test) => test.releves.some(({ ecran, vue }) => ecran === step.ecran && vue === step.vue))
               .map((test) => test.timeout_s * 1000).filter((timeout) => Number.isFinite(timeout) && timeout > 0);
             const timeout = Math.min(hookTimeoutMs, ...testTimeouts);
@@ -114,14 +114,14 @@ export function creerCoureur({ vault, base, relever, hookTimeoutMs = 30_000, sig
               hookSignal.throwIfAborted();
               return relever(step.ecran, step.vue, hookSignal);
             }), hookSignal); }
-            catch {
+            catch (error) {
               if (signal?.aborted) return "Passage annulé. N'effectue plus aucune action.";
-              if (controller.signal.aborted) {
-                hookFailures.set(step.key, reason);
-                signaler(`Passage ${passage.id} : ${reason}`);
-                return `${reason} Continue les autres relevés, puis termine le parcours.`;
-              }
-              return "Relevé impossible : la capture a échoué. Réessaie ou appelle terminer en échec.";
+              const message = error instanceof Error ? error.message : String(error);
+              const failure = controller.signal.aborted ? reason
+                : `Relevé impossible pour ${step.ecran}/${step.vue}, la capture a échoué : ${message.trim() || "erreur sans message"}`;
+              hookFailures.set(step.key, failure);
+              signaler(`Passage ${passage.id} : ${failure}`);
+              return `${failure} Continue les autres relevés, puis termine le parcours.`;
             } finally { clearTimeout(timer); }
             if (finishing || signal?.aborted) return "Passage arrêté. N'effectue plus aucune action.";
             if (!bonneAdresse(step, result.url_page, consigne.start)) return "Relevé refusé : écran non atteint. Rejoins l'écran demandé avant de relever.";
