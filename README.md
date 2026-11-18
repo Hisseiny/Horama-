@@ -179,7 +179,7 @@ Dans Railway, relier le dépôt **Hisseiny/Horama-** après fusion sur `main`, c
 
 Les sorties sont sous `/data` et expirent une heure après la fin (nettoyage lors des demandes). Les identifiants ne survivent pas au redémarrage, même avec un volume ; un volume est nécessaire pour conserver les fichiers bruts au-delà de la vie du conteneur, et il faut alors gérer le nettoyage après arrêt brutal.
 
-Ne pas ouvrir le domaine public avant d'avoir vérifié les conditions de l'étape 3 : isolation de Chrome sous un compte différent et essai réel avec clé dédiée. Le seul retrait de la clé de l'environnement de Chrome ne suffit pas à isoler ses accès. Mesurer la RAM d'un passage limité à 1 Go avant de choisir l'offre Trial ; le pic antérieur de 932 Mio (PR #83) ne valide pas cette version. Pas de passage sur une offre payante sans accord de Nathan.
+L'image exécute Chromium sous `horama-chrome` et le moteur sous `node`. Le compte Chrome n'a accès ni à l'environnement du moteur ni à `/data`. Si un volume est monté, conserver `/data` accessible en écriture uniquement par `node` (mode `0700`). Avant de publier le domaine, vérifier ces conditions et la mémoire dans Railway ; voir [le rapport de test du service](docs/tests/2026-11-18-service-explorations.md) pour l'essai Docker local. Pas de passage sur une offre payante sans accord de Nathan.
 
 ## Chiffres mesurés
 

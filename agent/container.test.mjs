@@ -75,3 +75,34 @@ test("container cancellation during CDP readiness skips the engine and cleans up
     assert.equal(result.status, 130, result.stderr);
   }
 });
+
+test("the image launcher starts Chrome as its own user without the engine key", () => {
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
+    import assert from "node:assert/strict";
+    import childProcess from "node:child_process";
+    import { EventEmitter } from "node:events";
+    import { syncBuiltinESMExports } from "node:module";
+    let spawns = 0;
+    childProcess.spawn = (bin, args, options) => {
+      spawns++;
+      assert.equal(bin, "/usr/bin/sudo");
+      assert.deepEqual(args.slice(0, 6), ["-n", "-H", "-u", "horama-chrome", "--", "/usr/local/bin/horama-chrome"]);
+      assert.ok(args.includes("--proxy-bypass-list=<-loopback>"));
+      assert.ok(!args.some(arg => arg.startsWith("--user-data-dir=")));
+      assert.ok(!Object.hasOwn(options.env, "HAI_API_KEY"));
+      return Object.assign(new EventEmitter(), {
+        exitCode: null, signalCode: null,
+        kill(signal) { this.emit("exit", null, signal); },
+      });
+    };
+    syncBuiltinESMExports();
+    globalThis.fetch = async () => {
+      process.emit("SIGTERM");
+      throw new Error("Stopping before the engine starts");
+    };
+    await import("./agent/scripts/container.mjs");
+    assert.equal(spawns, 1);
+  `], { cwd, encoding: "utf8", env: { ...process.env, HAI_API_KEY: "not-a-real-key",
+    HORAMA_CHROME_LAUNCHER: "/usr/local/bin/horama-chrome" }, timeout: 5000 });
+  assert.equal(result.status, 130, result.stderr);
+});

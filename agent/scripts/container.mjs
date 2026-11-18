@@ -8,20 +8,24 @@ import { createExplorationService } from "./exploration-service.mjs";
 
 async function runExplorer(args, { signal, vault, output, service = false }) {
   signal.throwIfAborted();
-  const profile = await mkdtemp(join(tmpdir(), "horama-chrome-"));
+  const launcher = process.env.HORAMA_CHROME_LAUNCHER;
+  const profile = launcher ? undefined : await mkdtemp(join(tmpdir(), "horama-chrome-"));
   let proxy;
   try {
-    writePublicChromePreferences(profile);
+    if (profile) writePublicChromePreferences(profile);
     proxy = await startPublicProxy({ log: service ? undefined : message => console.error(message) });
   } catch (error) {
-    await rm(profile, { recursive: true, force: true });
+    if (profile) await rm(profile, { recursive: true, force: true });
     throw error;
   }
-  const chrome = spawn(process.env.CHROME_BIN ?? "/usr/bin/chromium", [
+  const flags = [
     "--headless=new", "--no-sandbox", "--disable-dev-shm-usage",
     "--remote-debugging-address=127.0.0.1", "--remote-debugging-port=9333",
-    `--user-data-dir=${profile}`, ...publicProxyChromeFlags(proxy.port), ...CHROME_FLAGS, "about:blank",
-  ], { stdio: service ? "ignore" : ["ignore", "ignore", "inherit"],
+    ...publicProxyChromeFlags(proxy.port), ...CHROME_FLAGS, "about:blank",
+  ];
+  const chrome = spawn(launcher ? "/usr/bin/sudo" : process.env.CHROME_BIN ?? "/usr/bin/chromium",
+    launcher ? ["-n", "-H", "-u", "horama-chrome", "--", launcher, ...flags] : [`--user-data-dir=${profile}`, ...flags],
+    { stdio: service ? "ignore" : ["ignore", "ignore", "inherit"],
     env: { PATH: process.env.PATH, HOME: process.env.HOME, LANG: process.env.LANG } });
   const chromeExit = new Promise(resolve => {
     chrome.once("error", resolve);
@@ -67,7 +71,7 @@ async function runExplorer(args, { signal, vault, output, service = false }) {
       clearTimeout(timer);
     }
     await proxy.close();
-    await rm(profile, { recursive: true, force: true });
+    if (profile) await rm(profile, { recursive: true, force: true });
   }
 }
 
