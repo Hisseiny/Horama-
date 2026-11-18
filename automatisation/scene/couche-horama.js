@@ -1,7 +1,7 @@
 // Horama layer, put in every page by Page.addScriptToEvaluateOnNewDocument (see installLayer in scene.mjs). Two
 // characters: the cursor, an arrow that travels to each click of the agent and presses there, and the mascot, which
 // waits in a corner and changes its look. While the agent works, nothing else: no text, no label, no counter; a line
-// drawn as with a felt pen (rough-notation) rings what is wrong, at the moment it is found. All the text comes at the
+// of the charter (one stroke of miltos, or ochre dots for a doubt) marks what is wrong, at the moment it is found. All the text comes at the
 // end, in a panel: the summary (the choice of the tests, each defect and doubt with its capture ringed), each question
 // « bug » or « voulu », the correction of a note in the bubble of the mascot, and what was written.
 // From the cursor layer of the T7 probe (itself from Nami, extension/agent-overlay.js): the closed Shadow DOM, the
@@ -11,22 +11,25 @@
 // nor the bindings horamaPress and horamaChoix, which only exist in that world.
 // This file is one function expression: installLayer calls it with the id of the course (a new id forgets what an
 // earlier course left), a title ("" in the probe: the cursor alone, shown at the first click, no mascot), the options
-// ({ direct }: the click is not held), `annotate` of rough-notation and the expressions of the mascot (MASCOT: one SVG
-// per expression, docs/da/mascotte/, read by installLayer).
-(function horamaLayer(PASSAGE, TITLE, OPTIONS, annotate, MASCOT) {
+// ({ direct }: the click is not held), the two signs of proof of the charter (SIGNS: tracerDefaut and poserDoute of
+// docs/da/trait.js) and the expressions of the mascot (MASCOT: one SVG per expression, docs/da/mascotte/), read by
+// installLayer.
+(function horamaLayer(PASSAGE, TITLE, OPTIONS, SIGNS, MASCOT) {
   if (window.top !== window || window.__horama) return;
-  // rough-notation would add its keyframes to the head of the page: they are in the Shadow DOM below instead.
-  window.__rno_kf_s = true;
-
   // ---------- The mascot: the eye with wings of Inès (docs/da/mascotte/, PR #116), one drawing per expression ----------
-  // Skeleton (issue #69): the colours below are provisional and neutral; the art direction comes after, by /taste.
   const M = 96; // side of the box of an expression, in px: the drawings share its frame, an expression never jumps
-  const INK = "#1C1C1C";
-  const PAPER = "#FFFFFF";
-  const GREY = "#6B6B6B";
+  // The charter « L'envoyé » (docs/da/charte-graphique.md, chosen by Nathan on 18/11): its palette, its three voices,
+  // its two signs of proof. Miltos, ocre and olivier only say a state.
+  const INK = "#1C1C1C"; // encre
+  const PAPER = "#FFFDF6"; // papier: cards, folds
+  const ENGOBE = "#FBF5E6"; // the ground of a panel
+  const GREY = "#5C5546"; // encre secondaire
+  const FILET = "#E2D6B8";
+  const SUN = "#FFC93C";
+  const SKY = "#E3E0F9"; // ciel: where the envoy flies
+  const WING = "#AFA9EC";
   const IRIS = "#7F77DD"; // iris of the mascot, for the ripple of a click
-  // One colour for a proven defect, another for a doubt.
-  const COLORS = { conforme: "#2E9E5B", defaut: "#E5484D", doute: "#E8A33D" };
+  const COLORS = { conforme: "#2E7D55", defaut: "#B8321F", doute: "#C48A1E" }; // olivier, miltos, ocre
   const STAMPS = { bug: "Bug noté", voulu: "Voulu" };
   // observe (the course), trouve (a proven defect ringed), doute (a finding of Holo), bloquee (the course stops for a
   // reason), fini (the summary opens); hesite (just before a click of the agent) only with a drawing for it, which the
@@ -39,7 +42,9 @@
   const PRESS = 120; // ms the arrow stays pressed before the click is given back to the page
   const STROKE = 800; // ms to draw the line around a zone
   const GAP = 16; // between the mascot and its bubble
-  const FONT = '"Segoe UI", "Avenir Next", Arial, sans-serif';
+  const FONT = '"Funnel Sans", system-ui, sans-serif'; // the text
+  const AFFICHE = '"Tilt Warp", "Arial Black", sans-serif'; // titles and figures
+  const MESURE = '"Spline Sans Mono", ui-monospace, monospace'; // what the code measured, and addresses
   const PANEL = 1000; // width of the panel of the end
 
   const host = document.createElement("div");
@@ -49,13 +54,16 @@
   shadow.innerHTML = `<style>
     * { pointer-events: none !important; box-sizing: border-box; }
     [hidden] { display: none !important; }
+    :host { --miltos: ${COLORS.defaut}; --ocre: ${COLORS.doute}; }
     .zones { position: absolute; left: 0; top: 0; }
     .zone { position: absolute; }
-    .zone.old { margin: -7px; padding: 7px; box-sizing: content-box; border: 3px dashed ${GREY}; opacity: 0; transition: opacity 300ms ease-out; }
-    .zone.old.done { opacity: 0.6; }
-    .dim { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); opacity: 0; transition: opacity 400ms ease-out; }
+    .zone > svg, .shot .mark > svg { position: absolute; left: 0; top: 0; overflow: visible; }
+    .zone.old { margin: -7px; padding: 7px; box-sizing: content-box; border: 3px dashed ${INK}; opacity: 0; transition: opacity 300ms ease-out; }
+    .zone.old.done { opacity: 0.45; }
+    .dim { position: fixed; inset: 0; background: rgba(42, 38, 71, 0.72); /* nuit */ opacity: 0; transition: opacity 400ms ease-out; }
     .dim.on { opacity: 1; }
-    .mascot { position: fixed; left: 0; top: 0; width: ${M}px; height: ${M}px; will-change: transform; }
+    .mascot { position: fixed; left: 0; top: 0; width: ${M}px; height: ${M}px; will-change: transform; transition: opacity 250ms ease-out; }
+    .mascot.away { opacity: 0; }
     .body { width: ${M}px; height: ${M}px; transform-origin: 50% 80%; animation: hover 3.6s ease-in-out infinite; }
     .body.pop { animation: hover 3.6s ease-in-out infinite, pop 350ms cubic-bezier(0.3, 1.6, 0.5, 1); }
     /* The mascot moves (decision of Nathan, 18/11): the wings flap in opposite directions around their roots, the eye
@@ -66,54 +74,79 @@
     .eyeball { transform-box: view-box; transform-origin: 48px 48px; animation: blink 4.2s ease-in-out infinite; }
     .body > * { display: block; width: ${M}px; height: ${M}px; transform-origin: 50% 50%; overflow: visible; }
     .bubble { position: absolute; left: 0; top: 0; width: max-content; max-width: 470px; padding: 16px 22px; background: ${PAPER}; color: ${INK};
-      font: 600 24px/1.28 ${FONT}; white-space: normal; opacity: 0; transform: scale(0.96); transition: opacity 180ms ease-out, transform 180ms ease-out; }
+      border: 3px solid ${INK}; border-radius: 14px; font: 600 22px/1.3 ${FONT}; white-space: normal; opacity: 0; transform: scale(0.96); transition: opacity 180ms ease-out, transform 180ms ease-out; }
     .bubble.on { opacity: 1; transform: none; }
     .bubble::before { content: ""; position: absolute; top: var(--tail); width: 0; height: 0; margin-top: -11px; border: 11px solid transparent; }
-    .bubble.right::before { left: -22px; border-right-color: ${PAPER}; }
-    .bubble.left::before { right: -22px; border-left-color: ${PAPER}; }
-    .bubble.ask { max-width: 640px; padding: 24px 28px 28px; }
-    .correction-file { margin-bottom: 18px; overflow-wrap: anywhere; color: ${GREY}; font-size: 17px; }
-    .correction-before { display: block; opacity: 0.7; text-decoration-thickness: 2px; }
-    .correction-after { margin: 18px 0 0; }
-    .rank { margin-bottom: 10px; color: ${GREY}; font: 700 15px/1 ${FONT}; letter-spacing: 0.1em; text-transform: uppercase; }
-    .choices { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 20px; }
-    .choice { flex: 1; padding: 15px 20px; border: 0; color: ${PAPER}; font: 700 20px/1 ${FONT}; white-space: nowrap; pointer-events: auto !important; cursor: pointer;
-      transition: opacity 200ms ease-out, transform 200ms ease-out; }
-    .choice.bug { background: ${COLORS.defaut}; }
-    .choice.voulu { background: ${COLORS.conforme}; }
+    .bubble.right::before { left: -25px; border-right-color: ${INK}; }
+    .bubble.left::before { right: -25px; border-left-color: ${INK}; }
+    .bubble.ask { max-width: 640px; padding: 22px 26px 26px; }
+    .correction-file { margin-bottom: 16px; overflow-wrap: anywhere; color: ${GREY}; font: 500 14px/1.4 ${MESURE}; }
+    .correction-before { display: block; color: ${GREY}; text-decoration-thickness: 2px; }
+    .correction-after { margin: 16px 0 0; }
+    .rank { margin-bottom: 10px; color: ${GREY}; font: 500 13.5px/1 ${MESURE}; }
+    .choices { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
+    .choice { flex: 1; height: 52px; padding: 0 22px; border: 2.5px solid ${INK}; border-radius: 999px; background: ${PAPER}; color: ${INK}; font: 600 18px/1 ${FONT};
+      white-space: nowrap; pointer-events: auto !important; cursor: pointer; transition: opacity 200ms ease-out, transform 200ms ease-out; }
+    .choice.bug { background: ${COLORS.defaut}; color: #fff; }
     .choice:hover { transform: translateY(-2px); }
     .choices.made .choice { opacity: 0.3; pointer-events: none !important; }
     .choices.made .choice.chosen { opacity: 1; }
-    .stamp { display: inline-block; padding: 3px 9px; border: 3px solid currentColor; background: ${PAPER}; font: 800 18px/1.2 ${FONT}; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; transform: rotate(-6deg); }
+    .stamp { display: inline-block; padding: 4px 10px; border: 3px solid currentColor; border-radius: 6px; background: ${PAPER}; font: 600 15px/1.2 ${MESURE}; text-transform: uppercase; white-space: nowrap; transform: rotate(-6deg); }
     .stamp.voulu, .stamp.conforme { color: ${COLORS.conforme}; }
     .stamp.bug { color: ${COLORS.defaut}; }
-    .bubble > .stamp, .panel > .stamp { position: absolute; right: 24px; top: -18px; animation: thunk 350ms cubic-bezier(0.3, 1.6, 0.5, 1); }
-    .panel { position: fixed; left: 50%; top: 50%; width: ${PANEL}px; max-height: calc(100% - 24px); padding: 26px 32px 30px; background: ${PAPER}; color: ${INK};
-      font: 500 18px/1.4 ${FONT}; opacity: 0; transform: translate(-50%, -48%); transition: opacity 300ms ease-out, transform 300ms ease-out; }
+    .bubble > .stamp { position: absolute; right: 24px; top: -18px; animation: thunk 350ms cubic-bezier(0.3, 1.6, 0.5, 1); }
+    .panel > .stamp { position: absolute; right: 28px; top: 20px; z-index: 1; animation: thunk 350ms cubic-bezier(0.3, 1.6, 0.5, 1); }
+    /* The card of the end (charter, « récapitulatif »): a band of sky with the sun and the mascot, then the body. */
+    .panel { position: fixed; left: 50%; top: 50%; width: ${PANEL}px; max-height: calc(100% - 24px); overflow: hidden; background: ${ENGOBE}; color: ${INK};
+      border: 3px solid ${INK}; border-radius: 16px; font: 400 18px/1.5 ${FONT}; opacity: 0; transform: translate(-50%, -48%); transition: opacity 300ms ease-out, transform 300ms ease-out; }
     .panel.on { opacity: 1; transform: translate(-50%, -50%); }
-    .panel h1 { margin: 0 0 8px; font: 700 30px/1.15 ${FONT}; }
-    .panel h2 { margin: 18px 0 8px; color: ${GREY}; font: 700 14px/1 ${FONT}; letter-spacing: 0.1em; text-transform: uppercase; }
+    .haut { position: relative; height: 128px; background: ${SKY}; border-bottom: 3px solid ${INK}; overflow: hidden; }
+    .examen .haut { height: 96px; }
+    .astre { position: absolute; left: 50%; top: 40px; width: 240px; height: 240px; margin-left: -120px; border-radius: 50%; background: ${SUN}; border: 3px solid ${INK}; }
+    .examen .astre { top: 30px; width: 200px; height: 200px; margin-left: -100px; }
+    .haut .dessin { position: absolute; left: 50%; top: 6px; width: ${M}px; height: ${M}px; margin-left: ${-M / 2}px; }
+    .examen .haut .dessin { top: 0; }
+    .haut .dessin svg { display: block; width: ${M}px; height: ${M}px; overflow: visible; }
+    .corps { padding: 22px 32px 28px; }
+    .panel h1 { margin: 0; font: 400 52px/1 ${AFFICHE}; letter-spacing: -0.012em; }
+    .panel h2 { margin: 20px 0 8px; color: ${GREY}; font: 500 13.5px/1 ${MESURE}; }
     .panel p { margin: 0 0 4px; }
-    .panel ul { margin: 0; padding: 0 0 0 20px; }
+    .panel .site { margin: 8px 0 0; color: ${GREY}; font: 500 14px/1.4 ${MESURE}; overflow-wrap: anywhere; }
+    .panel .lignes { margin: 10px 0 0; }
+    .panel ul { margin: 0; padding: 0 0 0 20px; color: ${GREY}; font-size: 15px; }
     .panel li { margin: 0 0 2px; }
-    .panel .files { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; list-style: none; }
-    .panel .files li { padding: 5px 9px; background: #EEE; font: 500 15px/1.3 ui-monospace, Consolas, monospace; overflow-wrap: anywhere; }
-    .items { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 16px; }
-    .item p { margin-top: 6px; font-size: 15px; line-height: 1.3; }
-    .tag { display: inline-block; width: 12px; height: 12px; margin-right: 7px; border-radius: 50%; vertical-align: 0; }
-    .tag.defaut { background: ${COLORS.defaut}; }
-    .tag.doute { background: ${COLORS.doute}; }
-    .shot { position: relative; overflow: hidden; background: #E9E9E9; }
+    .chiffres { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 20px 0 0; }
+    .chiffres div { font-size: 15px; line-height: 1.3; font-weight: 600; }
+    .chiffres b { display: block; margin-bottom: 14px; font: 400 64px/0.9 ${AFFICHE}; }
+    .chiffres .defaut b { color: ${COLORS.defaut}; }
+    .chiffres .doute b { margin-bottom: 18px; color: ${COLORS.doute}; }
+    .chiffres .doute b span { padding-bottom: 10px; background-image: radial-gradient(circle, ${COLORS.doute} 3px, transparent 3.5px); background-size: 12px 9px; background-repeat: repeat-x; background-position: 2px 100%; }
+    .releves { display: grid; gap: 10px; margin: 20px 0 0; }
+    .releve { display: flex; align-items: center; gap: 12px; padding: 11px 14px; background: ${PAPER}; border: 2.5px solid ${INK}; border-radius: 10px; font-size: 15.5px; }
+    .releve span { flex: 1; font-weight: 600; }
+    .releve code { color: ${GREY}; font: 500 12.5px ${MESURE}; white-space: nowrap; }
+    .signe { flex: none; width: 20px; height: 20px; border: 2.2px solid ${INK}; color: #fff; font: 800 13px/15.6px ${FONT}; text-align: center; }
+    .signe.defaut { background: ${COLORS.defaut}; }
+    .signe.doute { background: ${COLORS.doute}; }
+    .suite { margin: 10px 0 0; color: ${GREY}; font-size: 15px; }
+    /* The winged button of the charter: ink, a wing of the mascot on each side. */
+    .aile-bouton { position: relative; isolation: isolate; display: inline-flex; align-items: center; height: 52px; margin: 22px 0 0 18px; padding: 0 28px; border-radius: 999px; background: ${INK}; color: ${ENGOBE}; font: 600 17px/1 ${FONT}; }
+    .aile-bouton svg { position: absolute; z-index: -1; top: 50%; width: 32px; height: 35px; margin-top: -24px; overflow: visible; fill: ${WING}; stroke: ${INK}; stroke-width: 2.6; stroke-linejoin: round; }
+    .aile-bouton svg.g { left: -19px; transform-origin: 100% 75%; transform: rotate(6deg); }
+    .aile-bouton svg.d { right: -19px; transform-origin: 0% 75%; transform: rotate(-6deg); }
+    .shot { position: relative; overflow: hidden; background: ${PAPER}; border: 2.5px solid ${INK}; border-radius: 10px; }
     .shot img { position: absolute; left: 0; top: 0; max-width: none; }
     .shot .mark { position: absolute; }
-    .examen .shot { margin: 4px 0 14px; }
-    .examen .texts p { font-size: 20px; }
-    .examen .question { margin-top: 10px; font: 700 24px/1.25 ${FONT}; }
+    .examen .shot { margin: 6px 0 14px; }
+    .examen .texts p { font-size: 19px; }
+    .examen .texts p.preuve { color: ${GREY}; font: 500 14.5px/1.45 ${MESURE}; }
+    .examen .question { margin-top: 10px; font: 600 22px/1.3 ${FONT}; }
+    .panel .files { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; list-style: none; }
+    .panel .files li { padding: 5px 10px; background: ${PAPER}; border: 2px solid ${FILET}; border-radius: 8px; color: ${INK}; font: 500 13.5px/1.3 ${MESURE}; overflow-wrap: anywhere; }
     .cursor { position: fixed; left: 0; top: 0; width: 40px; height: 40px; will-change: transform; }
     .cursor svg { display: block; width: 40px; height: 40px; transform-origin: ${TIP.x}px ${TIP.y}px; transition: transform 90ms ease-out; }
     .cursor.press svg { transform: scale(0.78); }
     .ripple { position: fixed; width: 28px; height: 28px; margin: -14px; border: 3px solid ${IRIS}; border-radius: 50%; animation: ripple 460ms ease-out forwards; }
-    @keyframes rough-notation-dash { to { stroke-dashoffset: 0; } }
     @keyframes hover { 50% { transform: translateY(-5px); } }
     @keyframes pop { from { scale: 0.82; } to { scale: 1; } }
     @keyframes flap { from { transform: rotate(0deg); } to { transform: rotate(calc(var(--dir) * 16deg)) scaleY(0.9); } }
@@ -373,9 +406,17 @@
     renderBubble(false);
   };
 
-  // ---------- Zones (page coordinates): a line drawn as with a felt pen around each one, no text ----------
-  // A proven defect is circled, a doubt boxed, each in its colour; where the thing used to be, a grey dashed frame.
-  const pen = (genre, animate) => ({ type: genre === "defaut" ? "circle" : "box", color: COLORS[genre], strokeWidth: genre === "defaut" ? 4 : 3, padding: genre === "defaut" ? 12 : 8, iterations: genre === "defaut" ? 1 : 2, animate, animationDuration: STROKE });
+  // ---------- Zones (page coordinates): the signs of proof of the charter around each one, no text ----------
+  // A proven defect: one stroke of miltos, in one gesture (tracerDefaut); a doubt: a row of ochre dots under it
+  // (poserDoute); where the thing used to be, a dashed ink frame. sign() draws in a box of w × h px, on its own svg.
+  const sign = (w, h, genre, animate) => {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("width", w);
+    svg.setAttribute("height", h);
+    if (genre === "defaut") SIGNS.tracerDefaut(svg, { x: 0, y: 0, w, h }, { duree: STROKE, instant: !animate });
+    else SIGNS.poserDoute(svg, { x: 0, y: 0, w, h }, { instant: !animate });
+    return svg;
+  };
   const drawn = [];
   async function drawZone(zone, animate) {
     const frameOf = element("div", `zone${zone.trait ? " old" : ""}`);
@@ -392,8 +433,8 @@
     if (animate) await wait(STROKE + 250);
   }
   function ring(item, animate) {
-    item.annotation = annotate(item.element, pen(item.zone.genre, animate));
-    item.annotation.show();
+    item.sign = sign(item.zone.largeur, item.zone.hauteur, item.zone.genre, animate);
+    item.element.append(item.sign);
   }
   const follow = () => {
     zonesBox.style.transform = `translate(${-scrollX}px, ${-scrollY}px)`;
@@ -419,21 +460,53 @@
       const mark = element("div", "mark");
       mark.style.cssText = `left:${(zone.x - rx) * scale}px;top:${(zone.y - ry) * scale}px;width:${zone.largeur * scale}px;height:${zone.hauteur * scale}px`;
       frameOf.append(mark);
-      return mark;
+      return { mark, w: zone.largeur * scale, h: zone.hauteur * scale };
     });
-    // rough-notation measures the element: the rings are drawn once the panel is shown.
-    return { element: frameOf, show: (animate) => marks.forEach((mark) => annotate(mark, pen(genre, animate)).show()) };
+    // The signs are drawn once the panel is shown.
+    return { element: frameOf, show: (animate) => marks.forEach(({ mark, w, h }) => mark.append(sign(w, h, genre, animate))) };
   }
-  const placeBeside = () => {
-    const card = panel.getBoundingClientRect();
-    goTo({ x: Math.max(8, card.left - M - 12), y: Math.max(8, card.top) });
+  // The three voices of the charter, from Google Fonts like the landing, asked for at the end only: during the course
+  // the page loads nothing more than itself (a font refused by the site would be an error of its console). Without them,
+  // the fallbacks of FONT, AFFICHE and MESURE.
+  const fonts = () => {
+    if (document.getElementById("horama-polices") || !document.head) return;
+    const link = Object.assign(document.createElement("link"), { id: "horama-polices", rel: "stylesheet",
+      href: "https://fonts.googleapis.com/css2?family=Tilt+Warp&family=Funnel+Sans:wght@400;600;700&family=Spline+Sans+Mono:wght@500;600&display=swap" });
+    document.head.append(link);
   };
-  async function showPanel(children, shots = []) {
+  // The wings of the winged button: the symbols aile-g and aile-d of the charter (accueil/index.html), the wings of
+  // the mascot.
+  const WINGS = { g: ["0 22 32 35", "M30 46C24 30 10 24 2 28c6 3 7 7 5 10 5 1 7 5 5 8 5 1 8 5 7 9 5-1 9-4 11-9Z"],
+    d: ["64 22 32 35", "M66 46C72 30 86 24 94 28c-6 3-7 7-5 10-5 1-7 5-5 8-5 1-8 5-7 9-5-1-9-4-11-9Z"] };
+  const wingedButton = (text) => {
+    const button = element("div", "aile-bouton", text);
+    for (const [side, [viewBox, path]] of Object.entries(WINGS)) {
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("class", side);
+      svg.setAttribute("viewBox", viewBox);
+      svg.innerHTML = `<path d="${path}"/>`;
+      button.append(svg);
+    }
+    return button;
+  };
+  // The card of the end: a band of sky, the sun, the mascot in the expression of the moment (drawn and moving here, the
+  // roaming one steps away while the card is up), then the body.
+  const card = (etat, children) => {
+    const top = element("div", "haut");
+    const drawing = element("div", "dessin");
+    drawing.innerHTML = MASCOT[expression(etat)];
+    top.append(element("div", "astre"), drawing);
+    const body = element("div", "corps");
+    body.append(...children);
+    return [top, body];
+  };
+  async function showPanel(children, shots = [], etat = state.etat) {
+    fonts();
     panel.classList.remove("on");
-    panel.replaceChildren(...children);
+    panel.replaceChildren(...card(etat, children));
     void panel.offsetWidth;
     panel.classList.add("on");
-    placeBeside();
+    mascot.classList.add("away");
     await wait(320);
     for (const item of shots) item.show(true);
     // Resolves once the rings are drawn.
@@ -571,7 +644,7 @@
       for (const zone of Object.values(state.zones).flat()) if (zone.id === id) zone.genre = genre;
       save();
       for (const item of drawn.filter((candidate) => candidate.zone.id === id && !candidate.zone.trait)) {
-        item.annotation?.remove();
+        item.sign?.remove();
         ring(item, true);
       }
     },
@@ -581,31 +654,52 @@
       save();
       cursor.hidden = on || !state.cursor;
       dim.classList.toggle("on", on);
+      if (!on) mascot.classList.remove("away");
     },
-    // The summary: { titre, lignes, selection, items }. lignes: sentences; selection: { titre, lignes } or null (the
-    // choice of the tests, development mode); items: { id, genre, texte, image, zones, page } for each defect and doubt.
-    async recap({ titre, lignes = [], selection = null, items = [] }) {
+    // The summary, card of the charter: { titre, site, chiffres, lignes, selection, items, bouton }. site: the address,
+    // in mono; chiffres: [{ valeur, libelle, genre }] (« defaut » in miltos, « doute » in ochre with its dots);
+    // lignes: sentences; items: { id, genre, texte, mesure } for each defect and doubt, one line each with its sign
+    // and its measure (or « bug, ou voulu ? »); selection: { titre, lignes } in small at the end (pages or tests);
+    // bouton: the winged button that announces the questions (« Les regarder un par un » when there are items).
+    async recap({ titre, site = null, chiffres = [], lignes = [], selection = null, items = [], bouton = items.length ? "Les regarder un par un" : null }) {
       this.revue(true);
       setEtat(state.etat === "bloquee" ? "bloquee" : "fini");
       await this.bulle(null);
-      // Two rows of three at most: the others come one by one after.
-      const first = items.slice(0, 6);
-      const shots = first.map((item) => shot(item, 296, 168));
-      const children = [element("h1", "", typo(titre)), ...lignes.map((line) => element("p", "", typo(line)))];
-      if (selection) children.push(element("h2", "", selection.titre), list(selection.lignes));
-      if (items.length) {
-        const grid = element("div", "items");
-        grid.append(...first.map((item, index) => {
-          const card = element("div", "item");
-          const caption = element("p", "", typo(item.texte));
-          caption.prepend(element("span", `tag ${item.genre}`));
-          card.append(shots[index].element, caption);
-          return card;
+      const children = [element("h1", "", typo(titre))];
+      if (site) children.push(element("p", "site", site));
+      if (chiffres.length) {
+        const figures = element("div", "chiffres");
+        figures.append(...chiffres.map(({ valeur, libelle, genre }) => {
+          const cell = element("div", genre ?? "");
+          const value = element("b");
+          value.append(element("span", "", String(valeur)));
+          cell.append(value, document.createTextNode(typo(libelle)));
+          return cell;
         }));
-        children.push(element("h2", "", "À trancher"), grid);
-        if (items.length > first.length) children.push(element("p", "", `Et ${items.length - first.length} de plus, montrés un par un ensuite.`));
+        children.push(figures);
       }
-      await showPanel(children, shots);
+      if (lignes.length) {
+        const lines = element("div", "lignes");
+        lines.append(...lignes.map((line) => element("p", "", typo(line))));
+        children.push(lines);
+      }
+      if (items.length) {
+        // Four lines at most: the others come one by one after.
+        const shown = items.slice(0, 4);
+        const rows = element("div", "releves");
+        rows.append(...shown.map((item) => {
+          const row = element("div", "releve");
+          row.append(element("i", `signe ${item.genre}`, item.genre === "defaut" ? "!" : "?"), element("span", "", typo(item.texte)),
+            element("code", "", typo(item.mesure ?? (item.genre === "defaut" ? "prouvé" : "bug, ou voulu ?"))));
+          return row;
+        }));
+        children.push(rows);
+        if (items.length > shown.length) children.push(element("p", "suite", `Et ${items.length - shown.length} de plus, montrés un par un ensuite.`));
+      }
+      if (selection) children.push(element("h2", "", selection.titre), list(selection.lignes));
+      if (bouton) children.push(wingedButton(bouton));
+      panel.className = "panel recap";
+      await showPanel(children);
     },
     // One finding, its capture ringed in large, what was found, and the question with its two buttons. rang: « 1 sur 3 ».
     // The answer comes back through the CDP binding horamaChoix, from a real click on a button or from choisir().
@@ -616,16 +710,18 @@
       examined = id;
       choices.className = "choices";
       for (const button of choices.children) button.classList.remove("chosen");
-      const big = shot({ image, zones, page, genre }, PANEL - 64, 440);
+      const big = shot({ image, zones, page, genre }, PANEL - 70, 400);
       const texts = element("div", "texts");
-      texts.append(...textes.map((text) => element("p", "", typo(text))));
+      // The first text says what was found; the next ones (the proof, measured) are in mono.
+      texts.append(...textes.map((text, index) => element("p", index ? "preuve" : "", typo(text))));
       panel.className = "panel examen";
-      await showPanel([element("div", "rank", rang), big.element, texts, element("p", "question", typo(question)), choices], [big]);
+      await showPanel([element("div", "rank", rang), big.element, texts, element("p", "question", typo(question)), choices], [big], etat);
     },
     // Hides the panel.
     panneau() {
       panel.className = "panel";
       panel.replaceChildren();
+      mascot.classList.remove("away");
     },
     async correction({ id, file, before, after }) {
       this.revue(true);
@@ -669,7 +765,9 @@
       const files = element("ul", "files");
       files.append(...fichiers.map((file) => element("li", "", file.split(/[\\/]/).pop())));
       setEtat("fini");
-      await showPanel([element("h1", "", typo(titre)), element("p", "", typo(compte)), element("h2", "", legende), files]);
+      const lines = element("div", "lignes");
+      lines.append(element("p", "", typo(compte)));
+      await showPanel([element("h1", "", typo(titre)), lines, element("h2", "", legende), files]);
     },
     masquer() {
       host.style.setProperty("display", "none", "important");

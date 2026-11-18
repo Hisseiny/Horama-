@@ -196,8 +196,8 @@ export async function fitViewport(page) {
 const WORLD = "horama";
 const worlds = new WeakMap(); // per tab: its main frame and the id of the world of the layer in its current page
 
-// Puts the Horama layer (couche-horama.js) in every page to come, with the code of rough-notation beside it (nothing
-// is fetched by the page). onPress receives what the layer reports at each press of the agent, and again when a held
+// Puts the Horama layer (couche-horama.js) in every page to come, with the signs of proof of the charter beside it (the
+// page fetches nothing for it, only the fonts of the charter at the end). onPress receives what the layer reports at each press of the agent, and again when a held
 // click is given back to the page ({ rejoue, retard_ms }); onChoice receives { id, choix } at the end of the course.
 // `passage` names the course (the layer forgets what another course left in the tab), `titre` is its banner, `direct`
 // leaves the clicks alone instead of holding them while the cursor travels.
@@ -220,9 +220,15 @@ export async function installLayer(page, onPress, { passage = "", titre = "", di
   page.on("Runtime.bindingCalled", ({ name, payload }) => (name === "horamaPress" ? onPress : name === "horamaChoix" ? onChoice : null)?.(JSON.parse(payload)));
   const read = (file) => readFileSync(new URL(file, import.meta.url), "utf8");
   await page.send("Page.addScriptToEvaluateOnNewDocument", {
-    source: `(() => {\n${read("./node_modules/rough-notation/lib/rough-notation.iife.js")};\n${read("./couche-horama.js")}(${JSON.stringify(passage)}, ${JSON.stringify(titre)}, ${JSON.stringify({ direct })}, RoughNotation.annotate, ${JSON.stringify(mascotte())});\n})();`,
+    source: `(() => {\n${signes()}\n${read("./couche-horama.js")}(${JSON.stringify(passage)}, ${JSON.stringify(titre)}, ${JSON.stringify({ direct })}, { tracerDefaut, poserDoute }, ${JSON.stringify(mascotte())});\n})();`,
     worldName: WORLD,
   });
+}
+
+// The two signs of proof of the charter (docs/da/trait.js: tracerDefaut, one stroke of miltos; poserDoute, a row of
+// ochre dots), its functions put in the scope of the layer (the module's exports become plain declarations).
+export function signes(file = new URL("../../docs/da/trait.js", import.meta.url)) {
+  return readFileSync(file, "utf8").replace(/^export /gm, "");
 }
 
 // The five states of the mascot of the charter (docs/da/mascotte/, PR #130), as inline SVG for the layer. Drawn at

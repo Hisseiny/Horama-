@@ -558,8 +558,16 @@ const selection = impact
 const items = new Map(toDecide.filter((constat) => taken.has(`${constat.ecran}--${constat.vue}`)).map((constat) => [constat.id, itemOf(constat)]));
 if (page) {
   try {
-    const recap = { titre: "Récapitulatif", lignes: [summary, ...(review.length ? [review.length > 1 ? "On les regarde ensemble." : "On le regarde ensemble."] : [])], selection };
-    say(`Récapitulatif : ${recap.lignes.join(" ")}`);
+    // The card of the charter: the title, the address in mono, three figures (proven, to decide, tests played), the
+    // choice of the tests in small at the end.
+    const recap = { titre: complete ? "J'ai fini." : "Je n'ai pas pu finir le parcours.", site: BASE,
+      chiffres: [
+        { valeur: final.problemes ?? 0, libelle: (final.problemes ?? 0) > 1 ? "défauts prouvés" : "défaut prouvé", genre: "defaut" },
+        { valeur: final.doutes ?? 0, libelle: "à trancher", genre: "doute" },
+        { valeur: tests.length, libelle: tests.length > 1 ? "tests rejoués" : "test rejoué" },
+      ],
+      lignes: final.sans_conclusion ? [`${count(final.sans_conclusion, "point", "points")} que je n'ai pas pu vérifier.`] : [], selection };
+    say(`Récapitulatif : ${summary}`);
     const choices = (await revoir({ mascot, recap, items: review.map((constat) => items.get(constat.id)), choix: CHOICES, presentation: !SANS_PRESENTATION, witness, say }, () => new Promise((resolve) => (chosen = resolve))))
       .map(({ item, choix }) => {
         const constat = review.find((candidate) => candidate.id === item.id);

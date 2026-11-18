@@ -36,12 +36,13 @@ export function dejaVoulu(constat, decisions) {
   return decisions.find((decision) => decision.decision === "voulu" && decision.ecran === constat.ecran && decision.ecart === constat.description && overlap(decision.zone, constat.zone)) ?? null;
 }
 
-// mascot: (command, ...args) => layer call. recap: { titre, lignes, selection }. items: { id, genre ("defaut" or
-// "doute"), etat (of the mascot), texte (one line in the summary), png (the capture), zones, page, textes, question }. choix: the
+// mascot: (command, ...args) => layer call. recap: { titre, site, chiffres, lignes, selection } (see recap in
+// couche-horama.js). items: { id, genre ("defaut" or "doute"), etat (of the mascot), texte (one line in the summary),
+// mesure (its measure in the summary, or nothing), png (the capture), zones, page, textes, question }. choix: the
 // answers of --choix, in order. answer(): a promise of the next { id, choix } the layer reports. Returns, per item, the
 // choice made.
 export async function revoir({ mascot, recap, items, choix = [], presentation, witness, say }, answer) {
-  await mascot("recap", { ...recap, items: items.map(({ id, genre, texte, png, zones, page }) => ({ id, genre, texte, image: dataUrl(png), zones, page })) });
+  await mascot("recap", { ...recap, items: items.map(({ id, genre, texte, mesure }) => ({ id, genre, texte, mesure })) });
   await witness("recapitulatif");
   const made = [];
   if (!items.length) return made;

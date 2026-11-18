@@ -288,16 +288,27 @@ if (report?.format === "horama-exploration-1") {
   const items = toDecide.map((constat) => {
     const png = readFileSync(join(OUT, constat.capture));
     return { id: constat.id, genre: GENRE[constat.statut], etat: LOOK[constat.statut], texte: `${pathOf(constat.ecran)} : ${constat.description}`, png, zones: constat.zone ? [constat.zone] : [], page: constat.page ?? sizeOf(png),
+      mesure: constat.source === "controle" && constat.preuve?.mesure ? `mesuré : ${constat.preuve.mesure}` : null,
       textes: [`Page ${pathOf(constat.ecran)}${arrivalOf(constat.ecran) ? ` (${arrivalOf(constat.ecran)})` : ""} : ${constat.description}`, proof(constat)], question: "C'est un bug, ou c'est voulu ?" };
   });
   const excluded = Object.entries(trouvees.exclues.reduce((all, { raison }) => ({ ...all, [raison]: (all[raison] ?? 0) + 1 }), {})).map(([raison, n]) => `${exclusionLabel(raison)} (${n})`);
   const bilan = bilanExploration(report);
   // No page visited (site that blocks robots, address not found, login asked): the reason, no empty list, no « 0 défaut ».
-  const recap = bilan.aucune ? { titre: "Récapitulatif", lignes: [report.adresse, bilan.phrase] } : {
-    titre: "Récapitulatif",
+  // The card of the charter: « J'ai fini. », the address in mono, three figures (proven, to decide, visited), one line per
+  // finding; the details of the pages in small at the end.
+  const proven = toDecide.filter((constat) => constat.statut === "VERIFIED_FAIL").length;
+  const toSettle = toDecide.filter((constat) => constat.statut === "SUSPECTED").length;
+  const recap = bilan.aucune ? { titre: "Je n'ai pas pu entrer.", site: report.adresse, lignes: [bilan.phrase] } : {
+    titre: "J'ai fini.",
+    site: report.adresse,
+    chiffres: [
+      { valeur: proven, libelle: proven > 1 ? "défauts prouvés" : "défaut prouvé", genre: "defaut" },
+      { valeur: toSettle, libelle: "à trancher", genre: "doute" },
+      { valeur: totaux.pages_visitees, libelle: `${totaux.pages_visitees > 1 ? "pages visitées" : "page visitée"} sur ${totaux.pages_trouvees}` },
+    ],
     lignes: [
-      `${report.adresse} : ${count(totaux.pages_visitees, "page visitée", "pages visitées")} sur ${count(totaux.pages_trouvees, "trouvée", "trouvées")}${report.etat === "fini" ? "" : ", passage interrompu"}.`,
-      `${count(totaux.defauts, "défaut prouvé", "défauts prouvés")}, ${count(totaux.doutes, "doute", "doutes")}${totaux.sans_conclusion ? `, ${count(totaux.sans_conclusion, "point non vérifié", "points non vérifiés")}` : ""}.`,
+      ...(report.etat === "fini" ? [] : ["Passage interrompu : les pages non visitées sont listées plus bas."]),
+      ...(totaux.sans_conclusion ? [`${count(totaux.sans_conclusion, "point non vérifié", "points non vérifiés")}.`] : []),
     ],
     selection: { titre: "Pages", lignes: [`Trouvées par ${trouvees.par === "sitemap" ? "le plan du site" : "les liens"}, ${trouvees.plafond} au plus.`,
       ...(arrivals.length ? [`${count(byClick, "page atteinte par un clic de l'agent", "pages atteintes par un clic de l'agent")}, ${count(byAddress, "ouverte par son adresse", "ouvertes par leur adresse")}.`] : []),
@@ -305,7 +316,7 @@ if (report?.format === "horama-exploration-1") {
       ...(accepted.length ? [`${count(accepted.length, "constat déjà déclaré voulu, non redemandé", "constats déjà déclarés voulus, non redemandés")}.`] : []),
       ...bilan.nonVisitees.map(({ chemin, raison }) => `Non visitée : ${chemin}${raison ? `, ${raison.charAt(0).toLowerCase()}${raison.slice(1).replace(/\.+$/, "")}` : ""}.`)] },
   };
-  say(`Récapitulatif : ${recap.lignes.join(" ")}`);
+  say(`Récapitulatif : ${[recap.titre, ...(recap.chiffres ?? []).map(({ valeur, libelle }) => `${valeur} ${libelle}`), ...recap.lignes].join(" ")}`);
   // The course stopped for a reason (site that blocks robots, address not found): the mascot says it, the summary keeps it.
   if (bilan.aucune) await mascot("etat", "bloquee").catch(() => {});
   try {
