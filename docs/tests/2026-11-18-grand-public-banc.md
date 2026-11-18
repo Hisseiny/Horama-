@@ -39,7 +39,7 @@ et les **16** `~/a67-banc/<site>/p<n>/exploration.json` avant correction, y comp
 les deux passages racine Eugenia de l'étape 2, puis **4 JSON après correction**
 sous `python-fix/` et `skema-fix/`. Les JSON sont la source des mesures et
 comptages, pas la relecture vrai/faux. Les qualifications avant correction
-sont celles fournies par l'utilisateur après ouverture des captures ;
+ont été faites à la main par Devin (session A) en ouvrant chaque capture ;
 la vérification comparative Grant Thornton a également été faite pour ce rapport.
 
 Deux genres complémentaires ont été retenus :
@@ -610,7 +610,7 @@ introduit dans les sources. `git diff --check` : sortie vide.
 - Remesurer la fermeture d'une bannière réellement apparue sur les pages SKEMA
   concernées, si elles sont accessibles sans contournement ; ce lot ne la prouve pas.
 - Joindre la vidéo hors Git à la PR et rendre accessibles les preuves locales
-  nécessaires aux relecteurs ; aucune PR créée ni pièce téléversée ici.
+  nécessaires aux relecteurs (la vidéo du passage Eugenia est remise à Ali hors Git).
 - Décider la suite pour la découverte plafonnée, la comparaison des barres de
   défilement/animations et les faux visuels, sans réglage propre à un site.
 - Revoir en-blog-3 et les pages non atteintes/INCONCLUSIVE si une validation
