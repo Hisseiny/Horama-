@@ -27,3 +27,36 @@ test("container refuses overrides of its isolated paths and CDP port", () => {
     assert.match(result.stderr, /réserve CDP 9333/);
   }
 });
+
+test("container cancellation during CDP readiness skips the engine and cleans up", () => {
+  for (const signal of ["SIGTERM", "SIGINT"]) {
+    const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
+      import assert from "node:assert/strict";
+      import childProcess from "node:child_process";
+      import { EventEmitter } from "node:events";
+      import { existsSync } from "node:fs";
+      import { syncBuiltinESMExports } from "node:module";
+      let profile;
+      let spawns = 0;
+      childProcess.spawn = (bin, args) => {
+        spawns++;
+        profile = args.find(arg => arg.startsWith("--user-data-dir=")).split("=")[1];
+        return Object.assign(new EventEmitter(), { exitCode: null });
+      };
+      syncBuiltinESMExports();
+      let requests = 0;
+      globalThis.fetch = async () => {
+        if (requests++ === 0) {
+          process.emit(${JSON.stringify(signal)});
+          return { ok: true };
+        }
+        throw new Error("Chrome closed");
+      };
+      await import("./agent/scripts/container.mjs");
+      assert.equal(spawns, 1);
+      assert.equal(existsSync(profile), false);
+      assert.equal(process.exitCode, 130);
+    `], { cwd, encoding: "utf8", env: { ...process.env, HAI_API_KEY: "not-a-real-key" }, timeout: 5000 });
+    assert.equal(result.status, 130, result.stderr);
+  }
+});

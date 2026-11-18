@@ -20,24 +20,29 @@ if (args.includes("--help")) {
     `--user-data-dir=${profile}`, ...CHROME_FLAGS, "about:blank",
   ], { stdio: ["ignore", "ignore", "inherit"] });
   let engine;
-  const cancel = () => engine?.kill("SIGINT");
+  let cancelled = false;
+  const cancel = () => { cancelled = true; engine?.kill("SIGINT"); };
   process.on("SIGTERM", cancel);
   process.on("SIGINT", cancel);
   try {
     let ready = false;
     for (let attempt = 0; attempt < 100; attempt++) {
+      if (cancelled) break;
       try { ready = (await fetch("http://127.0.0.1:9333/json/version")).ok; } catch {}
       if (ready) break;
       if (chrome.exitCode !== null) throw new Error("Chrome arrêté avant CDP.");
       await new Promise(resolve => setTimeout(resolve, 200));
     }
-    if (!ready) throw new Error("Chrome CDP indisponible.");
-    engine = spawn(process.execPath, ["agent/explorer.ts", ...args, "--chrome-port", "9333",
-      "--vault", "/data/vault", "--sortie", "/data/exploration"], { stdio: "inherit" });
-    process.exitCode = await new Promise((resolve, reject) => {
-      engine.on("error", reject);
-      engine.on("exit", code => resolve(code ?? 1));
-    });
+    if (cancelled) process.exitCode = 130;
+    else {
+      if (!ready) throw new Error("Chrome CDP indisponible.");
+      engine = spawn(process.execPath, ["agent/explorer.ts", ...args, "--chrome-port", "9333",
+        "--vault", "/data/vault", "--sortie", "/data/exploration"], { stdio: "inherit" });
+      process.exitCode = await new Promise((resolve, reject) => {
+        engine.on("error", reject);
+        engine.on("exit", code => resolve(code ?? 1));
+      });
+    }
   } finally {
     process.removeListener("SIGTERM", cancel);
     process.removeListener("SIGINT", cancel);
