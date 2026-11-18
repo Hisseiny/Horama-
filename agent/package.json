@@ -1,0 +1,22 @@
+{
+  "name": "@horama/agent",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./index.ts" },
+  "scripts": {
+    "passage": "node passage.ts",
+    "explorer": "node explorer.ts",
+    "lint": "tsc --noEmit --noUnusedLocals --noUnusedParameters --allowUnreachableCode false --allowUnusedLabels false",
+    "check": "pnpm lint && tsc --noEmit && node --test *.test.ts *.test.mjs"
+  },
+  "dependencies": {
+    "@horama/contrats": "workspace:*",
+    "@horama/jugement": "workspace:*",
+    "@horama/memoire": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "typescript": "5.9.3"
+  }
+}

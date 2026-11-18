@@ -1,0 +1,33 @@
+{
+  "tests": [
+    {
+      "id": "liste-factures-total-formats-echeances",
+      "titre": "Liste des factures : total, formats et échéances",
+      "setup": "Connecté avec le compte de démo, sur la liste des factures, sans filtre.",
+      "etapes": [
+        "Attendre l'affichage du tableau et de sa ligne « Total »."
+      ],
+      "resultat_attendu": "Le total est la somme des montants, les montants et les échéances sont au bon format, chaque facture a une échéance.",
+      "verifications": [
+        "FAIL if le total est différent de la somme de la colonne « Montant TTC ».",
+        "FAIL if un montant n'est pas au format 1 420,00 €.",
+        "FAIL if une échéance n'est pas au format JJ/MM/AAAA.",
+        "FAIL if une facture n'a pas d'échéance."
+      ],
+      "releves": [{ "ecran": "liste-des-factures", "vue": "defaut" }],
+      "regles_calculables": [
+        { "type": "somme", "ecran": "liste-des-factures", "colonne": "Montant TTC", "cible": "Total" },
+        { "type": "format", "ecran": "liste-des-factures", "colonne": "Montant TTC", "motif": "montant-fr" },
+        { "type": "format", "ecran": "liste-des-factures", "colonne": "Échéance", "motif": "date-fr" },
+        { "type": "presence", "ecran": "liste-des-factures", "colonne": "Échéance" }
+      ],
+      "passages_de_la_source": [
+        "Le total en bas du tableau est la somme de la colonne « Montant TTC ».",
+        "Les montants s'affichent au format 1 420,00 €.",
+        "Les échéances s'affichent au format JJ/MM/AAAA.",
+        "Chaque facture a une échéance."
+      ],
+      "questions": []
+    }
+  ]
+}

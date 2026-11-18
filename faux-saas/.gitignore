@@ -1,0 +1,6 @@
+next-env.d.ts
+*.tsbuildinfo
+.vercel
+.env*
+essais/
+app/*.test-generated.mjs

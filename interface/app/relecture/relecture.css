@@ -1,0 +1,31 @@
+/* Step 6. One full-colour block per case; the first one, the most serious, takes the most room. */
+
+.relecture-tete { display: flex; align-items: baseline; gap: 40px; margin-bottom: 32px; }
+.relecture-tete p { display: flex; gap: 24px; font-size: 1.75rem; font-weight: 700; }
+
+.cas { display: grid; gap: 24px; padding: 32px 36px 36px; }
+.cas + .cas { margin-top: 24px; }
+.cas-statut { font-size: 1.15rem; font-weight: 700; margin-bottom: -16px; }
+.cas h2 { font-size: 2.25rem; font-weight: 800; letter-spacing: -0.02em; max-width: 32ch; }
+
+/* The read values, legible from the back of the room. */
+.cas-valeurs { display: flex; align-items: start; gap: 48px; padding: 20px 0; border-block: 1px solid var(--encre); }
+.cas-valeur { display: flex; align-items: start; gap: 48px; }
+.cas-valeur p { display: grid; gap: 6px; }
+.cas-valeur b, .cas-signe { font-size: 3.25rem; line-height: 1; font-weight: 700; letter-spacing: -0.03em; white-space: nowrap; }
+.cas-valeur span:not(.cas-signe) { font-size: 1.15rem; }
+.cas:first-of-type .cas-valeur b, .cas:first-of-type .cas-signe { font-size: min(4.6rem, 5.6vw); }
+
+.cas-preuve { display: grid; grid-template-columns: 5fr 6fr 3fr; gap: 40px; }
+.cas-preuve dt { margin-bottom: 6px; font-weight: 700; }
+.cas-regle { font-size: 1.35rem; line-height: 1.35; font-weight: 700; margin-bottom: 6px; }
+.cas-calcul { font-size: 1.15rem; font-weight: 700; }
+.cas-calcul + .cas-calcul { margin-top: 6px; }
+
+.cas-captures { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.bloc-a_trancher .cas-captures { grid-template-columns: 1fr 1fr; }
+.bloc-a_trancher .cas-preuve { grid-template-columns: 1fr; }
+
+.cas .boutons { gap: 16px; }
+.cas .bouton { min-width: 220px; padding: 16px 28px; font-size: 1.15rem; text-align: center; }
+.cas-decision { font-size: 1.15rem; font-weight: 700; }

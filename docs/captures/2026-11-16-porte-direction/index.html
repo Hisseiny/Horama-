@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horama, planche de direction</title>
+<style>
+  :root { --ink: #1c1e21; --soft: #5b6066; --line: #d9d6cf; --bg: #fbfaf7; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.5 -apple-system, "Helvetica Neue", Arial, sans-serif; }
+  main { max-width: 1500px; margin: 0 auto; padding: 40px 32px 96px; }
+  h1 { font-size: 40px; line-height: 1.1; margin: 0 0 8px; }
+  h2 { font-size: 26px; margin: 72px 0 8px; padding-top: 24px; border-top: 2px solid var(--ink); }
+  h3 { font-size: 19px; margin: 0 0 4px; }
+  p { margin: 0 0 12px; max-width: 78ch; }
+  .soft { color: var(--soft); }
+  a { color: inherit; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+  .shot { margin: 32px 0 0; }
+  .shot img { display: block; width: 100%; border: 1px solid var(--line); background: #fff; }
+  .shot.narrow img { max-width: 1000px; }
+  table { border-collapse: collapse; width: 100%; max-width: 1100px; margin: 12px 0; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--line); }
+  th { font-size: 15px; }
+  pre { font: 15px/1.5 Menlo, monospace; margin: 12px 0; }
+  code { font: 15px Menlo, monospace; }
+  ul { margin: 0 0 12px; padding-left: 22px; max-width: 78ch; }
+  li { margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Horama, planche de direction</h1>
+  <p class="soft">Lundi 16 novembre 2026, couloir Nathan, porte après N4. Captures à 1440 px de large. L'application tourne en local pour naviguer dedans : <a href="http://localhost:3000">http://localhost:3000</a> (données factices). Le faux SaaS est en ligne : <a href="https://facturo-demo.vercel.app/v13/entrer?suite=/v13/factures">facturo-demo.vercel.app</a>.</p>
+
+  <h2>Ce que tu regardes</h2>
+  <div class="cols">
+    <div>
+      <h3>La direction</h3>
+      <ul>
+        <li><strong>Idée directrice.</strong> Horama est la documentation relue par quelqu'un qui est allé vérifier : la doc elle-même porte le verdict.</li>
+        <li><strong>Une signature.</strong> Le surlignage d'état. Une phrase vérifiable est surlignée, la couleur dit où en est la règle, la même partout : jaune à trancher, lime conforme, corail défaut prouvé, pointillé pas testée. La mesure s'écrit à côté de la phrase et sur la capture.</li>
+        <li><strong>Outil de travail.</strong> Navigation, onglets, tableaux et boutons standard. Verdicts en blocs pleins, valeurs en très grand.</li>
+        <li><strong>Typographie.</strong> Atkinson Hyperlegible Next et sa version à chasse fixe, dessinées pour ne pas confondre 1 et l, 0 et O.</li>
+        <li><strong>Couleurs.</strong> Les jetons provisoires de la spec, sans ajout. La couleur ne sert qu'à dire un état.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Ce qui est factice</h3>
+      <ul>
+        <li>Les résultats, le fil du passage, le rapport et la décision : exemples des contrats, étendus. Aucun agent H n'a encore joué.</li>
+        <li>« Accepter », « C'est voulu », « Corriger la note » changent l'état affiché, rien n'est écrit dans le vault. Recharger la page efface l'état.</li>
+        <li>« Modèle qui a écrit ce test : à choisir (T4) » : la génération par Hugging Face est en cours de mesure (N6).</li>
+        <li>Durées et coût : « à mesurer » ou « inconnu » tant qu'aucun passage réel n'existe.</li>
+        <li>Le jeu factice se contredit sur un point : le test du filtre est « proposé » à l'étape 2 et déjà joué aux étapes 4 à 8.</li>
+      </ul>
+      <h3>Ce qui est vrai</h3>
+      <ul>
+        <li>Les notes, les règles et la couverture (13 règles, 3 testées) sont lues dans le vault.</li>
+        <li>Les captures du logiciel testé sont de vraies captures de Facturo en ligne.</li>
+        <li>Le nombre de pixels différents est calculé dans la page, sur ces captures.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>L'application, les 8 étapes</h2>
+
+  <div class="shot narrow"><h3>1. Accueil et couverture</h3><p class="soft"><a href="http://localhost:3000/">localhost:3000/</a></p><img src="app/1-accueil.png" alt="Accueil et couverture"></div>
+  <div class="shot narrow"><h3>2. De la note au test : test proposé</h3><p class="soft"><a href="http://localhost:3000/notes/facturo/13">/notes/facturo/13</a></p><img src="app/2-note-test-propose.png" alt="Test proposé"></div>
+  <div class="shot narrow"><h3>3. Test accepté</h3><p class="soft"><a href="http://localhost:3000/notes/facturo/13?etat=accepte">/notes/facturo/13?etat=accepte</a></p><img src="app/3-test-accepte.png" alt="Test accepté"></div>
+  <div class="shot narrow"><h3>4. Passage en direct</h3><p class="soft"><a href="http://localhost:3000/passages/2026-11-18-14h02-a1b2/direct">/passages/…/direct</a> (capture figée à 30 s du fil)</p><img src="app/4-passage-direct.png" alt="Passage en direct"></div>
+  <div class="shot narrow"><h3>5. Comparaison des versions, côte à côte</h3><p class="soft"><a href="http://localhost:3000/passages/2026-11-18-14h02-a1b2/comparaison/liste-des-factures">/passages/…/comparaison/liste-des-factures</a></p><img src="app/5-comparaison.png" alt="Comparaison côte à côte"></div>
+  <div class="cols">
+    <div class="shot"><h3>5. Rideau</h3><img src="app/5c-comparaison-rideau.png" alt="Rideau"></div>
+    <div class="shot"><h3>5. Pixels bruts</h3><img src="app/5b-comparaison-pixels.png" alt="Pixels bruts"></div>
+  </div>
+  <div class="shot narrow"><h3>6. Relecture</h3><p class="soft"><a href="http://localhost:3000/relecture">/relecture</a></p><img src="app/6-relecture.png" alt="Relecture"></div>
+  <div class="shot narrow"><h3>7. Dérive documentaire</h3><p class="soft"><a href="http://localhost:3000/derive">/derive</a></p><img src="app/7-derive.png" alt="Dérive documentaire"></div>
+  <div class="shot narrow"><h3>8. Rapport de passage</h3><p class="soft"><a href="http://localhost:3000/passages/2026-11-18-14h02-a1b2">/passages/…</a></p><img src="app/8-rapport.png" alt="Rapport de passage"></div>
+
+  <h2>Le faux SaaS Facturo, version 12 et version 13</h2>
+  <p class="soft">Captures à 1280 × 900 prises sur l'URL publique. Deux visites de chaque page : 0 pixel différent. La v13 porte ses trois changements par défaut : CA du mois faux, filtre qui laisse passer F-120, bouton Exporter en haut à droite.</p>
+  <div class="cols">
+    <div class="shot"><h3>Tableau de bord, v12</h3><img src="facturo/tableau-de-bord--defaut--v12.png" alt=""></div>
+    <div class="shot"><h3>Tableau de bord, v13</h3><img src="facturo/tableau-de-bord--defaut--v13.png" alt=""></div>
+    <div class="shot"><h3>Liste des factures, v12</h3><img src="facturo/liste-des-factures--defaut--v12.png" alt=""></div>
+    <div class="shot"><h3>Liste des factures, v13</h3><img src="facturo/liste-des-factures--defaut--v13.png" alt=""></div>
+    <div class="shot"><h3>Détail de la facture F-119, v12</h3><img src="facturo/detail-facture--defaut--v12.png" alt=""></div>
+    <div class="shot"><h3>Détail de la facture F-119, v13</h3><img src="facturo/detail-facture--defaut--v13.png" alt=""></div>
+    <div class="shot"><h3>Liste filtrée « Échéance dépassée », v13 seulement</h3><img src="facturo/liste-des-factures--filtre-echeance--v13.png" alt=""></div>
+  </div>
+
+  <h2>Le vault</h2>
+<pre>vault-horama/
+  facturo/
+    produit/
+      _regles-communes.md
+      tableau-de-bord.md         1 règle calculable
+      liste-des-factures.md      4 règles calculables, 1 non testable
+      detail-facture.md          2 règles calculables
+      regles-entre-ecrans.md     3 règles calculables
+    notes-de-version/
+      v13.md                     2 changements annoncés, en langage courant
+    tests/                       3 tests acceptés, écrits à la main (format C2)
+      liste-factures-filtre-echeance.md
+      ca-du-mois-egal-total.md
+      detail-facture-total-egal-liste.md
+    decisions/                   vide
+    references/                  vide
+    passages/                    vide</pre>
+
+  <h2>Avis du juge aveugle</h2>
+  <p class="soft">Un agent sans aucun contexte a regardé les 10 captures seules, puis à côté de 8 références de la banque (celles qui ont servi et d'autres, sans savoir lesquelles). Sa note n'est pas une mesure : c'est ton avis qui tranche.</p>
+  <div class="cols">
+    <div>
+      <h3>Son verdict : 6,5 sur 10, aucune source unique</h3>
+      <ul>
+        <li><strong>Pas un clone.</strong> « Aucune référence n'est la source évidente : c'est un composite. » Parenté la plus proche : US Graphics pour la structure (onglets en boîtes à filet noir, densité), PostHog pour le fond beige et les titres gras.</li>
+        <li><strong>Ce qui est propre au produit.</strong> Le surlignage posé sur la phrase de documentation avec sa ligne <code>regle:</code> dessous ; la preuve par l'équation en très grand ; le passage qui perd son jaune et devient souligné quand le test est accepté (« le meilleur détail de l'ensemble »).</li>
+        <li><strong>Ce qui reste générique.</strong> La coque (bandeau, 8 onglets, crème, boutons noirs) « irait à une quinzaine de produits sur vingt ». Le surligneur redevient banal quand il sert de fond de carte.</li>
+        <li><strong>Écran le plus fort :</strong> le rapport (8), puis l'équation géante de la relecture (6). <strong>Les plus faibles :</strong> le passage en direct (4, aucune couleur d'état, « l'écran vivant est le plus mort »), la comparaison (5, captures minuscules, trois navigations empilées), l'accueil (1, trop de petit texte gris, règles répétées).</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Corrections proposées, pas encore faites</h3>
+      <ol>
+        <li><strong>Captures du logiciel testé</strong> (4, 5, 6) : recadrées sur la zone utile et agrandies, pour que le texte se lise ; vignettes de la relecture sur toute la largeur.</li>
+        <li><strong>Plancher de lisibilité</strong> : rien sous 15 px, gris plus encré, zéro barré gardé seulement dans la chasse fixe.</li>
+        <li><strong>Rationner l'aplat</strong> : en relecture, le corail sur le titre et l'équation seulement ; en direct, ramener la couleur d'état sur l'étape courante et les sessions.</li>
+        <li><strong>Grille</strong> : compteurs alignés sur les titres, note qui suit le défilement (2, 3), rideau et carte de la dérive calés sur la page.</li>
+        <li><strong>Ce qui fait inachevé</strong> : « à choisir (T4) », « à calculer », « coût inconnu » sortis des titres ; règles entre écrans affichées une fois sur l'accueil ; compteurs « règles » et « tests » nommés pour ne plus sembler se contredire.</li>
+      </ol>
+      <p class="soft">Mon avis : l'idée tient et se reconnaît, l'exécution est inégale. Les écrans 6 et 8 sont au niveau, les écrans 4 et 5 ne le sont pas encore.</p>
+    </div>
+  </div>
+
+  <h2>Un constat à trancher pour le pitch</h2>
+  <p>La vue « pixels bruts » ne montre pas « du rouge partout ». Facturo est déterministe : pour le bouton déplacé, 1 320 pixels diffèrent sur 1 152 000. L'argument du cadrage (« la comparaison de pixels voit rouge partout, Horama ne montre que 2 écarts ») ne se voit donc pas sur ce logiciel. Il se verrait sur un logiciel dont les données ou le rendu bougent d'une visite à l'autre, ou sur le SaaS du pilote.</p>
+</main>
+</body>
+</html>

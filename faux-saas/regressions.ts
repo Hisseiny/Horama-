@@ -1,0 +1,278 @@
+export type Change = {
+  id: string;
+  ecran: "tableau-de-bord" | "liste-des-factures" | "detail-facture";
+  vue: "defaut" | "filtre-echeance";
+  nature: "bug" | "voulu";
+  regle_touchee: "somme" | "egalite" | "filtre" | "format" | "presence" | null;
+  entre_ecrans: boolean;
+  contredit_la_doc: boolean;
+  defaut_v13: boolean;
+  description: string;
+  zone: string;
+  texte_avant?: string;
+  texte_apres?: string;
+};
+
+export const CHANGES = [
+  {
+    id: "ca-mois",
+    ecran: "tableau-de-bord",
+    vue: "defaut",
+    nature: "bug",
+    regle_touchee: "egalite",
+    entre_ecrans: true,
+    contredit_la_doc: false,
+    defaut_v13: true,
+    description: "La carte « CA du mois » affiche 1 240,00 € au lieu de 1 420,00 €, le total de la liste des factures.",
+    zone: "valeur-ca-mois",
+    texte_avant: "1\u00a0420,00\u00a0€",
+    texte_apres: "1\u00a0240,00\u00a0€",
+  },
+  {
+    id: "nombre-factures",
+    ecran: "tableau-de-bord",
+    vue: "defaut",
+    nature: "bug",
+    regle_touchee: "egalite",
+    entre_ecrans: true,
+    contredit_la_doc: false,
+    defaut_v13: false,
+    description: "La carte « Factures du mois » affiche 3 alors que la liste des factures compte 4 lignes.",
+    zone: "valeur-factures-mois",
+    texte_avant: "4",
+    texte_apres: "3",
+  },
+  {
+    id: "total-detail",
+    ecran: "detail-facture",
+    vue: "defaut",
+    nature: "bug",
+    regle_touchee: "egalite",
+    entre_ecrans: true,
+    contredit_la_doc: false,
+    defaut_v13: false,
+    description: "Sur la facture F-119, « Total TTC » affiche 460,00 € alors que la liste affiche 480,00 € (les lignes du détail ne changent pas).",
+    zone: "total-ttc",
+    texte_avant: "480,00\u00a0€",
+    texte_apres: "460,00\u00a0€",
+  },
+  {
+    id: "filtre-echeance",
+    ecran: "liste-des-factures",
+    vue: "filtre-echeance",
+    nature: "bug",
+    regle_touchee: "filtre",
+    entre_ecrans: false,
+    contredit_la_doc: false,
+    defaut_v13: true,
+    description: "Le filtre « Échéance dépassée » affiche aussi la facture F-120, dont l'échéance n'est pas passée.",
+    zone: "ligne-F-120",
+  },
+  {
+    id: "total-liste",
+    ecran: "liste-des-factures",
+    vue: "defaut",
+    nature: "bug",
+    regle_touchee: "somme",
+    entre_ecrans: false,
+    contredit_la_doc: false,
+    defaut_v13: false,
+    description: "La ligne « Total » de la liste affiche la somme des lignes moins 20,00 € (1 400,00 € au lieu de 1 420,00 €).",
+    zone: "total-liste",
+    texte_avant: "1\u00a0420,00\u00a0€",
+    texte_apres: "1\u00a0400,00\u00a0€",
+  },
+  {
+    id: "format-montant",
+    ecran: "liste-des-factures",
+    vue: "defaut",
+    nature: "bug",
+    regle_touchee: "format",
+    entre_ecrans: false,
+    contredit_la_doc: false,
+    defaut_v13: false,
+    description: "Le montant de la facture F-119 s'affiche avec un point à la place de la virgule.",
+    zone: "montant-F-119",
+    texte_avant: "480,00\u00a0€",
+    texte_apres: "480.00\u00a0€",
+  },
+  {
+    id: "format-date",
+    ecran: "liste-des-factures",
+    vue: "defaut",
+    nature: "bug",
+    regle_touchee: "format",
+    entre_ecrans: false,
+    contredit_la_doc: false,
+    defaut_v13: false,
+    description: "L'échéance de la facture F-121 s'affiche au format AAAA-MM-JJ au lieu de JJ/MM/AAAA.",
+    zone: "echeance-F-121",
+    texte_avant: "10/11/2026",
+    texte_apres: "2026-11-10",
+  },
+  {
+    id: "echeance-vide",
+    ecran: "liste-des-factures",
+    vue: "defaut",
+    nature: "bug",
+    regle_touchee: "presence",
+    entre_ecrans: false,
+    contredit_la_doc: false,
+    defaut_v13: false,
+    description: "La case Échéance de la facture F-118 est vide.",
+    zone: "echeance-F-118",
+    texte_avant: "05/11/2026",
+    texte_apres: "",
+  },
+  {
+    id: "chevauchement-total",
+    ecran: "liste-des-factures",
+    vue: "defaut",
+    nature: "bug",
+    regle_touchee: null,
+    entre_ecrans: false,
+    contredit_la_doc: false,
+    defaut_v13: false,
+    description: "Le bloc sous le tableau remonte et recouvre en partie la ligne « Total » (le texte de la page ne change pas).",
+    zone: "pied-tableau",
+  },
+  {
+    id: "client-tronque",
+    ecran: "liste-des-factures",
+    vue: "defaut",
+    nature: "bug",
+    regle_touchee: null,
+    entre_ecrans: false,
+    contredit_la_doc: false,
+    defaut_v13: false,
+    description: "Les noms de la colonne Client sont coupés à 60 px avec des points de suspension (le texte de la page ne change pas).",
+    zone: "cellule-client",
+  },
+  {
+    id: "centime-detail",
+    ecran: "detail-facture",
+    vue: "defaut",
+    nature: "bug",
+    regle_touchee: "somme",
+    entre_ecrans: true,
+    contredit_la_doc: false,
+    defaut_v13: false,
+    description: "Sur la facture F-119, « Total TTC » affiche 480,01 € : un centime de plus que la somme des lignes (300,00 € + 180,00 €) et que la liste.",
+    zone: "total-ttc",
+    texte_avant: "480,00 €",
+    texte_apres: "480,01 €",
+  },
+  {
+    id: "arrondi-total-liste",
+    ecran: "liste-des-factures",
+    vue: "defaut",
+    nature: "bug",
+    regle_touchee: "somme",
+    entre_ecrans: true,
+    contredit_la_doc: false,
+    defaut_v13: false,
+    description: "La ligne « Total » de la liste affiche 1 419,99 € au lieu de 1 420,00 € : un centime de moins que la somme des lignes et que le CA du mois.",
+    zone: "total-liste",
+    texte_avant: "1 420,00 €",
+    texte_apres: "1 419,99 €",
+  },
+  {
+    id: "echeance-decalee",
+    ecran: "liste-des-factures",
+    vue: "defaut",
+    nature: "bug",
+    regle_touchee: null,
+    entre_ecrans: false,
+    contredit_la_doc: false,
+    defaut_v13: false,
+    description: "L'échéance de la facture F-119 s'affiche un jour plus tard (13/11/2026 au lieu de 12/11/2026) : le format reste bon, seule l'image change.",
+    zone: "echeance-F-119",
+    texte_avant: "12/11/2026",
+    texte_apres: "13/11/2026",
+  },
+  {
+    id: "export-haut",
+    ecran: "liste-des-factures",
+    vue: "defaut",
+    nature: "voulu",
+    regle_touchee: null,
+    entre_ecrans: false,
+    contredit_la_doc: true,
+    defaut_v13: true,
+    description: "Le bouton « Exporter » quitte le bas du tableau pour le haut à droite, au-dessus du tableau.",
+    zone: "bouton-exporter",
+  },
+  {
+    id: "colonne-renommee",
+    ecran: "liste-des-factures",
+    vue: "defaut",
+    nature: "voulu",
+    regle_touchee: null,
+    entre_ecrans: false,
+    contredit_la_doc: true,
+    defaut_v13: false,
+    description: "L'en-tête de colonne « Client » devient « Société ».",
+    zone: "entete-client",
+    texte_avant: "Client",
+    texte_apres: "Société",
+  },
+  {
+    id: "bouton-nouvelle-facture",
+    ecran: "liste-des-factures",
+    vue: "defaut",
+    nature: "voulu",
+    regle_touchee: null,
+    entre_ecrans: false,
+    contredit_la_doc: false,
+    defaut_v13: false,
+    description: "Un bouton « Nouvelle facture » apparaît en haut du tableau, à gauche de l'emplacement haut du bouton « Exporter ».",
+    zone: "bouton-nouvelle-facture",
+  },
+  {
+    id: "titre-tableau-de-bord",
+    ecran: "tableau-de-bord",
+    vue: "defaut",
+    nature: "voulu",
+    regle_touchee: null,
+    entre_ecrans: false,
+    contredit_la_doc: false,
+    defaut_v13: false,
+    description: "Le titre du tableau de bord devient « Vue d'ensemble ».",
+    zone: "titre-page",
+    texte_avant: "Tableau de bord",
+    texte_apres: "Vue d'ensemble",
+  },
+  {
+    id: "badge-statut-detail",
+    ecran: "detail-facture",
+    vue: "defaut",
+    nature: "voulu",
+    regle_touchee: null,
+    entre_ecrans: false,
+    contredit_la_doc: false,
+    defaut_v13: false,
+    description: "Le badge « En attente de paiement » du détail passe d'un contour à un fond plein.",
+    zone: "badge-statut",
+  },
+] as const satisfies readonly Change[];
+
+export type ChangeId = (typeof CHANGES)[number]["id"];
+
+export const VERSIONS = ["12", "13"] as const;
+export type Version = (typeof VERSIONS)[number];
+
+export function defaultChanges(version: Version): ChangeId[] {
+  return version === "13" ? CHANGES.filter((change) => change.defaut_v13).map((change) => change.id) : [];
+}
+
+export function resolveChanges(version: Version, r: string | null): ChangeId[] | null {
+  if (r === null) return defaultChanges(version);
+  const wanted = new Set<string>();
+  for (const part of r.split(",")) {
+    if (part === "aucun") continue;
+    if (part === "defaut") defaultChanges(version).forEach((id) => wanted.add(id));
+    else if (CHANGES.some((change) => change.id === part)) wanted.add(part);
+    else return null;
+  }
+  return CHANGES.map((change) => change.id).filter((id) => wanted.has(id));
+}

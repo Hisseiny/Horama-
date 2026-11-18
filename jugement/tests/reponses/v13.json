@@ -1,0 +1,67 @@
+{
+  "tests": [
+    {
+      "id": "filtre-echeance-depassee-liste-factures",
+      "titre": "Liste des factures : filtre Échéance dépassée",
+      "setup": "Connecté avec le compte de démo, sur la liste des factures, sans filtre.",
+      "etapes": [
+        "cliquer sur le menu « Filtrer »",
+        "choisir le filtre « Échéance dépassée »"
+      ],
+      "resultat_attendu": "Seules les factures dont l’échéance est passée sont affichées.",
+      "verifications": [
+        "FAIL if une ligne affichée a une échéance postérieure ou égale à aujourd'hui."
+      ],
+      "releves": [
+        {
+          "ecran": "liste-des-factures",
+          "vue": "filtre-echeance"
+        }
+      ],
+      "regles_calculables": [
+        {
+          "type": "filtre",
+          "ecran": "liste-des-factures",
+          "filtre": "Échéance dépassée",
+          "colonne": "Échéance",
+          "condition": "< aujourd_hui"
+        }
+      ],
+      "passages_de_la_source": [
+        "Nouveau filtre « Échéance dépassée » sur la liste des factures : il n'affiche que les factures dont la date d'échéance est passée."
+      ],
+      "questions": [
+        {
+          "texte": "La date d'échéance du jour compte-t-elle comme passée ?",
+          "choix": [
+            "Oui",
+            "Non"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bouton-exporter-deplacement-liste-factures",
+      "titre": "Liste des factures : position du bouton Exporter",
+      "setup": "Connecté avec le compte de démo, sur la liste des factures, sans filtre.",
+      "etapes": [
+        "attendre le chargement complet de la page"
+      ],
+      "resultat_attendu": "Le bouton « Exporter » apparaît en haut à droite de la barre d'actions.",
+      "verifications": [
+        "FAIL if le bouton « Exporter » n’est pas présent en haut à droite."
+      ],
+      "releves": [
+        {
+          "ecran": "liste-des-factures",
+          "vue": "defaut"
+        }
+      ],
+      "regles_calculables": [],
+      "passages_de_la_source": [
+        "Refonte de la barre d'actions : le bouton « Exporter » passe en haut à droite."
+      ],
+      "questions": []
+    }
+  ]
+}

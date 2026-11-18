@@ -1,0 +1,10 @@
+{
+  "passage_id": "2026-11-18-14h02-a1b2",
+  "test_id": "ca-du-mois-egal-total",
+  "session_id": "ses_demo_1",
+  "horodatage": "2026-11-18T14:02:19Z",
+  "etape": 3,
+  "action": "Ouvre « Factures »",
+  "capture_url": "https://example.supabase.co/storage/v1/object/public/captures/2026-11-18-14h02-a1b2/ca-du-mois-egal-total/etape-3.png",
+  "etat_session": "en_cours"
+}

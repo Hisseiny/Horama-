@@ -1,0 +1,9 @@
+{
+  "passage_id": "2026-11-18-14h02-a1b2",
+  "logiciel": "facturo",
+  "version_testee": "13",
+  "a_relire": 2,
+  "defauts_prouves": 1,
+  "suspects": 1,
+  "lien": "http://localhost:3000/relecture"
+}

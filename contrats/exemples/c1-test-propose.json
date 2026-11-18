@@ -1,9 +1,35 @@
 {
   "id": "liste-factures-filtre-echeance",
+  "logiciel": "facturo",
   "source": "notes-de-version/v13.md",
-  "passages_de_la_source": ["il n'affiche que les factures dont la date d'échéance est passée"],
-  "test_markdown": "contenu du test au format H",
-  "regles_calculables": [{ "type": "filtre", "colonne": "Échéance", "condition": "< aujourd'hui" }],
-  "questions": [{ "texte": "« échéance passée » inclut-elle le jour même ?", "choix": ["Oui", "Non"] }],
-  "statut": "propose"
+  "passages_de_la_source": [
+    "il n'affiche que les factures dont la date d'échéance est passée"
+  ],
+  "releves": [
+    {
+      "ecran": "liste-des-factures",
+      "vue": "filtre-echeance"
+    }
+  ],
+  "test_markdown": "---\nid: liste-factures-filtre-echeance\nlogiciel: facturo\nsource: notes-de-version/v13.md\nreleves: [{ ecran: liste-des-factures, vue: filtre-echeance }]\nurl_depart: /v13/entrer?suite=/v13/factures\nversion_cible: \"13\"\ntimeout_s: 180\nstatut: accepte\naccepte_par: Léa\naccepte_le: 2026-11-18\n---\n\n# Liste des factures : filtre « Échéance dépassée »\n\n## Setup\nConnecté avec le compte de démo, sur la liste des factures, filtre sur « Toutes ».\n\n## Task\n1. Ouvrir le menu des filtres et choisir « Échéance dépassée ».\n2. Pour chaque relevé listé dans releves, une fois l'écran dans cet état, la page chargée et en haut de page, appelle l'outil relever avec ecran=<id> et vue=<vue>.\n\n## Expected Result\nSeules les factures dont l'échéance est antérieure à aujourd'hui sont affichées.\n\n## Verification\n- FAIL if une ligne affichée a une échéance égale ou postérieure à aujourd'hui.\n\n```regles\n[{ \"type\": \"filtre\", \"ecran\": \"liste-des-factures\", \"filtre\": \"Échéance dépassée\", \"colonne\": \"Échéance\", \"condition\": \"< aujourd_hui\" }]\n```\n",
+  "regles_calculables": [
+    {
+      "type": "filtre",
+      "ecran": "liste-des-factures",
+      "filtre": "Échéance dépassée",
+      "colonne": "Échéance",
+      "condition": "< aujourd_hui"
+    }
+  ],
+  "questions": [
+    {
+      "texte": "« Échéance passée » inclut-elle le jour même ?",
+      "choix": [
+        "Oui",
+        "Non"
+      ]
+    }
+  ],
+  "statut": "propose",
+  "modele": "à choisir (T4)"
 }

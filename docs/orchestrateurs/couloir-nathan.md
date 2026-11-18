@@ -1,0 +1,46 @@
+# Couloir Nathan : la mémoire et la preuve
+
+Orchestrateur : Claude Code (Fable 5.2) sur le Mac de Nathan, repo dans `~/Code/projet/horama`, worktrees dans `~/Code/projet/horama-wt/`. Branche de couloir : `dev-nathan`. Méthode : `docs/orchestrateurs/methode.md`.
+
+Dossiers du couloir : `faux-saas/`, `vault-horama/`, `memoire/`, `jugement/`, `interface/`, `automatisation/`, `docs/journal-nathan.md`, `docs/captures/`, `docs/decisions/` (ses fichiers), `scripts/verifier-cles-nathan.mjs`.
+
+Variables `.env.local` utiles : `HAI_API_KEY`, `HF_TOKEN`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, `FAUX_SAAS_URL`, `FACTURO_LOGIN`, `FACTURO_PASSWORD`, `N8N_WEBHOOK_URL` (facultative), `VAULT_PATH=./vault-horama`, `USE_MOCKS`.
+
+## Changement de cap du 16/11 au soir
+
+Décision de Nathan à la porte : `docs/decisions/2026-11-16-scene-en-direct.md` (elle prime sur le tableau ci-dessous). État au moment de la décision : N0 à N5 et N6a tenus (voir `docs/journal-nathan.md`).
+
+Suite, dans l'ordre :
+
+| N° | Tâche | Fini quand |
+|---|---|---|
+| T7 | Preuve du navigateur local : l'agent H joue un parcours sur Facturo dans un Chrome local, un curseur dans la page suit ses clics, captures par CDP | 3 passages de suite : écrans atteints, curseur sur l'élément cliqué, captures identiques au pixel près entre deux passages, durée mesurée ; résultat dans `docs/tests/2026-11-16-t7-navigateur-local.md` |
+| S1 | La scène : lanceur du Chrome local et du pont, couche visuelle (mascotte en attente des images de Nathan, bulle, surlignage), capture par CDP | Un parcours filmé de bout en bout, mascotte comprise |
+| S2 | Vérification pendant la session (remplace N7 et N8 dans leur forme « après la session ») : à chaque `relever`, relevé des valeurs dans la page, calcul des règles, pixels contre la référence, zone surlignée si doute | Sur le parcours v13 : CA du mois et filtre signalés pendant le parcours, bouton Exporter surligné, 3 sur 3 |
+| S3 | Fin de parcours (remplace N9) : on repasse sur les zones surlignées, bug ou voulu, puis décisions et note corrigées d'un coup | Tests d'acceptation 4 et 5 de la spec |
+| S4 | Déclenchement par un déploiement Vercel | Un déploiement de Facturo lance le parcours sans clic |
+| N6b, N10, N11 | Inchangées dans leur but, à replacer après S3 | |
+
+L'app à 8 onglets livrée en N4 n'est plus le chemin de la démo : ses écrans de relecture, de dérive et de rapport servent à S3.
+
+## Tâches, dans l'ordre
+
+| N° | Tâche | Fini quand (l'orchestrateur le vérifie) |
+|---|---|---|
+| N0 | T0 (clés) et T6 (Devin rend la main), section 2 de la méthode | Codes 200, fichier T6 créé |
+| N1 | Migration Supabase : `base/appliquer.mjs` (paquet `postgres`, `SUPABASE_DB_URL`) applique `base/migrations/001_init.sql` sans le modifier | Les 7 tables et le seau `captures` existent (requête de comptage) ; sinon Nathan colle le SQL dans l'éditeur |
+| N2 | Faux SaaS Facturo (spec section 8) : Next.js, connexion factice et entrée déjà authentifiée `/vXX/entrer?suite=…`, 3 écrans, `/v12` et `/v13`, aucun survol ni focus visible au chargement, catalogue `regressions.ts` et `verite.json`, date fixée, sans défilement à 1280 × 900 ; déployé sur Vercel (projet `facturo-demo`) ; `positions.json` mesuré par Playwright | URL publique ; 6 captures (3 écrans × 2 versions, vue `defaut`) identiques à deux visites près (différence de pixels nulle) ; seuil de bruit fixé et écrit dans `docs/decisions/` pour T1 ; `?r=` change bien ce qu'il doit |
+| N3 | Livraison anticipée au couloir Ali : `docs/decisions/2026-11-16-url-faux-saas.md` (URL, versions, comment se connecter sans écrire le mot de passe), vault du faux SaaS (spec section 9) avec les 3 tests C2 écrits à la main (dont les 2 tests du parcours de démo) ; pull request `dev-nathan` vers `dev` immédiatement | PR ouverte, lien donné à Nathan ; les 3 tests passent le lecteur de C2 (N5) |
+| N4 | App Horama sur données factices (`USE_MOCKS=1`) : les 8 étapes (spec section 11), jetons provisoires, panneau Vault ; versions factices bâties sur `contrats/exemples.ts` (y compris un coureur d'agent factice qui rejoue un passage enregistré) | 8 captures à 1440 de large |
+| **Porte** | **Planche de direction** : `docs/captures/2026-11-16-porte-direction/index.html` avec les 8 écrans de l'app, les 6 captures du faux SaaS, l'arborescence du vault ; ouverte dans Chrome ; message à Nathan : ce qu'il voit, ce qui est factice. **Attendre son « go »** ou ses corrections. Étiquette `porte-direction` | « go » de Nathan |
+| N5 | `@horama/memoire` : lire les notes et leurs règles structurées, écrire un test accepté (C2), lire les tests acceptés, écrire une décision (C5), appliquer une correction de note, écrire un rapport de passage, tenir les références (règle F32 : la référence d'un écran ne change que si tous ses écarts sont tranchés et qu'aucun n'est un bug) | Tests unitaires sur une copie du vault ; aller-retour C2 sans perte |
+| N6 | T4 puis génération : deux modèles Hugging Face (lister ceux du routeur `https://router.huggingface.co/v1`, garder deux modèles d'instruction), note vers C1 avec questions d'ambiguïté ; écran 11.2 branché (Accepter écrit le fichier) ; tableau de comparaison des deux modèles dans `jugement/generation/comparaison.md` | T4 tenu (2 sur 3 au moins) ; 3 fois sur 3, la note v13 donne 2 tests acceptables écrits dans le vault |
+| N7 | T2 puis vérification : sonde H minimale (`jugement/scripts/sonde-h.ts`, une session à la fois) ; relevé des valeurs depuis `texte_page` (environnement `markdown: true` ; repli Holo) ; calcul des 5 types de règles ; statuts C4 ; `verifierPassage` | Sur des captures réelles : `VERIFIED_FAIL` pour CA du mois en v13, `PASS` en v12, 3 sur 3 |
+| N8 | T3 puis double vision : comparaison seulement entre captures de même (écran, vue) ; différence de pixels (nombre de zones, image rouge), zones d'écart par Holo (ou repli : regroupement des pixels, Holo décrit et trie), écran 11.5 (côte à côte, rideau, pixels bruts), références v12 désignées depuis le passage de référence | Bouton Exporter entouré à moins de 40 px de `positions.json`, 3 sur 3 |
+| N9 | Relecture et dérive : écran 11.6 (bug ou voulu, décision C5 dans le vault et en base), écran 11.7 (correction proposée, Accepter modifie la note), mémoire (un « voulu » neutralise l'écart de même écran, vue et zone : `PASS` avec l'identifiant de la décision), action explicite « Valider v13 comme référence » permise seulement sans bug (F32) ; retest contre la référence v12 | Tests d'acceptation 4 et 5 de la spec, 3 sur 3 |
+| N10 | Branchement au vrai coureur dès que `dev` contient `@horama/agent` (avant la fusion, tester l'assemblage dans un worktree jetable qui fusionne `origin/dev-ali`, spec section 13) : bouton « Lancer un passage » qui démarre le script de passage en processus détaché, fil en direct lu en base, `verifierPassage` quand `passages.etat` vaut `joue`, puis `verifie` ; rapport ; boucle complète sur le faux SaaS ; étiquette `boucle-1-ecran` puis PR vers `dev` | Tests d'acceptation 1, 2, 3 et 7, 3 passages de suite |
+| N11 | Banc : script `jugement/scripts/banc.ts` (joue une liste de cas `?r=`, écrit les lignes C8, calcule rappel, précision, fausses alertes avec leurs effectifs (`SUSPECTED` compte comme alerte, rappel sur toutes les régressions), et les trois références triviales de la spec section 6) ; n8n si `N8N_WEBHOOK_URL` existe (notification C7), sinon noté | Un rapport de banc sur 3 cas, chiffres et références triviales côte à côte |
+
+Le test d'acceptation 7 exige un coût connu : un coût « inconnu » est un échec. Si le temps manque, couper dans l'ordre de la spec section 13.
+
+Tant que `@horama/agent` n'est pas dans `dev`, tout le couloir avance sur le coureur factice et sur la sonde H. Après la porte, ne t'arrête plus sauf cas de la section 8 de la méthode ; ouvre une PR vers `dev` après N6, N9 et N10.

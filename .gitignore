@@ -9,3 +9,6 @@ dist/
 __pycache__/
 .ipynb_checkpoints/
 .obsidian/workspace*.json
+
+.orchestrateur/
+.vercel/
