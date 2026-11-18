@@ -540,3 +540,6 @@ Orchestrateur : Claude Code (Opus 5.5). Mission : J0 à J4 (scène branchée sur
   Pas de passage avec H sous vitrine pour l'instant.
 - **Passage réel de 13 h 30** : `bash automatisation/demo/passage-reel.sh`, **seulement après le go de Nathan tapé dans la session de l'orchestrateur** (vérification d'avant-départ d'abord, environ 0,08 $). Nathan règle son écran externe en 1920 × 1080 pour une scène plus grande.
 - Pour #91 (Ali), côté scène : appeler `relever` avant de faire défiler, sinon la page remonte d'un coup pour la capture.
+
+### 18/11, reprise après la pause : vitrine finie
+- #92 fusionnée sans la vitrine. Vitrine : fermée en plein passage, la scène va au bout (code 0) ; options anti-ralentissement ajoutées au Chrome de la vitrine (81 images affichées sur 5 888 en plein écran caché sur l'écran du Mac seul, puis 5 066 sur 5 086). Rapport : `docs/tests/2026-11-18-vitrine.md`. Ensuite : brancher la PR #93 d'Ali (#91) dans la scène.

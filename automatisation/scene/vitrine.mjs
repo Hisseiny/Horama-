@@ -84,6 +84,8 @@ export async function ouvrirVitrine(page, { port = 9400, chromeBin, profil, debu
     const screen = screenInfos.reduce((best, info) => (!best || info.availWidth * info.availHeight > best.availWidth * best.availHeight ? info : best), null);
     viewer = spawn(chromeBin, [`--user-data-dir=${profil}`, `--app=http://127.0.0.1:${port}/`, "--start-fullscreen",
       ...(screen ? [`--window-position=${screen.availLeft + 40},${screen.availTop + 40}`] : []), "--no-first-run", "--no-default-browser-check",
+      // A window behind another one, or a full screen in another space of macOS, is not slowed down.
+      "--disable-backgrounding-occluded-windows", "--disable-renderer-backgrounding", "--disable-background-timer-throttling",
       "--force-color-profile=srgb", ...(debugPort ? [`--remote-debugging-port=${debugPort}`] : [])], { stdio: "ignore" });
     viewer.on("error", (error) => say(`Vitrine : Chrome non lancé (${error.message}) ; la scène continue dans sa fenêtre.`));
     say(`Vitrine ouverte : http://127.0.0.1:${port}/ en plein écran (Ctrl+Cmd+F pour en sortir, la déplacer d'écran au besoin).`);
