@@ -84,7 +84,7 @@ export function lecteurFaux(fichier) {
   const data = () => JSON.parse(readFileSync(fichier, "utf8"));
   return {
     prs: () => data().prs,
-    previsualisation: (sha) => data().deploiements?.[sha] ?? null,
+    previsualisation: (sha) => (data().deploiements?.[sha] ? { source: "faux GitHub", ...data().deploiements[sha] } : null),
     fichiers: (numero) => data().fichiers?.[numero] ?? [],
   };
 }
