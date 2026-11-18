@@ -25,10 +25,15 @@ export function refuseCookies(): boolean {
     let parent = element.parentElement;
     while (parent && parent !== document.body && parent !== document.documentElement) {
       if (!refusal && (parent.matches('main,nav,[role="main"],[role="navigation"]') || parent.querySelector('main,nav,[role="main"],[role="navigation"]'))) break;
+      if (!refusal && ![...parent.querySelectorAll('button,[role="button"],a[href],input:not([type="hidden"]),select,textarea,[tabindex]:not([tabindex="-1"])')].some(other => other !== element && !element.contains(other))) {
+        parent = parent.parentElement;
+        continue;
+      }
       if (/cookie|consent|rgpd|gdpr|privacy|confidentialit/.test(normalize([parent.textContent, parent.id, parent.className, parent.getAttribute("aria-label")].join(" ")))) {
         candidates.push({ element, refusal });
         break;
       }
+      if (!refusal) break;
       parent = parent.parentElement;
     }
   }
