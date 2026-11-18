@@ -220,9 +220,19 @@ export async function installLayer(page, onPress, { passage = "", titre = "", di
   page.on("Runtime.bindingCalled", ({ name, payload }) => (name === "horamaPress" ? onPress : name === "horamaChoix" ? onChoice : null)?.(JSON.parse(payload)));
   const read = (file) => readFileSync(new URL(file, import.meta.url), "utf8");
   await page.send("Page.addScriptToEvaluateOnNewDocument", {
-    source: `(() => {\n${read("./node_modules/rough-notation/lib/rough-notation.iife.js")};\n${read("./couche-horama.js")}(${JSON.stringify(passage)}, ${JSON.stringify(titre)}, ${JSON.stringify({ direct })}, RoughNotation.annotate);\n})();`,
+    source: `(() => {\n${read("./node_modules/rough-notation/lib/rough-notation.iife.js")};\n${read("./couche-horama.js")}(${JSON.stringify(passage)}, ${JSON.stringify(titre)}, ${JSON.stringify({ direct })}, RoughNotation.annotate, ${JSON.stringify(mascotte())});\n})();`,
     worldName: WORLD,
   });
+}
+
+// The six expressions of the mascot (docs/da/mascotte/, PR #116), as inline SVG for the layer. Drawn at 512 × 512 in a
+// frame of 96 units (viewBox 8 8 80 80, the eye of radius 20 at its centre), the same units as the first skeleton: shown
+// with the whole frame 0 0 96 96 in the 96 px box of the layer, the eye keeps the size and the place it had.
+export const EXPRESSIONS = ["observe", "hesite", "trouve", "doute", "bloquee", "fini"];
+export function mascotte(folder = new URL("../../docs/da/mascotte/", import.meta.url)) {
+  return Object.fromEntries(EXPRESSIONS.map((name) => [name, readFileSync(new URL(`${name}.svg`, folder), "utf8")
+    .replace(/<\?xml[^>]*>\s*/, "").replace(/<title>[^<]*<\/title>\s*/, "")
+    .replace(/<svg\b[^>]*>/, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">')]));
 }
 
 // Evaluates in the world of the layer, in the current page of the main frame.
