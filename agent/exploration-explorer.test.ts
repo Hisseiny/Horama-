@@ -34,7 +34,7 @@ let root: string;
 beforeEach(() => { root = mkdtempSync(join(tmpdir(), "horama-explorer-")); });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-async function run({ png = original, skip = "", refuse = false, failure = false, lateError = false, earlyEnd = false, query = "", actual, retries = 1, defilement = [0, 0], deps = {} }: { actual?: (url: string) => string; retries?: number; defilement?: [number, number]; png?: Buffer; skip?: string; refuse?: boolean; failure?: boolean; lateError?: boolean; earlyEnd?: boolean; query?: string; deps?: Partial<ExplorerDependencies> } = {}) {
+async function run({ png = original, skip = "", refuse = false, failure = false, lateError = false, earlyEnd = false, query = "", actual, retries = 1, defilement = [0, 0], deps = {}, site }: { site?: string; actual?: (url: string) => string; retries?: number; defilement?: [number, number]; png?: Buffer; skip?: string; refuse?: boolean; failure?: boolean; lateError?: boolean; earlyEnd?: boolean; query?: string; deps?: Partial<ExplorerDependencies> } = {}) {
   let address = "https://example.org/";
   const base = new BaseMemoire();
   const responses: string[] = [];
@@ -70,7 +70,7 @@ async function run({ png = original, skip = "", refuse = false, failure = false,
     })();
     return { id: "session-1", fin };
   };
-  const result = await explorer({ url: "https://example.org", max: 15, vault: join(root, "vault"), sortie: join(root, "out"), port: 9333 }, {
+  const result = await explorer({ url: "https://example.org", max: 15, vault: join(root, "vault"), sortie: join(root, "out"), port: 9333, site }, {
     base, session, urlCourante: async () => null, runtime: { relever: async () => ({ png, texte: "Page", url_page: address, largeur: 1280, hauteur: 900, defilement, phrase: "Capture enregistrée." }),
       navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
     fetch: async input => {
@@ -461,6 +461,20 @@ test("identifiants normalisés, dédoublonnés et tronqués", async () => {
   assert.equal(result.totaux.pages_visitees, 4);
   assert.equal(result.etat, "fini");
   assert.ok(result.pages.every(page => page.etat === "visitee" && page.capture));
+});
+
+test("site explicite : remplace l’hôte dans le résultat et le vault, défaut inchangé", async () => {
+  const options = lireArguments(["--url", "https://example.org", "--site", "eugenia-clone"])!;
+  const { result } = await run({ site: options.site });
+  assert.equal(result.site, "eugenia-clone");
+  assert.ok(existsSync(join(root, "vault/eugenia-clone/references/accueil/defaut--v1.png")));
+  assert.equal(existsSync(join(root, "vault/example-org")), false);
+  assert.equal(lireArguments(["--url", "https://example.org"])!.site, undefined);
+  assert.equal((await run()).result.site, "example-org");
+  for (const site of ["", "..", "../outside", "/outside"]) {
+    assert.throws(() => lireArguments(["--url", "https://example.org", "--site", site]));
+    await assert.rejects(run({ site }), /Site invalide/);
+  }
 });
 
 test("arguments, aide, valeurs par défaut et erreurs", () => {

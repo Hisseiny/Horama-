@@ -38,7 +38,7 @@ interface ExplorationPage {
   cookies?: "refusee" | "aucune"; url_finale?: string; raison?: string;
   arrivee?: "depart" | "clic" | "adresse";
 }
-export interface ExplorerOptions { url: string; max: number; sortie: string; vault: string; port: number; pagesCliquees?: number; reseauPublic?: boolean }
+export interface ExplorerOptions { url: string; max: number; sortie: string; vault: string; port: number; pagesCliquees?: number; reseauPublic?: boolean; site?: string }
 export interface ExplorerDependencies {
   base: BasePassages; runtime: BrowserRuntime; session: Session; signal?: AbortSignal;
   fetch?: typeof fetch; controler?: typeof controlerPage; holo?: typeof askHolo;
@@ -93,8 +93,8 @@ function pageStatus(findings: Finding[]): Statut {
 }
 const kinds = { "cut-off-text": "texte-coupe", "overlapping-text": "chevauchement", "misaligned-element": "decalage", "distorted-image": "image-deformee", "unreadable-contrast": "contraste-illisible" };
 const descriptions = { "cut-off-text": "Un texte semble coupé.", "overlapping-text": "Des textes semblent se chevaucher.", "misaligned-element": "Un élément semble décalé.", "distorted-image": "Une image semble déformée.", "unreadable-contrast": "Un texte semble difficile à lire." };
-const sorts = { page_en_erreur: "page-erreur", image_cassee: "image-cassee", defilement_horizontal: "defilement-horizontal", debordement: "debordement", lien_casse: "lien-casse", texte_erreur: "texte-erreur", erreur_console: "erreur-console" };
-const expected = { page_en_erreur: "Une réponse HTTP inférieure à 400.", image_cassee: "Une image décodable.", defilement_horizontal: "La page tient dans la largeur du document.", debordement: "Le contenu tient dans sa boîte.", lien_casse: "Une réponse HTTP inférieure à 400.", texte_erreur: "Aucun texte d'erreur affiché.", erreur_console: "Aucune erreur JavaScript." };
+const sorts = { page_en_erreur: "page-erreur", image_cassee: "image-cassee", defilement_horizontal: "defilement-horizontal", debordement: "debordement", texte_rogne: "texte-rogne", lien_casse: "lien-casse", texte_erreur: "texte-erreur", erreur_console: "erreur-console" };
+const expected = { page_en_erreur: "Une réponse HTTP inférieure à 400.", image_cassee: "Une image décodable.", defilement_horizontal: "La page tient dans la largeur du document.", debordement: "Le contenu tient dans sa boîte.", texte_rogne: "Le texte reste lisible sans être rogné.", lien_casse: "Une réponse HTTP inférieure à 400.", texte_erreur: "Aucun texte d'erreur affiché.", erreur_console: "Aucune erreur JavaScript." };
 
 export async function explorer(options: ExplorerOptions, deps: ExplorerDependencies) {
   const { url, max, vault, sortie, port } = options;
@@ -134,7 +134,8 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
     return parsed.origin + parsed.pathname.replace(/\/$/, "") + (query ? parsed.search : "");
   };
   const started = Date.now();
-  const site = new URL(url).hostname.replace(/^www\./, "").replaceAll(".", "-");
+  const site = options.site ?? new URL(url).hostname.replace(/^www\./, "").replaceAll(".", "-");
+  if (options.site !== undefined && !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(site)) throw new Error("Site invalide : utiliser lettres, chiffres, tirets ou soulignements.");
   const folder = join(vault, site, "passages");
   const version = String((existsSync(folder) ? readdirSync(folder).filter(name => name.endsWith(".md")).length : 0) + 1);
   const references = lireReferences(vault, site).filter(ref => ref.vue === "defaut" && Number(ref.version) < Number(version)).sort((a, b) => Number(b.version) - Number(a.version));

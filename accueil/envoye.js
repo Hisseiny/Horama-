@@ -43,16 +43,22 @@ const hero = $(".hero"), soleilHero = $("#soleil-hero"), nuageHero = $("#nuage-h
 const marquesHero = $("#marques-hero"), pliHero = $("#pli-hero"), cacheHero = $("#cache");
 let traitHero = null, cibleHero = null, versS = [-.5, .86], viseHero = false, minuteries = [], heroJoue = false;
 const plusTard = (ms, f) => minuteries.push(setTimeout(f, ms));
-const epHero = () => innerWidth < 1100 ? 3.6 : 5.4;
+const compactLayout = matchMedia("(width < 1100px)");
+const compactMascotSize = 118;
+const epHero = () => compactLayout.matches ? 3.6 : 5.4;
 // tout se place à partir de « s. » : le bord du soleil passe sur sa moitié, l'envoyé se pose sur le soleil juste à droite
 function placer() {
   const h = hero.getBoundingClientRect(), s = cacheHero.getBoundingClientRect();
-  const r = innerWidth < 1100 ? 118 : 236;                          // rayon du disque
+  const headingSize = parseFloat(getComputedStyle(cacheHero).fontSize);
+  const r = compactLayout.matches
+    ? Math.min(118, headingSize * 2.5)
+    : headingSize * 236 / 108;
   const P = { x: s.left - h.left + s.width * .26, y: s.top - h.top + s.height * .5 };
   const c = { x: P.x + r * .5, y: P.y + r * .866 }, taille = r * 560 / 196;   // le disque fait 196 sur 560 dans la vue
   Object.assign(soleilHero.style, { left: c.x - taille / 2 + "px", top: c.y - taille / 2 + "px", width: taille + "px", height: taille + "px" });
   Object.assign(nuageHero.style, { left: c.x + r * .78 + "px", top: c.y - r * 1.05 + "px" });
   const e = { x: c.x + r * .3, y: c.y - r * .5 };
+  if (compactLayout.matches) e.x = Math.min(e.x, h.width - compactMascotSize / 2);
   Object.assign(escaleHero.style, { left: e.x + "px", top: e.y + "px" });
   cibleHero = { x: s.left - h.left - 4, y: s.top - h.top + s.height * .14, w: s.width + 8, h: s.height * .8 };
   const dx = cibleHero.x + cibleHero.w / 2 - e.x, dy = cibleHero.y + cibleHero.h / 2 - e.y, l = Math.hypot(dx, dy) || 1;
@@ -92,7 +98,7 @@ let T = null, dernierVu = -1;
 
 function construire() {
   const sx = scrollX, sy = scrollY;
-  const W = document.documentElement.clientWidth, petit = W < 1100;
+  const W = document.documentElement.clientWidth, petit = compactLayout.matches;
   const deux = v => v && !petit ? v.split(",").map(Number) : null;
   const A = $$(".escale").map(e => { const r = e.getBoundingClientRect(), o = e.dataset; return { x: r.left + sx, y: r.top + sy, etat: o.etat, boucle: o.boucle, nom: o.nom, via: "via" in o, c1: deux(o.c1), c2: deux(o.c2), scene: "via" in o ? null : e.closest("[data-scene]") }; });
   const b = $(".hero .champ .bouton").getBoundingClientRect();
@@ -148,7 +154,7 @@ function maj() {
   const t = borne((vT - T.v[lo]) / Math.max(1e-6, T.v[hi] - T.v[lo]));
   const idx = lo + t, x = T.pts[lo][0] + (T.pts[hi][0] - T.pts[lo][0]) * t, y = T.pts[lo][1] + (T.pts[hi][1] - T.pts[lo][1]) * t;
   // taille : grande devant le soleil, plus petite en vol, grande à l'arrivée
-  const grand = T.petit ? 118 : 184, vole = T.petit ? 78 : 104, fin = borne(1 - (T.n - 1 - idx) * PAS / 260);
+  const grand = T.petit ? compactMascotSize : 184, vole = T.petit ? 78 : 104, fin = borne(1 - (T.n - 1 - idx) * PAS / 260);
   const taille = fige ? grand : grand + (vole - grand) * borne(sY / 380) + ((T.petit ? 104 : 136) - vole) * fin;
   masc.el.style.width = masc.el.style.height = taille.toFixed(1) + "px";
   envoye.style.transform = `translate(${(x - taille / 2).toFixed(1)}px, ${(y - taille / 2).toFixed(1)}px)`;
