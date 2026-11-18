@@ -42,6 +42,7 @@ export interface ExplorerDependencies {
   connecter?: (port: number, address: string) => Promise<ExplorationCdp>;
   log?: (message: string) => void;
   urlCourante?: () => Promise<string | null>;
+  onglets?: () => Promise<Array<{ type: string; url: string }>>;
 }
 
 const clickedCount = (pageCount: number, clicked: number) => Math.min(clicked, Math.max(0, pageCount - 1));
@@ -85,12 +86,27 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
   const { base, runtime, session, signal, log = console.log } = deps;
   const navigation = { arrivees: {} as Record<string, "clic" | "adresse" | "depart">, clics: 0, defilements: 0, goTo: 0, defilementsDepart: 0 };
   let clickedPages = 0, hadClick = false, hadGoTo = false, currentScreen: string | undefined;
-  const urlCourante = deps.urlCourante ?? (async () => {
+  const onglets = deps.onglets ?? (async () => {
     const response = await fetch(`http://127.0.0.1:${port}/json`, { signal: AbortSignal.timeout(5000) });
-    if (!response.ok) return null;
-    const tabs = (await response.json() as Array<{ type: string; url: string }>).filter(tab => tab.type === "page");
+    if (!response.ok) throw new Error("Liste des onglets CDP inaccessible.");
+    return await response.json() as Array<{ type: string; url: string }>;
+  });
+  const urlCourante = deps.urlCourante ?? (async () => {
+    const tabs = (await onglets()).filter(tab => tab.type === "page");
     return tabs.length === 1 ? tabs[0].url : null;
   });
+  const diagnosticReleve = async (ecran: string, action: () => Promise<ReleveCapture>) => {
+    try { return await action(); }
+    catch (error) {
+      let context = "URL et nombre d'onglets page CDP indisponibles";
+      try {
+        const tabs = (await onglets()).filter(tab => tab.type === "page");
+        context = `${tabs.length} onglet(s) page CDP ; URL : ${JSON.stringify(tabs.map(tab => tab.url))}`;
+      } catch { /* Le diagnostic CDP ne doit pas masquer l'exception du relevé. */ }
+      log(`Relevé ${ecran} : ${context} ; exception : ${error instanceof Error ? error.stack ?? error.message : String(error)}`);
+      throw error;
+    }
+  };
   const normalized = (address: string, query = false) => {
     const parsed = new URL(address);
     normalizePageQuery(parsed);
@@ -352,7 +368,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
         }
         return ecrireRapportPassage(target, passage, results);
       },
-      async relever(ecran, vue, hookSignal) {
+      relever: (ecran, vue, hookSignal) => diagnosticReleve(ecran, async () => {
         const page = pages.find(page => page.ecran === ecran);
         if (!page) {
           inconclusive({ ecran }, "controle", report.constats, "Page inconnue dans le parcours.");
@@ -475,7 +491,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
         } catch { holo.etat = "echec"; inconclusive(page, "holo", findings, "Le regard visuel n'a pas pu se faire."); }
         pending.set(ecran, { findings, http, holo });
         return capture;
-      },
+      }),
       verifier({ test, acquired: captures, passageId, replayUrl }) {
         const page = pages.find(page => `exploration--${page.ecran}` === test.id);
         if (!page) return { passage_id: passageId, test_id: test.id, version_testee: version, version_reference: versionReference ?? version,
