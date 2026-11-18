@@ -248,3 +248,54 @@ Contrôle ciblé après la dernière modification :
 # todo 0
 # duration_ms 1251.348003
 ```
+
+## Contre-vérification après inspection des processus
+
+État testé : branche `a-170-texte-non-traduit`, commit `cafb70f`.
+Inspection `pgrep -af chrome` et des processus Node de test : aucun Chrome de
+test ni processus Node de test résiduel ; seul Chrome bureau (CDP 29229) et
+ses sous-processus sont présents. Rien à tuer ; Chrome bureau laissé intact.
+
+Premier essai de `pnpm -r --if-present run check` : **vert**, code 0 :
+
+```text
+agent check: 1..259
+agent check: # tests 266
+agent check: # suites 0
+agent check: # pass 266
+agent check: # fail 0
+agent check: # cancelled 0
+agent check: # skipped 0
+agent check: # todo 0
+agent check: # duration_ms 20744.138332
+agent check: Done
+EXIT_CODE=0
+```
+
+Journal : `/home/ubuntu/horama-170-clean-check-1.log`.
+Pas de deuxième/troisième essai global nécessaire après ce succès.
+
+Worktree détaché de dev (`268fd28`) :
+`/home/ubuntu/repos/Horama-dev-check`, dépendances installées par
+`pnpm install --offline --frozen-lockfile`. Trois exécutions séquentielles de
+`node --test exploration-pages.test.ts` depuis agent/, sans autre test Chrome
+lancé simultanément :
+
+| Essai dev | Code | Tests | Réussites | Échecs | Ignorés | Durée imprimée (ms) |
+|---|---:|---:|---:|---:|---:|---:|
+| 1 | 0 | 39 | 39 | 0 | 0 | 5051.49283 |
+| 2 | 0 | 39 | 39 | 0 | 0 | 4985.950412 |
+| 3 | 0 | 39 | 39 | 0 | 0 | 5104.263255 |
+
+Journaux : `/home/ubuntu/horama-170-dev-discovery-{1,2,3}.log`.
+Le test Chrome réel s'exécute (non ignoré) dans chaque essai.
+
+Conclusion limitée : échec antérieur non reproduit, ni dans le check global
+de la branche ni lors des trois essais isolés sur dev. Cela ne prouve pas
+que dev est exempt d'intermittence. Aucune cause attribuée aux processus
+résiduels (aucun présent), ni aux changements de cette branche. Aucun correctif
+de gestion d'onglets effectué. Le test de découverte importe pages.ts/CDP,
+pas explorer.ts ; le corps de connecterCdp, waitForVisibleStable et pages.ts
+est identique à dev, et ce test n'appelle pas captureDefect/scrollSmooth.
+Le nettoyage à la ligne 172 peut masquer une erreur antérieure : déterminer
+la première erreur demanderait une reproduction instrumentée, non obtenue ici.
