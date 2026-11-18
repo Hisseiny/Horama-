@@ -2,16 +2,18 @@
 
 La barre latérale suit la direction graphique « L'envoyé » (`docs/da/charte-graphique.pdf`). Ces règles valent pour tous les écrans de l'application, de 11.1 à 11.7.
 
+**Décision de la CDO (18/11) : la barre latérale n'est jamais violette.** Elle est en Papier `#FFFDF6`, et non en Nuit `#2A2647`.
+
 ## Coque
 
 - Position fixe à gauche.
 - Largeur desktop : 240 px.
 - Hauteur : toute la hauteur de l'écran.
-- Fond Nuit : `#2A2647`.
+- Fond Papier : `#FFFDF6`.
 - Bordure droite : 2,5 px solid `#1C1C1C`.
 - Padding : 28 px 16 px 24 px.
 - Aucun dégradé, aucune ombre portée.
-- La barre reste Nuit en mode clair comme en mode sombre.
+- La barre reste Papier en mode clair. En mode sombre, elle passe en Encre `#1C1C1C`, jamais en violet.
 - Les textes gardent un contraste d'au moins 4,5:1.
 
 ## Typographies
@@ -25,11 +27,12 @@ La barre latérale suit la direction graphique « L'envoyé » (`docs/da/charte-
 
 | Rôle | Couleur |
 |---|---|
-| Nuit, fond de la barre | `#2A2647` |
-| Engobe, texte principal clair | `#FBF5E6` |
-| Filet, texte secondaire clair | `#E2D6B8` |
-| Encre, boutons et contours | `#1C1C1C` |
-| Aile, ailes du bouton et compteurs secondaires | `#AFA9EC` |
+| Papier, fond de la barre | `#FFFDF6` |
+| Encre, texte principal, boutons et contours | `#1C1C1C` |
+| Encre secondaire, texte secondaire | `#5C5546` |
+| Engobe, texte sur l'entrée active et sur le bouton | `#FBF5E6` |
+| Filet, séparateurs | `#E2D6B8` |
+| Aile, ailes du bouton | `#AFA9EC` |
 | Miltos, alerte « À relire » | `#B8321F` |
 | Olivier, agent disponible | `#2E7D55` |
 | Iris du logo | `#7F77DD` |
@@ -40,7 +43,7 @@ Miltos et olivier sont réservés aux états.
 
 - Texte affiché : H[œil]rama.
 - Tilt Warp 400, 30 px.
-- Couleur Engobe `#FBF5E6`.
+- Couleur Encre `#1C1C1C`.
 - Espacement des lettres -0,01em, interligne 1.
 - Aucun espace entre le H, l'œil et « rama ».
 - L'œil remplace uniquement le « o ». Il est sans ailes, mesure 0,7em × 0,7em et se pose sur la ligne de base.
@@ -60,10 +63,10 @@ Miltos et olivier sont réservés aux états.
 - Placé 24 px sous le logo, sur toute la largeur.
 - Padding 10 px 13 px.
 - Bordure 2,5 px solid `#1C1C1C`, rayon 10 px.
-- Fond transparent sur la Nuit.
+- Fond Engobe `#FBF5E6`.
 - Spline Sans Mono :
-  - nom du projet en 15 px, graisse 600, Engobe ;
-  - version en 12 px, Filet.
+  - nom du projet en 15 px, graisse 600, Encre ;
+  - version en 12 px, Encre secondaire.
 - Contenu : « Facturation Pro », « version testée : v13 ».
 
 ## Bouton principal ailé
@@ -82,22 +85,20 @@ Miltos et olivier sont réservés aux états.
 - Funnel Sans 16,5 px, icône d'environ 18 px.
 - Grille interne : icône, libellé, compteur.
 - Espacement interne 10 px, padding horizontal 11 px, rayon 10 px.
-- Entrée inactive :
-  - fond transparent ;
-  - texte et icône en Filet `#E2D6B8`, lisibles sur la Nuit.
+- Entrée inactive : fond transparent, texte et icône en Encre secondaire `#5C5546`.
 - Entrée active :
   - fond Encre ;
   - bordure 2,5 px solid `#1C1C1C` ;
   - texte Engobe, graisse 700.
+- L'entrée active est celle de l'écran affiché.
 - Ordre : Couverture, Tests à valider, Passages & Rapports, À relire.
 
 ## Compteurs de navigation
 
 - **Compteur standard** :
   - rond, 25 × 25 px au moins ;
-  - bordure 2,5 px solid `#AFA9EC` ;
-  - Spline Sans Mono 12 px ;
-  - texte clair sur la Nuit.
+  - bordure 2,5 px solid `#1C1C1C` ;
+  - Spline Sans Mono 12 px, texte Encre.
 - **Compteur d'alerte « À relire »** :
   - fond et bordure Miltos `#B8321F` ;
   - texte Engobe, contraste d'environ 5,49:1 ;
@@ -106,23 +107,23 @@ Miltos et olivier sont réservés aux états.
 ## Pied de la barre
 
 - À 24 px du bas.
-- Séparateur supérieur 1 px solid `#1C1C1C`, padding supérieur 16 px.
+- Séparateur supérieur 1 px solid `#E2D6B8`, padding supérieur 16 px.
 - 14 px entre les éléments.
 - **Bascule de thème** :
   - pilule de 38 px de haut au moins ;
   - bordure pointillée de 2,5 px `#1C1C1C` ;
-  - texte Engobe, Funnel Sans 600, 13 px.
-- **Abonnement** : « 14 / 40 passages · PRO », Spline Sans Mono 500, 12 px, Engobe.
+  - texte Encre, Funnel Sans 600, 13 px.
+- **Abonnement** : « 14 / 40 passages · PRO », Spline Sans Mono 500, 12 px, Encre.
 - **Agent** :
   - point plein Olivier `#2E7D55` de 9 px ;
-  - « Agent disponible » en Funnel Sans 600, 14 px, Engobe ;
-  - « Prêt pour un passage » en 13 px, Filet.
+  - « Agent disponible » en Funnel Sans 600, 14 px, Encre ;
+  - « Prêt pour un passage » en 13 px, Encre secondaire.
 - **Profil** : avatar, informations, déconnexion.
   - Avatar de 36 × 36 px : carré de rayon 10 px, fond Engobe, bordure 2,5 px solid `#1C1C1C`.
   - Initiales « JD » en Encre, Spline Sans Mono 600, 12 px.
-  - « Jane Doe » en Engobe, Funnel Sans 600, 14 px.
-  - « Équipe produit » en Filet, 13 px.
-  - Icône de déconnexion Engobe, discrète, opacité réduite.
+  - « Jane Doe » en Encre, Funnel Sans 600, 14 px.
+  - « Équipe produit » en Encre secondaire, 13 px.
+  - Icône de déconnexion Encre, discrète, opacité réduite.
 
 ## Responsive, sous 600 px
 
@@ -133,5 +134,5 @@ Miltos et olivier sont réservés aux états.
 
 ## Interdit
 
-- Remettre un fond clair sur la barre latérale.
-- Utiliser `#E7DECA` comme fond de la barre.
+- Une barre latérale violette : Nuit `#2A2647` ou n'importe quel autre violet.
+- `#E7DECA` comme fond de la barre.
