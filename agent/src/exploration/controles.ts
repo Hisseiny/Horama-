@@ -90,7 +90,7 @@ const CONSOLE_JOURNAL = `(() => {
   if (globalThis[key]) return;
   const journal = [];
   Object.defineProperty(globalThis, key, { value: journal });
-  const text = value => value instanceof Error ? value.stack || String(value) : typeof value === "string" ? value : String(value);
+  const text = value => { try { return value instanceof Error ? value.stack || String(value) : String(value); } catch { return Object.prototype.toString.call(value); } };
   const error = console.error;
   console.error = function (...args) { journal.push(args.map(text).join(" ")); return error.apply(this, args); };
   addEventListener("error", event => { if (event instanceof ErrorEvent) journal.push(text(event.error ?? event.message)); }, true);
@@ -131,7 +131,7 @@ export async function controlerPage(client: CdpClient, options: ControleOptions 
     if (result.exceptionDetails) throw new Error(`Contrôle CDP impossible : ${result.exceptionDetails.text}`);
     const { defects, links } = result.result.value as ReturnType<typeof inspectDocument>;
     if (shared) {
-      const journal = await client.send("Runtime.evaluate", { expression: `globalThis[Symbol.for("horama.console")] ?? []`, returnByValue: true });
+      const journal = await client.send("Runtime.evaluate", { expression: `(() => { const key = Symbol.for("horama.console"), out = []; const walk = view => { try { out.push(...(view[key] ?? [])); } catch {} for (let i = 0; i < view.frames.length; i++) walk(view.frames[i]); }; walk(globalThis); return out; })()`, returnByValue: true });
       for (const value of journal.result?.value ?? []) record(String(value));
     }
     defects.push(...await checkLinks(links, options));
@@ -160,7 +160,10 @@ async function checkLinks(links: ReturnType<typeof inspectDocument>["links"], op
       const location = response.headers.get("location");
       if (response.status < 300 || response.status >= 400 || !location) return { status: response.status, url: address, hops };
       if (!URL.canParse(location, address)) return undefined;
-      address = new URL(location, address).href;
+      const next = new URL(location, address);
+      // Only the inspected site's host is requested: a redirect elsewhere proves nothing and could reach a private network.
+      if (next.hostname !== new URL(start).hostname) return undefined;
+      address = next.href;
     }
     return undefined;
   };

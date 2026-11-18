@@ -22,12 +22,14 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
     } else if (request.url === "/many") {
       const links = (from: number, to: number) => Array.from({ length: to - from }, (_, i) => `<a href="/ok-${from + i}">Lien ${from + i}</a>`).join("");
       response.setHeader("Content-Type", "text/html; charset=utf-8");
-      response.end(`<!doctype html><meta charset="utf-8"><nav>${links(0, 30)}<a href="/loop">Boucle</a></nav><main>${links(30, 55)}<a href="/redirect-dead">Journée portes ouvertes</a></main>`);
+      response.end(`<!doctype html><meta charset="utf-8"><nav>${links(0, 30)}<a href="/loop">Boucle</a></nav><main>${links(30, 55)}<a href="/redirect-dead">Journée portes ouvertes</a><a href="/away">Ailleurs</a></main>`);
     } else if (request.url === "/redirect" || request.url === "/fallback-redirect") {
       if (request.url === "/fallback-redirect" && request.method === "HEAD") response.writeHead(405).end();
       else response.writeHead(302, { Location: "/redirect-ok" }).end();
     } else if (request.url === "/redirect-dead" || request.url === "/hop" || request.url === "/loop") {
       response.writeHead(request.url === "/hop" ? 302 : 301, { Location: { "/redirect-dead": "/hop", "/hop": `${base}/gone`, "/loop": "/loop" }[request.url] }).end();
+    } else if (request.url === "/away") {
+      response.writeHead(302, { Location: base.replace("127.0.0.1", "localhost") + "/gone" }).end();
     } else if (request.url === "/redirect-ok" || request.url?.startsWith("/ok-")) {
       response.end("OK");
     } else if (request.url === "/fallback") {
@@ -142,6 +144,7 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
   assert.match(dead[0].message, new RegExp(`après 2 redirections, à ${base}/gone qui renvoie HTTP 404`));
   assert.ok(dead[0].zone && dead[0].selecteur);
   assert.equal(requests.filter(value => value === "HEAD /loop").length, 6);
+  assert.equal(requests.filter(value => value.endsWith(" /gone")).length, 2, "la redirection vers un autre hôte n'est pas suivie");
   requests.length = 0;
   const first = await controlerPage(client, { maxLiens: 26 });
   assert.equal(first.filter(defect => defect.sorte === "lien_casse").length, 1);
@@ -160,11 +163,14 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
   client.on("Runtime.consoleAPICalled", event => callerEvents.push(event.args.map((arg: any) => arg.value).join(" ")));
   await installerJournalConsole(caller);
   await navigate("/broken");
+  await client.send("Runtime.evaluate", { expression: "console.error(Object.create(null)); const frame = document.createElement('iframe'); frame.srcdoc = '<script>console.error(\"Erreur du cadre\")<\\/script>'; document.body.append(frame); new Promise(resolve => frame.onload = resolve)", awaitPromise: true });
   const shared = await controlerPage(caller, { connexionAppelant: true });
   t.diagnostic(`Connexion de l'appelant : ${shared.map(defect => defect.sorte).join(", ")}`);
   assert.ok(!sent.includes("Runtime.disable") && !sent.includes("Runtime.enable"));
   for (const kind of ["debordement", "image_cassee", "lien_casse", "texte_erreur", "erreur_console"]) assert.ok(shared.some(defect => defect.sorte === kind), kind);
   assert.ok(shared.some(defect => defect.valeur === "Erreur de démonstration"));
+  assert.ok(shared.some(defect => defect.valeur === "Erreur du cadre"));
+  assert.ok(shared.some(defect => defect.valeur === "[object Object]"));
   assert.ok(shared.some(defect => String(defect.valeur).includes("Exception de démonstration")));
   await client.send("Runtime.evaluate", { expression: "console.error('Après le contrôle')" });
   await new Promise(resolve => setTimeout(resolve, 100));
