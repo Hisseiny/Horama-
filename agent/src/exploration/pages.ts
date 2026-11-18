@@ -1,7 +1,50 @@
+import { connecterCdp, waitForVisibleStable } from "./cdp.ts";
+import type { ExplorationCdp } from "./cdp.ts";
+
 export interface DiscoveryOptions {
   max?: number;
   sectionMax?: number;
   fetch?: typeof globalThis.fetch;
+  render?: (url: string, allowed: (url: string) => boolean) => Promise<{ body: string; url: string } | undefined>;
+}
+
+export async function renderPage(port: number, url: string, allowed: (url: string) => boolean = () => true): Promise<{ body: string; url: string }> {
+  const endpoint = `http://127.0.0.1:${port}`;
+  let tab: { id: string } | undefined, client: ExplorationCdp | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const response = await fetch(`${endpoint}/json/new?${encodeURIComponent("about:blank#horama-discovery")}`, { method: "PUT", signal: AbortSignal.timeout(2000) });
+    if (!response.ok) throw new Error("Création de l'onglet CDP impossible.");
+    tab = await response.json() as { id: string };
+    return await Promise.race([
+      (async () => {
+        client = await connecterCdp(port, "about:blank#horama-discovery");
+        const cdp = client;
+        cdp.on("Fetch.requestPaused", event => {
+          const accept = event.request.method === "GET" && allowed(event.request.url);
+          void cdp.send(accept ? "Fetch.continueRequest" : "Fetch.failRequest", { requestId: event.requestId, ...(accept ? {} : { errorReason: "BlockedByClient" }) }).catch(() => {});
+        });
+        await cdp.send("Fetch.enable", { patterns: [{ urlPattern: "*", resourceType: "Document", requestStage: "Request" }] });
+        const navigation = await cdp.send("Page.navigate", { url });
+        if (navigation.errorText) throw new Error(navigation.errorText);
+        const result = await cdp.send("Runtime.evaluate", { expression: `(async () => {
+          while (document.readyState !== "complete") await new Promise(resolve => setTimeout(resolve, 100));
+          await (${waitForVisibleStable.toString()})();
+          return { body: document.documentElement.outerHTML, url: location.href };
+        })()`, awaitPromise: true, returnByValue: true });
+        if (!result.result?.value) throw new Error("DOM rendu indisponible.");
+        return result.result.value as { body: string; url: string };
+      })(),
+      new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("Rendu CDP hors délai (15 s).")), 15000); }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+    client?.close();
+    if (tab) {
+      const response = await fetch(`${endpoint}/json/close/${encodeURIComponent(tab.id)}`, { signal: AbortSignal.timeout(2000) });
+      if (!response.ok) throw new Error("Fermeture de l'onglet CDP impossible.");
+    }
+  }
 }
 
 export interface PageDiscovery {
@@ -74,7 +117,7 @@ function robots(text: string): { rules: RobotRule[]; sitemaps: string[] } {
 }
 
 // URLs are candidates, not visual verdicts; network failures stay visible to the caller.
-export async function discoverPages(url: string, { max = 15, sectionMax = 2, fetch: request = globalThis.fetch }: DiscoveryOptions = {}): Promise<PageDiscovery> {
+export async function discoverPages(url: string, { max = 15, sectionMax = 2, fetch: request = globalThis.fetch, render }: DiscoveryOptions = {}): Promise<PageDiscovery> {
   if (!Number.isSafeInteger(max) || max < 0) throw new Error("max doit être un entier positif ou nul.");
   if (!Number.isSafeInteger(sectionMax) || sectionMax < 1) throw new Error("sectionMax doit être un entier strictement positif.");
   const start = new URL(url);
@@ -252,6 +295,25 @@ export async function discoverPages(url: string, { max = 15, sectionMax = 2, fet
   }
   for (const sitemap of sitemaps) await readSitemap(sitemap, root);
   if (homepage) links(homepage);
+  let attempts = 0;
+  const fallback = !!render && queue.length < Math.min(max, 3);
+  async function rendered(address: string) {
+    if (!render || !pageAddress(address, address)) return;
+    if (++attempts > max * 3) { exclude(address, "request-limit"); return; }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const document = await Promise.race([
+        render(address, target => !!pageAddress(target, address)),
+        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("Rendu hors délai (20 s).")), 20000); }),
+      ]);
+      if (!document) throw new Error("Rendu indisponible.");
+      if (pageAddress(document.url, address)) return document;
+    } catch (error) {
+      result.errors.push({ url: address, message: `Rendu : ${error instanceof Error ? error.message : String(error)}` });
+    } finally { clearTimeout(timer); }
+  }
+  const renderedHome = fallback && homepage ? await rendered(homepage.url) : undefined;
+  if (renderedHome) { links(renderedHome, true); links(renderedHome); }
   const sectionCounts = new Map<string, number>();
   function sections(address: string): string[] {
     const parts = new URL(address).pathname.split("/").filter(Boolean);
@@ -269,7 +331,6 @@ export async function discoverPages(url: string, { max = 15, sectionMax = 2, fet
     return sections(address).find((prefix) => repeated.has(prefix));
   }
   const preferredSections = queue.filter(sameLocale);
-  let attempts = 0;
   for (let index = 0; index < queue.length; index++) {
     const pinned = queue[index] === initial || queue[index] === root;
     if (!pinned && locale && result.pages.length < max && attempts < max * 3 && !sameLocale(queue[index])) {
@@ -301,11 +362,13 @@ export async function discoverPages(url: string, { max = 15, sectionMax = 2, fet
     if (++attempts > max * 3) { exclude(address, "request-limit"); continue; }
     const document = address === initial ? homepage : await read(address, "page");
     if (!document) continue;
-    const final = pageAddress(document.url, document.url);
+    const dom = address === initial ? renderedHome : fallback ? await rendered(document.url) : undefined;
+    const final = pageAddress(dom?.url ?? document.url, document.url);
     if (!final) continue;
     if (!result.pages.includes(final)) result.pages.push(final);
     if (section) sectionCounts.set(section, (sectionCounts.get(section) ?? 0) + 1);
-    links(document);
+    if (dom) { links(dom, true); links(dom); }
+    else links(document);
   }
   return result;
 }

@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { discoverPages } from "./src/exploration/pages.ts";
+import { spawn } from "node:child_process";
+import { createServer } from "node:http";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { discoverPages, renderPage } from "./src/exploration/pages.ts";
 
 const origin = "https://www.example.test";
 type Reply = string | Error | (() => Response);
@@ -30,6 +35,79 @@ function fixture(routes: Record<string, Reply>) {
 const sitemap = (...urls: string[]) => `<urlset>${urls.map((url) => `<url><loc>${url}</loc></url>`).join("")}</urlset>`;
 const link = (...urls: string[]) => urls.map((url) => `<a href="${url}">Page</a>`).join("");
 const redirect = (location: string) => () => new Response(null, { status: 302, headers: { location } });
+
+test("repli rendu : seuil, erreurs visibles et budget partagé", async () => {
+  const setup = fixture({ "/": '<div id="root"></div>' });
+  const calls: string[] = [];
+  const result = await discoverPages(origin, { ...setup, max: 4, render: async url => {
+    calls.push(url);
+    throw new Error("Chrome absent");
+  } });
+  assert.deepEqual(result.pages, [origin + "/"]);
+  assert.deepEqual(calls, [origin + "/"]);
+  assert.match(result.errors[0].message, /Rendu.*Chrome absent/);
+  const enough = fixture({ "/": link("/one", "/two"), "/one": "", "/two": "" });
+  await discoverPages(origin, { ...enough, render: async () => { assert.fail("Pas de repli au seuil"); } });
+  const empty = fixture({ "/robots.txt": "User-agent: *\nDisallow: /" });
+  assert.deepEqual((await discoverPages(origin, { ...empty, render: async () => { assert.fail("Robots"); } })).pages, []);
+  const budget = fixture({ "/": "" });
+  const limited = await discoverPages(origin, { ...budget, max: 2, render: async url => ({ url, body: link(...Array.from({ length: 20 }, (_, i) => `/missing-${i}`)) }) });
+  assert.equal(budget.calls.length, 7);
+  assert.ok(limited.excluded.some(item => item.reason === "request-limit"));
+  const chain = fixture({ "/": "", "/next": "", "/end": "" });
+  const continued = await discoverPages(origin, { ...chain, max: 6, render: async url => ({
+    url: url.endsWith("/next") ? origin + "/final" : url,
+    body: url.endsWith("/next") ? link("/end") : url.endsWith("/end") ? "" : link("/next"),
+  }) });
+  assert.deepEqual(continued.pages, ["/", "/final", "/end"].map(path => origin + path));
+  const unavailable = fixture({ "/": "" });
+  assert.match((await discoverPages(origin, { ...unavailable, render: async () => undefined })).errors[0].message, /Rendu indisponible/);
+});
+
+test("Chrome réel découvre une page JS locale sans clic ni soumission et ferme ses onglets", { timeout: 30000 }, async () => {
+  const requests: string[] = [];
+  const html = '<div id="root"></div><script>setTimeout(() => { document.getElementById("root").innerHTML = ' + JSON.stringify('<nav><a href="/about">About</a><a href="/contact">Contact</a><a href="/private">Private</a><a href="/file.pdf">PDF</a><a href="/login">Login</a><a href="/send">Send</a><a href="/redirect">Redirect</a></nav><form action="/send"><input></form>') + '; }, 50)</script>';
+  const server = createServer((req, res) => {
+    requests.push(req.url!);
+    if (req.url === "/robots.txt") { res.end("User-agent: *\nDisallow: /private"); return; }
+    if (req.url === "/sitemap.xml") { res.writeHead(404); res.end(); return; }
+    if (req.url === "/redirect") { res.writeHead(302, { location: "/private" }); res.end(); return; }
+    res.setHeader("content-type", "text/html");
+    res.end(req.url === "/" ? html : '<main>Page<form><input></form></main>');
+  });
+  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address() as { port: number };
+  const base = `http://127.0.0.1:${address.port}`;
+  const profile = mkdtempSync(join(tmpdir(), "horama-pages-chrome-"));
+  const chrome = spawn("google-chrome", ["--headless", "--no-sandbox", "--disable-dev-shm-usage", "--remote-debugging-port=0", `--user-data-dir=${profile}`, "--force-device-scale-factor=1", "--window-size=1280,900", "about:blank"], { stdio: ["ignore", "ignore", "pipe"] });
+  try {
+    const port = await new Promise<number>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("Chrome indisponible")), 8000);
+      chrome.once("error", error => { clearTimeout(timer); reject(error); });
+      chrome.stderr.on("data", chunk => {
+        const match = String(chunk).match(/DevTools listening on ws:\/\/127\.0\.0\.1:(\d+)/);
+        if (match) { clearTimeout(timer); resolve(Number(match[1])); }
+      });
+    });
+    const before = await discoverPages(base, { max: 8 });
+    assert.deepEqual(before.pages, [base + "/"]);
+    const result = await discoverPages(base, { max: 8, render: (url, allowed) => renderPage(port, url, allowed) });
+    assert.deepEqual(result.pages, ["/", "/about", "/contact"].map(path => base + path));
+    assert.deepEqual(result.errors, []);
+    for (const reason of ["robots", "file", "login", "form"]) assert.ok(result.excluded.some(item => item.reason === reason));
+    assert.ok(!requests.some(path => /private|file\.pdf|login|send/.test(path)));
+    const tabs = await (await fetch(`http://127.0.0.1:${port}/json`)).json() as Array<{ type: string }>;
+    assert.equal(tabs.filter(tab => tab.type === "page").length, 1);
+    await assert.rejects(renderPage(port, base + "/redirect", url => !url.endsWith("/private")), /ERR_BLOCKED/);
+    assert.ok(!requests.includes("/private"));
+  } finally {
+    chrome.kill();
+    await new Promise<void>(resolve => { if (chrome.exitCode !== null) resolve(); else chrome.once("exit", () => resolve()); });
+    server.closeAllConnections();
+    await new Promise<void>(resolve => server.close(() => resolve()));
+    rmSync(profile, { recursive: true, force: true });
+  }
+});
 
 test("la locale et un préfixe majoritaire ne sont pas des sections répétitives", async () => {
   for (const prefix of ["/fr", "/products"]) {
