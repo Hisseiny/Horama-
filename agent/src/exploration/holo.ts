@@ -3,7 +3,7 @@ export type HoloModel = "holo4-27b" | "holo4-35b-a3b";
 export type HoloFinding = {
   kind: HoloKind;
   sentence: string;
-} & ({ status: "SUSPECTED"; zone: { x: number; y: number; width: number; height: number } }
+} & ({ status: "SUSPECTED"; zone: { x: number; y: number; largeur: number; hauteur: number } }
   | { status: "INCONCLUSIVE"; zone: null; message: string });
 export interface HoloOptions {
   url: string;
@@ -11,7 +11,11 @@ export interface HoloOptions {
   timeoutMs?: number;
   apiKey?: string;
 }
+type HoloUsage = { prompt_tokens: number; completion_tokens: number };
 export type HoloResult = {
+  usage: HoloUsage | null;
+  cost_usd: number | null;
+} & ({
   status: "SUSPECTED";
   findings: HoloFinding[];
   model: HoloModel;
@@ -22,7 +26,7 @@ export type HoloResult = {
   model: HoloModel | null;
   durationMs: number;
   message: string;
-};
+});
 
 const keys = ["d0", "d1", "d2", "d3", "d4"];
 const kinds: HoloKind[] = ["cut-off-text", "overlapping-text", "misaligned-element", "distorted-image", "unreadable-contrast"];
@@ -49,8 +53,8 @@ function parseFindings(content: string, width: number, height: number): HoloFind
     }
     const left = Math.round(x * width / 1000);
     const top = Math.round(y * height / 1000);
-    const zone = { x: left, y: top, width: Math.round((x + boxWidth) * width / 1000) - left, height: Math.round((y + boxHeight) * height / 1000) - top };
-    if (zone.width <= 0 || zone.height <= 0 || zone.x + zone.width > width || zone.y + zone.height > height) {
+    const zone = { x: left, y: top, largeur: Math.round((x + boxWidth) * width / 1000) - left, hauteur: Math.round((y + boxHeight) * height / 1000) - top };
+    if (zone.largeur <= 0 || zone.hauteur <= 0 || zone.x + zone.largeur > width || zone.y + zone.hauteur > height) {
       return [{ ...finding, status: "INCONCLUSIVE", zone: null, message: "Invalid box after conversion to screenshot pixels: empty or outside image." }];
     }
     return [{ ...finding, status: "SUSPECTED", zone }];
@@ -62,13 +66,13 @@ export function filterFindings(findings: HoloFinding[], width: number, height: n
   for (const finding of findings) {
     if (finding.status === "INCONCLUSIVE") { kept.push(finding); continue; }
     const box = finding.zone;
-    if (box.y + box.height >= height * 0.99 || box.x + box.width >= width * 0.99) continue;
+    if (box.y + box.hauteur >= height * 0.99 || box.x + box.largeur >= width * 0.99) continue;
     const duplicate = kept.some(previous => {
       if (previous.status !== "SUSPECTED" || previous.kind !== finding.kind) return false;
       const other = previous.zone;
-      const intersection = Math.max(0, Math.min(box.x + box.width, other.x + other.width) - Math.max(box.x, other.x))
-        * Math.max(0, Math.min(box.y + box.height, other.y + other.height) - Math.max(box.y, other.y));
-      return intersection / (box.width * box.height + other.width * other.height - intersection) > 0.5;
+      const intersection = Math.max(0, Math.min(box.x + box.largeur, other.x + other.largeur) - Math.max(box.x, other.x))
+        * Math.max(0, Math.min(box.y + box.hauteur, other.y + other.hauteur) - Math.max(box.y, other.y));
+      return intersection / (box.largeur * box.hauteur + other.largeur * other.hauteur - intersection) > 0.5;
     });
     if (!duplicate) kept.push(finding);
   }
@@ -77,8 +81,11 @@ export function filterFindings(findings: HoloFinding[], width: number, height: n
 
 export async function askHolo(png: Buffer, { url, fetch: request = fetch, timeoutMs = 8_000, apiKey = process.env.HAI_API_KEY }: HoloOptions): Promise<HoloResult> {
   const start = Date.now();
+  let usage: HoloUsage | null = null;
+  const cost = (model: HoloModel | null) => model === "holo4-27b" && usage
+    ? (usage.prompt_tokens * 0.40 + usage.completion_tokens * 3.00) / 1_000_000 : null;
   const inconclusive = (model: HoloModel | null, message: string): HoloResult => ({
-    status: "INCONCLUSIVE", findings: [], model, durationMs: Date.now() - start, message,
+    status: "INCONCLUSIVE", findings: [], model, durationMs: Date.now() - start, message, usage, cost_usd: cost(model),
   });
   if (!apiKey) return inconclusive(null, "HAI_API_KEY is required.");
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return inconclusive(null, "timeoutMs must be positive and finite.");
@@ -101,7 +108,7 @@ export async function askHolo(png: Buffer, { url, fetch: request = fetch, timeou
           body: JSON.stringify({
             model, temperature: 0, chat_template_kwargs: { enable_thinking: false }, max_tokens: 700,
             messages: [{ role: "user", content: [
-              { type: "text", text: `Inspect only visible visual defects in this ${width}x${height} screenshot of ${url}. Do not infer anything not visible. Allowed kinds: ${kinds.join(", ")}. Report cut-off or overlapping text, misaligned elements, distorted images, or unreadable contrast only. Return JSON with exactly d0, d1, d2, d3, d4, each a string. Each finding must use "kind | x,y,width,height | one sentence" with no other pipe characters. The zone is a tight bounding box around the affected element: four integers normalized to [0,1000] relative to the full image, origin top-left, NOT screenshot pixels. Width and height must be positive and the box fully inside the image. The caller converts these coordinates to screenshot pixels. Use an empty string for unused keys. These are doubts, not proven defects.` },
+              { type: "text", text: `Inspect only visible visual defects in this ${width}x${height} screenshot of ${url}. Do not infer anything not visible. Allowed kinds: ${kinds.join(", ")}. Report cut-off or overlapping text, misaligned elements, distorted images, or unreadable contrast only. Return JSON with exactly d0, d1, d2, d3, d4, each a string. Each finding must use "kind | x,y,width,height | one short sentence in plain French for a non-technical visitor" with no other pipe characters. The zone is a tight bounding box around the affected element: four integers normalized to [0,1000] relative to the full image, origin top-left, NOT screenshot pixels. Width and height must be positive and the box fully inside the image. The caller converts these coordinates to screenshot pixels. Use an empty string for unused keys. These are doubts, not proven defects.` },
               { type: "image_url", image_url: { url: `data:image/png;base64,${png.toString("base64")}` } },
             ] }],
             response_format: { type: "json_schema", json_schema: { name: "visible_defects", schema: {
@@ -114,9 +121,15 @@ export async function askHolo(png: Buffer, { url, fetch: request = fetch, timeou
           return inconclusive(model, `H Models HTTP ${response.status}: ${detail}`);
         }
         const body = await response.json();
+        const tokens = body?.usage;
+        if (Number.isFinite(tokens?.prompt_tokens) && tokens.prompt_tokens >= 0
+          && Number.isFinite(tokens?.completion_tokens) && tokens.completion_tokens >= 0) {
+          usage = { prompt_tokens: (usage?.prompt_tokens ?? 0) + tokens.prompt_tokens,
+            completion_tokens: (usage?.completion_tokens ?? 0) + tokens.completion_tokens };
+        }
         const content = body?.choices?.[0]?.message?.content;
         if (typeof content !== "string") throw new Error("Missing content");
-        return { status: "SUSPECTED" as const, findings: filterFindings(parseFindings(content, width, height), width, height), model, durationMs: Date.now() - start };
+        return { status: "SUSPECTED" as const, findings: filterFindings(parseFindings(content, width, height), width, height), model, durationMs: Date.now() - start, usage, cost_usd: cost(model) };
       };
       return await Promise.race([operation(), new Promise<never>((_, reject) => {
         timer = setTimeout(() => { controller.abort(); reject(new Error("Timeout")); }, timeoutMs);

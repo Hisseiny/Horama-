@@ -31,7 +31,7 @@ interface ExplorationPage {
   http: number | null; debut: string | null; fin: string | null;
   capture: { fichier: string; url: string | null; largeur: number; hauteur: number; defilement: [number, number] } | null;
   reference: { fichier: string; version: string } | null;
-  holo: { etat: string; modele: string | null; duree_ms: number; ecartes_sans_zone: number } | null;
+  holo: { etat: string; modele: string | null; duree_ms: number; ecartes_sans_zone: number; jetons: { entree: number; sortie: number } | null; cout_usd: number | null } | null;
   statut: Statut | null;
 }
 export interface ExplorerOptions { url: string; max: number; sortie: string; vault: string; port: number }
@@ -153,7 +153,8 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
       agent.session_id ??= result.tests[0]?.session_id ?? null;
       agent.etat = result.passage.etat === "joue" ? "fini" : "tombe";
       agent.raison = result.tests.find(test => test.raison)?.raison ?? null;
-      report.cout_usd = agent.cout_usd; save();
+      const costs = report.pages.flatMap(page => page.holo?.cout_usd == null ? [] : [page.holo.cout_usd]);
+      report.cout_usd = agent.cout_usd === null && costs.length === 0 ? null : (agent.cout_usd ?? 0) + costs.reduce((sum, cost) => sum + cost, 0); save();
     },
   };
   try {
@@ -225,14 +226,15 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
         } catch { inconclusive(page, "controle", findings, "Les contrôles de la page n'ont pas pu se terminer."); }
         finally { hookSignal?.removeEventListener("abort", close); client?.close(); }
         hookSignal?.throwIfAborted();
-        let holo: NonNullable<ExplorationPage["holo"]> = { etat: "non_lance", modele: null, duree_ms: 0, ecartes_sans_zone: 0 };
+        let holo: NonNullable<ExplorationPage["holo"]> = { etat: "non_lance", modele: null, duree_ms: 0, ecartes_sans_zone: 0, jetons: null, cout_usd: null };
         try {
           const result = await (deps.holo ?? askHolo)(Buffer.from(capture.png), { url: capture.url_page, fetch: hookFetch });
-          holo = { etat: result.status === "INCONCLUSIVE" ? /timeout|timed|délai/i.test(result.message) ? "hors_delai" : "echec" : "fait", modele: result.model, duree_ms: result.durationMs, ecartes_sans_zone: 0 };
+          holo = { etat: result.status === "INCONCLUSIVE" ? /timeout|timed|délai/i.test(result.message) ? "hors_delai" : "echec" : "fait", modele: result.model, duree_ms: result.durationMs, ecartes_sans_zone: 0,
+            jetons: result.usage ? { entree: result.usage.prompt_tokens, sortie: result.usage.completion_tokens } : null, cout_usd: result.cost_usd };
           if (result.status === "INCONCLUSIVE") inconclusive(page, "holo", findings, `Le regard visuel n'a pas abouti : ${result.message}`);
           for (const visual of result.findings) {
             if (!visual.zone) { holo.ecartes_sans_zone++; continue; }
-            const zone = { x: visual.zone.x, y: visual.zone.y, largeur: visual.zone.width, hauteur: visual.zone.height };
+            const zone = visual.zone;
             const explained = findings.find(item => item.source === "controle" && item.statut === "VERIFIED_FAIL" && controlZones.has(item.id) && overlap(zone, controlZones.get(item.id)!));
             findings.push(finding(page, "holo", findings, { sorte: kinds[visual.kind], statut: "SUSPECTED", description: descriptions[visual.kind], zone,
               preuve: { modele: result.model, phrase: visual.sentence }, ...(explained ? { explique_par: explained.id } : {}) }));

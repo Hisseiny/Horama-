@@ -72,7 +72,7 @@ async function run({ png = original, skip = "", refuse = false, failure = false,
       return new Response(path === "/robots.txt" ? "" : path === "/sitemap.xml" ? "<urlset><url><loc>https://example.org/faq</loc></url></urlset>" : "<html>Page</html>", { headers: { "Content-Type": path === "/robots.txt" ? "text/plain" : path === "/sitemap.xml" ? "application/xml" : "text/html" } });
     },
     connecter: async () => ({ send: async () => ({ result: { value: 200 } }), on() {}, close() {} }),
-    controler: async () => [], holo: async () => ({ status: "SUSPECTED", model: "holo4-27b", durationMs: 3, findings: [] }), log() {}, ...deps,
+    controler: async () => [], holo: async () => ({ status: "SUSPECTED", model: "holo4-27b", durationMs: 3, usage: null, cost_usd: null, findings: [] }), log() {}, ...deps,
   });
   return { result, base };
 }
@@ -170,8 +170,8 @@ test("contrôle prouvé explique Holo, hors capture et sans zone comptés honnê
     connecter: async () => ({ send: async method => method === "Page.captureScreenshot" ? { data: original.toString("base64") } : { result: { value: 200 } }, on() {}, close() {} }),
     controler: async () => [{ statut: "VERIFIED_FAIL", sorte: "debordement", message: "Le texte dépasse.", selecteur: "button", valeur: "200 > 100", zone: { x: 10, y: 10, largeur: 100, hauteur: 30 } },
       { statut: "VERIFIED_FAIL", sorte: "texte_erreur", message: "Un texte d'erreur est affiché.", valeur: "undefined", zone: { x: 20, y: 1200, largeur: 80, hauteur: 20 } }],
-    holo: async () => ({ status: "SUSPECTED", model: "holo4-27b", durationMs: 2, findings: [
-      { status: "SUSPECTED", kind: "cut-off-text", sentence: "Clipped.", zone: { x: 10, y: 10, width: 100, height: 30 } },
+    holo: async () => ({ status: "SUSPECTED", model: "holo4-27b", durationMs: 2, usage: null, cost_usd: null, findings: [
+      { status: "SUSPECTED", kind: "cut-off-text", sentence: "Clipped.", zone: { x: 10, y: 10, largeur: 100, hauteur: 30 } },
       { status: "INCONCLUSIVE", kind: "cut-off-text", sentence: "No box.", zone: null, message: "Invalid" },
     ] }),
   } });
@@ -190,7 +190,7 @@ test("contrôle prouvé explique Holo, hors capture et sans zone comptés honnê
 
 test("contrôle en échec, Holo hors délai et session interrompue", async () => {
   const { result, base } = await run({ failure: true, deps: { controler: async () => { throw new Error("CDP"); },
-    holo: async () => ({ status: "INCONCLUSIVE", model: "holo4-35b-a3b", durationMs: 16000, findings: [], message: "Both Holo models timed out" }) } });
+    holo: async () => ({ status: "INCONCLUSIVE", model: "holo4-35b-a3b", durationMs: 16000, usage: null, cost_usd: null, findings: [], message: "Both Holo models timed out" }) } });
   assert.equal(result.etat, "interrompu"); assert.equal(result.agents[0].etat, "tombe");
   assert.equal(result.pages[0].holo?.etat, "hors_delai"); assert.equal(result.totaux.sans_conclusion, 4);
   assert.ok(base.resultats.every(item => item.statut === "INCONCLUSIVE" && item.raison));
@@ -259,4 +259,15 @@ test("arguments, aide, valeurs par défaut et erreurs", () => {
   assert.equal(options.max, 15); assert.equal(options.port, 9333); assert.equal(options.sansBase, true);
   assert.match(options.sortie, /\.orchestrateur\/exploration$/); assert.match(options.vault, /vault-horama$/);
   for (const args of [[], ["--url", "file:///x"], ["--url", "https://u:p@example.org"], ["--url", "https://example.org", "--max", "-1"], ["--url", "https://example.org", "--chrome-port", "0"], ["--url", "https://example.org", "--url", "https://example.org"], ["--url"]]) assert.throws(() => lireArguments(args));
+});
+
+test("le coût total inclut Holo sans modifier le coût de la session H", async () => {
+  const { result } = await run({ deps: { holo: async () => ({
+    status: "SUSPECTED", model: "holo4-27b", durationMs: 3, findings: [],
+    usage: { prompt_tokens: 1000, completion_tokens: 200 }, cost_usd: 0.001,
+  }) } });
+  assert.equal(result.agents[0].cout_usd, 0.12);
+  assert.equal(result.cout_usd, 0.122);
+  assert.deepEqual(result.pages[0].holo?.jetons, { entree: 1000, sortie: 200 });
+  assert.equal(result.pages[0].holo?.cout_usd, 0.001);
 });
