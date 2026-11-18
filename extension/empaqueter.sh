@@ -1,9 +1,11 @@
 #!/bin/sh
-# The .zip of the extension for the jury: only the files Chrome loads (no fake service, no README).
-# Usage, from the root of the repository: sh extension/empaqueter.sh  →  extension/dist/horama-extension.zip
+# The .zip of the extension for the jury: every file Chrome loads, nothing else (no fake service, no README, no older
+# .zip). Usage, from the root of the repository: sh extension/empaqueter.sh  →  extension/dist/horama-extension.zip
+# The address of the service is the constant DEFAULT_SERVICE of service.js: set it before packaging.
 set -eu
 cd "$(dirname "$0")"
 mkdir -p dist
 rm -f dist/horama-extension.zip
-zip -q -r dist/horama-extension.zip manifest.json popup.html popup.css popup.js rapport.html rapport.css rapport.js options.html options.js service.js commun.css envoye.css mascotte.js mascotte lib
+zip -q -r dist/horama-extension.zip . -x "faux-service/*" "dist/*" "README.md" "empaqueter.sh" ".DS_Store" "*/.DS_Store"
 echo "dist/horama-extension.zip : $(unzip -l dist/horama-extension.zip | tail -1)"
+echo "Service : $(grep -o 'DEFAULT_SERVICE = "[^"]*"' service.js)"
