@@ -91,7 +91,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
     const tabs = (await response.json() as Array<{ type: string; url: string }>).filter(tab => tab.type === "page");
     return tabs.length === 1 ? tabs[0].url : null;
   });
-  const normalized = (address: string) => { const parsed = new URL(address); return parsed.origin + parsed.pathname.replace(/\/$/, ""); };
+  const normalized = (address: string, query = false) => { const parsed = new URL(address); return parsed.origin + parsed.pathname.replace(/\/$/, "") + (query ? parsed.search : ""); };
   const started = Date.now();
   const site = new URL(url).hostname.replace(/^www\./, "").replaceAll(".", "-");
   const folder = join(vault, site, "passages");
@@ -244,12 +244,19 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
                 try { address = await urlCourante(); } catch { /* Le hook contrôle le relevé si l'onglet est illisible. */ }
                 if (address) {
                   let matched: ExplorationPage | undefined;
-                  try { matched = pages.find(page => normalized(page.url) === normalized(address!) || (page.url_finale && normalized(page.url_finale) === normalized(address!))); } catch { /* Adresse hors liste. */ }
+                  try {
+                    const addresses = (page: ExplorationPage) => [page.url, ...(page.url_finale ? [page.url_finale] : [])];
+                    matched = pages.find(page => addresses(page).some(url => normalized(url, true) === normalized(address!, true)));
+                    if (!matched) {
+                      const candidates = pages.filter(page => addresses(page).some(url => normalized(url) === normalized(address!)));
+                      if (candidates.length === 1) matched = candidates[0];
+                    }
+                  } catch { /* Adresse hors liste. */ }
                   if (!matched) {
                     const requested = unfinished().find(page => page.ecran === args.ecran);
                     if (requested) {
                       const final = await resolveFinal(requested, signal);
-                      if (final && normalized(final) === normalized(address)) matched = requested;
+                      if (final && normalized(final, true) === normalized(address, true)) matched = requested;
                     }
                   }
                   if (!matched) {

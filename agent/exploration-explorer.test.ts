@@ -603,6 +603,33 @@ test("contrôle d'adresse : redirection même origine résolue avant le premier 
   assert.equal(resolves, 2);
 });
 
+test("contrôle d'adresse : deux pages de même chemin gardent leur query et leur ecran", async () => {
+  let address = "https://example.org/";
+  const { result } = await run({ deps: {
+    urlCourante: async () => address,
+    fetch: async input => {
+      const path = new URL(String(input)).pathname;
+      return new Response(path === "/robots.txt" ? "" : path === "/sitemap.xml" ? "<urlset><url><loc>https://example.org/p?x=1</loc></url><url><loc>https://example.org/p?x=2</loc></url></urlset>" : "Welcome", { headers: { "Content-Type": path.endsWith(".xml") ? "application/xml" : "text/html" } });
+    },
+    runtime: { relever: async () => ({ png: original, texte: "Page", url_page: address, largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture" }), navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
+    session: async input => {
+      await input.onCreated("queries");
+      return { id: "queries", fin: (async () => {
+        assert.equal(input.consigne.course.length, 3);
+        for (const step of input.consigne.course) {
+          address = step.address;
+          assert.match(await input.onTool("relever", { ecran: step.ecran, vue: "defaut" }), /Capture/);
+        }
+        await input.onTool("terminer", { etat: "reussi" });
+        return { id: "queries", muted: false, cout_usd: null, etapes: 3 };
+      })() };
+    },
+  } });
+  assert.equal(result.etat, "fini");
+  assert.deepEqual(result.pages.map(page => [page.ecran, page.etat]), [["accueil", "visitee"], ["p", "visitee"], ["p-2", "visitee"]]);
+  assert.deepEqual(result.pages.slice(1).map(page => page.url), ["https://example.org/p?x=1", "https://example.org/p?x=2"]);
+});
+
 for (const [actual, reason] of [
   ["https://other.example/", "La page redirige vers un autre site"],
   ["chrome-error://chromewebdata/", "La page n'a pas pu être chargée."],
