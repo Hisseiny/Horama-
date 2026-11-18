@@ -13,9 +13,9 @@ const options = { url: "https://example.org", apiKey: "test-key" };
 const reply = (content: string) => Response.json({ choices: [{ message: { content } }] });
 
 test("filters bottom and right edges, preserves interior text and different kinds, and keeps the first duplicate", () => {
-  const interior: HoloFinding = { status: "SUSPECTED", kind: "cut-off-text", sentence: "Clipped word.", zone: { x: 40, y: 738, width: 884, height: 60 } };
-  const bottom: HoloFinding = { ...interior, zone: { x: 40, y: 837, width: 141, height: 54 } };
-  const right: HoloFinding = { ...interior, zone: { x: 1200, y: 40, width: 68, height: 60 } };
+  const interior: HoloFinding = { status: "SUSPECTED", kind: "cut-off-text", sentence: "Clipped word.", zone: { x: 40, y: 738, largeur: 884, hauteur: 60 } };
+  const bottom: HoloFinding = { ...interior, zone: { x: 40, y: 837, largeur: 141, hauteur: 54 } };
+  const right: HoloFinding = { ...interior, zone: { x: 1200, y: 40, largeur: 68, hauteur: 60 } };
   const duplicate: HoloFinding = { ...interior, sentence: "Duplicate.", zone: { ...interior.zone!, x: 41 } };
   const different: HoloFinding = { ...interior, kind: "overlapping-text" };
   const invalid: HoloFinding = { status: "INCONCLUSIVE", kind: "cut-off-text", sentence: "Unknown zone.", zone: null, message: "Invalid box" };
@@ -46,13 +46,14 @@ test("visible findings remain suspected and the request disables thinking withou
     assert.equal(body.messages[0].content[1].image_url.url, `data:image/png;base64,${png.toString("base64")}`);
     assert.ok(!JSON.stringify(body.response_format).includes("["));
     assert.match(body.messages[0].content[0].text, /1280x900/);
+    assert.match(body.messages[0].content[0].text, /one short sentence in plain French for a non-technical visitor/);
     assert.match(body.messages[0].content[0].text, /normalized to \[0,1000\]/);
     return reply(JSON.stringify({ ...empty, d0: "cut-off-text | 100,200,300,400 | The title is clipped." }));
   } });
   assert.equal(result.status, "SUSPECTED");
   assert.equal(result.model, "holo4-27b");
   assert.ok(result.durationMs >= 0);
-  assert.deepEqual(result.findings, [{ status: "SUSPECTED", kind: "cut-off-text", zone: { x: 128, y: 180, width: 384, height: 360 }, sentence: "The title is clipped." }]);
+  assert.deepEqual(result.findings, [{ status: "SUSPECTED", kind: "cut-off-text", zone: { x: 128, y: 180, largeur: 384, hauteur: 360 }, sentence: "The title is clipped." }]);
 });
 
 test("empty keys report no findings without being inconclusive", async () => {
@@ -80,7 +81,7 @@ for (const box of ["900,0,101,100", "0,990,100,20", "top", "", "1,2,3", "1,2,3,4
     assert.equal(result.findings[0].zone, null);
     assert.equal(result.findings[0].sentence, "The title is clipped.");
     if (result.findings[0].status === "INCONCLUSIVE") assert.match(result.findings[0].message, /Invalid box/);
-    assert.deepEqual(result.findings[1].zone, { x: 0, y: 0, width: 640, height: 450 });
+    assert.deepEqual(result.findings[1].zone, { x: 0, y: 0, largeur: 640, hauteur: 450 });
     assert.equal(result.findings[1].status, "SUSPECTED");
   });
 }
@@ -92,7 +93,7 @@ test("pixel rounding preserves shared edges and rejects boxes rounded to zero", 
   const result = await askHolo(small, { ...options, fetch: async () => reply(JSON.stringify({ ...empty,
     d0: "cut-off-text | 150,150,150,150 | Clipped.", d1: "cut-off-text | 0,0,1,1 | Tiny.",
   })) });
-  assert.deepEqual(result.findings[0].zone, { x: 2, y: 2, width: 1, height: 1 });
+  assert.deepEqual(result.findings[0].zone, { x: 2, y: 2, largeur: 1, hauteur: 1 });
   assert.equal(result.findings[1].status, "INCONCLUSIVE");
   assert.equal(result.findings[1].zone, null);
 });
@@ -142,4 +143,41 @@ test("network errors do not invent findings or disclose credentials", async () =
   assert.equal(result.status, "INCONCLUSIVE");
   assert.deepEqual(result.findings, []);
   assert.ok(!JSON.stringify(result).includes("test-key"));
+});
+
+test("usage and known 27b price are returned even for non-conforming content", async () => {
+  for (const content of [JSON.stringify(empty), "invalid"]) {
+    const result = await askHolo(png, { ...options, fetch: async () => Response.json({
+      usage: { prompt_tokens: 1000, completion_tokens: 200 },
+      choices: [{ message: { content } }],
+    }) });
+    assert.deepEqual(result.usage, { prompt_tokens: 1000, completion_tokens: 200 });
+    assert.equal(result.cost_usd, 0.001);
+  }
+});
+
+test("usage is summed when parsing the first body times out; fallback price stays unknown", async () => {
+  let calls = 0;
+  const result = await askHolo(png, { ...options, timeoutMs: 20, fetch: async (_, init) => {
+    calls++;
+    if (calls === 1) return { ok: true, json: async () => ({
+      usage: { prompt_tokens: 100, completion_tokens: 20 },
+      choices: [{ message: { get content() {
+        Object.defineProperty(init!.signal, "aborted", { value: true });
+        throw new Error("Timeout");
+      } } }],
+    }) } as unknown as Response;
+    return Response.json({ usage: { prompt_tokens: 300, completion_tokens: 40 },
+      choices: [{ message: { content: JSON.stringify(empty) } }] });
+  } });
+  assert.equal(calls, 2);
+  assert.equal(result.model, "holo4-35b-a3b");
+  assert.equal(result.cost_usd, null);
+  assert.deepEqual(result.usage, { prompt_tokens: 400, completion_tokens: 60 });
+});
+
+test("missing usage never invents tokens or cost", async () => {
+  const result = await askHolo(png, { ...options, fetch: async () => reply(JSON.stringify(empty)) });
+  assert.equal(result.usage, null);
+  assert.equal(result.cost_usd, null);
 });
