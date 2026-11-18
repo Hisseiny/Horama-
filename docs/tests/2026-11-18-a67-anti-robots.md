@@ -38,3 +38,27 @@ une connexion CDP supplémentaire et un 404 de sitemap mal classé ; corrigés.
 Limites : détection heuristique générique, pas de garantie sur toutes les protections.
 La détection rendue propre à cette modification utilise un CDP simulé ; aucun
 nouvel essai sur site protégé réel, aucune vérification visuelle de la scène.
+
+## Après intégration de dev
+
+`git fetch origin dev`, puis fusion de `origin/dev` (`52f991d`, correctif #112
+inclus) dans la branche : commit de fusion `270be64`. Un conflit dans l'assertion
+du test d'exception de relevé a été résolu en conservant la réponse spécifique
+de l'exploration (raison réelle, puis pages restantes). Aucun changement propre
+à cette branche dans `coureur.ts`.
+
+```text
+pnpm -r --if-present run check
+agent check: 1..229
+agent check: # tests 235
+agent check: # pass 235
+agent check: # fail 0
+agent check: # cancelled 0
+agent check: # skipped 0
+agent check: # todo 0
+agent check: # duration_ms 16651.786751
+agent check: Done
+```
+
+`git diff --check` : sortie vide. Recherche des cinq noms de sites interdits
+dans `agent/src` : aucune correspondance (code de sortie de recherche 1).
