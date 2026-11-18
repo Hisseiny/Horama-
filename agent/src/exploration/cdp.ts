@@ -161,3 +161,80 @@ export async function connecterCdp(port: number, address: string): Promise<Explo
     close() { fail(); socket.close(); },
   };
 }
+
+export type IssueClic = "navigue" | "intercepte" | "introuvable";
+
+// Clicks each link in a hidden tab of a separate browser context (the visitor's tab and profile stay untouched) and reports
+// whether the click really requests its address. Navigations are aborted before any request leaves Chrome.
+export async function verifierClics(port: number, pageUrl: string, urls: string[], { delaiMs = 20_000, attenteMs = 2_000, signal }: { delaiMs?: number; attenteMs?: number; signal?: AbortSignal } = {}): Promise<Map<string, IssueClic>> {
+  const deadline = Date.now() + delaiMs;
+  const version = await (await fetch(`http://127.0.0.1:${port}/json/version`, { signal: AbortSignal.timeout(5000) })).json() as { webSocketDebuggerUrl: string };
+  const socket = new WebSocket(version.webSocketDebuggerUrl);
+  const pending = new Map<number, { resolve(value: any): void; reject(error: Error): void }>();
+  const listeners = new Map<string, (params: any) => void>();
+  let id = 0;
+  const fail = () => { for (const item of pending.values()) item.reject(new Error("Connexion CDP fermée.")); pending.clear(); };
+  socket.addEventListener("close", fail);
+  socket.addEventListener("error", fail);
+  socket.addEventListener("message", event => {
+    const message = JSON.parse(String(event.data));
+    if (message.id) {
+      const item = pending.get(message.id);
+      pending.delete(message.id);
+      if (message.error) item?.reject(new Error(message.error.message)); else item?.resolve(message.result);
+    } else listeners.get(`${message.sessionId ?? ""} ${message.method}`)?.(message.params);
+  });
+  const send = (method: string, params: object = {}, sessionId?: string) => new Promise<any>((resolve, reject) => {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0 || signal?.aborted) { reject(new Error("Vérification des clics hors délai.")); return; }
+    const key = ++id;
+    const timer = setTimeout(() => { pending.delete(key); reject(new Error(`CDP hors délai : ${method}`)); }, remaining);
+    pending.set(key, { resolve: value => { clearTimeout(timer); resolve(value); }, reject: error => { clearTimeout(timer); reject(error); } });
+    socket.send(JSON.stringify({ id: key, method, params, ...(sessionId ? { sessionId } : {}) }));
+  });
+  const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, Math.max(0, Math.min(ms, deadline - Date.now()))));
+  const strip = (address: string) => { try { const url = new URL(address); url.hash = ""; return url.href; } catch { return address; } };
+  const results = new Map<string, IssueClic>();
+  signal?.addEventListener("abort", () => socket.close(), { once: true });
+  try {
+    await new Promise<void>((resolve, reject) => {
+      socket.addEventListener("open", () => resolve(), { once: true });
+      socket.addEventListener("error", () => reject(new Error("Connexion CDP impossible.")), { once: true });
+    });
+    const { browserContextId } = await send("Target.createBrowserContext", { disposeOnDetach: true });
+    const { targetId } = await send("Target.createTarget", { url: "about:blank", browserContextId, hidden: true, background: true })
+      .catch(() => send("Target.createTarget", { url: "about:blank", browserContextId, background: true }));
+    const { sessionId } = await send("Target.attachToTarget", { targetId, flatten: true });
+    const tab = (method: string, params: object = {}) => send(method, params, sessionId);
+    await tab("Page.enable");
+    const loaded = new Promise(resolve => listeners.set(`${sessionId} Page.loadEventFired`, resolve));
+    await tab("Page.navigate", { url: pageUrl });
+    await Promise.race([loaded, wait(10_000)]);
+    await wait(1000);
+    const main = (await tab("Page.getFrameTree")).frameTree.frame.id;
+    const requested: string[] = [];
+    listeners.set(`${sessionId} Fetch.requestPaused`, params => {
+      if (params.frameId === main) requested.push(params.request.url);
+      tab("Fetch.failRequest", { requestId: params.requestId, errorReason: "Aborted" }).catch(() => {});
+    });
+    listeners.set(`${sessionId} Page.frameRequestedNavigation`, params => { if (params.frameId === main) requested.push(params.url); });
+    listeners.set(`${sessionId} Page.windowOpen`, params => requested.push(params.url));
+    await tab("Fetch.enable", { patterns: [{ urlPattern: "*", resourceType: "Document", requestStage: "Request" }] });
+    for (const url of urls) {
+      if (deadline - Date.now() < attenteMs) break;
+      requested.length = 0;
+      const clicked = await tab("Runtime.evaluate", { returnByValue: true, expression: `(() => {
+        const strip = address => { const url = new URL(address, location.href); url.hash = ""; return url.href; };
+        const link = [...document.querySelectorAll("a[href]")].find(link => URL.canParse(link.href) && strip(link.href) === ${JSON.stringify(url)});
+        link?.click();
+        return !!link;
+      })()` });
+      if (clicked.result?.value !== true) { results.set(url, "introuvable"); continue; }
+      const end = Math.min(deadline, Date.now() + attenteMs);
+      while (Date.now() < end && !requested.length) await wait(100);
+      results.set(url, requested.some(address => strip(address) === url) ? "navigue" : "intercepte");
+    }
+    await send("Target.disposeBrowserContext", { browserContextId }).catch(() => {});
+  } finally { socket.close(); }
+  return results;
+}

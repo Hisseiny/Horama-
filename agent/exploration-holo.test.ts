@@ -21,6 +21,9 @@ test("filters bottom and right edges, preserves interior text and different kind
   const invalid: HoloFinding = { status: "INCONCLUSIVE", kind: "cut-off-text", sentence: "Unknown zone.", zone: null, message: "Invalid box" };
   assert.deepEqual(filterFindings([bottom], 1280, 900), []);
   assert.deepEqual(filterFindings([right], 1280, 900), []);
+  for (const zone of [{ x: 100, y: 100, largeur: 23, hauteur: 1 }, { x: 100, y: 100, largeur: 3, hauteur: 40 }]) {
+    assert.deepEqual(filterFindings([{ status: "SUSPECTED", kind: "misaligned-element", sentence: "Noise.", zone }], 1280, 900), [], "zone de moins de 4 px");
+  }
   assert.deepEqual(filterFindings([interior, duplicate], 1280, 900), [interior]);
   assert.deepEqual(filterFindings([interior, different, invalid], 1280, 900), [interior, different, invalid]);
   assert.deepEqual(filterFindings([], 1280, 900), []);
@@ -91,9 +94,9 @@ test("pixel rounding preserves shared edges and rejects boxes rounded to zero", 
   small.writeUInt32BE(10, 16);
   small.writeUInt32BE(10, 20);
   const result = await askHolo(small, { ...options, fetch: async () => reply(JSON.stringify({ ...empty,
-    d0: "cut-off-text | 150,150,150,150 | Clipped.", d1: "cut-off-text | 0,0,1,1 | Tiny.",
+    d0: "cut-off-text | 150,150,400,400 | Clipped.", d1: "cut-off-text | 0,0,1,1 | Tiny.",
   })) });
-  assert.deepEqual(result.findings[0].zone, { x: 2, y: 2, largeur: 1, hauteur: 1 });
+  assert.deepEqual(result.findings[0].zone, { x: 2, y: 2, largeur: 4, hauteur: 4 });
   assert.equal(result.findings[1].status, "INCONCLUSIVE");
   assert.equal(result.findings[1].zone, null);
 });
