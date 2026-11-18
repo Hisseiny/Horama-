@@ -6,15 +6,15 @@ code: ["src/pages/admissions.astro", "src/data/admissions.ts"]
 vues: []
 # Langue de la page (<html lang>) : une prévisualisation dans une autre langue écarte les tests de cette page (réveil par PR, #122).
 langue: fr
-# Deux lectures du 18/11 à 1280 × 900 : 0 pixel d'écart sur le premier écran, aucune zone à ignorer.
+# Production de main (3725b94), 18/11, 1280 × 900 : deux lectures sans zone d'écart pour le moteur (photos à 3/255 au plus), aucune zone à ignorer.
 zones_ignorees: []
 ---
 
 # Admissions
 
-Relevé le 18/11 sur le clone servi en local (commit `4e7dd32`), texte de la page tel qu'affiché.
+Relevé le 18/11 sur le clone servi en local (commit `4e7dd32`), texte de la page tel qu'affiché ; texte identique sur la production de `main` (`3725b94`, après les PR #11 et #14 du clone), relevée le même jour.
 
-Fil d'Ariane « Accueil / Admissions », titre « Admissions » (à 1280 × 900, coupé en « Admission » et « s » sur deux lignes), puis « Quatre étapes, hors Parcoursup. La candidature est gratuite pour les résidents de l'Union européenne. »
+Fil d'Ariane « Accueil / Admissions », titre « Admissions », puis « Quatre étapes, hors Parcoursup. La candidature est gratuite pour les résidents de l'Union européenne. »
 
 « Comment se passe ta candidature. » décrit quatre étapes :
 1. « Candidature en ligne » : « Ton dossier, en ligne. Gratuit pour les résidents UE. »
