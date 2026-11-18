@@ -307,7 +307,7 @@ export async function jouerPr({ pr, fichiers, vault, logiciel, socle, sortie, sc
     }
     if (exploration) {
       await step("exploration", ["automatisation/scene/exploration.mjs", "--url", pr.previsualisation, "--max", String(exploration.max), "--pages-cliquees", String(exploration.pagesCliquees),
-        "--vault", vault, "--sortie", join(folder, "exploration"), "--pr", pr.adresse, ...sceneArgs]);
+        "--vault", vault, "--site", logiciel, "--sortie", join(folder, "exploration"), "--pr", pr.adresse, ...sceneArgs]);
     }
     // One answer on the PR for both scenes (--commenter): what each wrote, put together.
     if (commenter) {
