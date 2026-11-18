@@ -25,6 +25,7 @@ import { libelleAction } from "../../agent/src/session.ts";
 import { appliquerCorrection, ecrireDecision, ecrireReference, lireDecisions, lireNotes, lireReferences, refuserCorrection } from "../../memoire/index.ts";
 import { findHolo, startBridge, stopIfMissing } from "./agent-h.mjs";
 import { creerEcrivainMemoire, creerEcrivainSupabase } from "./decisions.mjs";
+import { ouvrirPrDoc } from "../pr-doc/index.mjs";
 import { completerNote } from "./note-passage.mjs";
 import { revoir, sizeOf } from "./recapitulatif.mjs";
 import { HEIGHT, WIDTH, capture, clickAt, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, layer, navigate, openChrome, option, say, sleep, waitFor } from "./scene.mjs";
@@ -53,6 +54,19 @@ const CORRECTION_FILE = resolve(option("correction", join(HERE, "../../jugement/
 const CORRECTION_CHOICE = option("correction-choix");
 // The PR whose deployment woke the passage (given by the wake-up), written in the report of the passage.
 const PR = option("pr", null);
+// The PR of documentation for each accepted correction of a note (automatisation/pr-doc/): only with --pr-doc
+// <propriétaire/dépôt>, the repository of the documentation. --pr-doc-remote: another remote (a local bare repository
+// for a trial), --pr-doc-base: its branch, --pr-doc-vault: the folder of this software in it, --lien-passage: the link
+// to the passage written in the PR (default: the interface in local).
+const PR_DOC = option("pr-doc", null);
+const PR_DOC_CONFIG = PR_DOC && {
+  repository: PR_DOC,
+  base: option("pr-doc-base", "dev"),
+  vaultPath: option("pr-doc-vault", `vault-horama/${LOGICIEL}`),
+  passageUrl: option("lien-passage", `http://localhost:3000/passages/${ID}`),
+  ...(flag("pr-doc-remote") ? { remote: option("pr-doc-remote") } : {}),
+};
+const prDoc = []; // per accepted correction: { label, url } for the note of the passage
 // The choice of the tests made from a change (docs/decisions/2026-11-17-format-impact.md): shown before the course,
 // and, without --tests, the tests the scene plays.
 const IMPACT_FILE = option("impact") ? resolve(option("impact")) : null;
@@ -595,6 +609,26 @@ if (page) {
               await witness(`correction-${decision.correction_de_note.statut}`);
             }
             await mascot("bulle", null);
+            // The accepted correction goes to the documentation as a PR. A failure is said and the scene goes on.
+            if (!failure && PR_DOC_CONFIG && decision.correction_de_note?.statut === "acceptee") {
+              const { fichier, avant, apres } = decision.correction_de_note;
+              let opened;
+              try {
+                opened = await ouvrirPrDoc({ passage_id: ID, fichier, avant, apres, decision }, PR_DOC_CONFIG);
+              } catch (error) {
+                opened = { status: "INCONCLUSIVE", reason: error.message };
+              }
+              if (opened.status === "opened") {
+                prDoc.push({ label: `PR de documentation (${fichier})`, url: opened.url });
+                say(`PR de documentation ouverte : ${opened.url}`);
+                await speak("J'ai ouvert la PR de documentation.", "pr-doc-ouverte");
+              } else {
+                // In the note, the last line of the error (git's « fatal: … »); the whole message in the terminal.
+                prDoc.push({ label: `PR de documentation non ouverte (${fichier})`, url: opened.reason.trim().split("\n").at(-1) });
+                say(`PR de documentation non ouverte : ${opened.reason}${opened.branch ? ` (branche ${opened.branch})` : ""}`);
+                await speak("Je n'ai pas pu ouvrir la PR de documentation : la note est corrigée ici, pas encore dans le dépôt.", "pr-doc-echec");
+              }
+            }
           } else if (proposal) {
             say(proposal.raison);
             await speak(proposal.raison, "correction-absente");
@@ -626,7 +660,7 @@ if (report) {
   try {
     const rejoues = impact ? impact.retenus.map(({ id, raisons }) => `${id}${raisons?.length ? ` (${raisons.join(" ; ")})` : ""}`) : tests.map((test) => test.id);
     const ecartes = [...(impact?.ecartes ?? []), ...dropped].map(({ id, raison }) => `${id}${raison ? ` (${raison})` : ""}`);
-    const note = completerNote({ vault: VAULT, logiciel: LOGICIEL, passage: ID, tests: { titre: "Tests", lignes: [...rejoues.map((line) => `Rejoué : ${line}`), ...ecartes.map((line) => `Écarté : ${line}`)] }, items: [...items.values()], decisions, pr: PR ? [{ label: "PR qui a déclenché le passage", url: PR }] : [] });
+    const note = completerNote({ vault: VAULT, logiciel: LOGICIEL, passage: ID, tests: { titre: "Tests", lignes: [...rejoues.map((line) => `Rejoué : ${line}`), ...ecartes.map((line) => `Écarté : ${line}`)] }, items: [...items.values()], decisions, pr: [...(PR ? [{ label: "PR qui a déclenché le passage", url: PR }] : []), ...prDoc] });
     say(note ? `Note du passage complétée : ${join(VAULT, note)}.` : `Aucune note du coureur pour ${ID} : rien à compléter.`);
   } catch (error) {
     errors.push(`Note du passage : ${error.message}`);

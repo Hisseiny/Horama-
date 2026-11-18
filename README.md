@@ -119,7 +119,7 @@ Décidé par Nathan le 17/11 au soir (« mode visuel »), renommé et recadré l
 ### Le parcours, comme un spectateur le verra (validé par Nathan)
 
 1. **L'adresse** : on colle l'adresse d'un site (par exemple eugeniaschool.com). Pas de documentation, pas d'accès au code.
-2. **La visite** : Horama trouve les pages (plan du site, puis liens) ; trois agents H se les partagent et les visitent en direct, chacun dans sa fenêtre Chrome.
+2. **La visite** : Horama trouve les pages (plan du site, puis liens) ; un agent H les visite en direct, en commençant par la page de départ (l'onglet ouvert quand on lance Horama). Plusieurs agents en parallèle : après le hackathon (voir « Évolutions prévues »).
 3. **Deux regards sur chaque page** : les contrôles automatiques donnent des défauts prouvés (page en erreur, image cassée, texte qui déborde de son bouton, lien mort, « undefined » affiché ; plus tard l'accessibilité chiffrée, issue [#55](https://github.com/Hisseiny/Horama-/issues/55)) ; Holo regarde la capture comme un humain et donne des doutes.
 4. **Le récapitulatif** : chaque défaut avec sa capture entourée ; l'humain tranche bug ou voulu.
 5. **Le passage suivant** : Horama a gardé les captures ; il compare et signale ce qui a bougé, puis propose le mode développeur (documentation et GitHub) pour aller plus loin.
@@ -129,11 +129,9 @@ Décidé par Nathan le 17/11 au soir (« mode visuel »), renommé et recadré l
 ```mermaid
 flowchart LR
   U["Adresse du site"] --> P["Pages trouvées<br/>sitemap.xml, puis liens, sans H"]
-  P --> A1["Agent H 1"]
-  P --> A2["Agent H 2"]
-  P --> A3["Agent H 3"]
-  A1 & A2 & A3 -->|capture par page| M["Contrôles mécaniques<br/>CDP : VERIFIED_FAIL"]
-  A1 & A2 & A3 -->|capture par page| HO["Holo (Models API)<br/>SUSPECTED"]
+  P --> A1["Agent H"]
+  A1 -->|capture par page| M["Contrôles mécaniques<br/>CDP : VERIFIED_FAIL"]
+  A1 -->|capture par page| HO["Holo (Models API)<br/>SUSPECTED"]
   M & HO --> X["horama-exploration-1"]
   X --> SC["scène : récapitulatif, bug ou voulu"]
   X --> REF["vault-horama, références du site<br/>comparaison au passage suivant"]
@@ -143,6 +141,16 @@ flowchart LR
 - Les agents H visitent ; c'est le code qui contrôle. Un constat de Holo n'est jamais un défaut prouvé.
 - Le plan gratuit de H permet 3 sessions simultanées par organisation : le moteur vérifie qu'il y a 3 places libres avant de lancer et ferme toutes ses sessions à la fin (contraintes détaillées dans l'issue #57). Pendant la démo, personne d'autre ne lance d'agent sur le compte.
 - La sortie (un fichier `horama-exploration-1`, plus un C4 par page) est fixée dans [`docs/decisions/2026-11-17-format-exploration.md`](docs/decisions/2026-11-17-format-exploration.md) ; aucun contrat ne change.
+
+### Le service que le jury essaie seul (décidé le 18/11, issue [#68](https://github.com/Hisseiny/Horama-/issues/68))
+
+Option A, décidée par Nathan : **un service sur notre serveur, dans un conteneur Docker hébergé sur Railway**. Le jury n'installe que l'extension Chrome ; elle appelle le service, qui fait tourner Chrome, le pont `holo` et le moteur `explorer`. Railway parce qu'il garde un processus qui tourne en continu, accepte une image Docker et déploie depuis une branche GitHub ; Render est écarté (son offre gratuite met le service en veille). Étapes, par Ali :
+
+1. Un `Dockerfile` (Node, Chrome, `holo`, le moteur) et un passage réel sur eugeniaschool.com dans ce conteneur, avant tout déploiement.
+2. Le service : `POST /explorations`, `GET /explorations/:id` (format `horama-exploration-1`), les captures par lien ; une file d'attente au-delà de 3 sessions H simultanées, avec un message clair.
+3. Le déploiement sur Railway, après deux conditions de sécurité : une clé H dédiée au service (supprimée après la démo de vendredi, jamais la clé de l'équipe) et Chrome sous un autre compte du conteneur que le moteur (ni la clé H ni les données du moteur ne lui sont visibles), prouvées par une commande dans le rapport.
+
+L'extension (couloir Nathan) vient après la direction artistique.
 
 ## Chiffres mesurés
 
@@ -165,12 +173,20 @@ Ce qui n'est pas mesuré : le taux de faux constats d'un vrai défaut sur le sit
 ## Ce qui n'est pas fait
 
 - **Mode grand public** : moteur à un agent fusionné (#64) ; marche sur n'importe quel site à prouver (#67) ; extension Chrome et service que le jury essaie seul (#68).
-- **Scène épurée** (pendant le parcours : curseur, mascotte, trait à la main ; tout le texte au récapitulatif) et direction artistique refaite (#69), page d'accueil (#70).
+- **Direction artistique** de la scène (le squelette épuré est fait, #69), page d'accueil (#70).
 - **Mode dev de bout en bout** : réveil par un vrai déploiement Vercel, rapport dans Obsidian, commentaire sur la PR GitHub (#71).
 - **Fork du site d'Eugenia** : en attente de l'accord de l'école ; tant qu'il n'est pas là, le changement du site est simulé dans une copie du vault.
 - **Interface web** (`interface/`) : sur données factices ; la démo se joue dans la scène.
 - **n8n** (C7, notification « cas à relire ») : non construit.
 - **Limites connues** : le mode scripté (sans agent H) ne sait pas cliquer un lien hors de l'écran ni ouvrir le menu burger ; un clic humain dans la fenêtre de la scène passe avant les réponses automatiques ; la correction de note varie d'un appel à l'autre.
+
+## Évolutions prévues
+
+Après le hackathon, dans cet ordre de dépendance :
+
+- **Plusieurs agents H en parallèle** (décision de Nathan, 18/11) : le moteur et le format `horama-exploration-1` sont prévus pour 1 à 3 agents qui se partagent les pages, mais la démo de vendredi tourne avec un seul agent. Pourquoi attendre : le plan gratuit de H plafonne à 3 sessions simultanées par organisation, et le mode à un agent doit d'abord être stable sur le banc de sites (#67).
+- **Des consignes de Holo spécialisées**, une par sorte de doute (texte coupé, chevauchement, élément décalé, image déformée, contraste) au lieu d'une consigne générale, quand la base sera stable : aujourd'hui, la plupart des faux constats viennent de Holo (6 sur 8 sur eugeniaschool.com le 17/11), et une consigne ne s'affine qu'en mesurant ses faux constats sur un banc qui ne bouge plus.
+- Le reste de la feuille de route (entrée « message d'un client », correction du code par Devin, autres sources de documentation et autres sorties que GitHub, accessibilité mesurée, notification par n8n) : [`docs/feuille-de-route.md`](docs/feuille-de-route.md).
 
 ## Comment lancer
 
