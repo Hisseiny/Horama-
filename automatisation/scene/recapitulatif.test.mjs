@@ -1,0 +1,54 @@
+// bilanExploration (recapitulatif.mjs): what the summary says when an exploration could not visit (PR #117). No Chrome,
+// no network. Run from this folder: node --test recapitulatif.test.mjs
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { bilanExploration } from "./recapitulatif.mjs";
+
+// The site blocked by its anti-robot (as in docs/tests/2026-11-18-a67-anti-robot.md, skema.edu): no page, no H session.
+const bloquee = {
+  format: "horama-exploration-1", etat: "fini", adresse: "https://www.skema.edu/fr",
+  agents: [{ agent: 1, session_id: null, etat: "fini", raison: "ce site bloque les robots (_Incapsula_Resource)." }],
+  pages: [{ ecran: "accueil", url: "https://www.skema.edu/fr", etat: "non_visitee", raison: "ce site bloque les robots (_Incapsula_Resource)." }],
+  constats: [{ id: "accueil--controle--1", ecran: "accueil", statut: "INCONCLUSIVE", raison: "ce site bloque les robots (_Incapsula_Resource)." }],
+  totaux: { pages_trouvees: 1, pages_visitees: 0, defauts: 0, doutes: 0, sans_conclusion: 1, par_sorte: {} },
+};
+
+// A run that visited some pages and not others.
+const partielle = {
+  format: "horama-exploration-1", etat: "interrompu", adresse: "https://www.exemple.fr/",
+  agents: [{ agent: 1, etat: "tombe", raison: "Des pages n'ont pas été visitées." }],
+  pages: [
+    { ecran: "accueil", url: "https://www.exemple.fr/", etat: "visitee", raison: null },
+    { ecran: "tarifs", url: "https://www.exemple.fr/tarifs", etat: "non_visitee", raison: "La capture a échoué : CDP sans réponse : Page.captureScreenshot" },
+    { ecran: "compte", url: "https://www.exemple.fr/compte", etat: "non_visitee" },
+  ],
+  constats: [{ id: "compte--controle--1", ecran: "compte", statut: "INCONCLUSIVE", raison: "Cette page demande une connexion." }],
+  totaux: { pages_trouvees: 3, pages_visitees: 1, defauts: 0, doutes: 0, sans_conclusion: 1, par_sorte: {} },
+};
+
+test("aucune page visitée : la raison de l'agent, en une phrase", () => {
+  assert.deepEqual(bilanExploration(bloquee), {
+    aucune: true,
+    phrase: "Horama n'a pas pu visiter ce site : ce site bloque les robots (_Incapsula_Resource).",
+    nonVisitees: [{ chemin: "/fr", raison: "ce site bloque les robots (_Incapsula_Resource)." }],
+  });
+  // Without a reason of the agent: the reason of a page, with a capital letter put down; without any: the bare sentence.
+  const parPage = { ...bloquee, agents: [{ agent: 1, raison: null }], pages: [{ ...bloquee.pages[0], raison: "Page introuvable (404)." }] };
+  assert.equal(bilanExploration(parPage).phrase, "Horama n'a pas pu visiter ce site : page introuvable (404).");
+  const sans = { ...bloquee, agents: [], pages: [{ ...bloquee.pages[0], raison: null }], constats: [] };
+  assert.equal(bilanExploration(sans).phrase, "Horama n'a pas pu visiter ce site.");
+});
+
+test("des pages visitées : chaque page non visitée avec sa raison, celle de la page ou celle de son constat", () => {
+  assert.deepEqual(bilanExploration(partielle), {
+    aucune: false,
+    nonVisitees: [
+      { chemin: "/tarifs", raison: "La capture a échoué : CDP sans réponse : Page.captureScreenshot" },
+      { chemin: "/compte", raison: "Cette page demande une connexion." },
+    ],
+  });
+});
+
+test("exploration en cours : jamais « n'a pas pu visiter »", () => {
+  assert.equal(bilanExploration({ ...bloquee, etat: "en_cours" }).aucune, false);
+});
