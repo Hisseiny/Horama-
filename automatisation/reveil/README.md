@@ -58,7 +58,13 @@ node automatisation/reveil/pr.mjs --depot <propriétaire/dépôt> --logiciel <lo
   - les pages non visitées ;
   - le chemin de la note du passage, où sont les captures entourées.
 
-  C'est du texte seul pour l'instant : une capture dans le commentaire attend le choix de Nathan (une branche dédiée du dépôt cible). Sans tests du vault joués, un titre dit pourquoi (langue changée, ou aucune note touchée). Le résultat de la publication est gardé dans `reveil.json`, champ `commentaire`.
+  Sans tests du vault joués, un titre dit pourquoi (langue changée, ou aucune note touchée). Le résultat de la publication est gardé dans `reveil.json`, champ `commentaire`.
+- **Les captures dans la réponse** (`--captures-sur-branche horama/captures`, avec `--depot` et `--commenter`, désactivé par défaut, décision de Nathan du 18/11) :
+  - les captures entourées des défauts et des doutes de l'exploration sont poussées sur cette branche du dépôt cible par l'API GitHub, sans clone, à `pr-<numéro>/<commit court>/<constat>.png` ;
+  - la branche est créée depuis la branche par défaut si elle n'existe pas, et n'est jamais fusionnée ;
+  - la réponse affiche chaque image par son adresse `raw.githubusercontent.com/<dépôt>/<commit>/<chemin>`, qui reste valable quoi que devienne la branche, et qui se lit sans connexion si le dépôt est public ;
+  - une capture refusée laisse son constat en texte ;
+  - le nombre de captures poussées est gardé dans `reveil.json`, champ `captures`.
 - **Sorties** : `<sortie>/pr-<numéro>-<commit court>/` (`.orchestrateur/reveil-pr/` par défaut) : `impact.json`, `reveil.json` (état, `impact_ms`, `total_ms`, et pour `parcours` et `exploration` : état, `lance_ms`, erreur), `scene/`, `exploration/`.
 - **Essai sans vraie PR** : `--faux-github <fichier.json>` lit `{ prs: [{ numero, adresse, titre, base, tete }], deploiements: { <sha>: { etat, adresse } }, fichiers: { <numéro>: [...] } }` à la place de GitHub.
 - **À blanc** : `--a-blanc` regarde GitHub une fois et ne joue rien : ni scène, ni H, ni écriture. Pour chaque PR ouverte, il affiche :

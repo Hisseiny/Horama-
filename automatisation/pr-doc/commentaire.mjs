@@ -27,14 +27,17 @@ export function ecrireCommentaire({ passage, rejoues, ecartes, prouves, doutes, 
 }
 
 // The part of the exploration of the whole site of the preview (issue #122): mechanical checks prove, Holo only doubts,
-// the human says bug or voulu. Text only (option b): for each finding, its page, its zone in pixels of the capture
-// (1280 × 900) and its proof; the captures ringed stay in the note of the passage, whose path closes the part.
+// the human says bug or voulu. For each finding, its page, its zone in pixels of the capture (1280 × 900) and its proof,
+// and its capture ringed when the wake-up has put it on a branch of the target repository (option a, `image`); the
+// captures ringed are also in the note of the passage, whose path closes the part.
 // bilan: bilanExploration (scene/recapitulatif.mjs). prouves, doutes, dejaVoulus: [{ id, chemin, texte, preuve,
 // zone, capture }]; decisions: [{ ecart_id, decision }].
 export function ecrireSectionExploration({ adresse, bilan, totaux, prouves, doutes, dejaVoulus = [], decisions, note }) {
   const decided = (id) => DECIDED[decisions.find((decision) => decision.ecart_id === id)?.decision] ?? "pas tranché";
   const zone = ({ zone: box }) => (box ? `zone x ${Math.round(box.x)}, y ${Math.round(box.y)}, ${Math.round(box.largeur)} × ${Math.round(box.hauteur)} px sur la capture` : "zone non mesurée");
-  const line = (item, withDecision = true) => `- ${item.chemin} : ${item.texte}${item.preuve ? ` ${item.preuve}` : ""} (${zone(item)}${withDecision ? `, décision : ${decided(item.id)}` : ""})`;
+  // With --captures-sur-branche (option a), an entry carries `image`: the address of its capture ringed, shown under it.
+  const line = (item, withDecision = true) => `- ${item.chemin} : ${item.texte}${item.preuve ? ` ${item.preuve}` : ""} (${zone(item)}${withDecision ? `, décision : ${decided(item.id)}` : ""})`
+    + (item.image ? `\n\n  ![${item.chemin} : ${item.texte.replace(/[[\]]/g, "")}](${item.image})\n` : "");
   const lines = ["### Exploration de tout le site de la prévisualisation", ""];
   if (bilan.aucune) {
     lines.push(`**${bilan.phrase}**`, "");

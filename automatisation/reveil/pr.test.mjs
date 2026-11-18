@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { aBlanc, aJouer, adresseCommentaireVercel, adresseControleVercel, ecarterLangue, impactDePr, jouerPr, langueDePage, lecteurGithub, ouverteSansConnexion } from "./pr.mjs";
+import { aBlanc, aJouer, adresseCommentaireVercel, adresseControleVercel, ecarterLangue, impactDePr, jouerPr, langueDePage, lecteurGithub, ouverteSansConnexion, televerserCapture } from "./pr.mjs";
 
 // A vault of trial: two screens of a site whose code we have, one test per screen.
 function vaultEssai(t) {
@@ -242,4 +242,64 @@ test("contrôle « Vercel Preview Comments » du commit : l'adresse de la prévi
   };
   const lecteur = lecteurGithub("o/d", (path) => answers[path] ?? []);
   assert.deepEqual(lecteur.previsualisation("h4", 14), { etat: "success", adresse: "https://site-git-branche-e9c30e-o.vercel.app", source: "statut et contrôle de Vercel" });
+});
+
+test("capture poussée sur une branche du dépôt cible : branche créée au besoin, adresse de l'image au commit, échec rendu", async (t) => {
+  const folder = mkdtempSync(join(tmpdir(), "horama-capture-"));
+  t.after(() => rmSync(folder, { recursive: true, force: true }));
+  const fichier = join(folder, "c1.png");
+  writeFileSync(fichier, Buffer.from([137, 80, 78, 71]));
+  const calls = [];
+  const fake = (files = {}) => async ([method, path], body) => {
+    calls.push([method, path, body && (body.content ? { ...body, content: Buffer.from(body.content, "base64").length } : body)]);
+    if (method === "GET" && path === "repos/o/clone/git/ref/heads/horama/captures") { if (!files.branche) throw new Error("HTTP 404"); return { object: { sha: "b0" } }; }
+    if (method === "GET" && path === "repos/o/clone") return { default_branch: "main" };
+    if (method === "GET" && path === "repos/o/clone/git/ref/heads/main") return { object: { sha: "m0" } };
+    if (method === "POST") return {};
+    if (method === "GET" && path.startsWith("repos/o/clone/contents/")) { if (!files.existe) throw new Error("HTTP 404"); return { sha: "f0" }; }
+    if (method === "PUT") return { commit: { sha: "c0mmit" } };
+    throw new Error(`inattendu ${method} ${path}`);
+  };
+  const args = { depot: "o/clone", branche: "horama/captures", chemin: "pr-14/0b4112f/c1.png", fichier, message: "Horama : capture c1" };
+  assert.deepEqual(await televerserCapture(args, fake()), { url: "https://raw.githubusercontent.com/o/clone/c0mmit/pr-14/0b4112f/c1.png" });
+  assert.deepEqual(calls.map(([method, path]) => `${method} ${path}`), [
+    "GET repos/o/clone/git/ref/heads/horama/captures", "GET repos/o/clone", "GET repos/o/clone/git/ref/heads/main", "POST repos/o/clone/git/refs",
+    "GET repos/o/clone/contents/pr-14/0b4112f/c1.png?ref=horama%2Fcaptures", "PUT repos/o/clone/contents/pr-14/0b4112f/c1.png",
+  ]);
+  assert.deepEqual(calls[3][2], { ref: "refs/heads/horama/captures", sha: "m0" });
+  assert.deepEqual(calls[5][2], { message: "Horama : capture c1", branch: "horama/captures", content: 4 });
+  // Branch already there, file already there (same commit played again): its sha is given, no branch created.
+  calls.length = 0;
+  await televerserCapture(args, fake({ branche: true, existe: true }));
+  assert.deepEqual([calls.length, calls.at(-1)[2].sha], [3, "f0"]);
+  // A refusal is returned, never thrown.
+  assert.deepEqual(await televerserCapture(args, async () => { throw new Error("gh: Resource not accessible\nHTTP 403"); }), { raison: "HTTP 403" });
+});
+
+test("--captures-sur-branche : les captures entourées de l'exploration poussées, puis montrées dans la réponse", async (t) => {
+  const vault = vaultEssai(t);
+  const sortie = mkdtempSync(join(tmpdir(), "horama-pr-sortie-"));
+  t.after(() => rmSync(sortie, { recursive: true, force: true }));
+  const anneau = "site-pr/passages/P9/accueil--controle--1.png";
+  mkdirSync(join(vault, "site-pr/passages/P9"), { recursive: true });
+  writeFileSync(join(vault, anneau), Buffer.from([137, 80, 78, 71]));
+  const item = (id, extra) => ({ id, chemin: "/", texte: "Le texte dépasse la boîte de son conteneur.", preuve: "Mesuré : 245×44 > 184×44. Attendu : le contenu tient dans sa boîte.", zone: { x: 40, y: 209, largeur: 184, hauteur: 44 }, capture: null, ...extra });
+  const elements = { adresse: "https://p.vercel.app", bilan: { aucune: false, nonVisitees: [] }, totaux: { pages_visitees: 2, pages_trouvees: 2 }, decisions: [{ ecart_id: "accueil--controle--1", decision: "bug" }],
+    prouves: [item("accueil--controle--1", { anneau }), item("programme--controle--1", { anneau: null })], doutes: [], dejaVoulus: [], note: "vault-horama/site-pr/passages/P9.md" };
+  const scenes = async (args) => {
+    const out = args[args.indexOf("--sortie") + 1];
+    mkdirSync(out, { recursive: true });
+    if (args[0].endsWith("exploration.mjs")) writeFileSync(join(out, "scene.json"), JSON.stringify({ commentaire: { corps: "texte seul", elements } }));
+  };
+  const sent = [];
+  const televerser = async (args) => (sent.push(args), { url: `https://raw.githubusercontent.com/o/clone/c0mmit/${args.chemin}` });
+  const posted = [];
+  const report = await jouerPr({ pr: { numero: 14, adresse: "https://github.com/o/clone/pull/14", base: "b", tete: "0b4112f0000", previsualisation: "https://p.vercel.app" }, fichiers: ["README.md"], vault, logiciel: "site-essai", sortie,
+    commenter: true, publier: async (adresse, corps) => (posted.push(corps), { status: "publie", url: "u" }), captures: { depot: "o/clone", branche: "horama/captures" }, televerser }, scenes);
+  assert.deepEqual(sent.map(({ depot, branche, chemin, fichier }) => [depot, branche, chemin, fichier]), [["o/clone", "horama/captures", "pr-14/0b4112f/accueil--controle--1.png", join(vault, anneau)]]);
+  assert.deepEqual(report.captures, { branche: "horama/captures", poussees: 1 });
+  assert.match(posted[0], /- \/ : Le texte dépasse la boîte de son conteneur\. .*décision : bug\)\n\n  !\[\/ : Le texte dépasse la boîte de son conteneur\.\]\(https:\/\/raw\.githubusercontent\.com\/o\/clone\/c0mmit\/pr-14\/0b4112f\/accueil--controle--1\.png\)/);
+  // The finding without a capture ringed stays in text.
+  assert.equal((posted[0].match(/!\[/g) ?? []).length, 1);
+  assert.doesNotMatch(posted[0], /texte seul/);
 });
