@@ -68,6 +68,7 @@ flowchart LR
 | `automatisation/impact/`, `automatisation/reveil/` | Choisir les tests à rejouer depuis un diff ; réveiller la scène à chaque commit | Nathan, Ali |
 | `automatisation/pr-doc/` | Ouvrir une PR de documentation pour une correction de note acceptée | Ali |
 | `automatisation/demo/` | Répétition de la démo de bout en bout (`repetition.sh`) | Nathan |
+| `accueil/` | La landing « L'envoyé » (issue #70) : HTML statique et modules ES, sans bundler ; formulaire encore en maquette | Nathan |
 | `interface/` | L'application web Horama (Next.js) : les 8 étapes de la boucle, encore sur données factices | Axil |
 | `faux-saas/` | Facturo, le faux SaaS du banc d'essai (abandonné pour la démo) | Nathan |
 | `contrats/` | Formats échangés entre les briques, gelés (`contrats-v1`, puis `contrats-v2` pour la règle `etat`) | Ali (gardien) |
@@ -208,6 +209,12 @@ bash automatisation/demo/repetition.sh
 
 Avec le vrai agent H, ajouter `--agent` (quelques centimes par parcours). Mode d'emploi, ce qu'on voit à chaque seconde et pièges : [répétition](docs/demo/2026-11-17-repetition.md). Tour complet du site en réel : commande dans le [rapport du tour](docs/tests/2026-11-17-tour-du-site-reel.md).
 
+Voir la landing en local (les modules ES ne se chargent pas en `file://`), puis ouvrir http://127.0.0.1:4190/ :
+
+```sh
+cd accueil && python3 -m http.server 4190
+```
+
 Lancer l'interface en données factices (http://localhost:3000) et Facturo (http://localhost:3100) :
 
 ```sh
@@ -221,3 +228,4 @@ Le coureur seul, en ligne de commande (couloir Ali) : `pnpm --filter @horama/age
 - [Règles communes aux IA de l'équipe](AGENTS.md), [plan de travail](docs/plan-de-travail.md), [avancement](docs/checklist.md), [missions](docs/missions/).
 - [Feuille de route](docs/feuille-de-route.md) ; [décisions](docs/decisions/), une par fichier daté ; [rapports de test](docs/tests/), un par mesure.
 - [Retours sur l'API de H](docs/retours-api-h.md).
+- [Charte graphique](docs/da/charte-graphique.md) de la direction « L'envoyé » (marque, couleurs, polices, mascotte, signes de preuve).
