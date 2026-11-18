@@ -49,6 +49,7 @@ export interface ExplorerDependencies {
 }
 
 const clickedCount = (pageCount: number, clicked: number) => Math.min(clicked, Math.max(0, pageCount - 1));
+export const explorationTimeBudget = (maxSteps: number) => Math.min(600, Math.max(240, 8 * maxSteps));
 export const explorationStepBudget = (pageCount: number, clicked = 0) => 4 * pageCount + 13 + 3 * clickedCount(pageCount, clicked);
 
 export function explorationPassageId(date: Date): string {
@@ -319,7 +320,8 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
         hadClick = false; hadGoTo = false; currentScreen = undefined;
         const clicked = launches === 1 ? clickTarget : 0;
         try {
-          active = await session({ ...input, consigne: plan, maxSteps: explorationStepBudget(plan.course.length, clicked),
+          const maxSteps = explorationStepBudget(plan.course.length, clicked);
+          active = await session({ ...input, consigne: plan, maxSteps, maxTimeS: explorationTimeBudget(maxSteps),
             async onStep(step) {
               for (const action of step.action.split(/\s*,\s*/)) {
                 if (action === "Clique") { navigation.clics++; hadClick = true; }
@@ -439,6 +441,10 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
               for (const page of remaining) page.raison ??= signal?.aborted ? "Le passage a été annulé."
                 : closeFailed ? "Page non atteinte : la fermeture de la session précédente n'est pas confirmée."
                 : "Page non atteinte après deux sessions (budget d'étapes ou erreur).";
+              if (!remaining.length && !closeFailed) {
+                const { erreur: _erreur, ...visited } = result;
+                return { ...visited, muted: false, cout_usd: totalCost, etapes: steps };
+              }
               return { ...result, muted: false, cout_usd: totalCost, etapes: steps,
                 ...(closeFailed ? { erreur: "La fermeture de la session n'a pas pu être confirmée." } : {}),
                 ...(result.muted ? { erreur: "La session est restée sans réponse." } : {}) };

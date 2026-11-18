@@ -20,6 +20,7 @@ export interface ResultatSession {
 export interface SessionInput {
   consigne: Consigne;
   maxSteps?: number;
+  maxTimeS?: number;
   cle: "dev" | "demo";
   signal?: AbortSignal;
   onCreated(id: string): Promise<void>;
@@ -56,6 +57,8 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
   let previous = false;
   return async (input) => {
     if (input.maxSteps !== undefined && (!Number.isSafeInteger(input.maxSteps) || input.maxSteps < 1)) throw new Error("maxSteps doit être un entier positif.");
+    const maxTimeS = input.maxTimeS ?? 240;
+    if (!Number.isSafeInteger(maxTimeS) || maxTimeS < 1) throw new Error("maxTimeS doit être un entier positif.");
     const secret = key ?? (input.cle === "demo" ? process.env.HAI_API_KEY_DEMO : process.env.HAI_API_KEY);
     if (!secret) throw new Error("Clé H absente pour ce passage.");
     if (!navigateur) throw new Error("Le couloir scène doit fournir le navigateur et son pont local (navigateur).");
@@ -105,7 +108,7 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
           environments: [{ id: "browser", kind: "web", host: "user_device", session_id: browser.channel, settle_s, mode: { type: "visual", markdown: true } }],
           tools: input.consigne.tools,
         },
-        messages: [{ type: "user_message", message: input.consigne.task }], queue: false, max_time_s: 240, max_steps: input.maxSteps ?? 40,
+        messages: [{ type: "user_message", message: input.consigne.task }], queue: false, max_time_s: maxTimeS, max_steps: input.maxSteps ?? 40,
       });
     } catch (error) { await closeBrowser(browser); throw error; }
     const id: string = session.id;
@@ -139,7 +142,7 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
       let next = 0;
       let muted = false;
       let erreur: string | undefined;
-      let deadline = created + 330_000;
+      let deadline = created + (maxTimeS + 90) * 1000;
       let lastActivity = created;
       const handled = new Set<string>();
       try {
@@ -207,7 +210,8 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
       await stop();
       let remoteStatus = "illisible";
       let observedActive = false;
-      for (let attempt = 0; attempt < 4; attempt++) {
+      // H n'applique l'arrêt qu'après la fin de l'outil en cours, ce qui peut prendre jusqu'à une minute.
+      for (let attempt = 0; attempt < 16; attempt++) {
         try {
           const remote = await h("GET", `/sessions/${id}`, undefined, true);
           remoteStatus = remote?.status?.status ?? "illisible";
@@ -215,7 +219,7 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
           if (remoteStatus !== "illisible") observedActive = true;
           if (attempt < 3) await h("DELETE", `/sessions/${id}`, undefined, true);
         } catch { /* L'état doit être confirmé même si une requête échoue. */ }
-        if (attempt < 3) await pause(1000);
+        if (attempt < 15) await pause(attempt < 3 ? 1000 : 5000);
       }
       if (TERMINAL.includes(status) && !observedActive) {
         signaler(`Session ${id} : lectures distantes indisponibles ; état terminal déjà connu : ${status}.`);
