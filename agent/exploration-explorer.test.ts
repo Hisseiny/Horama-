@@ -84,7 +84,7 @@ async function run({ png = original, skip = "", refuse = false, failure = false,
 }
 
 for (const context of ["plusieurs", "vide", "indisponible"]) {
-  test(`exception de relevé journalisée sans changer la réponse à H : CDP ${context}`, async () => {
+  test(`exception de relevé journalisée et page écartée : CDP ${context}`, async () => {
     const messages: string[] = [];
     const { responses } = await run({ actual: address => address, deps: {
       log: message => messages.push(message),
@@ -101,7 +101,7 @@ for (const context of ["plusieurs", "vide", "indisponible"]) {
         navigateur: async () => ({ channel: "fake", stop() {} }), close() {},
       },
     } });
-    assert.ok(responses.some(response => response.split("\n")[0] === "Relevé impossible pour accueil/defaut, la capture a échoué : Capture CDP originale Continue les autres relevés, puis termine le parcours."));
+    assert.ok(responses.some(response => response.startsWith("Capture CDP originale\nContinue les autres relevés.")));
     const diagnostic = messages.find(message => message.startsWith("Relevé accueil :"))!;
     assert.match(diagnostic, /Error: Capture CDP originale/);
     assert.match(diagnostic, /exploration-explorer.test.ts/);
@@ -113,6 +113,131 @@ for (const context of ["plusieurs", "vide", "indisponible"]) {
       assert.match(diagnostic, /0 onglet\(s\) page CDP ; URL : \[\]/);
     } else {
       assert.match(diagnostic, /URL et nombre d'onglets page CDP indisponibles/);
+    }
+  });
+}
+
+test("exception de relevé : raison réelle immédiate, aucun retour vers la page et les autres continuent", async () => {
+  let attempts = 0;
+  const { result, responses } = await run({ actual: address => address, retries: 2, deps: {
+    runtime: {
+      relever: async ecran => {
+        if (ecran === "accueil") { attempts++; throw new Error("Capture hors délai : canal fermé"); }
+        return { png: original, texte: "FAQ", url_page: "https://example.org/faq", largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture" };
+      },
+      navigateur: async () => ({ channel: "fake", stop() {} }), close() {},
+    },
+    onglets: async () => [],
+  } });
+  assert.equal(attempts, 1);
+  assert.equal(result.pages[0].etat, "non_visitee");
+  assert.equal(result.pages[0].raison, "Capture hors délai : canal fermé");
+  assert.equal(result.pages[1].etat, "visitee");
+  assert.ok(responses.slice(0, 2).every(response => response.startsWith("Capture hors délai : canal fermé")));
+  assert.ok(responses.every(response => !response.includes('relever(ecran="accueil"')));
+  assert.ok(responses.every(response => !response.includes("Réessaie")));
+});
+
+test("sitemap valide citant des fournisseurs : aucune protection inventée", async () => {
+  const { result } = await run({ deps: {
+    fetch: async address => {
+      const path = new URL(String(address)).pathname;
+      return new Response(path === "/robots.txt" ? "User-agent: *\n# imperva incapsula" : path === "/sitemap.xml"
+        ? '<urlset><url><loc>https://example.org/partners/imperva</loc></url><url><loc>https://example.org/partners/incapsula</loc></url></urlset>' : "<html>Nos partenaires Imperva et Incapsula</html>",
+      { headers: { "Content-Type": path.endsWith(".xml") ? "application/xml" : path.endsWith(".txt") ? "text/plain" : "text/html" } });
+    },
+  } });
+  assert.equal(result.etat, "fini");
+  assert.equal(result.pages.length, 3);
+  assert.ok(result.pages.every(page => page.etat === "visitee"));
+  assert.equal(result.agents[0].raison, null);
+});
+
+test("repli JavaScript fusionné : les liens rendus restent explorés", async () => {
+  const rendered: string[] = [];
+  const { result } = await run({ deps: {
+    render: async address => { rendered.push(address); return { url: address, body: '<html><a href="/about">About</a></html>' }; },
+  } });
+  assert.equal(result.etat, "fini");
+  assert.ok(rendered.includes("https://example.org/"));
+  assert.equal(result.pages.find(page => page.ecran === "about")?.etat, "visitee");
+});
+
+test("challenge rendu : une fermeture H non confirmée ne devient jamais une fin propre", async () => {
+  for (const failClose of [false, true]) {
+    let launches = 0;
+    const { result } = await run({ deps: {
+      onglets: async () => [],
+      connecter: async () => ({ on() {}, close() {}, send: async () => ({ result: { value: { html: '<title>Verify you are human</title>', status: 403 } } }) }),
+      session: async input => {
+        launches++;
+        await input.onCreated("challenge");
+        return { id: "challenge", confirmStopped: async () => { if (failClose) throw new Error("Session toujours active"); }, fin: (async () => {
+          await input.onTool("relever", { ecran: input.consigne.course[0].ecran, vue: "defaut" });
+          return { id: "challenge", muted: false, cout_usd: 0, etapes: 1 };
+        })() };
+      },
+    } });
+    assert.equal(launches, 1);
+    assert.equal(result.etat, failClose ? "interrompu" : "fini");
+    assert.equal(result.agents[0].etat, failClose ? "tombe" : "fini");
+    assert.match(result.agents[0].raison!, failClose ? /fermeture.*confirmée/ : /robots/);
+    assert.ok(result.pages.every(page => page.etat === "non_visitee" && /robots/.test(page.raison!)));
+  }
+});
+
+for (const rendered of [false, true]) {
+  test(`sous-page indisponible en ${rendered ? "Chrome" : "découverte"} : portée limitée et poursuite des autres pages`, async () => {
+    for (const item of [
+      { status: 404, html: "Missing", reason: /introuvable/ },
+      { status: 410, html: "Gone", reason: /introuvable/ },
+      { status: 401, html: "Unauthorized", reason: /Connexion demandée/ },
+      { status: 200, html: '<title>Connexion</title><input type="password">', reason: /Connexion demandée/ },
+      { status: 403, html: "Forbidden", reason: /robots/ },
+      { status: 200, html: '<title>Verify you are human</title><div class="h-captcha"></div>', reason: /robots/ },
+    ]) {
+      let current = "https://example.org/";
+      const responses: string[] = [];
+      const { result } = await run({ actual: address => address, deps: {
+        onglets: async () => [],
+        urlCourante: async () => current,
+        fetch: async address => {
+          const path = new URL(String(address)).pathname;
+          if (path === "/robots.txt") return new Response("");
+          if (path === "/sitemap.xml") return new Response('<urlset><url><loc>https://example.org/missing</loc></url><url><loc>https://example.org/healthy</loc></url></urlset>');
+          return new Response(!rendered && path === "/missing" ? item.html : "<title>Accueil</title>Bienvenue", { status: !rendered && path === "/missing" ? item.status : 200, headers: { "Content-Type": "text/html" } });
+        },
+        session: async input => {
+          await input.onCreated("scope");
+          return { id: "scope", fin: (async () => {
+            for (const step of input.consigne.course) {
+              current = step.address;
+              responses.push(await input.onTool("relever", { ecran: step.ecran, vue: "defaut" }));
+            }
+            await input.onTool("terminer", { etat: "reussi" });
+            return { id: "scope", muted: false, cout_usd: 0, etapes: 3 };
+          })() };
+        },
+        runtime: {
+          relever: async () => ({ png: original, texte: "Page", url_page: current, largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture" }),
+          navigateur: async () => ({ channel: "fake", stop() {} }), close() {},
+        },
+        connecter: async () => ({ on() {}, close() {}, send: async (_method, params) => ({ result: { value: String((params as Record<string, unknown>)?.expression).includes("outerHTML")
+          ? { html: current.endsWith("/missing") ? item.html : "<title>Accueil</title>Bienvenue", status: current.endsWith("/missing") ? item.status : 200 } : 200 } }) }),
+      } });
+      const global = rendered && item.reason.source === "robots";
+      assert.equal(result.pages.find(page => page.ecran === "accueil")?.etat, "visitee");
+      assert.equal(result.pages.find(page => page.ecran === "healthy")?.etat, global ? "non_visitee" : "visitee");
+      if (rendered) {
+        const missing = result.pages.find(page => page.ecran === "missing")!;
+        assert.equal(missing.etat, "non_visitee");
+        assert.match(missing.raison!, item.reason);
+      } else {
+        assert.equal(result.etat, "fini");
+        assert.ok(!result.pages.some(page => page.ecran === "missing"));
+        assert.ok(!result.agents.some(agent => /robots|introuvable|Connexion demandée/.test(agent.raison ?? "")));
+      }
+      assert.ok(responses.slice(1).every(response => !response.includes('relever(ecran="missing"')));
     }
   });
 }
