@@ -82,7 +82,7 @@ export async function discoverPages(url: string, { max = 15, sectionMax = 2, fet
     const path = new URL(address).pathname;
     return path === locale || path === `${locale}.html` || path === `${locale}.htm` || path.startsWith(`${locale}/`);
   }
-  const exclusions = new Set<string>(), seen = new Set<string>(), fetched = new Set<string>();
+  const exclusions = new Set<string>(), seen = new Set<string>(), fetched = new Set<string>(), formActions = new Set<string>();
   let rules: RobotRule[] = [];
 
   function exclude(address: string, reason: string) {
@@ -131,6 +131,7 @@ export async function discoverPages(url: string, { max = 15, sectionMax = 2, fet
     if (/(?:^|[^a-z])(log-?in|sign-?in|sign-?up|connexion|auth|logout|deconnexion|register|inscription)(?:[^a-z]|$)/.test(destination)) { exclude(parsed.href, "login"); return; }
     if (/\.[a-z\d]{1,10}\/?$/i.test(path) && !/\.(?:html?|php|aspx?)\/?$/i.test(path)) { exclude(parsed.href, "file"); return; }
     parsed.pathname = parsed.pathname.replace(/\/+$/, "") || "/";
+    if (formActions.has(parsed.href)) { exclude(parsed.href, "form"); return; }
     if (!permitted(parsed)) return;
     return parsed.href;
   }
@@ -179,7 +180,7 @@ export async function discoverPages(url: string, { max = 15, sectionMax = 2, fet
   }
   enqueue(start.href, root);
   const initial = queue[0];
-  const homepage = initial ? await read(start.href, "page") : undefined;
+  const homepage = initial ? await read(normalize(start.href, root)!.href, "page") : undefined;
   function links(document: { body: string; url: string }, priorityOnly = false) {
     const html = document.body.replace(/<!--[\s\S]*?-->|<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, "");
     const baseTag = html.match(/<base\b[^>]*>/i)?.[0];
@@ -198,17 +199,19 @@ export async function discoverPages(url: string, { max = 15, sectionMax = 2, fet
       }
       source = balanced.join("") + navigation + source;
     }
-    const actions = new Set<string>();
     for (const match of html.matchAll(/<form\b[^>]*>/gi)) {
       const action = attribute(match[0], "action");
       const parsed = action && normalize(action, base);
-      if (parsed) { actions.add(parsed.href); exclude(parsed.href, "form"); }
+      if (parsed) {
+        parsed.pathname = parsed.pathname.replace(/\/+$/, "") || "/";
+        formActions.add(parsed.href); exclude(parsed.href, "form");
+      }
     }
     for (const match of source.matchAll(/<(a|area)\b[^>]*>/gi)) {
       const tag = match[0], target = attribute(tag, "href");
       if (!target) continue;
       const parsed = normalize(target, base);
-      if (!parsed || actions.has(parsed.href)) continue;
+      if (!parsed) continue;
       if (/\sdownload(?:\s|=|>)/i.test(tag)) exclude(parsed.href, "file");
       else enqueue(target, base);
     }
@@ -242,6 +245,7 @@ export async function discoverPages(url: string, { max = 15, sectionMax = 2, fet
   const candidates = new Map<string, number>();
   for (const address of queue) for (const prefix of sections(address)) candidates.set(prefix, (candidates.get(prefix) ?? 0) + 1);
   for (const [prefix, count] of candidates) {
+    if ((locale && (prefix === `${locale}/` || locale.startsWith(prefix))) || count > (queue.length - 1) / 2) continue;
     const children = [...candidates.keys()].filter((child) => child.startsWith(prefix) && child !== prefix);
     if (count > sectionMax && !children.some((child) => (candidates.get(child) ?? 0) > sectionMax)) repeated.add(prefix);
   }
@@ -273,13 +277,15 @@ export async function discoverPages(url: string, { max = 15, sectionMax = 2, fet
     }
     const address = queue[index];
     if (result.pages.includes(address)) continue;
+    if (!pageAddress(address, address)) continue;
     const section = sectionOf(address);
     if (section && (sectionCounts.get(section) ?? 0) >= sectionMax) { exclude(address, "section-limit"); continue; }
     if (result.pages.length >= max) { exclude(address, "limit"); continue; }
     if (++attempts > max * 3) { exclude(address, "request-limit"); continue; }
     const document = address === initial ? homepage : await read(address, "page");
     if (!document) continue;
-    const final = pageAddress(document.url, document.url)!;
+    const final = pageAddress(document.url, document.url);
+    if (!final) continue;
     if (!result.pages.includes(final)) result.pages.push(final);
     if (section) sectionCounts.set(section, (sectionCounts.get(section) ?? 0) + 1);
     links(document);

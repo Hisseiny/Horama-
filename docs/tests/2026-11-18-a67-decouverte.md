@@ -423,3 +423,54 @@ agent check: Done
 ```
 
 Découverte seulement, toujours aucun constat visuel ni H : les deux défauts réels de #67 ne sont pas validés par cette mesure.
+
+## Trois constats automatisés supplémentaires
+
+Les trois régressions ont d'abord été ajoutées aux tests **avant correction**, puis exécutées :
+
+```text
+not ok 1 - la locale et un préfixe majoritaire ne sont pas des sections répétitives
+not ok 2 - la requête initiale utilise l'adresse normalisée autorisée par robots
+not ok 3 - actions de formulaires globales : sitemap et candidats déjà en file ne déclenchent aucun GET
+# tests 31
+# pass 28
+# fail 3
+```
+
+1. **Réel — locale plafonnée comme une section.** Le cas /fr/ avec quatre pages distinctes n'en conservait que deux après l'accueil. La locale et ses préfixes parents ne sont plus répétitifs ; un préfixe regroupant plus de la moitié des candidats hors accueil est aussi considéré comme englobant, pas répétitif. Le test couvre aussi /products/ comme préfixe majoritaire non linguistique. Le cas existant de plafond configurable a été adapté pour que la section testée ne représente pas la majorité du site : les pages réellement répétitives minoritaires restent plafonnées.
+2. **Réel — adresse initiale brute.** L'enqueue validait l'adresse après retrait du suivi, mais le GET utilisait l'original. La lecture initiale utilise maintenant l'adresse normalisée autorisée, conservant le slash de requête lorsqu'il est présent. Avec Disallow: /?utm_source=, le test exige que seul / soit demandé, jamais l'adresse brute interdite. Les contrôles robots avant redirection sont inchangés.
+3. **Réel — portée locale des actions.** L'action /application/ est désormais mémorisée globalement après normalisation (y compris slash final). Elle est filtrée lors de tout enqueue et revérifiée juste avant traitement d'un candidat déjà en file. Les tests couvrent une action connue dans l'accueil puis réintroduite par sitemap, et une action découverte sur une page avant le traitement d'un candidat déjà en file. Une action connue est également filtrée comme cible de redirection par le même chemin de validation. Limite causale : une action révélée seulement par une page lue **après** un GET antérieur ne peut pas annuler rétroactivement ce GET ; ce cas n'est pas une garantie offerte par un parcours séquentiel sans connaissance préalable de tout le site.
+
+Après correction :
+
+```text
+$ node --test agent/exploration-pages.test.ts
+# tests 31
+# pass 31
+# fail 0
+# duration_ms 157.084243
+
+$ pnpm -r --if-present run check
+agent check: # tests 161
+agent check: # pass 161
+agent check: # fail 0
+agent check: # skipped 0
+agent check: # duration_ms 864.761534
+agent check: Done
+
+$ grep -riE "eugenia|albertschool|kpmg|skema|grantthornton" agent/src
+[aucune ligne ; code 1 normal de grep sans correspondance]
+```
+
+Ces corrections ont suivi la mesure réseau Eugenia. Pour éviter une deuxième découverte réelle, rejeu **hors ligne** des réponses HTTP enregistrées lors de l'unique passage de cette relecture :
+
+```json
+{
+  "samePages": true,
+  "retained": 15,
+  "excluded": 106,
+  "errors": []
+}
+```
+
+La liste mesurée ci-dessus et le bilan **article absent, 5 références sur 7** restent donc inchangés sur ces réponses. Les trois constats sont regroupés dans un commit distinct de la réservation des sections (commit réservation : f68e449), avec une seule poussée à la fin du lot.

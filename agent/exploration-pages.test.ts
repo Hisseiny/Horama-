@@ -31,6 +31,44 @@ const sitemap = (...urls: string[]) => `<urlset>${urls.map((url) => `<url><loc>$
 const link = (...urls: string[]) => urls.map((url) => `<a href="${url}">Page</a>`).join("");
 const redirect = (location: string) => () => new Response(null, { status: 302, headers: { location } });
 
+test("la locale et un préfixe majoritaire ne sont pas des sections répétitives", async () => {
+  for (const prefix of ["/fr", "/products"]) {
+    const paths = ["/about", "/services", "/team", "/help"].map((path) => prefix + path);
+    const setup = fixture({
+      [prefix + "/"]: `<nav>${link(...paths)}</nav>`,
+      ...Object.fromEntries(paths.map((path) => [path, ""])),
+    });
+    const result = await discoverPages(origin + prefix + "/", setup);
+    assert.deepEqual(result.pages, [prefix, ...paths].map((path) => origin + path));
+    assert.ok(!result.excluded.some((item) => item.reason === "section-limit"));
+  }
+});
+
+test("la requête initiale utilise l'adresse normalisée autorisée par robots", async () => {
+  const setup = fixture({ "/robots.txt": "User-agent: *\nDisallow: /?utm_source=", "/": "" });
+  const result = await discoverPages(origin + "/?utm_source=blocked", setup);
+  assert.deepEqual(result.pages, [origin + "/"]);
+  assert.ok(!setup.calls.some((url) => url.includes("utm_source")));
+  assert.deepEqual(result.errors, []);
+});
+
+test("actions de formulaires globales : sitemap et candidats déjà en file ne déclenchent aucun GET", async () => {
+  for (const onHomepage of [true, false]) {
+    const action = '<form action="/application/"><input name="email"></form>';
+    const setup = fixture({
+      "/": `<nav>${link("/form-page", "/application")}</nav>` + (onHomepage ? action : ""),
+      "/sitemap.xml": sitemap("/application", "/safe"),
+      "/form-page": onHomepage ? "" : action,
+      "/safe": "", "/application": "",
+    });
+    const result = await discoverPages(origin, setup);
+    assert.deepEqual(result.pages, ["/", "/form-page", "/safe"].map((path) => origin + path));
+    assert.ok(!setup.calls.some((url) => /\/application\/?$/.test(url)));
+    assert.ok(result.excluded.some((item) => item.url === origin + "/application" && item.reason === "form"));
+    assert.deepEqual(result.errors, []);
+  }
+});
+
 test("réserve une place par section malgré un menu plein, ordre de découverte dans chaque section", async () => {
   const menu = Array.from({ length: 8 }, (_, index) => `/menu-${index}`);
   const articles = ["/journal/z", "/journal/a", "/journal/m"];
@@ -106,8 +144,9 @@ test("menu et footer anglais avant sitemap, sections répétitives plafonnées s
   assert.equal(result.excluded.filter((item) => item.reason === "section-limit").length, 2);
   assert.ok(!setup.calls.includes(origin + paths[2]));
   assert.deepEqual(result.errors, []);
-  const custom = fixture({ "/": `<nav>${link(...paths)}</nav>`, ...Object.fromEntries(paths.map((path) => [path, ""])) });
-  assert.equal((await discoverPages(origin, { ...custom, sectionMax: 1 })).pages.length, 2);
+  const other = ["/about", "/help", "/team", "/products", "/services"];
+  const custom = fixture({ "/": `<nav>${link(...paths, ...other)}</nav>`, ...Object.fromEntries([...paths, ...other].map((path) => [path, ""])) });
+  assert.equal((await discoverPages(origin, { ...custom, sectionMax: 1 })).pages.filter((url) => url.includes("/stories/")).length, 1);
 });
 
 test("sans sitemap, garde les pages informatives d'admission et les formulaires visitables", async () => {
