@@ -54,3 +54,49 @@ agent check: Done
 Les autres projets vérifiés se terminent aussi sans échec : contrats (types), faux-saas (10 tests), mémoire (34), interface (8), jugement (79).
 
 Deux adaptations nécessaires : les tables de correspondance de `explorer.ts` reconnaissent la nouvelle sorte (deux lignes, sans toucher au reste de l’explorateur) ; la fixture saine utilise une ellipse explicite. Un premier essai global a été interrompu pendant qu’un Chrome de mesure occupait le port 9333 utilisé par les tests ; le passage final a été exécuté après sa fermeture. Les messages D-Bus de Chrome ont été diagnostiqués et l’adresse de bus de session explicitée pour la vérification finale.
+
+## Complément : explorations avec de vraies sessions H
+
+Deux invocations réelles de la CLI ont ensuite été effectuées avec la clé de développement Horama injectée dans `HAI_API_KEY` (jamais la clé de démo). Chrome dédié headless sur le port 9333, 1280 × 900, DPR 1. Vault neuf hors dépôt : `/home/ubuntu/horama-122-h-vault`. Aucun formulaire soumis et aucune connexion demandée.
+
+```sh
+pnpm --filter @horama/agent explorer -- --url https://www.python.org/ --max 3 --sans-base --vault /home/ubuntu/horama-122-h-vault --sortie /home/ubuntu/horama-122-h-python
+pnpm --filter @horama/agent explorer -- --url https://www.gov.uk/ --max 3 --sans-base --vault /home/ubuntu/horama-122-h-vault --sortie /home/ubuntu/horama-122-h-govuk
+```
+
+Les résultats proviennent de `exploration.json` dans chacun de ces dossiers. Dans cette sortie, la sorte du contrôle s’écrit `texte-rogne` ; le doute visuel Holo `texte-coupe` est distinct.
+
+| Site | Pages visitées / trouvées | `texte-rogne` | Verdict et état du passage |
+|---|---:|---:|---|
+| Python | 3 / 3 | 0 | Aucun faux de ce contrôle observé ; passage `fini`, CLI code 0 |
+| GOV.UK | 3 / 3 | 0 | Aucun constat de ce contrôle enregistré ; passage `interrompu`, CLI code 1 : ne constitue pas une réussite complète |
+
+Python : `/`, `/about/apps`, `/downloads`. Session H `2231bd78-a1f0-4dbc-856d-4d400817ec26`, replay : https://agp.eu.hcompany.ai/share/api/v1/trajectories/2231bd78-a1f0-4dbc-856d-4d400817ec26. Sortie :
+
+```text
+3 pages trouvées.
+accueil : depart
+about-apps : clic
+downloads : clic
+3 pages visitées ; durée 87.174 s ; coût 0.035922600000000006 USD.
+{"debordement":3,"texte-coupe":1}
+Navigation : 2 pages par clic, 0 par adresse ; 2 clics, 4 défilements, 1 go_to ; départ : 2 défilements.
+```
+
+Les trois `debordement` et le doute Holo ne sont pas des `texte-rogne` et ne sont pas arbitrés ici. Aucun constat `texte-rogne` à inspecter.
+
+GOV.UK : `/`, `/browse/benefits`, `/government/organisations`, toutes marquées `visitee`, avec analyse Holo `fait` pour chacune et zéro constat enregistré. Session H `9de19986-21f0-4af1-8e4c-f508e4cfb7c6`. Le processus ne se terminant pas après environ six minutes, un SIGINT a arrêté proprement la CLI ; aucune relance manuelle. Diagnostic final exact dans le JSON : `La session H est interrompue (erreur réseau ou outil).` Il ne permet pas de distinguer une erreur réseau d’une erreur d’outil ; aucune cause plus précise n’est affirmée. Sortie :
+
+```text
+3 pages trouvées.
+accueil : depart
+government-organisations : clic
+browse-benefits : clic
+2026-11-18-20h41-dd8b : Passage annulé : Passage annulé par Ctrl+C.
+3 pages visitées ; durée 372.162 s ; coût 0.0017712000000000001 USD.
+{}
+Navigation : 2 pages par clic, 0 par adresse ; 4 clics, 2 défilements, 1 go_to ; départ : 2 défilements.
+[ELIFECYCLE] Command failed with exit code 1.
+```
+
+Journaux persistants : `/home/ubuntu/horama-122-h-python.log` et `/home/ubuntu/horama-122-h-govuk.log`. Cette suite ne change que le présent document : le contrôle global réussi ci-dessus reste applicable, sans relance identique. Aucun fichier de mesure ni vault ajouté au dépôt.
