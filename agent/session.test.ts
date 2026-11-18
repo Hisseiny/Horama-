@@ -1,12 +1,18 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { creerSessionH } from "./src/session.ts";
+import { creerSessionH, libelleAction } from "./src/session.ts";
 import type { EtapeSession, SessionInput } from "./src/session.ts";
 import type { Consigne } from "./src/consigne.ts";
 
 const consigne: Consigne = { tests: [], dropped: [], course: [], start: "http://localhost", task: "Parcours", instructions: "Consigne", tools: [] };
 const json = (value: unknown) => new Response(JSON.stringify(value));
 const defaults = (): SessionInput => ({ consigne, cle: "dev", onCreated: async () => {}, onStep: async () => {}, onTool: async () => "Continue." });
+
+test("go_to_web et go_to sont des ouvertures de page", () => {
+  assert.equal(libelleAction(["go_to_web"]), "Ouvre une page");
+  assert.equal(libelleAction(["go_to"]), "Ouvre une page");
+  assert.equal(libelleAction(["scroll_web", "click_web", "go_to_web"]), "Défile, Clique, Ouvre une page");
+});
 
 test("suppression refusée : arrêt compatible mais confirmation de fermeture en échec", async () => {
   const session = creerSessionH({

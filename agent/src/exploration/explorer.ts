@@ -35,24 +35,34 @@ interface ExplorationPage {
   statut: Statut | null;
   cookies?: "refusee" | "aucune"; url_finale?: string; raison?: string;
 }
-export interface ExplorerOptions { url: string; max: number; sortie: string; vault: string; port: number }
+export interface ExplorerOptions { url: string; max: number; sortie: string; vault: string; port: number; pagesCliquees?: number }
 export interface ExplorerDependencies {
   base: BasePassages; runtime: BrowserRuntime; session: Session; signal?: AbortSignal;
   fetch?: typeof fetch; controler?: typeof controlerPage; holo?: typeof askHolo;
   connecter?: (port: number, address: string) => Promise<ExplorationCdp>;
   log?: (message: string) => void;
+  urlCourante?: () => Promise<string | null>;
 }
 
-export const explorationStepBudget = (pageCount: number) => 4 * pageCount + 10;
+const clickedCount = (pageCount: number, clicked: number) => Math.min(clicked, Math.max(0, pageCount - 1));
+export const explorationStepBudget = (pageCount: number, clicked = 0) => 4 * pageCount + 13 + 3 * clickedCount(pageCount, clicked);
 
-export function construireExploration(pages: Array<{ ecran: string; url: string }>, site: string, version: string): Consigne {
+function clickInstruction(pages: Array<{ ecran: string; url: string }>): string {
+  return `Après relever, fais 1 ou 2 défilements au plus avec scroll_web sur une page atteinte par clic, en grands défilements, avant de cliquer. Pour la page de départ, conserve la limite de 3 défilements au plus jusqu'en bas. Ne répète pas les défilements déjà faits sur la page courante ; aucun défilement demandé sur les autres pages atteintes par adresse. Puis sans go_to clique un lien visible de la page courante (menu, corps ou pied de page) vers une page pas encore relevée de cette liste : ${pages.map(page => `${page.ecran} : ${page.url}`).join(" ; ")}. Attends le chargement puis appelle relever avec l'ecran de la page atteinte. Si aucun lien visible ne mène à une page de la liste : ouvre ${pages[0]?.url} avec go_to puis appelle relever(ecran="${pages[0]?.ecran}", vue="defaut").`;
+}
+
+export function construireExploration(pages: Array<{ ecran: string; url: string }>, site: string, version: string, pagesCliquees = 4): Consigne {
+  const clicked = clickedCount(pages.length, pagesCliquees);
   const tests = pages.map(page => ({ id: `exploration--${page.ecran}`, logiciel: site, source: "exploration", releves: [{ ecran: page.ecran, vue: "defaut" }],
     url_depart: page.url, version_cible: version, timeout_s: 600, markdown: "", regles: [] }));
   const course = pages.map((page, index) => ({ ecran: page.ecran, vue: "defaut", key: `${page.ecran}--defaut`, part: index + 1,
     test_id: tests[index].id, address: page.url, here: `location.href === ${JSON.stringify(page.url)}` }));
   return { tests, course, dropped: [], start: pages[0].url,
     instructions: [...COURSE_RULES, "Si une bannière de cookies apparaît, refuse-la (Refuser / Tout refuser / Continuer sans accepter / Reject all), ne l’accepte jamais.", "Simple visiteur : ne remplis et ne soumets aucun formulaire, ne te connecte jamais. N'ouvre aucun onglet ni fenêtre."].join("\n"),
-    task: ["Nouveau passage : aucune page n'a encore été relevée dans cette session. La page déjà ouverte ne prouve aucun avancement. Commence à la partie 1, même si le navigateur affiche une partie ultérieure.", ...pages.map((page, index) => `Partie ${index + 1} : ouvre ${page.url} avec go_to dans l'onglet courant, attends le chargement puis appelle relever(ecran="${page.ecran}", vue="defaut").`),
+    task: ["Nouveau passage : aucune page n'a encore été relevée dans cette session. La page déjà ouverte ne prouve aucun avancement. Commence à la partie 1, même si le navigateur affiche une partie ultérieure.", ...pages.map((page, index) => `Partie ${index + 1} : ${index === 0
+      ? `si l'onglet n'affiche pas ${page.url}, ouvre cette adresse avec go_to. Appelle relever(ecran="${page.ecran}", vue="defaut"), puis fais 3 défilements au plus jusqu'en bas avec scroll_web, en grands défilements comme un visiteur qui la lit.`
+      : index <= clicked ? clickInstruction(pages.slice(1))
+      : `ouvre ${page.url} avec go_to dans l'onglet courant, attends le chargement puis appelle relever(ecran="${page.ecran}", vue="defaut").`}`),
       'Après toutes les pages, appelle terminer(etat="reussi"). Si une page est inaccessible, continue les autres.'].join("\n"),
     tools: [{ name: "relever", description: "Enregistre la page chargée.", input_schema: { type: "object", properties: { ecran: { type: "string", enum: pages.map(page => page.ecran) }, vue: { type: "string", enum: ["defaut"] } }, required: ["ecran", "vue"] } }, END_TOOL] };
 }
@@ -73,6 +83,15 @@ const expected = { page_en_erreur: "Une réponse HTTP inférieure à 400.", imag
 export async function explorer(options: ExplorerOptions, deps: ExplorerDependencies) {
   const { url, max, vault, sortie, port } = options;
   const { base, runtime, session, signal, log = console.log } = deps;
+  const navigation = { arrivees: {} as Record<string, "clic" | "adresse" | "depart">, clics: 0, defilements: 0, goTo: 0, defilementsDepart: 0 };
+  let clickedPages = 0, hadClick = false, hadGoTo = false, currentScreen: string | undefined;
+  const urlCourante = deps.urlCourante ?? (async () => {
+    const response = await fetch(`http://127.0.0.1:${port}/json`, { signal: AbortSignal.timeout(5000) });
+    if (!response.ok) return null;
+    const tabs = (await response.json() as Array<{ type: string; url: string }>).filter(tab => tab.type === "page");
+    return tabs.length === 1 ? tabs[0].url : null;
+  });
+  const normalized = (address: string) => { const parsed = new URL(address); return parsed.origin + parsed.pathname.replace(/\/$/, ""); };
   const started = Date.now();
   const site = new URL(url).hostname.replace(/^www\./, "").replaceAll(".", "-");
   const folder = join(vault, site, "passages");
@@ -117,7 +136,8 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
   };
   save();
   log(`${pages.length} pages trouvées.`);
-  const consigne = pages.length ? construireExploration(pages, site, version) : null;
+  const clickTarget = clickedCount(pages.length, options.pagesCliquees ?? 4);
+  const consigne = pages.length ? construireExploration(pages, site, version, clickTarget) : null;
   const attempts = new Map<string, number>();
   const finalUrls = new Map<string, string | null>();
   const acquired = new Map<string, ReleveCapture>();
@@ -164,6 +184,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
       report.cout_usd = costs.length ? costs.reduce((sum, cost) => sum + cost, 0) : null; save();
     },
   };
+  const returned = { ...report, navigation };
   try {
     if (!consigne) {
       const failed = signal?.aborted || discovery.errors.length > 0;
@@ -172,7 +193,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
         agent.raison = discovery.errors.map(error => `${error.url} : ${error.message}`).join(" ; ");
         log(`Découverte impossible : ${agent.raison}`);
       }
-      return report;
+      return returned;
     }
     let launches = 0;
     const unfinished = () => pages.filter(page => page.etat !== "visitee" && page.etat !== "non_visitee");
@@ -183,8 +204,21 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
       let sessionStarted = Date.now();
       const launch = async (plan: Consigne) => {
         launches++; completed = false; sessionStarted = Date.now();
+        hadClick = false; hadGoTo = false; currentScreen = undefined;
+        const clicked = launches === 1 ? clickTarget : 0;
         try {
-          active = await session({ ...input, consigne: plan, maxSteps: explorationStepBudget(plan.course.length),
+          active = await session({ ...input, consigne: plan, maxSteps: explorationStepBudget(plan.course.length, clicked),
+            async onStep(step) {
+              for (const action of step.action.split(/\s*,\s*/)) {
+                if (action === "Clique") { navigation.clics++; hadClick = true; }
+                if (action === "Ouvre une page") { navigation.goTo++; hadGoTo = true; }
+                if (action === "Défile") {
+                  navigation.defilements++;
+                  if (currentScreen === pages[0]?.ecran && !hadClick && !hadGoTo) navigation.defilementsDepart++;
+                }
+              }
+              await input.onStep(step);
+            },
             async onCreated(sessionId) {
               agent.session_id = sessionId; agent.etat = "en_cours"; save();
               await input.onCreated(sessionId);
@@ -192,12 +226,35 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
             async onTool(name, args) {
               const remaining = () => {
                 const page = unfinished()[0];
+                if (page && clickedPages < clicked) return `${pages.filter(page => page.etat === "visitee").length}/${pages.length} pages relevées dans ce passage. ${clickInstruction(unfinished())} Ne termine pas avant les relevés restants.`;
                 return page ? `${pages.filter(page => page.etat === "visitee").length}/${pages.length} pages relevées dans ce passage. Ouvre ${page.url} avec go_to puis appelle relever(ecran="${page.ecran}", vue="defaut"). Ne termine pas avant les relevés restants.` : 'Tous les relevés sont acquis. Appelle terminer(etat="reussi").';
               };
               if (name === "terminer" && args.etat === "reussi" && unfinished().length) return `Fin refusée : des pages restent à visiter. ${remaining()}`;
+              if (name === "relever") {
+                let address: string | null = null;
+                try { address = await urlCourante(); } catch { /* Le hook contrôle le relevé si l'onglet est illisible. */ }
+                if (address) {
+                  let matched: ExplorationPage | undefined;
+                  try { matched = pages.find(page => normalized(page.url) === normalized(address!) || (page.url_finale && normalized(page.url_finale) === normalized(address!))); } catch { /* Adresse hors liste. */ }
+                  if (!matched) {
+                    log(`Adresse hors liste : ${address}`);
+                    const next = unfinished()[0];
+                    return `Cette adresse n'est pas dans la liste : ${address}. ${next ? `Ouvre ${next.url} avec go_to puis appelle relever(ecran="${next.ecran}", vue="defaut").` : remaining()}`;
+                  }
+                  if (matched.etat !== "visitee" && matched.etat !== "non_visitee") args = { ...args, ecran: matched.ecran };
+                }
+              }
               const skipped = pages.find(page => page.ecran === args.ecran && page.etat === "non_visitee");
               if (name === "relever" && skipped) return `${skipped.raison}\n${remaining()}`;
               const response = await input.onTool(name, args);
+              const accepted = pages.find(page => page.ecran === args.ecran && page.etat === "visitee");
+              if (name === "relever" && accepted && !navigation.arrivees[accepted.ecran]) {
+                const mode = accepted === pages[0] && launches === 1 ? "depart" : hadGoTo ? "adresse" : hadClick ? "clic" : "adresse";
+                navigation.arrivees[accepted.ecran] = mode;
+                if (mode === "clic") clickedPages++;
+                log(`${accepted.ecran} : ${mode}`);
+                currentScreen = accepted.ecran; hadClick = false; hadGoTo = false;
+              }
               if (name === "terminer") completed = args.etat === "reussi";
               return name === "relever" ? `${response}\n${remaining()}` : response;
             },
@@ -246,7 +303,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
             agent = createAgent(report.agents.length + 1); report.agents.push(agent);
             for (const page of remaining) { page.agent = agent.agent; page.etat = "a_visiter"; }
             log(`Relance unique pour ${remaining.length} pages restantes.`); save();
-            try { await launch(construireExploration(remaining, site, version)); }
+            try { await launch(construireExploration(remaining, site, version, 0)); }
             catch {
               for (const page of remaining) page.raison ??= "La relance n'a pas pu démarrer ; page non atteinte.";
               return { ...result, muted: false, erreur: "La relance n'a pas pu démarrer.", cout_usd: totalCost, etapes: steps };
@@ -461,8 +518,10 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
     }
     report.fin = new Date().toISOString(); report.duree_s = (Date.now() - started) / 1000; save();
     log(`${report.totaux.pages_visitees} pages visitées ; durée ${report.duree_s} s ; coût ${report.cout_usd ?? "inconnu"} USD.\n${JSON.stringify(report.totaux.par_sorte)}`);
+    log(`Navigation : ${clickedPages} pages par clic, ${Object.values(navigation.arrivees).filter(mode => mode === "adresse").length} par adresse ; ${navigation.clics} clics, ${navigation.defilements} défilements, ${navigation.goTo} go_to ; départ : ${navigation.defilementsDepart} défilements.`);
+    Object.assign(returned, report);
   }
-  return report;
+  return returned;
 }
 
 const expectedText = (kind: keyof typeof expected) => expected[kind];
