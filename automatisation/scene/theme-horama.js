@@ -29,10 +29,8 @@
   const SERIF = 'Georgia, "Times New Roman", serif';
   const SANS = '"Segoe UI", "Helvetica Neue", Arial, sans-serif';
   const svgUrl = (svg) => `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
-  const meander = svgUrl(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"><path d="M0 7.5h12V.5H3v4h5V3" fill="none" stroke="${C.mid}" stroke-width="1.2"/></svg>`);
-  // A temple drawn in hairlines across the top of the panel: pediment and entablature (the layer sizes the captures on its own
-  // 32 px side padding, so the columns stay out of the content).
-  const temple = svgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 44" preserveAspectRatio="none"><g fill="none" stroke="${C.mid}" stroke-width="1" vector-effect="non-scaling-stroke" opacity=".55"><path d="M6 28L500 4L994 28Z"/><rect x="6" y="28" width="988" height="8"/><line x1="6" y1="40" x2="994" y2="40"/></g></svg>`);
+  // One fine arch across the top of the panel: the only architectural line, light and round.
+  const arch = svgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 40" preserveAspectRatio="none"><path d="M40 38Q500 -14 960 38" fill="none" stroke="${C.mid}" stroke-width="1.2" vector-effect="non-scaling-stroke" opacity=".5"/></svg>`);
 
   // ---------- The mascot: the CDO's reference winged eye (draft.eye.mp4), states read from the face ----------
   const wingShape = "M33 36C29 33.5 25 32.5 21.5 33C18 33.5 16.3 35.5 17 38.3C17.8 41.2 21.5 43.4 25 44.4C21 45.6 19.3 47.8 19.8 50.2C20.3 52.6 23.5 53 27 52.4C29.5 52 31.5 51.6 33 51Z";
@@ -53,35 +51,40 @@
   const stamps = { bug: "Bug noté", voulu: "Voulu" };
 
   const css = `
-    /* the veil of the end: the night violet of the eye, not black */
-    .dim { background: rgba(42, 33, 99, 0.55); }
-    .zone.old { border: 2px dashed ${C.mid}; }
+    /* the veil of the end: deep night violet, so the light panel stands out */
+    .dim { background: rgba(30, 24, 70, 0.72); }
+    .zone.old { border: 2px dashed ${C.mid}; border-radius: 10px; }
     .ripple { border-color: ${C.mid}; }
 
-    /* the panel: a lilac card, a temple in hairlines, the logo on its plate, serif titles */
-    .panel { padding: 64px 32px 32px; background: ${C.lilac} ${temple} no-repeat 0 6px / 100% 44px; color: ${C.ink2}; font: 400 17px/1.5 ${SANS};
-      border: 1.5px solid ${C.ink2}; box-shadow: 0 30px 80px rgba(42, 33, 99, 0.35); }
-    .panel::before { content: ""; position: absolute; right: 32px; top: 58px; width: 132px; height: 34px;
-      background: #F2ECDD url("data:image/png;base64,${LOGO_PNG}") no-repeat center / auto 22px; }
-    .panel h1 { position: relative; margin: 0 160px 10px 0; color: ${C.ink2}; font: 400 40px/1.12 ${SERIF}; }
+    /* the panel: almost white, soft corners, one fine arch on top, the logo on its plate, serif titles */
+    .panel { padding: 60px 32px 30px; border-radius: 22px; background: #FBFAFE ${arch} no-repeat 0 10px / 100% 40px; color: ${C.ink2};
+      font: 400 17px/1.5 ${SANS}; box-shadow: 0 30px 90px rgba(10, 6, 40, 0.45); }
+    .panel::before { content: ""; position: absolute; right: 32px; top: 56px; width: 128px; height: 34px; border-radius: 8px;
+      background: #F2ECDD url("data:image/png;base64,${LOGO_PNG}") no-repeat center / auto 21px; }
+    .panel h1 { position: relative; margin: 0 160px 8px 0; color: ${C.ink2}; font: 400 38px/1.12 ${SERIF}; }
     .panel h1::before { content: "ὅραμα · ce qui est vu"; display: block; margin-bottom: 10px; color: ${C.mid}; font: italic 400 17px/1 ${SERIF}; }
-    .panel h2 { margin: 22px 0 10px; padding-top: 16px; color: ${C.mid}; font: 600 15px/1 ${SANS}; letter-spacing: 0; text-transform: none;
-      background: ${meander} repeat-x 0 0 / 16px 8px; }
-    .panel p { color: ${C.ink2}; }
-    .panel ul { color: ${C.ink2}; }
-    .panel .files li { background: ${C.card}; color: ${C.ink2}; border: 1px solid rgba(59, 54, 84, 0.2); }
-    .items { gap: 16px 18px; }
-    .item p { color: ${C.ink2}; font: 400 15px/1.4 ${SANS}; }
-    .tag { width: 14px; height: 14px; box-shadow: inset 0 0 0 1.5px ${C.ink2}; }
+    .panel h2 { margin: 24px 0 12px; color: ${C.mid}; font: 600 15px/1 ${SANS}; letter-spacing: 0; text-transform: none; }
+    .panel p, .panel ul { color: ${C.ink2}; }
+    .panel .files li { border-radius: 8px; background: ${C.lilac}; color: ${C.ink2}; }
+    .items { gap: 18px 20px; }
+    .item { padding: 10px; border-radius: 16px; background: #fff; box-shadow: 0 2px 10px rgba(42, 33, 99, 0.10); }
+    .item p { margin: 10px 4px 2px; color: ${C.ink2}; font: 400 15px/1.4 ${SANS}; }
+    /* a word with each finding, not a colour alone */
+    .tag { display: inline-flex; align-items: center; width: auto; height: 22px; margin: 0 8px 0 0; padding: 0 9px; border-radius: 11px; vertical-align: 1px;
+      color: ${C.night}; font: 600 12.5px/1 ${SANS}; }
     .tag.defaut { background: ${C.ko}; }
+    .tag.defaut::before { content: "Défaut"; }
     .tag.doute { background: ${C.lav}; }
-    .shot { background: #fff; outline: 1px solid rgba(59, 54, 84, 0.3); }
+    .tag.doute::before { content: "À trancher"; }
+    .shot { border-radius: 12px; background: #fff; box-shadow: inset 0 0 0 1px rgba(59, 54, 84, 0.12); }
 
     /* one question: rank, capture, what was found, the question in serif, two equal buttons */
+    .examen::before { display: none; }
     .rank { color: ${C.mid}; font: 600 15px/1 ${SANS}; letter-spacing: 0; text-transform: none; }
+    .examen .shot { box-shadow: 0 4px 18px rgba(42, 33, 99, 0.14), inset 0 0 0 1px rgba(59, 54, 84, 0.12); }
     .examen .texts p { color: ${C.ink2}; font: 400 18px/1.45 ${SANS}; }
-    .examen .question { margin-top: 14px; color: ${C.ink2}; font: 400 30px/1.25 ${SERIF}; }
-    .choice { padding: 16px 20px; color: ${C.night}; font: 600 19px/1 ${SANS}; letter-spacing: 0; text-transform: none; }
+    .examen .question { margin-top: 12px; color: ${C.ink2}; font: 400 30px/1.25 ${SERIF}; }
+    .choice { padding: 16px 20px; border-radius: 12px; color: ${C.night}; font: 600 19px/1 ${SANS}; letter-spacing: 0; text-transform: none; }
     .choice.bug { background: ${C.ko}; }
     .choice.voulu { background: ${C.ok}; }
     .choices.made .choice.chosen { outline: 2px solid ${C.ink2}; outline-offset: 4px; }
@@ -92,15 +95,15 @@
     .stamp.bug { background: ${C.ko}; color: ${C.night}; }
     @keyframes thunk { from { opacity: 0; transform: translateY(6px) scale(.9); } to { opacity: 1; transform: none; } }
 
-    /* the bubble of a note correction: a lilac card, the file, before struck through, after in green */
-    .bubble { background: ${C.card}; color: ${C.ink2}; font: 400 22px/1.35 ${SERIF}; border: 1px solid rgba(59, 54, 84, 0.25); box-shadow: 0 16px 40px rgba(42, 33, 99, 0.25); }
-    .bubble.right::before { border-right-color: ${C.card}; }
-    .bubble.left::before { border-left-color: ${C.card}; }
-    .bubble.ask { padding: 30px 28px 26px; background: ${C.card} ${meander} repeat-x 0 10px / 16px 8px; }
+    /* the bubble of a note correction: a light card, the file, before struck through, after in green */
+    .bubble { border-radius: 18px; background: #FBFAFE; color: ${C.ink2}; font: 400 22px/1.35 ${SERIF}; box-shadow: 0 18px 50px rgba(10, 6, 40, 0.35); }
+    .bubble.right::before { border-right-color: #FBFAFE; }
+    .bubble.left::before { border-left-color: #FBFAFE; }
+    .bubble.ask { padding: 26px 28px 24px; }
     .correction-file { color: ${C.mid}; font: 400 15px/1.4 ui-monospace, Consolas, monospace; }
     .correction-before { color: ${C.mid}; text-decoration-color: ${C.koT}; }
     .correction-after { color: ${C.okT}; }
-  `;
+  `;;
 
   return { colors, sprites, stamps, css };
 })

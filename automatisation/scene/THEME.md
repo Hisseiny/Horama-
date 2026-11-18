@@ -14,11 +14,12 @@ Les fichiers de la CDO sont à côté de la couche, sans la modifier :
 |---|---|---|
 | Mascotte | ailes pointues, pastilles « ! », « ? », « ✓ » | l'œil ailé de référence de la CDO (`draft.eye.mp4`), chaque état se lit sur le visage, sans pastille |
 | Trait sur la page | rouge `#E5484D` pour un défaut, orange `#E8A33D` pour un doute | corail `#E0503F` pour un défaut, violet `#6A5FD0` pour un doute : les couleurs de Horama, à 3,9:1 et 5,1:1 sur fond blanc (WCAG 1.4.11 : au moins 3:1) |
-| Voile de la fin | noir à 60 % | violet de l'œil à 55 % |
-| Panneau (récapitulatif, question, fin) | blanc, sans-serif, titres en capitales grises | carte lilas, fronton grec en traits fins, logo exact en haut à droite, « ὅραμα · ce qui est vu » au-dessus du titre, titres à empattements (Georgia), frise grecque au-dessus de chaque intertitre, intertitres en minuscules |
+| Voile de la fin | noir à 60 % | violet nuit à 72 % : le panneau clair ressort |
+| Panneau (récapitulatif, question, fin) | blanc, sans-serif, titres en capitales grises, angles droits | carte presque blanche aux coins arrondis sur un voile violet sombre, une arche fine en haut, logo exact, « ὅραμα · ce qui est vu » au-dessus du titre, titres à empattements (Georgia), intertitres en minuscules |
+| Trouvailles du récapitulatif | une pastille de couleur seule | une carte blanche arrondie, la capture aux coins arrondis, une étiquette avec un mot (« Défaut », « À trancher ») : la couleur n'est jamais seule |
 | Boutons « C'est un bug / C'est voulu » | texte blanc sur rouge et sur vert | texte violet foncé sur corail et sur citron, lisible sur les deux |
 | Tampon du verdict | tampon penché en capitales | pastille droite : « Bug noté », « Voulu » |
-| Bulle de correction | blanche | carte lilas avec frise ; l'ancien texte barré, le nouveau en vert foncé |
+| Bulle de correction | blanche, angles droits | carte claire arrondie ; l'ancien texte barré, le nouveau en vert foncé |
 
 Polices système seulement (Georgia, Segoe UI) : la couche vit dans la page testée et ne charge rien du web. Le corail et le citron ne servent que d'aplats, avec du texte violet foncé dessus. Tout texte sur fond clair est au moins à 4,5:1 (WCAG AA).
 
