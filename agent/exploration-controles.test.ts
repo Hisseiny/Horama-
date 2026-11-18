@@ -178,10 +178,13 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
     <div style="overflow-x:auto;width:100px"><button>Krankenversicherungsunternehmen</button></div>
     <div id="multiline" style="overflow:clip;width:120px;height:20px;font:16px/20px sans-serif"><span>Erste Zeile<br>Zweite Zeile</span></div>
     <div id="image-only" style="overflow:hidden;width:40px;height:20px"><span style="display:block;width:200px;height:40px;background:red"></span></div>
+    <p id="line-clamp" style="width:100px;font:16px/20px sans-serif;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden">Erste Zeile zweite Zeile dritte Zeile vierte Zeile fünfte Zeile</p>
+    <div id="ellipsis-card" style="overflow:hidden;width:100px;height:80px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Krankenversicherungsunternehmen</div><img width="200" height="20" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='20'/%3E"></div>
+    <div id="clipping-parent" style="overflow:hidden;width:100px;height:80px"><div style="width:400px;overflow:hidden;white-space:nowrap"><span>Krankenversicherungsunternehmen</span></div></div>
   \`` });
   const clippedText = (await controlerPage(client, { maxLiens: 0 })).filter(defect => defect.sorte === "texte_rogne");
   t.diagnostic(`Textes rognés : ${clippedText.map(defect => defect.selecteur).join(", ")}`);
-  assert.deepEqual(clippedText.map(defect => defect.selecteur), ["#german", "#multiline"]);
+  assert.deepEqual(clippedText.map(defect => defect.selecteur), ["#german", "#multiline", "#clipping-parent"]);
   assert.ok(clippedText.every(defect => defect.zone && defect.statut === "VERIFIED_FAIL"));
   await navigate("/many");
   started = Date.now();

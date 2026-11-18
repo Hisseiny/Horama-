@@ -61,7 +61,7 @@ function inspectDocument() {
   }
   // Union of the in-flow text of an element: clipped text (screen-reader only) and text placed on purpose
   // (absolute or fixed position, transform, SVG) inside the element are ignored.
-  const textBounds = (element: Element) => {
+  const textBounds = (element: Element, descendantClipping = false) => {
     let bounds: { left: number; right: number; top: number; bottom: number } | undefined;
     const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
@@ -79,7 +79,20 @@ function inspectDocument() {
       range.selectNodeContents(node);
       for (const rect of range.getClientRects()) {
         if (!rect.width || !rect.height) continue;
-        bounds = bounds ? { left: Math.min(bounds.left, rect.left), right: Math.max(bounds.right, rect.right), top: Math.min(bounds.top, rect.top), bottom: Math.max(bounds.bottom, rect.bottom) } : { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
+        let { left, right, top, bottom } = rect;
+        if (descendantClipping) {
+          for (let ancestor: Element | null = parent; ancestor && ancestor !== element; ancestor = ancestor.parentElement) {
+            const style = getComputedStyle(ancestor);
+            if (style.display === "contents") continue;
+            const box = ancestor.getBoundingClientRect();
+            const scaleX = box.width / (ancestor as HTMLElement).offsetWidth || 1, scaleY = box.height / (ancestor as HTMLElement).offsetHeight || 1;
+            const x = box.left + ancestor.clientLeft * scaleX, y = box.top + ancestor.clientTop * scaleY;
+            if (style.overflowX !== "visible") { left = Math.max(left, x); right = Math.min(right, x + ancestor.clientWidth * scaleX); }
+            if (style.overflowY !== "visible") { top = Math.max(top, y); bottom = Math.min(bottom, y + ancestor.clientHeight * scaleY); }
+          }
+        }
+        if (right <= left || bottom <= top) continue;
+        bounds = bounds ? { left: Math.min(bounds.left, left), right: Math.max(bounds.right, right), top: Math.min(bounds.top, top), bottom: Math.max(bounds.bottom, bottom) } : { left, right, top, bottom };
       }
     }
     return bounds;
@@ -94,14 +107,15 @@ function inspectDocument() {
     const style = getComputedStyle(element);
     const clippedX = ["hidden", "clip"].includes(style.overflowX) && element.scrollWidth > element.clientWidth + 1;
     const clippedY = ["hidden", "clip"].includes(style.overflowY) && element.scrollHeight > element.clientHeight + 1;
-    if ((clippedX || clippedY) && style.textOverflow !== "ellipsis" && element.clientWidth > 1 && element.clientHeight > 1) {
+    const lineClamped = Number(style.webkitLineClamp) > 0 && style.webkitBoxOrient === "vertical" && ["-webkit-box", "-webkit-inline-box", "flow-root"].includes(style.display);
+    if ((clippedX || clippedY) && style.textOverflow !== "ellipsis" && !lineClamped && element.clientWidth > 1 && element.clientHeight > 1) {
       let excluded = false;
       for (let ancestor: Element | null = element; ancestor && !excluded; ancestor = ancestor.parentElement) {
         const css = getComputedStyle(ancestor);
         excluded = ancestor.matches('.sr-only,[aria-roledescription="carousel"],[aria-roledescription="carrousel"]') || css.clip !== "auto" || css.clipPath !== "none"
           || [css.overflowX, css.overflowY].some(value => ["auto", "scroll"].includes(value));
       }
-      const ink = excluded ? undefined : textBounds(element);
+      const ink = excluded ? undefined : textBounds(element, true);
       const box = element.getBoundingClientRect();
       const indent = parseFloat(style.textIndent) || 0;
       const scaleX = box.width / (element as HTMLElement).offsetWidth || 1, scaleY = box.height / (element as HTMLElement).offsetHeight || 1;

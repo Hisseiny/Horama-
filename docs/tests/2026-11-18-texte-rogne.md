@@ -100,3 +100,30 @@ Navigation : 2 pages par clic, 0 par adresse ; 4 clics, 2 défilements, 1 go_to 
 ```
 
 Journaux persistants : `/home/ubuntu/horama-122-h-python.log` et `/home/ubuntu/horama-122-h-govuk.log`. Cette suite ne change que le présent document : le contrôle global réussi ci-dessus reste applicable, sans relance identique. Aucun fichier de mesure ni vault ajouté au dépôt.
+
+## Corrections après revue de la PR #156
+
+Deux faux positifs supplémentaires sont couverts dans Chrome local, sans réseau :
+
+- Une ellipse multiligne active (`-webkit-line-clamp:2`, boîte verticale) est intentionnelle même si `text-overflow` vaut `clip` : aucun `texte_rogne`.
+- Une carte de 100 × 80 px contient un libellé avec ellipse et une image de 200 px de large : le texte déjà masqué par le libellé enfant ne doit pas expliquer le débordement de l’image. Aucun `texte_rogne` sur cette carte.
+- Contre-exemple : un parent de 100 px coupe réellement le texte d’un enfant de 400 px ; le parent est bien signalé. Le texte multiligne sans clamp reste également signalé.
+
+L’intersection des rectangles de texte avec les boîtes de découpage intermédiaires est activée uniquement pour `texte_rogne`. L’appel utilisé par `debordement` conserve son comportement antérieur.
+
+Commande : `pnpm -r --if-present run check`, code 0. Journal : `/home/ubuntu/horama-156-review-check.log`.
+
+```text
+agent check: 1..253
+agent check: # tests 259
+agent check: # suites 0
+agent check: # pass 259
+agent check: # fail 0
+agent check: # cancelled 0
+agent check: # skipped 0
+agent check: # todo 0
+agent check: # duration_ms 17064.65266
+agent check: Done
+```
+
+Pas de nouvelle exploration publique pour ces deux corrections ; vérification ciblée par les fixtures Chrome, sans inspection visuelle supplémentaire.
