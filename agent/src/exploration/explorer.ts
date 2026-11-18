@@ -38,7 +38,7 @@ interface ExplorationPage {
   cookies?: "refusee" | "aucune"; url_finale?: string; raison?: string;
   arrivee?: "depart" | "clic" | "adresse";
 }
-export interface ExplorerOptions { url: string; max: number; sortie: string; vault: string; port: number; pagesCliquees?: number; reseauPublic?: boolean }
+export interface ExplorerOptions { url: string; max: number; sortie: string; vault: string; port: number; pagesCliquees?: number; reseauPublic?: boolean; site?: string }
 export interface ExplorerDependencies {
   base: BasePassages; runtime: BrowserRuntime; session: Session; signal?: AbortSignal;
   fetch?: typeof fetch; controler?: typeof controlerPage; holo?: typeof askHolo;
@@ -133,7 +133,8 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
     return parsed.origin + parsed.pathname.replace(/\/$/, "") + (query ? parsed.search : "");
   };
   const started = Date.now();
-  const site = new URL(url).hostname.replace(/^www\./, "").replaceAll(".", "-");
+  const site = options.site ?? new URL(url).hostname.replace(/^www\./, "").replaceAll(".", "-");
+  if (options.site !== undefined && !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(site)) throw new Error("Site invalide : utiliser lettres, chiffres, tirets ou soulignements.");
   const folder = join(vault, site, "passages");
   const version = String((existsSync(folder) ? readdirSync(folder).filter(name => name.endsWith(".md")).length : 0) + 1);
   const references = lireReferences(vault, site).filter(ref => ref.vue === "defaut" && Number(ref.version) < Number(version)).sort((a, b) => Number(b.version) - Number(a.version));
