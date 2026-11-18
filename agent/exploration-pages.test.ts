@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -100,7 +100,10 @@ test("repli rendu : seuil, erreurs visibles et budget partagé", async () => {
   assert.match((await discoverPages(origin, { ...unavailable, render: async () => undefined })).errors[0].message, /Rendu indisponible/);
 });
 
-test("Chrome réel découvre une page JS locale sans clic ni soumission et ferme ses onglets", { timeout: 30000 }, async () => {
+const chromeBin = process.env.CHROME_BIN ?? "google-chrome";
+const chromeAvailable = !spawnSync(chromeBin, ["--version"]).error;
+
+test("Chrome réel découvre une page JS locale sans masquer la scène et ferme ses onglets", { skip: !chromeAvailable && `Chrome absent : ${chromeBin}`, timeout: 30000 }, async () => {
   const requests: string[] = [];
   const privateRequests: string[] = [];
   const privateServer = createServer((req, res) => { privateRequests.push(req.url!); res.end("private"); });
@@ -125,7 +128,7 @@ test("Chrome réel découvre une page JS locale sans clic ni soumission et ferme
   const address = server.address() as { port: number };
   const base = `http://127.0.0.1:${address.port}`;
   const profile = mkdtempSync(join(tmpdir(), "horama-pages-chrome-"));
-  const chrome = spawn("google-chrome", ["--headless", "--no-sandbox", "--disable-dev-shm-usage", "--remote-debugging-port=0", `--user-data-dir=${profile}`, "--force-device-scale-factor=1", "--window-size=1280,900", "about:blank"], { stdio: ["ignore", "ignore", "pipe"] });
+  const chrome = spawn(chromeBin, ["--headless", "--no-sandbox", "--disable-dev-shm-usage", "--disable-background-timer-throttling", "--remote-debugging-port=0", `--user-data-dir=${profile}`, "--force-device-scale-factor=1", "--window-size=1280,900", "about:blank"], { stdio: ["ignore", "ignore", "pipe"] });
   let chromePort: number | undefined;
   try {
     const port = await new Promise<number>((resolve, reject) => {
@@ -139,10 +142,20 @@ test("Chrome réel découvre une page JS locale sans clic ni soumission et ferme
     chromePort = port;
     const before = await discoverPages(base, { max: 8 });
     assert.deepEqual(before.pages, [base + "/"]);
-    const result = await discoverPages(base, { max: 8, render: (url, allowed) => renderPage(port, url, allowed) });
-    assert.deepEqual(result.pages, ["/", "/about", "/contact"].map(path => base + path));
-    assert.deepEqual(result.errors, []);
-    for (const reason of ["robots", "file", "login", "form"]) assert.ok(result.excluded.some(item => item.reason === reason));
+    const scene = await connecterCdp(port, "about:blank");
+    try {
+      await scene.send("Page.navigate", { url: base + "/scene" });
+      await scene.send("Page.bringToFront");
+      const initial = await scene.send("Runtime.evaluate", { expression: `window.visibilityStates = [document.visibilityState]; document.addEventListener("visibilitychange", () => visibilityStates.push(document.visibilityState)); document.visibilityState`, returnByValue: true });
+      assert.equal(initial.result.value, "visible");
+      const result = await discoverPages(base, { max: 8, render: (url, allowed) => renderPage(port, url, allowed) });
+      const visibility = await scene.send("Runtime.evaluate", { expression: "({ current: document.visibilityState, states: visibilityStates })", returnByValue: true });
+      assert.equal(visibility.result.value.current, "visible", "La scène reste visible après la découverte.");
+      assert.deepEqual(visibility.result.value.states, ["visible"], "La scène reste visible pendant le rendu.");
+      assert.deepEqual(result.pages, ["/", "/about", "/contact"].map(path => base + path));
+      assert.deepEqual(result.errors, []);
+      for (const reason of ["robots", "file", "login", "form"]) assert.ok(result.excluded.some(item => item.reason === reason));
+    } finally { scene.close(); }
     assert.ok(!requests.some(path => /private|file\.pdf|login|send/.test(path)));
     const tabs = await (await fetch(`http://127.0.0.1:${port}/json`)).json() as Array<{ type: string }>;
     assert.equal(tabs.filter(tab => tab.type === "page").length, 1);
