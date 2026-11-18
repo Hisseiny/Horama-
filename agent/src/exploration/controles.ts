@@ -66,7 +66,9 @@ function inspectDocument() {
     const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
       const parent = node.parentElement;
-      if (!parent || !(node.textContent ?? "").trim() || !visible(parent)) continue;
+      let shown = parent;
+      while (shown && shown !== element && getComputedStyle(shown).display === "contents") shown = shown.parentElement;
+      if (!parent || !shown || !(node.textContent ?? "").trim() || !visible(shown)) continue;
       let hidden = false;
       for (let ancestor: Element | null = parent; ancestor && !hidden; ancestor = ancestor === element ? null : ancestor.parentElement) {
         const style = getComputedStyle(ancestor);
@@ -98,8 +100,11 @@ function inspectDocument() {
     const ink = textBounds(element);
     if (!ink) continue;
     const lineHeight = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.2;
-    const across = Math.max(0, box.left - ink.left) + Math.max(0, ink.right - box.right);
-    const down = Math.max(0, box.top - ink.top) + Math.max(0, ink.bottom - box.bottom);
+    // Padding box, in CSS pixels of the element (rectangles are scaled by transformed ancestors).
+    const scaleX = box.width / (element as HTMLElement).offsetWidth || 1, scaleY = box.height / (element as HTMLElement).offsetHeight || 1;
+    const left = box.left + element.clientLeft * scaleX, top = box.top + element.clientTop * scaleY;
+    const across = (Math.max(0, left - ink.left) + Math.max(0, ink.right - left - element.clientWidth * scaleX)) / scaleX;
+    const down = (Math.max(0, top - ink.top) + Math.max(0, ink.bottom - top - element.clientHeight * scaleY)) / scaleY;
     if (across > 3 || down > Math.max(3, lineHeight / 2)) {
       add("debordement", "Le texte dépasse la boîte de son conteneur.", `${element.scrollWidth}×${element.scrollHeight} > ${element.clientWidth}×${element.clientHeight}`, element);
     }

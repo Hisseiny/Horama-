@@ -31,8 +31,11 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
 <div id="ellipsis" style="width:40px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Texte beaucoup trop long pour la boîte</div>
 <button id="ring" style="position:relative;width:61px;height:61px;border-radius:50%;border:0;margin:40px">▶${[..."En savoir plus"].map((c, i) => `<span style="position:absolute;left:26px;top:-16px;height:46px;transform-origin:4px 46px;transform:rotate(${i * 18 - 120}deg)">${c}</span>`).join("")}</button>
 <button id="svg" style="width:61px;height:61px;border:0;padding:0"><svg width="61" height="61" overflow="visible"><text x="-20" y="-6">Texte sur un cercle</text></svg></button>
+<button id="contents" style="width:60px;height:24px;padding:0;white-space:nowrap"><span style="display:contents">Texte beaucoup trop long</span></button>
+<div id="border" style="display:inline-block;border:8px solid #000;height:20px;white-space:nowrap">Texte qui touche la bordure</div>
+<div style="transform:scale(.5);transform-origin:0 0"><button id="scaled" style="width:120px;height:24px;font-size:16px;line-height:20px;padding:0">Première ligne<br>Deuxième ligne</button></div>
 <div id="real" style="width:60px;height:20px;white-space:nowrap;background:#eee">Texte beaucoup trop long pour la boîte</div>
-<script>const few = document.getElementById("few"), range = document.createRange(); range.selectNodeContents(few); few.style.width = (range.getBoundingClientRect().width - 2) + "px";</script></body>`);
+<script>const few = document.getElementById("few"), range = document.createRange(); range.selectNodeContents(few); few.style.width = (range.getBoundingClientRect().width - 2) + "px"; const border = document.getElementById("border"); range.selectNodeContents(border); border.style.width = (range.getBoundingClientRect().width - 7) + "px";</script></body>`);
     } else if (request.url === "/many") {
       const links = (from: number, to: number) => Array.from({ length: to - from }, (_, i) => `<a href="/ok-${from + i}">Lien ${from + i}</a>`).join("");
       response.setHeader("Content-Type", "text/html; charset=utf-8");
@@ -151,7 +154,7 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
   await navigate("/overflow-cases");
   const overflows = (await controlerPage(client, { maxLiens: 0 })).filter(defect => defect.sorte === "debordement");
   t.diagnostic(`Débordements : ${overflows.map(defect => `${defect.selecteur} ${defect.valeur}`).join(", ")}`);
-  assert.deepEqual(overflows.map(defect => defect.selecteur), ["#real"]);
+  assert.deepEqual(overflows.map(defect => defect.selecteur), ["#contents", "#border", "#scaled", "#real"]);
   const before = await client.send("Runtime.evaluate", { returnByValue: true, expression: "['icon', 'card', 'few', 'ring', 'svg'].map(id => { const e = document.getElementById(id); return e.scrollWidth > e.clientWidth + 1 || e.scrollHeight > e.clientHeight + 1; })" });
   assert.deepEqual(before.result.value, [true, true, true, true, true], "l'ancienne règle les aurait signalés");
   await navigate("/many");
