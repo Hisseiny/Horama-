@@ -140,15 +140,20 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
   const decisions = lireDecisions(vault, site);
   let sitemap = false;
   const loginUrl = (address: string) => /\/(?:log-?in|sign-?in|connexion|auth)(?:\/|$)/i.test(new URL(address, url).pathname);
+  const startAddresses = new Set([normalized(url, true)]);
+  const antiRobot = (reason: string) => reason.startsWith("ce site bloque les robots");
   let blocage: string | null = loginUrl(url) ? "Connexion demandée (adresse de connexion)." : null;
   const request: typeof fetch = async (address, init) => {
     if (blocage) throw new Error(blocage);
     const response = await (deps.fetch ?? fetch)(address, { ...init, ...(signal ? { signal: init?.signal ? AbortSignal.any([signal, init.signal]) : signal } : {}) });
     const body = await response.clone().text();
-    const metadata = /\/(?:robots\.txt|[^/?]*\.xml)(?:\?|$)/i.test(String(address));
+    const metadata = !new Headers(init?.headers).get("Accept")?.includes("text/html");
+    const start = !metadata && startAddresses.has(normalized(String(address), true));
     const login = response.status >= 300 && response.status < 400 && response.headers.get("location");
-    blocage = login && loginUrl(login) ? "Connexion demandée (redirection vers la connexion)." : metadata && [404, 410].includes(response.status) ? null : detecterBlocage(body, response.status);
-    if (blocage) throw new Error(blocage);
+    const reason = login && loginUrl(login) ? "Connexion demandée (redirection vers la connexion)." : metadata && [404, 410].includes(response.status) ? null : detecterBlocage(body, response.status);
+    if (start && login) startAddresses.add(normalized(new URL(login, String(address)).href, true));
+    if (reason && (start || (metadata && antiRobot(reason)))) blocage = reason;
+    if (reason && (!metadata || antiRobot(reason))) throw new Error(reason);
     if (response.ok && /<(?:[\w-]+:)?(?:urlset|sitemapindex)\b/i.test(body)) sitemap = true;
     return response;
   };
@@ -202,14 +207,22 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
     id: `${page.ecran}--${source}--${findings.filter(item => item.source === source).length + 1}`, ecran: page.ecran, vue: "defaut", source,
     sorte: "non-conclu", statut: "INCONCLUSIVE", description: "La vérification n'a pas pu se faire.", textes_a_surligner: [], preuve: {}, capture: `captures/${page.ecran}.png`, agent: pages.find(candidate => candidate.ecran === page.ecran)?.agent ?? agent.agent, page: { largeur: 1280, hauteur: 900 }, ...fields });
   const inconclusive = (page: Pick<ExplorationPage, "ecran">, source: Finding["source"], findings: Finding[], raison: string) => findings.push(finding(page, source, findings, { raison, description: raison }));
+  const markUnvisited = (page: ExplorationPage, reason: string) => {
+    page.etat = "non_visitee"; page.raison = reason; page.statut = "INCONCLUSIVE"; page.fin = new Date().toISOString();
+    if (!report.constats.some(item => item.ecran === page.ecran)) inconclusive(page, "controle", report.constats, reason);
+    save();
+  };
   const markBlocked = (reason: string) => {
     blocage = reason;
     agent.raison = reason;
     for (const page of pages.filter(page => page.etat !== "visitee")) {
-      page.etat = "non_visitee"; page.raison = reason; page.statut = "INCONCLUSIVE"; page.fin = new Date().toISOString();
-      if (!report.constats.some(item => item.ecran === page.ecran)) inconclusive(page, "controle", report.constats, reason);
+      markUnvisited(page, reason);
     }
     save();
+  };
+  const markRenderedBlock = (page: ExplorationPage | undefined, reason: string) => {
+    if (antiRobot(reason) || (page && startAddresses.has(normalized(page.url, true)))) markBlocked(reason);
+    else if (page) markUnvisited(page, reason);
   };
   const renderedBlock = async (client: ExplorationCdp) => {
     const result = await client.send("Runtime.evaluate", { expression: "({ html: document.documentElement.outerHTML, status: performance.getEntriesByType('navigation')[0]?.responseStatus || null })", returnByValue: true });
@@ -330,7 +343,11 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
                     try {
                       client = await (deps.connecter ?? connecterCdp)(port, address);
                       const reason = await renderedBlock(client);
-                      if (reason) { markBlocked(reason); return input.onTool("terminer", { etat: "echec", raison: reason }); }
+                      if (reason) {
+                        markRenderedBlock(pages.find(page => page.ecran === args.ecran), reason);
+                        if (blocage) return input.onTool("terminer", { etat: "echec", raison: reason });
+                        return `${reason}\nContinue les autres relevés. ${remaining()}`;
+                      }
                     } catch { /* Adresse hors liste sans preuve de blocage. */ }
                     finally { client?.close(); }
                     log(`Adresse hors liste : ${address}`);
@@ -440,6 +457,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
         const close = () => client?.close();
         hookSignal?.addEventListener("abort", close, { once: true });
         page.cookies = "aucune";
+        let inaccessible: string | null = null;
         try {
           const connect = deps.connecter ?? connecterCdp;
           try { client = await connect(port, page.url_finale ?? finalUrls.get(page.url) ?? page.url); }
@@ -448,11 +466,10 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
             client = await connect(port, final ?? page.url);
           }
           const reason = await renderedBlock(client);
-          if (reason) markBlocked(reason);
-          if (blocage) throw new Error(blocage);
+          if (reason) { inaccessible = reason; markRenderedBlock(page, reason); throw new Error(reason); }
           page.cookies = await prepareCapture(client);
         } catch { /* Les contrôles signalent une connexion indisponible. */ }
-        if (blocage) { hookSignal?.removeEventListener("abort", close); close(); throw new Error(blocage); }
+        if (inaccessible) { hookSignal?.removeEventListener("abort", close); close(); throw new Error(inaccessible); }
         let capture: ReleveCapture;
         let consentFailed = false;
         try { capture = await runtime.relever(ecran, vue, async () => {

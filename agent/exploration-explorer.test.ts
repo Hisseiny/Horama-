@@ -138,6 +138,62 @@ test("exception de relevé : raison réelle immédiate, aucun retour vers la pag
   assert.ok(responses.every(response => !response.includes("Réessaie")));
 });
 
+for (const rendered of [false, true]) {
+  test(`sous-page indisponible en ${rendered ? "Chrome" : "découverte"} : portée limitée et poursuite des autres pages`, async () => {
+    for (const item of [
+      { status: 404, html: "Missing", reason: /introuvable/ },
+      { status: 410, html: "Gone", reason: /introuvable/ },
+      { status: 401, html: "Unauthorized", reason: /Connexion demandée/ },
+      { status: 200, html: '<title>Connexion</title><input type="password">', reason: /Connexion demandée/ },
+      { status: 403, html: "Forbidden", reason: /robots/ },
+      { status: 200, html: '<title>Verify you are human</title><div class="h-captcha"></div>', reason: /robots/ },
+    ]) {
+      let current = "https://example.org/";
+      const responses: string[] = [];
+      const { result } = await run({ actual: address => address, deps: {
+        onglets: async () => [],
+        urlCourante: async () => current,
+        fetch: async address => {
+          const path = new URL(String(address)).pathname;
+          if (path === "/robots.txt") return new Response("");
+          if (path === "/sitemap.xml") return new Response('<urlset><url><loc>https://example.org/missing</loc></url><url><loc>https://example.org/healthy</loc></url></urlset>');
+          return new Response(!rendered && path === "/missing" ? item.html : "<title>Accueil</title>Bienvenue", { status: !rendered && path === "/missing" ? item.status : 200, headers: { "Content-Type": "text/html" } });
+        },
+        session: async input => {
+          await input.onCreated("scope");
+          return { id: "scope", fin: (async () => {
+            for (const step of input.consigne.course) {
+              current = step.address;
+              responses.push(await input.onTool("relever", { ecran: step.ecran, vue: "defaut" }));
+            }
+            await input.onTool("terminer", { etat: "reussi" });
+            return { id: "scope", muted: false, cout_usd: 0, etapes: 3 };
+          })() };
+        },
+        runtime: {
+          relever: async () => ({ png: original, texte: "Page", url_page: current, largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture" }),
+          navigateur: async () => ({ channel: "fake", stop() {} }), close() {},
+        },
+        connecter: async () => ({ on() {}, close() {}, send: async (_method, params) => ({ result: { value: String((params as Record<string, unknown>)?.expression).includes("outerHTML")
+          ? { html: current.endsWith("/missing") ? item.html : "<title>Accueil</title>Bienvenue", status: current.endsWith("/missing") ? item.status : 200 } : 200 } }) }),
+      } });
+      const global = rendered && item.reason.source === "robots";
+      assert.equal(result.pages.find(page => page.ecran === "accueil")?.etat, "visitee");
+      assert.equal(result.pages.find(page => page.ecran === "healthy")?.etat, global ? "non_visitee" : "visitee");
+      if (rendered) {
+        const missing = result.pages.find(page => page.ecran === "missing")!;
+        assert.equal(missing.etat, "non_visitee");
+        assert.match(missing.raison!, item.reason);
+      } else {
+        assert.equal(result.etat, "fini");
+        assert.ok(!result.pages.some(page => page.ecran === "missing"));
+        assert.ok(!result.agents.some(agent => /robots|introuvable|Connexion demandée/.test(agent.raison ?? "")));
+      }
+      assert.ok(responses.slice(1).every(response => !response.includes('relever(ecran="missing"')));
+    }
+  });
+}
+
 test("préparation attendue avant capture et contrôles dans explorer", async () => {
   const events: string[] = [];
   await run({ deps: {
