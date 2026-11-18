@@ -225,10 +225,10 @@ export async function installLayer(page, onPress, { passage = "", titre = "", di
   });
 }
 
-// The six expressions of the mascot (docs/da/mascotte/, PR #116), as inline SVG for the layer. Drawn at 512 × 512 in a
-// frame of 96 units (viewBox 8 8 80 80, the eye of radius 20 at its centre), the same units as the first skeleton: shown
-// with the whole frame 0 0 96 96 in the 96 px box of the layer, the eye keeps the size and the place it had.
-export const EXPRESSIONS = ["observe", "hesite", "trouve", "doute", "bloquee", "fini"];
+// The five states of the mascot of the charter (docs/da/mascotte/, PR #130), as inline SVG for the layer. Drawn at
+// 512 × 512 in the units of mascotte.js (the eye of radius 20 at 48, 48, wings from 2 to 94): shown with the frame
+// 0 0 96 96 in the 96 px box of the layer, the eye keeps the size and the place it had.
+export const EXPRESSIONS = ["observe", "trouve", "doute", "bloquee", "fini"];
 export function mascotte(folder = new URL("../../docs/da/mascotte/", import.meta.url)) {
   return Object.fromEntries(EXPRESSIONS.map((name) => [name, readFileSync(new URL(`${name}.svg`, folder), "utf8")
     .replace(/<\?xml[^>]*>\s*/, "").replace(/<title>[^<]*<\/title>\s*/, "")

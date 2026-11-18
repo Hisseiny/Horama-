@@ -28,9 +28,10 @@
   // One colour for a proven defect, another for a doubt.
   const COLORS = { conforme: "#2E9E5B", defaut: "#E5484D", doute: "#E8A33D" };
   const STAMPS = { bug: "Bug noté", voulu: "Voulu" };
-  // observe (the course), hesite (just before a click of the agent), trouve (a proven defect ringed), doute (a finding of
-  // Holo), bloquee (the course stops for a reason), fini (the summary opens). The names of the first skeleton still work.
-  const ALIASES = { repos: "observe", verification: "observe", interrogation: "doute", defaut: "trouve", conforme: "fini" };
+  // observe (the course), trouve (a proven defect ringed), doute (a finding of Holo), bloquee (the course stops for a
+  // reason), fini (the summary opens); hesite (just before a click of the agent) only with a drawing for it, which the
+  // charter has not: the mascot then keeps observing. The names of the first skeleton still work.
+  const ALIASES = { repos: "observe", verification: "observe", interrogation: "doute", defaut: "trouve", conforme: "fini", hesite: "observe" };
   const expression = (name) => (MASCOT[name] ? name : ALIASES[name] ?? "observe");
 
   // ---------- Sizes and times ----------
@@ -57,10 +58,12 @@
     .mascot { position: fixed; left: 0; top: 0; width: ${M}px; height: ${M}px; will-change: transform; }
     .body { width: ${M}px; height: ${M}px; transform-origin: 50% 80%; animation: hover 3.6s ease-in-out infinite; }
     .body.pop { animation: hover 3.6s ease-in-out infinite, pop 350ms cubic-bezier(0.3, 1.6, 0.5, 1); }
-    /* The drawings of Inès move (decision of Nathan, 18/11): the wings flap from the rotation each expression gives them,
-       the eye blinks around its centre; the pupil follows the arrow (look, below). */
-    .wing { transform-box: view-box; transform-origin: 33px 43.5px; animation: flap 480ms ease-in-out infinite alternate; }
-    .lid { transform-box: view-box; transform-origin: 48px 48px; animation: blink 4.2s ease-in-out infinite; }
+    /* The mascot moves (decision of Nathan, 18/11): the wings flap in opposite directions around their roots, the eye
+       blinks around its centre; the pupils follow the arrow (look, below). */
+    .wing { transform-box: view-box; animation: flap 480ms ease-in-out infinite alternate; }
+    .wing-l { --dir: -1; transform-origin: 30px 46px; }
+    .wing-r { --dir: 1; transform-origin: 66px 46px; }
+    .eyeball { transform-box: view-box; transform-origin: 48px 48px; animation: blink 4.2s ease-in-out infinite; }
     .body > * { display: block; width: ${M}px; height: ${M}px; transform-origin: 50% 50%; overflow: visible; }
     .bubble { position: absolute; left: 0; top: 0; width: max-content; max-width: 470px; padding: 16px 22px; background: ${PAPER}; color: ${INK};
       font: 600 24px/1.28 ${FONT}; white-space: normal; opacity: 0; transform: scale(0.96); transition: opacity 180ms ease-out, transform 180ms ease-out; }
@@ -113,7 +116,7 @@
     @keyframes rough-notation-dash { to { stroke-dashoffset: 0; } }
     @keyframes hover { 50% { transform: translateY(-5px); } }
     @keyframes pop { from { scale: 0.82; } to { scale: 1; } }
-    @keyframes flap { from { transform: rotate(var(--base)); } to { transform: rotate(calc(var(--base) - 16deg)) scaleY(0.9); } }
+    @keyframes flap { from { transform: rotate(0deg); } to { transform: rotate(calc(var(--dir) * 16deg)) scaleY(0.9); } }
     @keyframes blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
     @keyframes thunk { from { opacity: 0; transform: rotate(-6deg) scale(1.8); } to { opacity: 1; transform: rotate(-6deg) scale(1); } }
     @keyframes ripple { from { transform: scale(0.5); opacity: 1; } to { transform: scale(3); opacity: 0; } }
@@ -227,27 +230,11 @@
   const arrived = async () => {
     for (const until = Date.now() + 900; Date.now() < until && Math.hypot(goal.x - at.x, goal.y - at.y) > 3; ) await wait(30);
   };
-  // The drawing of an expression made to move, without changing it: each wing (halo layer and drawn layer) loses its
-  // rotate() attribute for the same rotation in CSS (--base), so that it can flap from it; the group of the pupil (the
-  // child <g transform="translate(…)"> of the svg) is wrapped in a lid that blinks, and keeps its own position, from
-  // which look() moves it.
   let pupil = null;
+  // The drawings of the charter (docs/da/mascotte/, PR #130) carry their moving parts by class: .wing-l and .wing-r
+  // flap (CSS below), .eyeball blinks, .pupils follows the arrow (look). Nothing of the drawing is changed.
   const animate = () => {
-    const svg = body.querySelector("svg");
-    for (const wing of svg.querySelectorAll('g[fill="#AFA9EC"] path')) {
-      wing.style.setProperty("--base", `${/rotate\((-?[\d.]+)/.exec(wing.getAttribute("transform") ?? "")?.[1] ?? 0}deg`);
-      wing.removeAttribute("transform");
-      wing.classList.add("wing");
-    }
-    pupil = [...svg.children].find((node) => node.tagName === "g" && /^translate/.test(node.getAttribute("transform") ?? "")) ?? null;
-    if (!pupil) return;
-    const [, x = 0, y = 0] = /translate\((-?[\d.]+)[ ,]+(-?[\d.]+)/.exec(pupil.getAttribute("transform")) ?? [];
-    pupil.dataset.x = x;
-    pupil.dataset.y = y;
-    const lid = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    lid.classList.add("lid");
-    pupil.replaceWith(lid);
-    lid.append(pupil);
+    pupil = body.querySelector(".pupils");
   };
   // The pupil looks at the arrow of the agent while it works (4 units at most from its place), straight ahead at the end.
   const look = () => {
@@ -257,7 +244,7 @@
     const dy = target ? target.y - at.y - M / 2 : 0;
     const distance = Math.hypot(dx, dy) || 1;
     const reach = target ? Math.min(1, distance / 220) * 4 : 0;
-    pupil.setAttribute("transform", `translate(${(Number(pupil.dataset.x) + (dx / distance) * reach).toFixed(2)} ${(Number(pupil.dataset.y) + (dy / distance) * reach).toFixed(2)})`);
+    pupil.setAttribute("transform", `translate(${((dx / distance) * reach).toFixed(2)} ${((dy / distance) * reach).toFixed(2)})`);
   };
   const setEtat = (name) => {
     const shown = expression(name);
@@ -489,7 +476,7 @@
   // ---------- Commands called by the script (CDP Runtime.evaluate; a promise is awaited) ----------
   let examined = null; // id of the finding whose question is asked
   window.__horama = {
-    // observe, hesite, trouve, doute, bloquee, fini (or a name of the first skeleton): a clean change, in place.
+    // observe, trouve, doute, bloquee, fini (or a name of the first skeleton): a change in place, with a small jolt.
     etat(name) {
       setEtat(name);
     },
@@ -722,7 +709,7 @@
     state.travel = { from, to, at: heure, ms };
     state.cursor = to;
     // Just before the click of the agent, while the arrow travels to it: the mascot hesitates.
-    if (TITLE && !state.revue && ms > 0 && state.etat !== "hesite") {
+    if (TITLE && !state.revue && ms > 0 && MASCOT.hesite && state.etat !== "hesite") {
       state.avant_clic = state.etat;
       setEtat("hesite");
     }
