@@ -112,26 +112,69 @@ export function impactDePr({ pr, fichiers, vault, logiciel, socle = [] }) {
   return { format: "horama-impact-1", le: new Date().toISOString(), depuis: pr.base, vers: pr.tete, logiciel, fichiers, fiches_retenues: [], socle, pr: pr.adresse, ...resultat };
 }
 
+// The language a page declares (`<html lang>`), its first subtag in lower case (« fr-FR » gives « fr »); null when the
+// page does not say it or does not answer: then nothing is set aside on that ground.
+export async function langueDePage(adresse, request = fetch) {
+  try {
+    const response = await request(adresse, { signal: AbortSignal.timeout(15_000) });
+    const lang = /<html\b[^>]*\slang\s*=\s*["']?([A-Za-z]{2,3})/i.exec(await response.text())?.[1];
+    return lang ? lang.toLowerCase() : null;
+  } catch {
+    return null;
+  }
+}
+
+// The vault tests are written in the language of the documented site: a page of the preview in another language (a
+// translation, issue #122) would fail them on every text, so they are set aside, and only the exploration of the site
+// runs. Generic: a note declares the language of its page in its header (`langue: fr`); the page of the preview at the
+// same address is asked its `<html lang>`. A test is set aside when one of its screens differs; a note without `langue`,
+// or a page that does not say its language, sets nothing aside.
+export async function ecarterLangue(impact, { vault, logiciel, base, langue = langueDePage }) {
+  const notes = new Map(lireNotes(vault, logiciel).filter((note) => note.entete?.ecran).map((note) => [note.entete.ecran, note.entete]));
+  const tests = new Map(lireTestsAcceptes(vault, logiciel).map((test) => [test.id, test]));
+  const asked = new Map();
+  const changed = async (ecran) => {
+    const note = notes.get(ecran);
+    if (typeof note?.langue !== "string" || typeof note.url !== "string") return null;
+    if (!asked.has(ecran)) asked.set(ecran, langue(new URL(note.url, base).href));
+    const shown = await asked.get(ecran);
+    const wanted = note.langue.toLowerCase().split("-")[0];
+    return shown && shown !== wanted ? `${wanted} → ${shown}` : null;
+  };
+  const retenus = [];
+  const ecartes = [...impact.ecartes];
+  for (const kept of impact.retenus) {
+    let change = null;
+    for (const { ecran } of tests.get(kept.id)?.releves ?? []) change ??= await changed(ecran);
+    if (change) ecartes.push({ id: kept.id, raison: `langue du site changée (${change}) : tests de la documentation non joués` });
+    else retenus.push(kept);
+  }
+  return { ...impact, ids: retenus.map((kept) => kept.id), retenus, ecartes };
+}
+
 // The dry run (--a-blanc): what the wake-up would do now, as lines for a human. Reads GitHub and asks the preview
 // whether it opens without a login; plays nothing.
-export async function aBlanc(lecteur, { vault, logiciel, socle = [], ouverte = ouverteSansConnexion }) {
+export async function aBlanc(lecteur, { vault, logiciel, socle = [], ouverte = ouverteSansConnexion, langue = langueDePage }) {
   const lines = [];
   const prs = lecteur.prs();
   if (!prs.length) lines.push("Aucune PR ouverte.");
   for (const pr of prs) {
     const preview = lecteur.previsualisation(pr.tete, pr.numero);
     const fichiers = lecteur.fichiers(pr.numero);
-    const impact = impactDePr({ pr, fichiers, vault, logiciel, socle });
+    let impact = impactDePr({ pr, fichiers, vault, logiciel, socle });
     let etat = "pas de prévisualisation pour ce commit (ni déploiement GitHub, ni statut Vercel)";
     if (preview && preview.etat !== "success") etat = `prévisualisation « ${preview.etat} », pas encore jouable`;
     else if (preview && !preview.adresse) etat = `prévisualisation prête (${preview.source}), mais son adresse est introuvable`;
     else if (preview) {
       const access = await ouverte(preview.adresse);
       etat = `prévisualisation prête (${preview.source}), ${preview.adresse}, ${access.ouverte ? `répond sans connexion (code ${access.code})` : `pas jouable : ${access.raison}`}`;
+      if (access.ouverte) impact = await ecarterLangue(impact, { vault, logiciel, base: preview.adresse, langue });
     }
     lines.push(`PR #${pr.numero} (${pr.tete.slice(0, 7)}) « ${pr.titre ?? ""} » : ${etat}.`);
     lines.push(`  ${fichiers.length} fichier(s) : ${fichiers.join(", ") || "aucun"}`);
     lines.push(`  tests rejoués : ${impact.ids.join(", ") || "aucun"} ; écartés : ${impact.ecartes.map((e) => e.id).join(", ") || "aucun"}`);
+    const language = impact.ecartes.find((e) => e.raison.startsWith("langue du site changée"));
+    if (language) lines.push(`  ${language.raison} (${impact.ecartes.filter((e) => e.raison === language.raison).map((e) => e.id).join(", ")})`);
   }
   return lines;
 }
@@ -149,7 +192,7 @@ function runNode(args) {
 // exploration of the whole site of the preview (exploration.mjs, public mode: mechanical checks and Holo), unless
 // `exploration` is null. Everything in <sortie>/pr-<numéro>-<sha court>/. A scene that fails is written in the report,
 // never thrown: the other one still runs, and the wake-up goes on with the next PR.
-export async function jouerPr({ pr, fichiers, vault, logiciel, socle, sortie, sceneArgs = [], exploration = { max: 8, pagesCliquees: 4 } }, run = runNode) {
+export async function jouerPr({ pr, fichiers, vault, logiciel, socle, sortie, sceneArgs = [], exploration = { max: 8, pagesCliquees: 4 }, langue = langueDePage }, run = runNode) {
   const started = performance.now();
   const folder = join(sortie, `pr-${pr.numero}-${pr.tete.slice(0, 7)}`);
   mkdirSync(folder, { recursive: true });
@@ -169,11 +212,16 @@ export async function jouerPr({ pr, fichiers, vault, logiciel, socle, sortie, sc
     }
   };
   try {
-    const impact = impactDePr({ pr, fichiers, vault, logiciel, socle });
+    const impact = await ecarterLangue(impactDePr({ pr, fichiers, vault, logiciel, socle }), { vault, logiciel, base: pr.previsualisation, langue });
     const impactFile = join(folder, "impact.json");
     writeFileSync(impactFile, `${JSON.stringify(impact, null, 2)}\n`);
     report.impact_ms = performance.now() - started;
     console.log(`réveil PR : #${pr.numero} (${pr.tete.slice(0, 7)}), ${fichiers.length} fichier(s) modifié(s), ${impact.retenus.length} test(s) retenu(s), ${impact.ecartes.length} écarté(s).`);
+    const language = impact.ecartes.find((e) => e.raison.startsWith("langue du site changée"));
+    if (language) {
+      report.langue = language.raison;
+      console.log(`réveil PR : ${language.raison}.`);
+    }
     if (impact.retenus.length) {
       await step("parcours", ["automatisation/scene/parcours.mjs", "--impact", impactFile, "--base-url", pr.previsualisation, "--logiciel", logiciel, "--vault", vault,
         "--pr", pr.adresse, "--sortie", join(folder, "scene"), ...sceneArgs]);

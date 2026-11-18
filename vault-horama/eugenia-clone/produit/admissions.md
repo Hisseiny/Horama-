@@ -4,6 +4,8 @@ url: /admissions
 # La page, et le fichier de données des étapes, des chiffres et des questions.
 code: ["src/pages/admissions.astro", "src/data/admissions.ts"]
 vues: []
+# Langue de la page (<html lang>) : une prévisualisation dans une autre langue écarte les tests de cette page (réveil par PR, #122).
+langue: fr
 # Deux lectures du 18/11 à 1280 × 900 : 0 pixel d'écart sur le premier écran, aucune zone à ignorer.
 zones_ignorees: []
 ---

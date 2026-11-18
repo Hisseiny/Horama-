@@ -4,6 +4,8 @@ url: /programmes
 # La page, et le fichier de données du tableau « Bachelor ou Master ? » (lignes Durée, Rythme, Admission...).
 code: ["src/pages/programmes.astro", "src/data/programmes.ts"]
 vues: []
+# Langue de la page (<html lang>) : une prévisualisation dans une autre langue écarte les tests de cette page (réveil par PR, #122).
+langue: fr
 # Deux lectures du 18/11 à 1280 × 900 : 0 pixel d'écart sur le premier écran, aucune zone à ignorer.
 zones_ignorees: []
 ---
