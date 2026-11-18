@@ -34,7 +34,8 @@ main { max-width: 1440px; margin: 0 auto; padding: 40px 32px 96px; }
 
 .entete { border-bottom: 1px solid var(--encre); }
 .entete-ligne { max-width: 1440px; margin: 0 auto; padding: 14px 32px; display: flex; align-items: baseline; gap: 24px; position: relative; }
-.marque { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; text-decoration: none; }
+.marque { display: inline-flex; align-self: center; padding: 4px 8px; border-radius: 8px; background: #f2ecdd; line-height: 0; text-decoration: none; }
+.marque img { display: block; height: 24px; width: auto; }
 .contexte { flex: 1; }
 .factice { font-size: 17px; color: var(--texte-second); }
 
@@ -66,17 +67,18 @@ main { max-width: 1440px; margin: 0 auto; padding: 40px 32px 96px; }
 .hl-acceptee, .hl-non_testee { padding-inline: 0; text-decoration: underline 2px; text-underline-offset: 0.28em; }
 .hl-non_testee { text-decoration-style: dotted; }
 
-/* ---------- Verdict blocks: full colour, graphite text ---------- */
+/* ---------- Verdict blocks: a light card, the state on its left edge (one colour stands out, not a page of colour) ---------- */
 
-.bloc { padding: 20px 24px; border-radius: var(--rayon); color: var(--encre); --texte-second: var(--encre); }
-.bloc-defaut { background: var(--etat-defaut); }
-.bloc-conforme { background: var(--etat-conforme); }
-.bloc-a_trancher { background: var(--etat-a-trancher); }
+.bloc { padding: 20px 24px; border-radius: var(--rayon); color: var(--encre); --texte-second: var(--encre); background: var(--surface); border: 1px solid var(--filet-leger); box-shadow: 0 1px 2px rgb(42 33 99 / 0.06); }
+.bloc-defaut { border-left: 8px solid var(--etat-defaut); background: color-mix(in srgb, var(--etat-defaut) 9%, var(--surface)); }
+.bloc-conforme { border-left: 8px solid var(--etat-conforme); }
+.bloc-a_trancher { border-left: 8px solid var(--etat-a-trancher); background: color-mix(in srgb, var(--etat-a-trancher) 18%, var(--surface)); }
 .bloc-non_concluant, .bloc-acceptee, .bloc-non_testee { border: 1px solid var(--encre); }
 .bloc-non_testee { border-style: dotted; }
 
 /* ---------- Standard controls ---------- */
 
+.kbd { display: inline-grid; place-items: center; min-width: 22px; height: 22px; margin-left: 10px; padding: 0 5px; border: 1px solid currentColor; border-radius: 5px; font: 700 13px/1 var(--police-mono); opacity: 0.75; }
 .bouton { display: inline-block; padding: 12px 22px; font: inherit; font-weight: 700; line-height: 1.2; text-decoration: none; color: var(--fond); background: var(--encre); border: 1px solid var(--encre); border-radius: var(--rayon); cursor: pointer; }
 .bouton:hover { background: var(--texte-second); }
 .bouton-second { color: var(--encre); background: transparent; }
@@ -95,7 +97,8 @@ td { padding: 14px; vertical-align: top; border-bottom: 1px solid var(--filet-le
 
 /* ---------- A capture of the tested software, or the frame that waits for it ---------- */
 
-.capture-cadre { position: relative; aspect-ratio: 1280 / 900; background: var(--surface); border: 1px solid var(--encre); border-radius: var(--rayon); }
+.capture-cadre { position: relative; aspect-ratio: 1280 / 900; background: var(--surface); border: 1px solid var(--filet-leger); border-radius: var(--rayon); box-shadow: 0 2px 10px rgb(42 33 99 / 0.08); }
+.capture-contenu { position: absolute; inset: 0; }
 .capture-cadre img { display: block; width: 100%; height: 100%; border-radius: inherit; }
 .capture-attendue { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 12px; text-align: center; font-size: 17px; color: var(--texte-second); }
 .capture-attendue code { font-size: 17px; color: var(--encre); overflow-wrap: anywhere; }

@@ -36,5 +36,6 @@
 .ecran-regles ul { margin-top: 8px; }
 .regle-phrase { font-size: 1.15rem; line-height: 1.55; }
 .regle-ligne { margin-top: 4px; font-size: 16px; }
+.regle-ligne summary { cursor: pointer; width: fit-content; }
 .regle-marge { font-size: 17px; color: var(--texte-second); }
 .regle-marge b { font-size: 1.15rem; font-weight: 700; color: var(--encre); white-space: nowrap; }

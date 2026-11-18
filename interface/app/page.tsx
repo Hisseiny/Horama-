@@ -36,7 +36,7 @@ export default async function Accueil() {
     if (resultat) return <b>{measure(resultat)}</b>;
     if (r.etat === "conforme") return "conforme au dernier passage";
     if (r.etat === "acceptee") return "test accepté, pas encore joué";
-    return r.ligne ? "aucun test" : "aucune ligne regle:";
+    return r.ligne ? "pas encore testée" : "pas encore calculable";
   };
 
   // Screens, most serious first.
@@ -133,7 +133,7 @@ export default async function Accueil() {
                       <li key={r.phrase} className="regle">
                         <div>
                           <p className="regle-phrase"><Highlight etat={r.etat}>{r.phrase}</Highlight></p>
-                          {r.ligne && <p className="regle-ligne mono second">{r.ligne}</p>}
+                          {r.ligne && <details className="regle-ligne"><summary className="second">Règle calculable</summary><p className="mono second">{r.ligne}</p></details>}
                         </div>
                         <p className="regle-marge mono">{margin(r)}</p>
                       </li>

@@ -25,7 +25,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <body>
         <header className="entete">
           <div className="entete-ligne">
-            <Link href="/" className="marque">Horama</Link>
+            <Link href="/" className="marque" aria-label="Horama, accueil"><img src="/logo-horama.png" alt="Horama" width={115} height={24} /></Link>
             <p className="contexte">{l.nom}, version {l.version_testee} testée contre la version {l.version_reference}</p>
             {FACTICE && <p className="factice">Données factices</p>}
             <details className="vault">

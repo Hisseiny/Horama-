@@ -1,19 +1,20 @@
-/* Jetons provisoires (une designer les remplacera). Aucune couleur n'est écrite ailleurs que dans ce fichier. */
+/* Jetons de la direction artistique (CDO) : la palette de Horama. Aucune couleur n'est écrite ailleurs que dans ce fichier. */
 :root {
-  --fond: #f2eee5; /* crème */
-  --encre: #232629; /* graphite */
+  --fond: #f6f4fb; /* lilas très clair */
+  --encre: #2a2163; /* violet de l'œil, pour le texte : 14:1 sur le fond */
 
-  /* Les trois couleurs ne disent qu'un état, jamais un décor. */
-  --etat-conforme: #c9ee63; /* lime */
-  --etat-defaut: #ff6e57; /* corail */
-  --etat-a-trancher: #f4df73; /* jaune */
+  /* Les trois couleurs ne disent qu'un état, jamais un décor. Le doute est lavande, comme dans la scène. */
+  --etat-conforme: #b6e36b; /* citron */
+  --etat-defaut: #f26b5b; /* corail */
+  --etat-a-trancher: #c9c4e2; /* lavande */
 
-  /* Nuances dérivées du crème et du graphite. */
-  --surface: #fbf9f4;
-  --filet-leger: #cdc6b6;
-  --texte-second: #565b5f;
+  /* Nuances dérivées. */
+  --surface: #ffffff;
+  --filet-leger: #dcd7ec;
+  --texte-second: #544f73; /* 7,4:1 sur le fond */
+  --accent: #7f77dd; /* iris de l'œil */
 
-  --rayon: 6px;
+  --rayon: 12px;
   --police-texte: "Atkinson Hyperlegible Next Variable", system-ui, sans-serif;
   --police-mono: "Atkinson Hyperlegible Mono Variable", ui-monospace, monospace;
 }

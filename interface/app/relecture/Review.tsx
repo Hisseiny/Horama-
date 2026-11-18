@@ -2,7 +2,7 @@
 
 import type { Decision } from "@horama/contrats";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Highlight } from "../../components/Highlight";
 import { Screenshot, type ScreenshotImage, type Zone } from "../../components/Screenshot";
 import { decide } from "../actions";
@@ -26,6 +26,17 @@ export function Review({ passage, cases }: { passage: string; cases: Case[] }) {
   const router = useRouter();
   const [decisions, setDecisions] = useState<Record<string, Decision["decision"]>>({});
   const count = (etat: Case["etat"]) => cases.filter((c) => c.etat === etat).length;
+  // B and V answer the first case still open, as the buttons show.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.ctrlKey || event.metaKey || event.altKey || (event.target as HTMLElement).closest("input, textarea")) return;
+      const open = cases.find((c) => !decisions[c.key]);
+      const key = event.key.toLowerCase();
+      if (open && (key === "b" || key === "v")) settle(open, key === "b" ? "bug" : "voulu");
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
 
   async function settle(c: Case, decision: Decision["decision"]) {
     const written = await decide(passage, c.test_id, c.ecart_id, decision);
@@ -84,7 +95,7 @@ export function Review({ passage, cases }: { passage: string; cases: Case[] }) {
           </dl>
 
           <div className="cas-captures">
-            {c.images.map((i) => <Screenshot key={i.legende} {...i} />)}
+            {c.images.map((i) => <Screenshot key={i.legende} {...i} recadrer />)}
           </div>
 
           {decisions[c.key] ? (
@@ -93,8 +104,8 @@ export function Review({ passage, cases }: { passage: string; cases: Case[] }) {
             </p>
           ) : (
             <div className="boutons">
-              <button className="bouton" onClick={() => settle(c, "bug")}>C'est un bug</button>
-              <button className="bouton" onClick={() => settle(c, "voulu")}>C'est voulu</button>
+              <button className="bouton" aria-keyshortcuts="B" onClick={() => settle(c, "bug")}>✕ C'est un bug<span className="kbd">B</span></button>
+              <button className="bouton" aria-keyshortcuts="V" onClick={() => settle(c, "voulu")}>✓ C'est voulu<span className="kbd">V</span></button>
             </div>
           )}
         </article>
