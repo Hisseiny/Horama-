@@ -6,7 +6,7 @@ import { deflateSync } from "node:zlib";
 import { afterEach, beforeEach, test } from "node:test";
 import { ecrireDecision } from "@horama/memoire";
 import { BaseMemoire } from "./src/base.ts";
-import { construireExploration, explorer, explorationStepBudget } from "./src/exploration/explorer.ts";
+import { construireExploration, exclusionLabel, explorer, explorationPassageId, explorationStepBudget } from "./src/exploration/explorer.ts";
 import type { ExplorerDependencies } from "./src/exploration/explorer.ts";
 import { lireArguments } from "./src/exploration/cli.ts";
 import { libelleAction } from "./src/session.ts";
@@ -386,7 +386,7 @@ test("URL courante : réécriture, refus hors liste et repli illisible", async (
   assert.deepEqual(result.navigation.arrivees, { faq: "adresse", accueil: "depart" });
 });
 
-test("modes d'arrivée et compteurs des actions composées, sans champ sur disque", async () => {
+test("modes d'arrivée sérialisés, compteurs des actions composées seulement en mémoire", async () => {
   let address = "https://example.org/";
   const logs: string[] = [];
   const { result } = await run({ deps: {
@@ -410,10 +410,37 @@ test("modes d'arrivée et compteurs des actions composées, sans champ sur disqu
   } });
   assert.deepEqual(result.navigation, { arrivees: { accueil: "depart", faq: "clic" }, clics: 1, defilements: 2, goTo: 0, defilementsDepart: 2 });
   assert.ok(logs.includes("faq : clic"));
-  assert.ok(!("navigation" in JSON.parse(readFileSync(join(root, "out/exploration.json"), "utf8"))));
+  const report = JSON.parse(readFileSync(join(root, "out/exploration.json"), "utf8"));
+  assert.ok(!("navigation" in report));
+  assert.deepEqual(report.pages.map((page: { arrivee?: string }) => page.arrivee), ["depart", "clic"]);
+  for (const page of report.pages) {
+    assert.deepEqual(Object.keys(page).sort(), ["ecran", "url", "ordre", "trouvee_par", "agent", "etat", "http", "debut", "fin", "capture", "reference", "holo", "statut", "cookies", "arrivee"].sort());
+  }
   const ordinary = await run();
   assert.deepEqual(ordinary.result.navigation.arrivees, { accueil: "depart", faq: "adresse" });
   assert.equal(ordinary.result.navigation.goTo, 2);
+  assert.deepEqual(ordinary.result.pages.map(page => page.arrivee), ["depart", "adresse"]);
+  const skipped = await run({ skip: "faq" });
+  const unknown = skipped.result.pages.find(page => page.ecran === "faq")!;
+  assert.ok(!("arrivee" in unknown));
+});
+
+test("identifiant de passage à l'heure de Paris, hiver, été et changement de date", () => {
+  for (const [date, prefix] of [
+    ["2026-01-12T23:30:00Z", "2026-01-13-00h30"],
+    ["2026-07-12T22:30:00Z", "2026-07-13-00h30"],
+    ["2026-03-29T00:30:00Z", "2026-03-29-01h30"],
+    ["2026-03-29T01:30:00Z", "2026-03-29-03h30"],
+  ]) assert.match(explorationPassageId(new Date(date)), new RegExp(`^${prefix}-[a-f0-9]{4}$`));
+  assert.throws(() => explorationPassageId(new Date("invalide")), RangeError);
+});
+
+test("raison de sélection traduite seulement pour le récapitulatif lisible", () => {
+  const excluded = { url: "https://example.org/blog/article", raison: "section-limit" };
+  assert.equal(exclusionLabel(excluded.raison), "limite de pages par rubrique atteinte");
+  assert.equal(excluded.raison, "section-limit");
+  assert.equal(exclusionLabel("robots.txt"), "robots.txt");
+  assert.equal(exclusionLabel(""), "");
 });
 
 test("clic avant le relevé de départ : départ exclu des pages cliquées et clic remis à zéro", async () => {
