@@ -59,6 +59,29 @@ function inspectDocument() {
       add("image_cassee", "Une image chargée ne peut pas être décodée.", image.currentSrc || image.src, image);
     }
   }
+  // Union of the in-flow text of an element: clipped text (screen-reader only) and text placed on purpose
+  // (absolute or fixed position, transform, SVG) inside the element are ignored.
+  const textBounds = (element: Element) => {
+    let bounds: { left: number; right: number; top: number; bottom: number } | undefined;
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const parent = node.parentElement;
+      if (!parent || !(node.textContent ?? "").trim() || !visible(parent)) continue;
+      let hidden = false;
+      for (let ancestor: Element | null = parent; ancestor && !hidden; ancestor = ancestor === element ? null : ancestor.parentElement) {
+        const style = getComputedStyle(ancestor);
+        hidden = style.clip !== "auto" || style.clipPath !== "none" || (ancestor !== element && (ancestor instanceof SVGElement || style.position === "absolute" || style.position === "fixed" || style.transform !== "none"));
+      }
+      if (hidden) continue;
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      for (const rect of range.getClientRects()) {
+        if (!rect.width || !rect.height) continue;
+        bounds = bounds ? { left: Math.min(bounds.left, rect.left), right: Math.max(bounds.right, rect.right), top: Math.min(bounds.top, rect.top), bottom: Math.max(bounds.bottom, rect.bottom) } : { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
+      }
+    }
+    return bounds;
+  };
   const pattern = /(?<![\p{L}\p{N}_])(?:undefined|NaN|null|lorem\s+ipsum)(?![\p{L}\p{N}_])|\{\{/iu;
   for (const element of [document.body, ...document.body.querySelectorAll("*")]) {
     if (!visible(element) || element.matches("script,style,noscript,template")) continue;
@@ -69,8 +92,15 @@ function inspectDocument() {
     if (element.children.length && !element.matches("button,a")) continue;
     const style = getComputedStyle(element);
     if ([style.overflowX, style.overflowY].some(value => ["hidden", "clip", "auto", "scroll"].includes(value)) || style.textOverflow === "ellipsis") continue;
-    const lineHeight = style.lineHeight === "normal" ? parseFloat(style.fontSize) * 1.2 : parseFloat(style.lineHeight);
-    if (element.clientWidth > 0 && element.clientHeight > 0 && (element.scrollWidth > element.clientWidth + 1 || element.scrollHeight - element.clientHeight > lineHeight / 2)) {
+    if (!element.clientWidth || !element.clientHeight || (element.scrollWidth <= element.clientWidth + 1 && element.scrollHeight <= element.clientHeight + 1)) continue;
+    const box = element.getBoundingClientRect();
+    if (box.right + scrollX <= 0 || box.bottom + scrollY <= 0) continue;
+    const ink = textBounds(element);
+    if (!ink) continue;
+    const lineHeight = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.2;
+    const across = Math.max(0, box.left - ink.left) + Math.max(0, ink.right - box.right);
+    const down = Math.max(0, box.top - ink.top) + Math.max(0, ink.bottom - box.bottom);
+    if (across > 3 || down > Math.max(3, lineHeight / 2)) {
       add("debordement", "Le texte dépasse la boîte de son conteneur.", `${element.scrollWidth}×${element.scrollHeight} > ${element.clientWidth}×${element.clientHeight}`, element);
     }
   }
