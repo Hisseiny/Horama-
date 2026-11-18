@@ -83,7 +83,7 @@ function inspectDocument() {
         if (descendantClipping) {
           for (let ancestor: Element | null = parent; ancestor && ancestor !== element; ancestor = ancestor.parentElement) {
             const style = getComputedStyle(ancestor);
-            if (style.display === "contents") continue;
+            if (style.display === "inline" || style.display === "contents") continue;
             const box = ancestor.getBoundingClientRect();
             const scaleX = box.width / (ancestor as HTMLElement).offsetWidth || 1, scaleY = box.height / (ancestor as HTMLElement).offsetHeight || 1;
             const x = box.left + ancestor.clientLeft * scaleX, y = box.top + ancestor.clientTop * scaleY;

@@ -127,3 +127,22 @@ agent check: Done
 ```
 
 Pas de nouvelle exploration publique pour ces deux corrections ; vérification ciblée par les fixtures Chrome, sans inspection visuelle supplémentaire.
+
+### Descendant inline non découpant
+
+Depuis `fe65c62`, correction supplémentaire : les descendants `display:inline`, comme `display:contents`, ne sont pas utilisés comme boîtes de découpage dans l’intersection de texte. Un test Chrome vérifie qu’un parent de 100 px qui coupe le mot allemand dans un `span` inline avec `overflow:hidden` reste signalé (`#inline-clipping-parent`). Le comportement de `debordement` n’est pas modifié.
+
+`pnpm -r --if-present run check` : code 0. Journal : `/home/ubuntu/horama-156-inline-check.log`.
+
+```text
+agent check: 1..253
+agent check: # tests 259
+agent check: # suites 0
+agent check: # pass 259
+agent check: # fail 0
+agent check: # cancelled 0
+agent check: # skipped 0
+agent check: # todo 0
+agent check: # duration_ms 17100.225463
+agent check: Done
+```
