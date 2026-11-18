@@ -1,21 +1,31 @@
-/* Squelette (#68, étape 3) : couleurs provisoires et neutres, la direction artistique vient ensuite (/taste). */
-:root {
-  --encre: #1c1c1c;
-  --gris: #6b6b6b;
-  --filet: #e2e2e2;
-  --fond: #ffffff;
-  --defaut: #e5484d;
-  --doute: #e8a33d;
-  --bon: #2e9e5b;
-  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
-  color: var(--encre);
-  background: var(--fond);
-}
-body { margin: 0; }
-h1, h2, h3 { line-height: 1.2; }
-a { color: inherit; }
-button { font: inherit; padding: 9px 16px; border: 0; background: var(--encre); color: #fff; cursor: pointer; }
-button:disabled { opacity: 0.4; cursor: default; }
-input { font: inherit; padding: 8px 10px; border: 1px solid var(--filet); width: 100%; box-sizing: border-box; }
-.erreur { color: var(--defaut); }
-.second { color: var(--gris); }
+/* L'extension dans la charte « L'envoyé » (docs/da/charte-graphique.md) : les variables, les polices et les objets
+   viennent de envoye.css, copié tel quel de la charte ; ici, ce qui est propre à l'extension. */
+body { background: var(--engobe); color: var(--encre); }
+.erreur { color: var(--miltos); }
+.second { color: var(--encre-2); }
+
+/* le bandeau : ciel, soleil, mot de marque, mascotte */
+.haut { position: relative; background: var(--aile-2); border-bottom: var(--trait) solid var(--encre); overflow: hidden; }
+.haut .astre { position: absolute; border-radius: 50%; background: var(--soleil); border: var(--trait) solid var(--encre); }
+.haut .mot { position: absolute; }
+.haut .m { position: absolute; }
+.m svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+/* la mascotte de la charte (docs/da/mascotte/, PR #130) : les ailes battent, l'œil cligne, comme dans la scène */
+.m .wing { transform-box: view-box; animation: flap 480ms ease-in-out infinite alternate; }
+.m .wing-l { --dir: -1; transform-origin: 30px 46px; }
+.m .wing-r { --dir: 1; transform-origin: 66px 46px; }
+.m .eyeball { transform-box: view-box; transform-origin: 48px 48px; animation: blink 4.2s ease-in-out infinite; }
+@keyframes flap { from { transform: rotate(0deg); } to { transform: rotate(calc(var(--dir) * 16deg)) scaleY(0.9); } }
+@keyframes blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
+
+/* le carré d'état d'une page : coche olivier, « ! » miltos, « ? » ocre, rond lilas qui bat en visite */
+.etat { width: 18px; height: 18px; border: 2.2px solid var(--encre); flex: none; font: 800 12px/14px var(--texte); text-align: center; color: #fff; font-style: normal; }
+.etat.c { background: var(--olivier); }
+.etat.t { background: var(--miltos); }
+.etat.d { background: var(--ocre); }
+.etat.v { border-radius: 50%; background: var(--aile); animation: bat 1.2s ease-in-out infinite; }
+.etat.a { background: transparent; border-style: dashed; border-color: var(--encre-2); }
+.etat.n { background: var(--encre-2); }
+@keyframes bat { 50% { transform: scale(0.82); } }
+@media (prefers-reduced-motion: reduce) { .m .wing, .m .eyeball, .etat.v { animation: none; } }

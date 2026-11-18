@@ -1,12 +1,16 @@
 <!doctype html>
 <html lang="fr">
-<head><meta charset="utf-8"><title>Horama : options</title><link rel="stylesheet" href="commun.css"><style>body{max-width:520px;padding:24px}form{display:grid;gap:8px}</style></head>
+<head><meta charset="utf-8"><title>Horama : options</title><link rel="stylesheet" href="envoye.css"><link rel="stylesheet" href="commun.css">
+<style>body{max-width:560px;padding:32px 28px}h1{font:400 44px/1 var(--affiche);margin:0 0 22px}form{display:grid;gap:12px;justify-items:start}label{font:600 14px var(--texte)}
+input{width:100%;height:46px;padding:0 16px;background:var(--papier);border:2.5px solid var(--encre);border-radius:999px;font:500 14px var(--mesure);color:var(--encre)}
+input:focus{outline:3px solid var(--iris);outline-offset:2px}.bouton{margin:6px 0 0 18px}</style></head>
 <body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="aile-g" viewBox="0 22 32 35"><path d="M30 46C24 30 10 24 2 28c6 3 7 7 5 10 5 1 7 5 5 8 5 1 8 5 7 9 5-1 9-4 11-9Z"/></symbol><symbol id="aile-d" viewBox="64 22 32 35"><path d="M66 46C72 30 86 24 94 28c-6 3-7 7-5 10-5 1-7 5-5 8-5 1-8 5-7 9-5-1-9-4-11-9Z"/></symbol></svg>
   <h1>Options</h1>
   <form>
     <label for="service">Adresse du service Horama</label>
     <input id="service" type="url" required>
-    <button type="submit">Enregistrer</button>
+    <button class="bouton petit" type="submit"><svg class="aile g" aria-hidden="true"><use href="#aile-g"/></svg><svg class="aile d" aria-hidden="true"><use href="#aile-d"/></svg>Enregistrer</button>
   </form>
   <p id="message" role="status" class="second"></p>
   <script src="service.js"></script>
