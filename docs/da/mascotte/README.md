@@ -12,6 +12,8 @@ Ces états suivent la charte « L'envoyé » (18/11), section 3 : la mascotte d'
 
 `bloquee` n'existe pas dans la charte. Il est proposé dans le même système, avec l'encre secondaire de la charte et non une couleur d'état : il n'affirme rien, il dit seulement que la visite s'arrête. À valider par le responsable de la scène.
 
+Le trait de la mascotte est en encre `#1C1C1C`, comme dans `docs/da/mascotte.js` (aligné le 18/11).
+
 ## Format
 
 - Un SVG et un PNG transparent par état, **512 × 512**. Le cadrage est le même pour tous (celui de `mascotte.js`) : la mascotte ne saute pas d'un état à l'autre.

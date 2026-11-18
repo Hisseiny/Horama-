@@ -51,9 +51,9 @@ Miltos et olivier sont réservés aux états.
 
 ```svg
 <svg viewBox="26 26 44 44">
-  <circle cx="48" cy="48" r="20" fill="#fff" stroke="#2B2B2B" stroke-width="3"/>
+  <circle cx="48" cy="48" r="20" fill="#fff" stroke="#1C1C1C" stroke-width="3"/>
   <circle cx="48" cy="48" r="10.5" fill="#7F77DD"/>
-  <circle cx="48" cy="48" r="4.6" fill="#2B2B2B"/>
+  <circle cx="48" cy="48" r="4.6" fill="#1C1C1C"/>
   <circle cx="51.6" cy="44.4" r="2.2" fill="#fff"/>
 </svg>
 ```
