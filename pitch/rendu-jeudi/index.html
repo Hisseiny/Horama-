@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Horama · rendu du jeudi 19/11 à 8 h</title>
+<link rel="stylesheet" href="../../docs/da/envoye.css">
+<style>
+  @page { size: 1920px 1080px; margin: 0; }
+  html, body { margin: 0; background: #d9d2c0; }
+  body { font-size: 24px; line-height: 1.4; }
+  .slide { width: 1920px; height: 1080px; position: relative; overflow: hidden; background: var(--engobe); margin: 0 auto 40px; break-after: page; }
+  @media print { html, body { background: var(--engobe); } .slide { margin: 0; } }
+
+  .haut { position: absolute; left: 96px; right: 96px; top: 52px; display: flex; align-items: center; gap: 28px; }
+  .haut .mot { font-size: 40px; }
+  .haut .ou { font: 500 19px/1 var(--mesure); color: var(--encre-2); }
+  .haut .num { margin-left: auto; font: 500 19px/1 var(--mesure); color: var(--encre-2); }
+  h2 { position: absolute; left: 96px; top: 130px; font-size: 72px; line-height: .98; max-width: 1500px; }
+  .chapeau { position: absolute; left: 96px; top: 214px; font-size: 26px; color: var(--encre-2); max-width: 1500px; margin: 0; }
+
+  /* états d'avancement : le soleil marque ce qui est prouvé, le pointillé ce qui reste */
+  .etat { display: inline-block; font: 600 17px/1 var(--mesure); padding: 7px 12px 6px; border: 2.5px solid var(--encre); border-radius: 999px; white-space: nowrap; color: var(--encre); background: var(--papier); vertical-align: middle; }
+  .etat.fait { background: var(--soleil); }
+  .etat.cours { background: var(--papier); }
+  .etat.vendredi { background: transparent; border-style: dashed; }
+  .nuit .etat.vendredi { color: #F3EEFF; border-color: #F3EEFF; }
+  .preuve { font: 500 17px/1.35 var(--mesure); color: var(--encre-2); }
+
+  /* ---------- 1. parcours ---------- */
+  .modes { position: absolute; left: 96px; right: 96px; top: 290px; bottom: 96px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+  .bloc { border: var(--trait) solid var(--encre); border-radius: 32px; padding: 38px 44px 30px; position: relative; }
+  .bloc.jour { background: var(--soleil-2); }
+  .bloc.nuit { background: var(--nuit); color: #F3EEFF; }
+  .bloc .pour { font: 600 19px/1 var(--mesure); }
+  .bloc.nuit .pour { color: var(--aile); }
+  .bloc h3 { font-size: 40px; line-height: 1.02; margin: 14px 0 10px; max-width: 18ch; }
+  .bloc .mal { margin: 0 0 22px; font-size: 22px; max-width: 34ch; }
+  .bloc.nuit .mal { color: #D9D4F2; }
+  .bloc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 13px; }
+  .bloc li { display: grid; grid-template-columns: 34px 1fr auto; gap: 14px; align-items: baseline; font-size: 21px; line-height: 1.3; }
+  .bloc li i { font: 400 24px/1 var(--affiche); font-style: normal; }
+  .bloc .masc { position: absolute; right: 26px; top: 18px; width: 120px; }
+  .bloc .pied { margin-top: 18px; font: 500 16px/1.35 var(--mesure); opacity: .8; }
+
+  /* ---------- 2. architecture ---------- */
+  .archi { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+  .archi svg.fils { position: absolute; left: 0; top: 0; overflow: visible; }
+  .fils path { fill: none; stroke: var(--encre); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+  .fils path.pts { stroke-width: 4; stroke-dasharray: 0 11; }
+  .fils path.rouge { stroke: var(--miltos); }
+  .boite { position: absolute; background: var(--papier); border: var(--trait) solid var(--encre); border-radius: 16px; padding: 26px 22px 18px; }
+  .boite b { display: block; font: 700 23px/1.2 var(--texte); }
+  .boite span { display: block; font-size: 18.5px; line-height: 1.32; margin-top: 6px; color: var(--encre-2); }
+  .boite .etat { position: absolute; right: 14px; top: -18px; font-size: 15px; display: inline-block; margin: 0; }
+  .boite.nuit .etat, .boite .etat { color: var(--encre); }
+  .boite span.signe-plein, .boite span.signe-doute { display: inline-block; margin-top: 0; }
+  .boite.nuit { background: var(--nuit); color: #F3EEFF; }
+  .boite.nuit span { color: #D9D4F2; }
+  .boite.jour { background: var(--soleil-2); }
+  .boite.agent { background: var(--aile-2); }
+  .tag { position: absolute; font: 600 18px/1 var(--mesure); }
+  .legende { position: absolute; left: 96px; bottom: 54px; display: flex; gap: 22px; align-items: center; font-size: 19px; }
+  .chapeau.pile { top: 222px; font: 500 18px/1.4 var(--mesure); max-width: none; }
+  .signe-plein { display: inline-block; width: 46px; height: 0; border-top: 4px solid var(--miltos); vertical-align: middle; margin-right: 8px; }
+  .signe-doute { display: inline-block; width: 46px; height: 8px; vertical-align: middle; margin-right: 8px; background-image: radial-gradient(circle, var(--ocre) 3px, transparent 3.5px); background-size: 11px 8px; background-repeat: repeat-x; }
+
+  /* ---------- 3. loom ---------- */
+  .piece { position: absolute; left: 96px; top: 300px; }
+  .piece .feuille { width: 900px; transform: rotate(-1.2deg); }
+  .piece .vue img { width: 100%; height: auto; }
+  .piece .pli { position: absolute; left: 660px; top: 410px; transform: rotate(2.5deg); width: 300px; }
+  .piece .accord { margin: 26px 0 0 8px; font: 500 16px/1.4 var(--mesure); color: var(--encre-2); max-width: 880px; }
+  .droite { position: absolute; left: 1100px; right: 96px; top: 300px; }
+  .lien { display: flex; align-items: center; gap: 16px; background: var(--papier); border: var(--trait) solid var(--encre); border-radius: 999px; padding: 18px 28px; font: 500 24px/1 var(--mesure); }
+  .lien .vide { color: var(--encre-2); }
+  .lien .vide::before { content: "loom.com/share/"; color: var(--encre); }
+  .droite h3 { font-size: 40px; margin: 46px 0 16px; }
+  .droite ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
+  .droite li { font-size: 22px; line-height: 1.3; padding-left: 30px; position: relative; }
+  .droite li::before { content: ""; position: absolute; left: 0; top: 9px; width: 14px; height: 14px; border-radius: 50%; background: var(--soleil); border: 2.5px solid var(--encre); }
+  .droite li.pas::before { background: transparent; border-style: dashed; }
+  .droite li .preuve { display: block; margin-top: 3px; }
+
+  /* ---------- 4. feuille de route ---------- */
+  .jours { position: absolute; left: 96px; right: 96px; top: 300px; display: grid; grid-template-columns: 1.35fr 1fr; gap: 40px; }
+  .jour-col { border: var(--trait) solid var(--encre); border-radius: 32px; padding: 34px 40px 30px; background: var(--papier); position: relative; }
+  .jour-col.ven { background: var(--aile-2); }
+  .jour-col h3 { font-size: 44px; margin-bottom: 20px; }
+  .jour-col h3 small { font: 500 20px/1 var(--mesure); color: var(--encre-2); margin-left: 12px; }
+  .jour-col ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 20px; }
+  .jour-col li { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: baseline; font-size: 25px; line-height: 1.32; padding-bottom: 20px; border-bottom: 2px solid var(--filet); }
+  .jour-col li:last-child { border-bottom: 0; padding-bottom: 0; }
+  .jour-col li b { font-weight: 700; }
+  .jour-col li .qui { font: 500 17px/1.3 var(--mesure); color: var(--encre-2); text-align: right; }
+  .heure { font: 600 22px/1 var(--mesure); }
+  .mvp { position: absolute; left: 96px; right: 96px; bottom: 60px; display: flex; gap: 30px; align-items: center; }
+  .mvp .ensuite { font-size: 22px; color: var(--encre-2); }
+  .vol { position: absolute; overflow: visible; pointer-events: none; }
+  .vol path { fill: none; stroke: var(--encre); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 0 12; opacity: .78; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="oeil" viewBox="26 26 44 44"><circle cx="48" cy="48" r="20" fill="#fff" stroke="#1C1C1C" stroke-width="3.6"/><circle cx="48" cy="48" r="10.5" fill="#7F77DD"/><circle cx="48" cy="48" r="4.6" fill="#1C1C1C"/><circle cx="51.6" cy="44.4" r="2.2" fill="#fff"/></symbol>
+  </defs>
+</svg>
+
+<!-- ============ 1. PARCOURS UTILISATEUR ============ -->
+<section class="slide">
+  <div class="haut"><span class="mot">H<svg class="o"><use href="#oeil"/></svg>rama</span><span class="ou">Rendu du jeudi 19/11 · équipe 11</span><span class="num">1 / 4 · parcours utilisateur</span></div>
+  <h2>Deux personnes, un même geste : bug, ou voulu ?</h2>
+  <div class="modes">
+    <div class="bloc jour">
+      <img class="masc" src="../../docs/da/mascotte/trouve.svg" alt="">
+      <span class="pour">Mode grand public · une adresse suffit</span>
+      <h3>La responsable du site d'Eugenia School</h3>
+      <p class="mal">Elle fait tout sur le site, sans personne pour relire. Un lien de son blog mène à une page introuvable : elle ne le sait pas.</p>
+      <ol>
+        <li><i>1</i><span>Sur une page de son site, elle lance Horama depuis l'extension Chrome.</span><span class="etat cours">en cours</span></li>
+        <li><i>2</i><span>Horama visite le site comme un visiteur : il lit, défile, clique.</span><span class="etat fait">fait</span></li>
+        <li><i>3</i><span>Il entoure en direct ce que le code prouve, le lien mort.</span><span class="etat fait">fait</span></li>
+        <li><i>4</i><span>Au récapitulatif, elle tranche chaque doute : bug, ou voulu.</span><span class="etat fait">fait</span></li>
+        <li><i>5</i><span>Il garde sa décision et ne la redemande pas au passage suivant.</span><span class="etat fait">fait</span></li>
+      </ol>
+      <div class="pied">joué sur eugeniaschool.com en ligne, le 18/11</div>
+    </div>
+    <div class="bloc nuit">
+      <img class="masc" src="../../docs/da/mascotte/doute.svg" alt="">
+      <span class="pour">Mode développeur · la documentation devient des tests</span>
+      <h3>Le CTO de Troov, un SaaS B2B</h3>
+      <p class="mal">Une mise en production par semaine, pas de tests de non-régression. Le bouton d'export PDF, amélioré sur une page, s'est dégradé sur les autres.</p>
+      <ol>
+        <li><i>1</i><span>L'équipe décrit ses écrans et leurs règles dans des notes Obsidian.</span><span class="etat fait">fait</span></li>
+        <li><i>2</i><span>Un développeur ouvre une PR : sa prévisualisation Vercel réveille Horama.</span><span class="etat cours">en cours</span></li>
+        <li><i>3</i><span>Horama rejoue les tests de tous les écrans touchés, pas seulement celui modifié.</span><span class="etat fait">fait</span></li>
+        <li><i>4</i><span>Le CTO tranche : bug, ou voulu. Un « voulu » propose de corriger la note.</span><span class="etat fait">fait</span></li>
+        <li><i>5</i><span>Horama répond sur la PR, captures entourées à l'appui.</span><span class="etat cours">en cours</span></li>
+      </ol>
+      <div class="pied">joué sur le site d'Eugenia et son clone, pas encore sur Troov</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 2. ARCHITECTURE ============ -->
+<section class="slide">
+  <div class="haut"><span class="mot">H<svg class="o"><use href="#oeil"/></svg>rama</span><span class="ou">Rendu du jeudi 19/11 · équipe 11</span><span class="num">2 / 4 · architecture technique</span></div>
+  <h2 style="font-size:68px;max-width:none">Il visite, le code prouve, vous tranchez.</h2>
+  <p class="chapeau pile">Node, TypeScript · Chrome (CDP) · H Company : Agents API, Holo · Hugging Face · Obsidian · Supabase · GitHub · Vercel · Railway</p>
+  <div class="archi">
+    <svg class="fils" width="1920" height="1080">
+      <!-- entrées vers l'agent -->
+      <path d="M520 400 C 560 400, 570 520, 612 520"/>
+      <path d="M520 700 C 560 700, 570 580, 612 580"/>
+      <!-- agent vers les deux regards -->
+      <path d="M952 520 C 990 520, 990 420, 1030 420"/>
+      <path d="M952 580 C 990 580, 990 680, 1030 680"/>
+      <!-- regards vers le récapitulatif -->
+      <path class="rouge" d="M1360 420 C 1395 420, 1395 520, 1430 520"/>
+      <path class="pts" d="M1360 680 C 1395 680, 1395 580, 1430 580"/>
+      <!-- récapitulatif vers les sorties -->
+      <path d="M1520 660 L 1520 725"/>
+      <path d="M1736 660 L 1736 725"/>
+      <!-- la mémoire revient au passage suivant -->
+      <path class="pts" d="M1480 900 C 1300 990, 900 990, 780 690"/>
+      <!-- flèches -->
+      <path d="M602 512 L 614 520 L 602 528"/><path d="M602 572 L 614 580 L 602 588"/>
+      <path d="M1020 412 L 1032 420 L 1020 428"/><path d="M1020 672 L 1032 680 L 1020 688"/>
+      <path d="M1420 512 L 1432 520 L 1420 528" class="rouge"/><path d="M1420 572 L 1432 580 L 1420 588"/>
+      <path d="M1512 715 L 1520 727 L 1528 715"/><path d="M1728 715 L 1736 727 L 1744 715"/>
+      <path d="M772 704 L 779 690 L 792 700"/>
+    </svg>
+
+    <span class="tag" style="left:96px;top:282px">de jour : n'importe quel site</span>
+    <div class="boite jour" style="left:96px;top:312px;width:424px">
+      <span class="etat cours">en cours</span>
+      <b>Extension Chrome</b>
+      <span>l'adresse de l'onglet ouvert, envoyée au service en ligne (Docker, Railway)</span>
+    </div>
+
+    <span class="tag" style="left:96px;top:576px">de nuit : à chaque déploiement</span>
+    <div class="boite nuit" style="left:96px;top:606px;width:424px">
+      <span class="etat cours">en cours</span>
+      <b>PR GitHub, prévisualisation Vercel</b>
+      <span>le réveil lit la PR et choisit dans le vault Obsidian les tests des écrans touchés</span>
+    </div>
+
+    <div class="boite agent" style="left:612px;top:432px;width:340px">
+      <span class="etat fait">fait</span>
+      <b>L'agent computer use de H Company</b>
+      <span>dans Chrome, il lit, défile et clique comme un visiteur ; il relève chaque page</span>
+    </div>
+
+    <div class="boite" style="left:1030px;top:330px;width:330px">
+      <span class="etat fait">fait</span>
+      <b><span class="signe-plein"></span>Le code prouve</b>
+      <span>lien mort, page en erreur, texte qui déborde, règles calculées, écart d'image</span>
+    </div>
+    <div class="boite" style="left:1030px;top:600px;width:330px">
+      <span class="etat fait">fait</span>
+      <b><span class="signe-doute"></span>Holo regarde</b>
+      <span>le modèle de vision de H voit la capture comme un humain : ce n'est qu'un doute</span>
+    </div>
+
+    <div class="boite" style="left:1430px;top:440px;width:394px">
+      <span class="etat fait">fait</span>
+      <b>Récapitulatif</b>
+      <span>chaque défaut avec sa mesure et sa capture entourée ; l'humain répond « bug » ou « voulu »</span>
+    </div>
+    <div class="boite" style="left:1430px;top:740px;width:200px;padding:16px 18px">
+      <span class="etat fait">fait</span>
+      <b>Mémoire</b>
+      <span>décisions et références, dans le vault</span>
+    </div>
+    <div class="boite nuit" style="left:1648px;top:740px;width:176px;padding:16px 18px">
+      <span class="etat cours">en cours</span>
+      <b>Réponse</b>
+      <span>sur la PR, avec les captures</span>
+    </div>
+    <span class="tag" style="left:930px;top:880px;color:var(--encre-2)">comparé au passage suivant</span>
+  </div>
+  <div class="legende"><span class="etat fait">fait</span> prouvé par un rapport de test <span class="etat cours">en cours</span> codé, pas encore joué en vrai</div>
+</section>
+
+<!-- ============ 3. LOOM ============ -->
+<section class="slide">
+  <div class="haut"><span class="mot">H<svg class="o"><use href="#oeil"/></svg>rama</span><span class="ou">Rendu du jeudi 19/11 · équipe 11</span><span class="num">3 / 4 · ce qui est réalisé</span></div>
+  <h2>Il a déjà trouvé un vrai défaut, en ligne aujourd'hui.</h2>
+  <div class="piece">
+    <div class="feuille">
+      <div class="barre"><i></i><span>eugeniaschool.com/blog/fin-de-parcoursup-ce-qui-change-premiere-terminale</span></div>
+      <div class="vue"><img src="../../docs/tests/captures/2026-11-18-repetition-reelle/02-trait-defaut.jpg" alt="Le lien des portes ouvertes entouré par Horama"></div>
+    </div>
+    <div class="pli">
+      <div class="tete"><i>!</i>Lien des portes ouvertes</div>
+      <b class="gros">404</b>
+      <div class="mesure m1">mesuré : 404, page introuvable</div>
+      <div class="mesure">attendu : une réponse sous 400</div>
+    </div>
+    <p class="accord">Capture du passage réel du 18/11. Montré avec l'accord de l'école ; le lien répondait encore 404 le 18/11 à 16 h 12.</p>
+  </div>
+  <div class="droite">
+    <div class="lien"><span class="vide" id="loom">à venir</span></div>
+    <h3>Ce qui tourne déjà</h3>
+    <ul>
+      <li>Le mode grand public sur eugeniaschool.com : 8 pages, dont 4 atteintes par un vrai clic de l'agent.<span class="preuve">mesuré : 211,6 s · 0,1030 $</span></li>
+      <li>Ce que l'IA croit voir reste un doute, jamais un défaut.<span class="preuve">mesuré : 1 constat juste sur 3, les 2 faux restés des doutes</span></li>
+      <li>Le mode développeur sur le site d'Eugenia : 7 pages, 3 tours sur 3.<span class="preuve">mesuré : 21 règles tenues · 0 pixel d'écart</span></li>
+      <li>La décision « bug ou voulu » gardée dans le vault, la note corrigée.<span class="preuve">mesuré : 11 corrections justes sur 15 essais</span></li>
+      <li class="pas">Le réveil par une PR du clone et la réponse sur la PR : codés, essayés sans l'agent.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ 4. FEUILLE DE ROUTE ============ -->
+<section class="slide">
+  <div class="haut"><span class="mot">H<svg class="o"><use href="#oeil"/></svg>rama</span><span class="ou">Rendu du jeudi 19/11 · équipe 11</span><span class="num">4 / 4 · feuille de route</span></div>
+  <h2>D'ici vendredi : vous l'essayez seul.</h2>
+  <p class="chapeau">Le MVP : vous installez l'extension, vous envoyez Horama sur un site, il revient avec des défauts prouvés. Et une PR du clone d'Eugenia reçoit sa réponse.</p>
+  <div class="jours">
+    <div class="jour-col">
+      <h3>Jeudi 19 <small>construire</small></h3>
+      <ul>
+        <li><span><b>Le service en ligne et l'extension Chrome</b>, que le jury essaie sans rien installer d'autre</span><span class="qui">Ali, Nathan<br>#68</span></li>
+        <li><span><b>N'importe quel site</b>, rien de codé en dur : prouvé sur un banc de 7 sites</span><span class="qui">Ali<br>#67</span></li>
+        <li><span><b>Le mode développeur de bout en bout</b> : une PR traduit le clone en allemand, Vercel réveille Horama, il répond sur la PR avec les textes qui débordent</span><span class="qui">Ali, Nathan<br>#71, #122</span></li>
+        <li><span><b>La charte « L'envoyé »</b> appliquée à la scène et à l'extension</span><span class="qui">Nathan, Inès<br>#69</span></li>
+        <li><span><b>Les notes du vault d'Eugenia</b>, recopiées mot pour mot du site</span><span class="qui">Noé, Ali<br>#72</span></li>
+      </ul>
+    </div>
+    <div class="jour-col ven">
+      <img src="../../docs/da/mascotte/observe.svg" alt="" style="position:absolute;right:30px;top:-48px;width:118px">
+      <h3>Vendredi 20 <small>montrer</small></h3>
+      <ul>
+        <li><span><span class="heure">11 h</span><br>Prototype en ligne, fiche du projet, vidéo de démo de 5 min ; chaque lien vérifié en fenêtre privée</span><span class="qui">tous</span></li>
+        <li><span><span class="heure">15 h</span><br>Deck de 8 à 12 slides</span><span class="qui">Noé, Axil</span></li>
+        <li><span><span class="heure">après-midi</span><br>Pitch de 6 min, 4 min de questions</span><span class="qui">l’équipe</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="mvp"><span class="ensuite">Après le hackathon : plusieurs agents en parallèle, tout le site au-delà de 15 pages, Confluence et Notion comme sources de documentation.</span></div>
+</section>
+</body>
+</html>
