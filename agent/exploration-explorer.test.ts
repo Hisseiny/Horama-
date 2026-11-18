@@ -138,6 +138,44 @@ test("exception de relevé : raison réelle immédiate, aucun retour vers la pag
   assert.ok(responses.every(response => !response.includes("Réessaie")));
 });
 
+test("sitemap valide citant des fournisseurs : aucune protection inventée", async () => {
+  const { result } = await run({ deps: {
+    fetch: async address => {
+      const path = new URL(String(address)).pathname;
+      return new Response(path === "/robots.txt" ? "User-agent: *\n# imperva incapsula" : path === "/sitemap.xml"
+        ? '<urlset><url><loc>https://example.org/partners/imperva</loc></url><url><loc>https://example.org/partners/incapsula</loc></url></urlset>' : "<html>Nos partenaires Imperva et Incapsula</html>",
+      { headers: { "Content-Type": path.endsWith(".xml") ? "application/xml" : path.endsWith(".txt") ? "text/plain" : "text/html" } });
+    },
+  } });
+  assert.equal(result.etat, "fini");
+  assert.equal(result.pages.length, 3);
+  assert.ok(result.pages.every(page => page.etat === "visitee"));
+  assert.equal(result.agents[0].raison, null);
+});
+
+test("challenge rendu : une fermeture H non confirmée ne devient jamais une fin propre", async () => {
+  for (const failClose of [false, true]) {
+    let launches = 0;
+    const { result } = await run({ deps: {
+      onglets: async () => [],
+      connecter: async () => ({ on() {}, close() {}, send: async () => ({ result: { value: { html: '<title>Verify you are human</title>', status: 403 } } }) }),
+      session: async input => {
+        launches++;
+        await input.onCreated("challenge");
+        return { id: "challenge", confirmStopped: async () => { if (failClose) throw new Error("Session toujours active"); }, fin: (async () => {
+          await input.onTool("relever", { ecran: input.consigne.course[0].ecran, vue: "defaut" });
+          return { id: "challenge", muted: false, cout_usd: 0, etapes: 1 };
+        })() };
+      },
+    } });
+    assert.equal(launches, 1);
+    assert.equal(result.etat, failClose ? "interrompu" : "fini");
+    assert.equal(result.agents[0].etat, failClose ? "tombe" : "fini");
+    assert.match(result.agents[0].raison!, failClose ? /fermeture.*confirmée/ : /robots/);
+    assert.ok(result.pages.every(page => page.etat === "non_visitee" && /robots/.test(page.raison!)));
+  }
+});
+
 for (const rendered of [false, true]) {
   test(`sous-page indisponible en ${rendered ? "Chrome" : "découverte"} : portée limitée et poursuite des autres pages`, async () => {
     for (const item of [

@@ -62,7 +62,7 @@ for (const rendered of [false, true]) {
 }
 
 test("contenu normal, vide et widget de contact : aucun blocage", () => {
-  for (const html of ["", "<title>Accueil</title>Bienvenue", '<title>Contact</title><form><input name="email"><div class="g-recaptcha">Verify you are human</div></form>', '<title>Contact</title><p>Verify you are human</p>'.repeat(100)]) {
+  for (const html of ["", "User-agent: *\nDisallow: /imperva", '<urlset><url><loc>https://example.org/partners/imperva</loc></url></urlset>', '<html><p>Nos partenaires Imperva et Incapsula</p></html>', "<title>Accueil</title>Bienvenue", '<title>Contact</title><form><input name="email"><div class="g-recaptcha">Verify you are human</div></form>', '<title>Contact</title><p>Verify you are human</p>'.repeat(100)]) {
     assert.equal(detecterBlocage(html, 200), null);
   }
 });
@@ -70,9 +70,10 @@ test("contenu normal, vide et widget de contact : aucun blocage", () => {
 test("robots HTML protégé et sitemap protégés : arrêt avant session H", async () => {
   for (const path of ["/robots.txt", "/sitemap.xml"]) {
     const root = mkdtempSync(join(tmpdir(), "horama-policy-"));
+    const base = new BaseMemoire();
     try {
       const result = await explorer({ url: "https://example.org/", max: 3, port: 9333, sortie: join(root, "out"), vault: join(root, "vault") }, {
-        base: new BaseMemoire(), log() {},
+        base, log() {},
         fetch: async address => new Response(new URL(String(address)).pathname === path ? '<iframe src="/_Incapsula_Resource"></iframe>' : "", { headers: { "Content-Type": "text/html" } }),
         runtime: { relever: async () => { throw new Error("Capture interdite"); }, navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
         session: async () => { throw new Error("Session interdite"); },
@@ -80,6 +81,34 @@ test("robots HTML protégé et sitemap protégés : arrêt avant session H", asy
       assert.equal(result.etat, "fini");
       assert.match(result.agents[0].raison!, /robots.*Incapsula/);
       assert.equal(result.agents[0].session_id, null);
+      assert.equal(base.passages.size, 1);
+      assert.equal(base.rapports.size, 1);
+      assert.equal(base.resultats.length, result.pages.length);
+      assert.ok(base.resultats.every(item => item.statut === "INCONCLUSIVE" && /robots.*Incapsula/.test(item.raison!)));
+      assert.ok([...base.rapports.values()].every(item => item.passage.etat === "echec" && item.tests.every(test => test.etat === "non_concluant" && !test.session_id)));
+    } finally { rmSync(root, { recursive: true, force: true }); }
+  }
+});
+
+test("blocage sans session : échec de persistance visible, JSON non concluant conservé", async () => {
+  for (const method of ["insererPassage", "enregistrerResultat", "terminerPassage"] as const) {
+    const root = mkdtempSync(join(tmpdir(), "horama-blocked-base-"));
+    const base = new BaseMemoire();
+    base[method] = async () => { throw new Error("Base indisponible"); };
+    const messages: string[] = [];
+    try {
+      const result = await explorer({ url: "https://example.org/", max: 3, port: 9333, sortie: join(root, "out"), vault: join(root, "vault") }, {
+        base, log: message => messages.push(message),
+        fetch: async () => new Response('<title>Verify you are human</title><div class="h-captcha"></div>'),
+        runtime: { relever: async () => { throw new Error("Capture interdite"); }, navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
+        session: async () => { throw new Error("Session interdite"); },
+      });
+      assert.equal(result.etat, "interrompu");
+      assert.equal(result.agents[0].etat, "tombe");
+      assert.equal(result.agents[0].session_id, null);
+      assert.match(result.agents[0].raison!, /bilan.*enregistré en base/);
+      assert.ok(result.pages.every(page => page.etat === "non_visitee" && page.statut === "INCONCLUSIVE" && /robots/.test(page.raison!)));
+      assert.ok(messages.some(message => /bilan.*enregistré en base/.test(message)));
     } finally { rmSync(root, { recursive: true, force: true }); }
   }
 });

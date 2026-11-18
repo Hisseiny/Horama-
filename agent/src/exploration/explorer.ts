@@ -268,9 +268,22 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
     },
   };
   const returned = { ...report, navigation };
+  let finalizationFailure: string | null = null;
   try {
     if (blocage) {
       markBlocked(blocage); report.etat = "fini"; agent.etat = "fini"; report.cout_usd = 0;
+      const passage = { id, logiciel: site, version_testee: version, version_reference: versionReference ?? version,
+        etat: "en_cours" as const, debut: new Date(started).toISOString() };
+      try {
+        await base.insererPassage(passage);
+        for (const page of pages) await base.enregistrerResultat(markResult(page, id));
+        await base.terminerPassage({ passage: { ...passage, etat: "echec", fin: new Date().toISOString(), duree_s: (Date.now() - started) / 1000, cout_usd: 0 },
+          tests: pages.map(page => ({ test_id: `exploration--${page.ecran}`, session_id: "", etat: "non_concluant", raison: page.raison,
+            ecrans_releves: [], duree_s: 0, cout_usd: 0, etapes: 0 })) });
+      } catch {
+        finalizationFailure = "Le bilan du blocage n'a pas pu être enregistré en base.";
+        log(finalizationFailure);
+      }
       return returned;
     }
     if (!consigne) {
@@ -400,7 +413,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
               result = { id: running?.id ?? "", muted: false, cout_usd: null, etapes: 0, erreur: "La session a été interrompue." };
             } finally {
               try { await running?.stop?.(); await running?.confirmStopped?.(); }
-              catch { closeFailed = true; agent.raison = "La fermeture de la session n'a pas pu être confirmée."; }
+              catch { closeFailed = true; finalizationFailure = "La fermeture de la session n'a pas pu être confirmée."; agent.raison = finalizationFailure; }
             }
             totalCost = totalCost === null || result.cout_usd === null ? null : totalCost + result.cout_usd;
             steps += result.etapes;
@@ -604,12 +617,14 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
     });
     const launched = await runner.lancerPassage({ logiciel: site, version_testee: version, version_reference: versionReference ?? version, tests: consigne.tests.map(test => test.id), cle: "dev" });
     const result = await runner.attendreFin(launched.passage_id);
-    report.etat = blocage && !signal?.aborted ? "fini" : signal?.aborted || result.passage.etat !== "joue" || pages.some(page => page.etat !== "visitee") ? "interrompu" : "fini";
+    report.etat = blocage && !signal?.aborted && !finalizationFailure ? "fini" : signal?.aborted || finalizationFailure || result.passage.etat !== "joue" || pages.some(page => page.etat !== "visitee") ? "interrompu" : "fini";
     if (pages.some(page => page.etat !== "visitee")) { agent.etat = "tombe"; agent.raison ??= "Des pages n'ont pas été visitées."; }
   } catch {
     report.etat = "interrompu"; agent.etat = "tombe"; agent.raison ??= "Le passage a été interrompu.";
   } finally {
-    if (blocage) { agent.raison = blocage; agent.etat = "fini"; log(blocage); }
+    if (blocage) log(blocage);
+    if (finalizationFailure) { report.etat = "interrompu"; agent.etat = "tombe"; agent.raison = finalizationFailure; }
+    else if (blocage) { agent.raison = blocage; agent.etat = "fini"; }
     for (const page of pages) {
       if (page.etat !== "visitee" && page.etat !== "non_visitee") {
         page.etat = "non_visitee"; page.fin = new Date().toISOString();
