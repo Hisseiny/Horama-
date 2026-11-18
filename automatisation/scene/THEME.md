@@ -1,6 +1,27 @@
-# Thème de la scène : direction « Musée grec »
+# Thème de la scène : direction « La stèle », version nuit
 
 Pour la scène épurée (issue #69, commit `e70a0c4`). Pendant le parcours, on ne voit que le curseur, la mascotte dans son coin et le trait autour de ce qui ne va pas. Tout le texte arrive à la fin, dans le panneau et la bulle. La couche annonce des couleurs « provisoires, la direction artistique vient après » : la voici.
+
+Le 18/11, la CDO a adapté son thème « Musée grec » à l'ambiance de la page d'accueil « La stèle » :
+- nuit bleu-noir et crème marbre ;
+- lapis-lazuli ;
+- titres en capitales à chasse fixe.
+
+Le récapitulatif, la question, la correction et la fin ont maintenant le même air que la page d'accueil. Captures sur le site d'Eugenia : `docs/da/stele-nuit/`. La version « Musée grec » reste dans l'historique de cette branche (commit `7b67a5c`).
+
+Ce qui change par rapport au « Musée grec » :
+
+| Élément | Musée grec | Stèle nuit |
+|---|---|---|
+| Panneau | carte presque blanche, arche fine, titres à empattements | nuit `#0B0F1E` avec une lueur en haut à droite, titres en capitales à chasse fixe (IBM Plex Mono si installée, sinon Consolas), sur-titre « ΟΡΑΜΑ · CE QUI EST VU » en lapis clair, logo exact sur une pastille crème arrondie |
+| Trouvailles | cartes blanches, pièces Α Β Γ violettes | cartes nuit, pièces Α Β Γ cobalt `#2453B3`, étiquettes « DÉFAUT » / « À TRANCHER » en petites capitales |
+| Boutons, tampons | coins de 12 px, minuscules | coins de 6 px, capitales à chasse fixe ; texte nuit sur corail ocre `#D66A52` (5,5:1) et sur sauge `#9DB27A` (8,3:1) |
+| Trait sur la page | corail et violet | corail `#E06A4E` (3,3:1 sur blanc) pour un défaut, cobalt `#2453B3` (7,1:1) pour un doute, olive `#4A6B1C` (6,2:1) pour « conforme » |
+| Mascotte | l'œil ailé de la CDO | inchangée (l'œil, son iris et ses ailes) ; l'iris du défaut prend le corail ocre |
+
+Contrastes du panneau : texte crème 16:1, texte second 7,3:1 au moins, étiquettes 7:1 au moins (WCAG AA).
+
+Le tableau ci-dessous décrit le premier thème, par rapport au squelette de la couche. Les structures n'ont pas changé, seulement les couleurs et les polices.
 
 Les fichiers de la CDO sont à côté de la couche, sans la modifier :
 
