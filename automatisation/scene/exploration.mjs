@@ -346,7 +346,13 @@ if (report?.format === "horama-exploration-1") {
     const corps = ecrireSectionExploration({ adresse: report.adresse, bilan: bilanExploration(report), totaux, decisions: decisions.map(({ decision }) => decision),
       prouves: toDecide.filter((constat) => constat.statut === "VERIFIED_FAIL").map(entry), doutes: toDecide.filter((constat) => constat.statut === "SUSPECTED").map(entry),
       dejaVoulus: accepted.map(entry), note: `vault-horama/${notePath ?? `${report.site}/passages/${report.passage_id}.md`}` });
-    commentaire = { corps, publication: null };
+    // The elements too, with the capture ringed of each finding (written by completerNote), for the wake-up: it can put
+    // them on a branch of the target repository and write the part again with the images (--captures-sur-branche).
+    const ringedOf = (item) => ({ ...item, anneau: notePath && existsSync(join(VAULT, report.site, "passages", report.passage_id, `${item.id}.png`)) ? `${report.site}/passages/${report.passage_id}/${item.id}.png` : null });
+    const elements = { adresse: report.adresse, bilan: bilanExploration(report), totaux, decisions: decisions.map(({ decision }) => decision),
+      prouves: toDecide.filter((constat) => constat.statut === "VERIFIED_FAIL").map(entry).map(ringedOf), doutes: toDecide.filter((constat) => constat.statut === "SUSPECTED").map(entry).map(ringedOf),
+      dejaVoulus: accepted.map(entry), note: `vault-horama/${notePath ?? `${report.site}/passages/${report.passage_id}.md`}` };
+    commentaire = { corps, elements, publication: null };
     if (flag("commenter")) {
       commentaire.publication = await publierCommentaire(PR, corps);
       say(commentaire.publication.status === "publie" ? `Commentaire publié sur la PR : ${commentaire.publication.url}` : `Commentaire non publié sur la PR : ${commentaire.publication.reason}`);

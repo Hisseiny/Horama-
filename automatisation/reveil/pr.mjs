@@ -8,8 +8,11 @@
 //
 // Usage: node automatisation/reveil/pr.mjs --depot <propriétaire/dépôt> --logiciel <logiciel du vault> [--intervalle 20]
 //          [--une-fois] [--a-blanc] [--vault vault-horama] [--sortie .orchestrateur/reveil-pr] [--faux-github <fichier.json>]
-//          [--max 8] [--pages-cliquees 4] [--sans-exploration] [--commenter] [-- options des deux scènes, par exemple --vitrine]
-// --commenter: one answer on the PR, once both scenes are done (the part of each scene, text only).
+//          [--max 8] [--pages-cliquees 4] [--sans-exploration] [--commenter] [--captures-sur-branche horama/captures]
+//          [-- options des deux scènes, par exemple --vitrine]
+// --commenter: one answer on the PR, once both scenes are done (the part of each scene).
+// --captures-sur-branche <branche>: with --commenter, the captures ringed of the exploration are put on this branch of
+// the target repository (created if needed, never merged) and shown in the answer.
 // --max, --pages-cliquees: the exploration of the preview (pages at most, pages the agent reaches by a click);
 // --sans-exploration: the vault tests only.
 // --a-blanc: one look at the repository, nothing played (no scene, no H, nothing written): the open PRs, the preview of
@@ -20,14 +23,15 @@
 // Exit: 0 (--une-fois: after the first PR played, whatever its scenes gave: see reveil.json), 2 on a usage error or a
 // failed impact.
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { lireNotes, lireTestsAcceptes } from "../../memoire/index.ts";
 import { choisirTests } from "../impact/impact.mjs";
-import { publierCommentaire } from "../pr-doc/commentaire.mjs";
+import { ecrireSectionExploration, publierCommentaire } from "../pr-doc/commentaire.mjs";
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const gh = (path) => JSON.parse(execFileSync("gh", ["api", "--paginate", "--slurp", path], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })).flat();
@@ -195,7 +199,7 @@ export async function aBlanc(lecteur, { vault, logiciel, socle = [], ouverte = o
 
 // The answer on the PR: the part of the vault tests (passage.json of the scene, commentaire_corps), then the part of the
 // exploration (scene.json, commentaire.corps). Without the first, a heading says why the vault tests did not run.
-export function reponseSurPr({ pr, impact, report, folder }) {
+export function reponseSurPr({ pr, impact, report, folder, images = null }) {
   const read = (file) => {
     try {
       return JSON.parse(readFileSync(join(folder, file), "utf8"));
@@ -204,11 +208,50 @@ export function reponseSurPr({ pr, impact, report, folder }) {
     }
   };
   const tests = read("scene/passage.json")?.commentaire_corps ?? null;
-  const site = read("exploration/scene.json")?.commentaire?.corps ?? null;
+  const part = read("exploration/scene.json")?.commentaire ?? null;
+  // With images: the part of the exploration written again from its elements, each finding with its capture.
+  const withImage = (item) => ({ ...item, image: images?.[item.id] ?? null });
+  const site = images && part?.elements
+    ? ecrireSectionExploration({ ...part.elements, prouves: part.elements.prouves.map(withImage), doutes: part.elements.doutes.map(withImage) })
+    : part?.corps ?? null;
   if (!tests && !site) return null;
   const heading = tests ? [] : [`## Horama : PR #${pr.numero} (${pr.tete.slice(0, 7)})`, "",
     report.langue ? `${report.langue.charAt(0).toUpperCase()}${report.langue.slice(1)}.` : impact.retenus.length ? "Tests de la documentation : non rendus." : "Tests de la documentation : aucun touché par cette PR.", ""];
   return [...heading, ...(tests ? [tests] : []), ...(site ? [site] : [])].join("\n");
+}
+
+// Puts one capture on a branch of the target repository with the API of GitHub (no clone), and returns the address of
+// the image at the commit made, which stays valid whatever the branch becomes. The branch is created from the default
+// branch when it does not exist; it is never merged. Never throws: { url } or { raison }.
+export async function televerserCapture({ depot, branche, chemin, fichier, message }, api = ghApi) {
+  try {
+    const ref = `heads/${branche}`;
+    if (!(await api(["GET", `repos/${depot}/git/ref/${ref}`]).catch(() => null))) {
+      const { default_branch: main } = await api(["GET", `repos/${depot}`]);
+      const { object } = await api(["GET", `repos/${depot}/git/ref/heads/${main}`]);
+      await api(["POST", `repos/${depot}/git/refs`], { ref: `refs/${ref}`, sha: object.sha });
+    }
+    const existing = await api(["GET", `repos/${depot}/contents/${chemin}?ref=${encodeURIComponent(branche)}`]).catch(() => null);
+    const done = await api(["PUT", `repos/${depot}/contents/${chemin}`], { message, branch: branche, content: readFileSync(fichier).toString("base64"), ...(existing?.sha ? { sha: existing.sha } : {}) });
+    return { url: `https://raw.githubusercontent.com/${depot}/${done.commit.sha}/${chemin}` };
+  } catch (error) {
+    return { raison: String(error.message).trim().split("\n").at(-1) };
+  }
+}
+
+// gh api with a JSON body given through a file (a capture in base64 is too long for the command line).
+async function ghApi([method, path], body) {
+  const folder = body ? mkdtempSync(join(tmpdir(), "horama-gh-")) : null;
+  try {
+    const args = ["api", "--method", method, path];
+    if (body) {
+      writeFileSync(join(folder, "corps.json"), JSON.stringify(body));
+      args.push("--input", join(folder, "corps.json"));
+    }
+    return JSON.parse(execFileSync("gh", args, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] }) || "null");
+  } finally {
+    if (folder) rmSync(folder, { recursive: true, force: true });
+  }
 }
 
 function runNode(args) {
@@ -224,7 +267,8 @@ function runNode(args) {
 // exploration of the whole site of the preview (exploration.mjs, public mode: mechanical checks and Holo), unless
 // `exploration` is null. Everything in <sortie>/pr-<numéro>-<sha court>/. A scene that fails is written in the report,
 // never thrown: the other one still runs, and the wake-up goes on with the next PR.
-export async function jouerPr({ pr, fichiers, vault, logiciel, socle, sortie, sceneArgs = [], exploration = { max: 8, pagesCliquees: 4 }, langue = langueDePage, commenter = false, publier = publierCommentaire }, run = runNode) {
+export async function jouerPr({ pr, fichiers, vault, logiciel, socle, sortie, sceneArgs = [], exploration = { max: 8, pagesCliquees: 4 }, langue = langueDePage, commenter = false, publier = publierCommentaire,
+  captures = null, televerser = televerserCapture }, run = runNode) {
   const started = performance.now();
   const folder = join(sortie, `pr-${pr.numero}-${pr.tete.slice(0, 7)}`);
   mkdirSync(folder, { recursive: true });
@@ -267,7 +311,26 @@ export async function jouerPr({ pr, fichiers, vault, logiciel, socle, sortie, sc
     }
     // One answer on the PR for both scenes (--commenter): what each wrote, put together.
     if (commenter) {
-      const corps = reponseSurPr({ pr, impact, report, folder });
+      // Option a (--captures-sur-branche): the captures ringed of the exploration put on a branch of the target
+      // repository, shown in the answer. A capture that cannot be put there leaves its finding in text.
+      let images = null;
+      if (captures) {
+        images = {};
+        const elements = (() => {
+          try {
+            return JSON.parse(readFileSync(join(folder, "exploration", "scene.json"), "utf8")).commentaire?.elements ?? null;
+          } catch {
+            return null;
+          }
+        })();
+        for (const item of [...(elements?.prouves ?? []), ...(elements?.doutes ?? [])].filter((entry) => entry.anneau)) {
+          const sent = await televerser({ ...captures, chemin: `pr-${pr.numero}/${pr.tete.slice(0, 7)}/${item.id}.png`, fichier: join(vault, item.anneau), message: `Horama : capture ${item.id} de la PR #${pr.numero} (${pr.tete.slice(0, 7)})` });
+          if (sent.url) images[item.id] = sent.url;
+          else console.log(`réveil PR : capture ${item.id} non poussée, ${sent.raison}`);
+        }
+        report.captures = { branche: captures.branche, poussees: Object.keys(images).length };
+      }
+      const corps = reponseSurPr({ pr, impact, report, folder, images });
       report.commentaire = corps ? await publier(pr.adresse, corps) : { status: "INCONCLUSIVE", reason: "aucune scène n'a écrit sa partie" };
       console.log(report.commentaire.status === "publie" ? `réveil PR : réponse publiée, ${report.commentaire.url}` : `réveil PR : réponse non publiée, ${report.commentaire.reason}`);
     }
@@ -290,12 +353,14 @@ async function main() {
   const { values } = parseArgs({ args: process.argv.slice(2, separator < 0 ? undefined : separator), options: {
     depot: { type: "string" }, logiciel: { type: "string" }, intervalle: { type: "string", default: "20" }, "une-fois": { type: "boolean" }, "a-blanc": { type: "boolean" },
     vault: { type: "string", default: "vault-horama" }, sortie: { type: "string", default: ".orchestrateur/reveil-pr" }, "faux-github": { type: "string" },
-    max: { type: "string", default: "8" }, "pages-cliquees": { type: "string", default: "4" }, "sans-exploration": { type: "boolean" }, commenter: { type: "boolean" },
+    max: { type: "string", default: "8" }, "pages-cliquees": { type: "string", default: "4" }, "sans-exploration": { type: "boolean" }, commenter: { type: "boolean" }, "captures-sur-branche": { type: "string" },
   } });
   if (!values.logiciel || (!values.depot && !values["faux-github"])) throw new Error("--logiciel et --depot (ou --faux-github) sont requis");
   if (values.depot && !/^[\w.-]+\/[\w.-]+$/.test(values.depot)) throw new Error("--depot attend propriétaire/dépôt");
   const interval = Number(values.intervalle);
   if (!(interval >= 1)) throw new Error("--intervalle attend un nombre de secondes, 1 au moins");
+  if (values["captures-sur-branche"] && (!values.depot || !values.commenter)) throw new Error("--captures-sur-branche demande --depot et --commenter");
+  if (values["captures-sur-branche"] && !/^[\w./-]+$/.test(values["captures-sur-branche"])) throw new Error("--captures-sur-branche attend un nom de branche");
   const exploration = values["sans-exploration"] ? null : { max: Number(values.max), pagesCliquees: Number(values["pages-cliquees"]) };
   if (exploration && !(Number.isInteger(exploration.max) && exploration.max >= 1 && Number.isInteger(exploration.pagesCliquees) && exploration.pagesCliquees >= 0)) {
     throw new Error("--max attend un entier, 1 au moins, et --pages-cliquees un entier, 0 au moins");
@@ -327,7 +392,8 @@ async function main() {
         continue;
       }
       faits.add(`${pr.numero}@${pr.tete}`);
-      await jouerPr({ pr, fichiers: lecteur.fichiers(pr.numero), vault, logiciel: values.logiciel, socle, sortie, sceneArgs, exploration, commenter: Boolean(values.commenter) });
+      await jouerPr({ pr, fichiers: lecteur.fichiers(pr.numero), vault, logiciel: values.logiciel, socle, sortie, sceneArgs, exploration, commenter: Boolean(values.commenter),
+        captures: values["captures-sur-branche"] ? { depot: values.depot, branche: values["captures-sur-branche"] } : null });
       if (values["une-fois"]) return;
     }
     await sleep(interval * 1000);
