@@ -10,18 +10,20 @@ Ce document décrit l'architecture rendue le 18 novembre à 17 h : ce qui existe
 
 ## Deux modes
 
-| | Mode développeur | Mode visuel |
+Recadrés le 18/11 ([décision](docs/decisions/2026-11-18-recadrage-grand-public-et-dev.md)) ; ce qui reste à faire, par personne et par jour : [feuille de route](docs/feuille-de-route.md).
+
+| | Mode développeur | Mode grand public |
 |---|---|---|
 | Pour qui | Une équipe produit qui documente son logiciel | N'importe qui, avec la seule adresse d'un site |
 | Ce qu'Horama reçoit | Un vault Obsidian (une note par écran, des règles), le dépôt Git du site | Une adresse. Ni documentation, ni accès au code |
-| Ce qui déclenche | Un commit ou un déploiement : Horama choisit les tests à rejouer | Une demande : on colle l'adresse |
+| Ce qui déclenche | Un déploiement Vercel : Horama lit la PR sur GitHub et le vault Obsidian, choisit les tests à rejouer, réécrit dans le vault où sont les erreurs et répond par une PR | Une demande : on colle l'adresse (extension Chrome ou page d'accueil) |
 | Ce que l'agent H fait | Joue les tests acceptés par un humain, relève les écrans demandés | Visite toutes les pages trouvées (trois agents en parallèle à terme) |
 | Ce qui est prouvé | Règles calculées (égalité, somme, filtre, format, présence, état) et comparaison d'images avec les références | Contrôles mécaniques (page en erreur, image cassée, texte qui déborde, lien mort, texte d'erreur affiché) |
 | Ce qui reste un doute | Un écart d'image | Ce que Holo voit sur la capture, un écart d'image au passage suivant |
 | Ce qui est gardé | Décisions bug ou voulu dans le vault, correction de note proposée par un modèle, PR de documentation | Captures de référence et décisions, pour comparer au passage suivant |
 | État au 17/11 au soir | Construit, joué en réel sur le site d'Eugenia (voir « Chiffres mesurés ») | À construire (issue [#57](https://github.com/Hisseiny/Horama-/issues/57)) ; format de sortie fixé ; rien de mesuré |
 
-Le mode visuel fait entrer un visiteur sans rien lui demander ; à la fin, Horama lui propose le mode développeur pour aller plus loin.
+Le mode grand public fait entrer un visiteur sans rien lui demander ; à la fin, Horama lui propose le mode développeur pour aller plus loin.
 
 ## Le site de la démo : Eugenia School
 
@@ -108,11 +110,11 @@ Définitions qui font foi : [`contrats/types.ts`](contrats/types.ts), [exemples]
 | C7 `NotificationRelecture` | Vers n8n (non construit) |
 | C8 `LigneMesure` | Vers les mesures |
 
-Deux formats de fichier, hors contrats, relient les briques du couloir Nathan : `horama-impact-1` ([décision](docs/decisions/2026-11-17-format-impact.md)) et `horama-exploration-1` pour le mode visuel ([décision](docs/decisions/2026-11-17-format-exploration.md)).
+Deux formats de fichier, hors contrats, relient les briques du couloir Nathan : `horama-impact-1` ([décision](docs/decisions/2026-11-17-format-impact.md)) et `horama-exploration-1` pour le mode grand public ([décision](docs/decisions/2026-11-17-format-exploration.md)).
 
-## Mode visuel
+## Mode grand public
 
-Décidé par Nathan le 17/11 au soir. Moteur : issue [#57](https://github.com/Hisseiny/Horama-/issues/57) (Ali, `agent/`) ; affichage : la scène (Nathan). **Rien n'est construit ni mesuré à cette date.**
+Décidé par Nathan le 17/11 au soir (« mode visuel »), renommé et recadré le 18/11. Moteur à un agent fusionné (#64, `pnpm --filter @horama/agent explorer -- --url <adresse>`) ; marche sur n'importe quel site : #67 ; extension et service : #68 ; affichage dans la scène : #69.
 
 ### Le parcours, comme un spectateur le verra (validé par Nathan)
 
@@ -156,13 +158,15 @@ Tous sur le Mac de démo sauf mention, au 17/11. Les durées et coûts de l'agen
 | Correction de note proposée après un « voulu » | 11 sur 15 justes sur 5 cas de Facturo (un cas raté aux 3 passes) ; sur le cas d'Eugenia, 5 sur 6 avec les textes de la zone donnés au modèle, et le modèle varie d'un appel à l'autre à température 0 | [correction](docs/tests/2026-11-17-correction.md), journal du 17/11 18 h 53 |
 | Réveil par commit | Impact écrit à 0,21 s du commit, scène lancée à 0,23 s (Linux, site d'essai synthétique, sans agent H ni base) | [réveil local](docs/tests/2026-11-17-reveil-local.md) |
 | Coureur seul sur Facturo, 3 passages de suite | 3 sur 3 joués ; 64 à 88 s ; 0,026 à 0,034 $ | [A5](docs/tests/2026-11-17-a5-trois-passages-agent-h.md) |
-| Mode visuel | à mesurer | issue #57 |
+| Mode grand public à un agent, sur eugeniaschool.com en ligne | 15 pages trouvées et visitées par H, 174 à 237 s, environ 0,07 $ par passage ; 8 constats relus à la main : 2 vrais (lien « portes ouvertes » en 404, chapô d'article coupé), 6 faux, tous venus de Holo ; second passage : 15 captures sur 15 identiques aux références | [mode grand public](docs/tests/2026-11-18-mode-visuel.md) |
 
-Ce qui n'est pas mesuré : le taux de faux constats d'un vrai défaut sur le site d'Eugenia (aucune régression réelle n'y a été jouée par l'agent H ; les doutes de la répétition sont plantés dans une copie du vault), le parcours sur le fork, le mode visuel, l'accessibilité.
+Ce qui n'est pas mesuré : le taux de faux constats d'un vrai défaut sur le site d'Eugenia (aucune régression réelle n'y a été jouée par l'agent H ; les doutes de la répétition sont plantés dans une copie du vault), le parcours sur le fork, le mode grand public sur d'autres sites (#67), l'accessibilité.
 
 ## Ce qui n'est pas fait
 
-- **Mode visuel** : moteur et affichage à construire (issues #57 et #55).
+- **Mode grand public** : moteur à un agent fusionné (#64) ; marche sur n'importe quel site à prouver (#67) ; extension Chrome et service que le jury essaie seul (#68).
+- **Scène épurée** (pendant le parcours : curseur, mascotte, trait à la main ; tout le texte au récapitulatif) et direction artistique refaite (#69), page d'accueil (#70).
+- **Mode dev de bout en bout** : réveil par un vrai déploiement Vercel, rapport dans Obsidian, commentaire sur la PR GitHub (#71).
 - **Fork du site d'Eugenia** : en attente de l'accord de l'école ; tant qu'il n'est pas là, le changement du site est simulé dans une copie du vault.
 - **Interface web** (`interface/`) : sur données factices ; la démo se joue dans la scène.
 - **n8n** (C7, notification « cas à relire ») : non construit.
@@ -199,5 +203,5 @@ Le coureur seul, en ligne de commande (couloir Ali) : `pnpm --filter @horama/age
 ## Pour aller plus loin
 
 - [Règles communes aux IA de l'équipe](AGENTS.md), [plan de travail](docs/plan-de-travail.md), [avancement](docs/checklist.md), [missions](docs/missions/).
-- [Décisions](docs/decisions/), une par fichier daté ; [rapports de test](docs/tests/), un par mesure.
+- [Feuille de route](docs/feuille-de-route.md) ; [décisions](docs/decisions/), une par fichier daté ; [rapports de test](docs/tests/), un par mesure.
 - [Retours sur l'API de H](docs/retours-api-h.md).
