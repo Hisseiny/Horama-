@@ -15,7 +15,7 @@ import { captureDefect, connecterCdp, prepareCapture } from "./cdp.ts";
 import type { ExplorationCdp } from "./cdp.ts";
 import { controlerPage } from "./controles.ts";
 import { askHolo } from "./holo.ts";
-import { discoverPages } from "./pages.ts";
+import { discoverPages, normalizePageQuery } from "./pages.ts";
 
 type Zone = EcartVisuel["zone"];
 export interface Finding {
@@ -91,7 +91,11 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
     const tabs = (await response.json() as Array<{ type: string; url: string }>).filter(tab => tab.type === "page");
     return tabs.length === 1 ? tabs[0].url : null;
   });
-  const normalized = (address: string, query = false) => { const parsed = new URL(address); return parsed.origin + parsed.pathname.replace(/\/$/, "") + (query ? parsed.search : ""); };
+  const normalized = (address: string, query = false) => {
+    const parsed = new URL(address);
+    normalizePageQuery(parsed);
+    return parsed.origin + parsed.pathname.replace(/\/$/, "") + (query ? parsed.search : "");
+  };
   const started = Date.now();
   const site = new URL(url).hostname.replace(/^www\./, "").replaceAll(".", "-");
   const folder = join(vault, site, "passages");

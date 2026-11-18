@@ -603,7 +603,8 @@ test("contrôle d'adresse : redirection même origine résolue avant le premier 
   assert.equal(resolves, 2);
 });
 
-test("contrôle d'adresse : deux pages de même chemin gardent leur query et leur ecran", async () => {
+for (const tracking of ["", "&utm_source=y&gclid=z"]) {
+test(`contrôle d'adresse : deux pages de même chemin gardent leur query et leur ecran (suivi : ${tracking || "aucun"})`, async () => {
   let address = "https://example.org/";
   const { result } = await run({ deps: {
     urlCourante: async () => address,
@@ -617,7 +618,7 @@ test("contrôle d'adresse : deux pages de même chemin gardent leur query et leu
       return { id: "queries", fin: (async () => {
         assert.equal(input.consigne.course.length, 3);
         for (const step of input.consigne.course) {
-          address = step.address;
+          address = step.address + (step.address.includes("?") ? tracking : "");
           assert.match(await input.onTool("relever", { ecran: step.ecran, vue: "defaut" }), /Capture/);
         }
         await input.onTool("terminer", { etat: "reussi" });
@@ -629,6 +630,7 @@ test("contrôle d'adresse : deux pages de même chemin gardent leur query et leu
   assert.deepEqual(result.pages.map(page => [page.ecran, page.etat]), [["accueil", "visitee"], ["p", "visitee"], ["p-2", "visitee"]]);
   assert.deepEqual(result.pages.slice(1).map(page => page.url), ["https://example.org/p?x=1", "https://example.org/p?x=2"]);
 });
+}
 
 for (const [actual, reason] of [
   ["https://other.example/", "La page redirige vers un autre site"],
