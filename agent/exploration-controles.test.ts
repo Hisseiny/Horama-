@@ -164,6 +164,29 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
   assert.deepEqual(overflows.map(defect => defect.selecteur), ["#contents", "#border", "#scaled", "#real"]);
   const before = await client.send("Runtime.evaluate", { returnByValue: true, expression: "['icon', 'card', 'few', 'ring', 'svg'].map(id => { const e = document.getElementById(id); return e.scrollWidth > e.clientWidth + 1 || e.scrollHeight > e.clientHeight + 1; })" });
   assert.deepEqual(before.result.value, [true, true, true, true, true], "l'ancienne règle les aurait signalés");
+  await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = \`
+    <style>button { width:80px; height:28px; white-space:nowrap; overflow:hidden; font:16px/20px sans-serif; padding:0; border:0 }</style>
+    <button id="german">Krankenversicherungsunternehmen</button>
+    <button id="ellipsis" style="text-overflow:ellipsis">Krankenversicherungsunternehmen</button>
+    <button id="fits">Hallo</button>
+    <button id="hidden" style="display:none">Krankenversicherungsunternehmen</button>
+    <button id="transparent" style="opacity:0">Krankenversicherungsunternehmen</button>
+    <button id="screen-reader" class="sr-only">Krankenversicherungsunternehmen</button>
+    <button id="replacement" style="text-indent:-9999px;background:red">Krankenversicherungsunternehmen</button>
+    <button id="clip-one" style="position:absolute;width:1px;height:1px;clip:rect(0,0,0,0)">Krankenversicherungsunternehmen</button>
+    <div aria-roledescription="carousel"><button>Krankenversicherungsunternehmen</button></div>
+    <div style="overflow-x:auto;width:100px"><button>Krankenversicherungsunternehmen</button></div>
+    <div id="multiline" style="overflow:clip;width:120px;height:20px;font:16px/20px sans-serif"><span>Erste Zeile<br>Zweite Zeile</span></div>
+    <div id="image-only" style="overflow:hidden;width:40px;height:20px"><span style="display:block;width:200px;height:40px;background:red"></span></div>
+    <p id="line-clamp" style="width:100px;font:16px/20px sans-serif;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden">Erste Zeile zweite Zeile dritte Zeile vierte Zeile fünfte Zeile</p>
+    <div id="ellipsis-card" style="overflow:hidden;width:100px;height:80px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Krankenversicherungsunternehmen</div><img width="200" height="20" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='20'/%3E"></div>
+    <div id="clipping-parent" style="overflow:hidden;width:100px;height:80px"><div style="width:400px;overflow:hidden;white-space:nowrap"><span>Krankenversicherungsunternehmen</span></div></div>
+    <div id="inline-clipping-parent" style="overflow:hidden;width:100px;height:80px;white-space:nowrap"><span style="overflow:hidden">Krankenversicherungsunternehmen</span></div>
+  \`` });
+  const clippedText = (await controlerPage(client, { maxLiens: 0 })).filter(defect => defect.sorte === "texte_rogne");
+  t.diagnostic(`Textes rognés : ${clippedText.map(defect => defect.selecteur).join(", ")}`);
+  assert.deepEqual(clippedText.map(defect => defect.selecteur), ["#german", "#multiline", "#clipping-parent", "#inline-clipping-parent"]);
+  assert.ok(clippedText.every(defect => defect.zone && defect.statut === "VERIFIED_FAIL"));
   await navigate("/many");
   started = Date.now();
   const many = await controlerPage(client);
