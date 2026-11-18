@@ -24,6 +24,38 @@ export function refuseCookies(): boolean {
   return false;
 }
 
+export async function waitForVisibleStable(): Promise<void> {
+  const deadline = Date.now() + 10000;
+  const visible = (element: Element) => {
+    for (let parent: Element | null = element; parent; parent = parent.parentElement) {
+      const style = getComputedStyle(parent);
+      if (style.display === "none" || style.visibility === "hidden" || style.visibility === "collapse" || Number(style.opacity) === 0) return false;
+    }
+    const rect = element.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth;
+  };
+  let previous = "";
+  while (Date.now() < deadline) {
+    try {
+      const body = document.body;
+      const roots = body ? [...body.children].filter(element => !["SCRIPT", "STYLE", "LINK"].includes(element.tagName)) : [];
+      const largest = roots.sort((a, b) => {
+        const left = a.getBoundingClientRect(), right = b.getBoundingClientRect();
+        return right.width * right.height - left.width * left.height;
+      })[0];
+      const mains = [...document.querySelectorAll("main, [role=main]")];
+      const elements = body ? [body, ...[...body.querySelectorAll("*")].slice(0, 250)] : [];
+      const content = elements.filter(element => visible(element) && (element.textContent?.trim() || element.matches("img, svg, canvas, video")));
+      const ready = body && visible(body) && (!largest || visible(largest)) && (!mains.length || mains.some(visible)) && content.length > 0;
+      const signature = ready ? JSON.stringify([document.documentElement.scrollHeight, body.innerText.slice(0, 4000), body.getElementsByTagName("*").length,
+        content.slice(0, 40).map(element => { const rect = element.getBoundingClientRect(); return [element.tagName, Math.round(rect.x), Math.round(rect.y), Math.round(rect.width), Math.round(rect.height)]; })]) : "";
+      if (signature && signature === previous) return;
+      previous = signature;
+    } catch { previous = ""; }
+    await new Promise(resolve => setTimeout(resolve, Math.min(500, Math.max(0, deadline - Date.now()))));
+  }
+}
+
 export async function prepareCapture(client: ExplorationCdp): Promise<"refusee" | "aucune"> {
   const result = await client.send("Runtime.evaluate", {
     expression: `(async () => {
@@ -31,6 +63,7 @@ export async function prepareCapture(client: ExplorationCdp): Promise<"refusee" 
       while (document.readyState !== "complete" && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 100));
       const clicked = (${refuseCookies.toString()})();
       if (clicked) await new Promise(resolve => setTimeout(resolve, 500));
+      await (${waitForVisibleStable.toString()})();
       return clicked;
     })()`, awaitPromise: true, returnByValue: true,
   });
@@ -89,7 +122,7 @@ export async function connecterCdp(port: number, address: string): Promise<Explo
     send(method, params = {}) {
       return new Promise((resolve, reject) => {
         const key = ++id;
-        const timer = setTimeout(() => { pending.delete(key); reject(new Error(`CDP hors délai : ${method}`)); }, 20_000);
+        const timer = setTimeout(() => { pending.delete(key); reject(new Error(`CDP hors délai : ${method}`)); }, 30_000);
         pending.set(key, { resolve, reject, timer });
         socket.send(JSON.stringify({ id: key, method, params }));
       });

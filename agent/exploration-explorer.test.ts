@@ -82,6 +82,33 @@ async function run({ png = original, skip = "", refuse = false, failure = false,
   return { result, base, responses };
 }
 
+test("préparation attendue avant capture et contrôles dans explorer", async () => {
+  const events: string[] = [];
+  await run({ deps: {
+    connecter: async () => ({ on() {}, close() {}, async send(_method, params) {
+      if (String((params as Record<string, unknown> | undefined)?.expression).includes("responseStatus")) return { result: { value: 200 } };
+      events.push("préparation");
+      await Promise.resolve();
+      events.push("prêt");
+      return { result: { value: false } };
+    } }),
+    runtime: {
+      relever: async ecran => {
+        assert.equal(events.at(-1), "prêt");
+        events.push("capture");
+        return { png: original, texte: "Page", url_page: ecran === "accueil" ? "https://example.org/" : "https://example.org/faq", largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture" };
+      },
+      navigateur: async () => ({ channel: "fake", stop() {} }), close() {},
+    },
+    controler: async () => {
+      assert.equal(events.at(-1), "capture");
+      events.push("contrôles");
+      return [];
+    },
+  } });
+  assert.deepEqual(events, ["préparation", "prêt", "capture", "contrôles", "préparation", "prêt", "capture", "contrôles"]);
+});
+
 test("paramètre de suivi ajouté : capture préparée et persistée normalement", async () => {
   const { result, base } = await run({ query: "?utm_source=internal" });
   assert.equal(result.etat, "fini");

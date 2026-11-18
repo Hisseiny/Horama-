@@ -8,6 +8,7 @@
 - Captures : coordonnées document corrigées du défilement ; un défaut prouvé hors du viewport reçoit une capture centrée du viewport dans `captures/<id>.png`, avec zone bornée dans l'image et restauration du défilement. En cas d'échec, conservation du constat et de la capture initiale, sans zone extérieure.
 - Cookies : refus générique FR/EN avant capture, jamais d'acceptation ni de soumission de formulaire ; état `refusee` ou `aucune` enregistré.
 - Page lente : attente de `document.readyState === "complete"`, bornée à 15 s.
+- Complément PR #82 (mesure partie B) : kpmg.com/fr restait invisible à 2 s, visible à 8 s. Après le chargement et le refus éventuel des cookies, attente générique de visibilité effective du body/conteneur principal et de stabilité (hauteur, texte, nombre d'éléments et géométrie visibles inchangés sur deux observations espacées de 500 ms), bornée à 10 s supplémentaires ; puis poursuite même sans stabilité. Cette préparation précède la capture et les contrôles ; délai de transport CDP porté à 30 s pour couvrir les deux bornes. Correctif non vérifié sur le site réel.
 - Redirection acceptée sur la même origine après résolution ; abandon après deux essais sans atteindre la bonne page. Autre origine, page navigateur en erreur et page inaccessible reçoivent une raison française.
 - Site sans plan, texte anglais et pages HTTP 404/500 couverts ; les pages en erreur atteintes restent visitées, avec contrôles de page en erreur.
 - Toute page non atteinte finit `non_visitee`, avec raison dans le rapport et le résultat C4 ; le rapport reste `interrompu`.
@@ -26,6 +27,7 @@ Tests hors réseau avec fetch, session H et CDP factices :
 - Site sans sitemap, texte anglais, pages HTTP 404/500.
 - Budget 15 pages = 70 ; arrêt après 13 pages puis relance des seules 2 restantes ; deux agents et replays C4 distincts ; deuxième échec, session muette, création de relance impossible, rejet de fin, annulation et fermeture impossible.
 - Transmission HTTP de `max_steps`, `queue: false`, défaut 40 et refus des budgets invalides.
+- Complément visibilité : Chrome local, body à opacité nulle puis visible après 3 s, contrôles et capture après apparition ; texte changeant en permanence, poursuite après la borne de 10 s. Test d'ordre dans explorer : préparation entièrement attendue avant capture puis contrôles.
 
 Tests Chrome local effectivement exécutés : contrôles mécaniques sur de vraies pages locales et refus des cookies FR/EN ; acceptation seule, bouton submit dans un formulaire et absence de bannière ne déclenchent pas de clic.
 
@@ -76,6 +78,8 @@ agent check: Done
 ```
 
 Tests Chrome locaux non ignorés ; recherche des cinq domaines interdits dans `agent/src` après fusion : 0 ligne.
+
+Après le complément visibilité PR #82, nouvelle vérification `pnpm -r --if-present run check` : agent 180 tests, 180 réussites, 0 échec, 0 ignoré ; autres pôles inchangés (10/10, 34/34, 8/8, 79/79). Les deux scénarios Chrome locaux (apparition après 3 s et instabilité bornée à 10 s) ont effectivement été exécutés. Recherche des cinq domaines interdits dans `agent/src` : 0 ligne.
 
 ## Passage réel
 

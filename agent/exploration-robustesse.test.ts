@@ -10,6 +10,7 @@ import { runInNewContext } from "node:vm";
 import { captureDefect, prepareCapture, refuseCookies } from "./src/exploration/cdp.ts";
 import type { ExplorationCdp } from "./src/exploration/cdp.ts";
 import type { CdpClient } from "./src/exploration/controles.ts";
+import { controlerPage } from "./src/exploration/controles.ts";
 
 const chrome = process.env.CHROME_BIN ?? "google-chrome";
 const available = !spawnSync(chrome, ["--version"]).error;
@@ -96,6 +97,40 @@ test("refus des cookies sur de vraies pages Chrome locales", { skip: !available 
     assert.deepEqual(counts.result.value, [entry.clicked ? 1 : 0, 0]);
   }
   t.diagnostic("Chrome : refus FR/EN vérifiés, aucune acceptation ni soumission.");
+
+  const surface = { ...client, close() {} };
+  await t.test("body invisible pendant 3 s : contrôles et capture après apparition", async () => {
+    await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = '<main><h1>Contenu prêt</h1><p>Page locale visible après chargement.</p></main>';
+      document.body.style.opacity = '0'; setTimeout(() => { document.body.style.opacity = '1'; }, 3000);` });
+    const started = Date.now();
+    await prepareCapture(surface);
+    assert.ok(Date.now() - started >= 3000);
+    const inspect = async () => {
+      const state = await client.send("Runtime.evaluate", { expression: "getComputedStyle(document.body).opacity", returnByValue: true });
+      assert.equal(state.result.value, "1");
+    };
+    await inspect();
+    await controlerPage(client, { fetch: async () => new Response("", { status: 200 }) });
+    await inspect();
+    const capture = await client.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
+    assert.ok(Buffer.from(capture.data, "base64").length > 100);
+  });
+  await t.test("contenu toujours instable : poursuite après la borne de 10 s", async () => {
+    await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = '<main>Changement</main>';
+      window.changes = 0; window.changing = setInterval(() => { document.querySelector('main').textContent = 'Changement ' + (++window.changes); }, 100);` });
+    const started = Date.now();
+    try {
+      await prepareCapture(surface);
+      const elapsed = Date.now() - started;
+      assert.ok(elapsed >= 10000 && elapsed < 13000, `Durée : ${elapsed} ms`);
+      await controlerPage(client, { fetch: async () => new Response("", { status: 200 }) });
+      const capture = await client.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
+      assert.ok(Buffer.from(capture.data, "base64").length > 100);
+    } finally {
+      await client.send("Runtime.evaluate", { expression: "clearInterval(window.changing)" });
+    }
+  });
+  t.diagnostic("Chrome : apparition différée et borne de stabilité vérifiées avant contrôles et capture.");
 });
 
 test("préparation : attend complete ou 15 secondes, puis continue", async () => {
@@ -111,7 +146,7 @@ test("préparation : attend complete ou 15 secondes, puis continue", async () =>
       return { result: { value } };
     } };
     assert.equal(await prepareCapture(client), "aucune");
-    assert.equal(clock, Number.isFinite(completeAt) ? completeAt : 15000);
+    assert.equal(clock, (Number.isFinite(completeAt) ? completeAt : 15000) + 10000);
   }
 });
 
