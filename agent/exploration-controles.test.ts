@@ -6,10 +6,10 @@ import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { controlerPage } from "./src/exploration/controles.ts";
+import { controlerPage, installerJournalConsole } from "./src/exploration/controles.ts";
 import type { CdpClient } from "./src/exploration/controles.ts";
 
-const chrome = process.env.CHROME_BIN ?? "google-chrome";
+const chrome = process.env.CHROME_BIN ?? (process.platform === "darwin" ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" : "google-chrome");
 const available = !spawnSync(chrome, ["--version"]).error;
 
 test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !available && `Chrome absent : ${chrome}`, timeout: 60_000 }, async t => {
@@ -19,9 +19,17 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
     if (request.url === "/healthy" || request.url === "/broken") {
       response.setHeader("Content-Type", "text/html; charset=utf-8");
       response.end(await readFile(new URL(`./scripts/exploration-pages-essai/${request.url.slice(1)}.html`, import.meta.url)));
+    } else if (request.url === "/many") {
+      const links = (from: number, to: number) => Array.from({ length: to - from }, (_, i) => `<a href="/ok-${from + i}">Lien ${from + i}</a>`).join("");
+      response.setHeader("Content-Type", "text/html; charset=utf-8");
+      response.end(`<!doctype html><meta charset="utf-8"><nav>${links(0, 30)}<a href="/loop">Boucle</a></nav><main>${links(30, 55)}<a href="/redirect-dead">Journée portes ouvertes</a></main>`);
     } else if (request.url === "/redirect" || request.url === "/fallback-redirect") {
       if (request.url === "/fallback-redirect" && request.method === "HEAD") response.writeHead(405).end();
-      else response.writeHead(302, { Location: "/redirect-target" }).end();
+      else response.writeHead(302, { Location: "/redirect-ok" }).end();
+    } else if (request.url === "/redirect-dead" || request.url === "/hop" || request.url === "/loop") {
+      response.writeHead(request.url === "/hop" ? 302 : 301, { Location: { "/redirect-dead": "/hop", "/hop": `${base}/gone`, "/loop": "/loop" }[request.url] }).end();
+    } else if (request.url === "/redirect-ok" || request.url?.startsWith("/ok-")) {
+      response.end("OK");
     } else if (request.url === "/fallback") {
       response.writeHead(request.method === "HEAD" ? 405 : 200).end("OK");
     } else response.writeHead(request.url === "/error" ? 500 : 404).end("Introuvable");
@@ -88,8 +96,10 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
   assert.ok(defects.some(defect => defect.valeur === "Erreur de démonstration"));
   assert.ok(defects.some(defect => String(defect.valeur).includes("Exception de démonstration")));
   assert.equal(defects.filter(defect => defect.sorte === "lien_casse").length, 1);
-  assert.ok(!requests.some(value => value.endsWith(" /redirect-target")));
+  assert.deepEqual(requests.filter(value => value.endsWith(" /redirect")), ["HEAD /redirect"]);
+  assert.ok(requests.includes("HEAD /redirect-ok"));
   assert.deepEqual(requests.filter(value => value.endsWith(" /fallback-redirect")), ["HEAD /fallback-redirect", "GET /fallback-redirect"]);
+  assert.ok(requests.includes("GET /redirect-ok"));
   assert.deepEqual(requests.filter(value => value.endsWith(" /fallback")), ["HEAD /fallback", "GET /fallback"]);
   assert.ok(defects.find(defect => defect.sorte === "debordement")?.zone);
   assert.ok(defects.some(defect => defect.sorte === "debordement" && defect.selecteur === "#overflow"));
@@ -114,10 +124,51 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
     assert.equal(active++, 0); count++; await Promise.resolve(); active--;
     return new Response(null, { status: 200 });
   } });
-  assert.equal(count, 20);
+  assert.equal(count, 29);
   assert.ok(limited.some(defect => defect.sorte === "texte_erreur" && defect.selecteur === "html > body:nth-child(2)"));
+  let started = Date.now();
+  count = 0;
+  await controlerPage(client, { delaiLiensMs: 200, fetch: async () => { count++; await new Promise(resolve => setTimeout(resolve, 60)); return new Response(null, { status: 200 }); } });
+  t.diagnostic(`Budget de 200 ms : ${count} liens, ${Date.now() - started} ms`);
+  assert.ok(count >= 2 && count <= 5, String(count));
+  assert.ok(Date.now() - started < 2000);
+  await navigate("/many");
+  started = Date.now();
+  const many = await controlerPage(client);
+  t.diagnostic(`56 liens et une boucle : ${Date.now() - started} ms`);
+  const dead = many.filter(defect => defect.sorte === "lien_casse");
+  assert.equal(dead.length, 1);
+  assert.equal(dead[0].valeur, `${base}/redirect-dead : 404`);
+  assert.match(dead[0].message, new RegExp(`après 2 redirections, à ${base}/gone qui renvoie HTTP 404`));
+  assert.ok(dead[0].zone && dead[0].selecteur);
+  assert.equal(requests.filter(value => value === "HEAD /loop").length, 6);
+  requests.length = 0;
+  const first = await controlerPage(client, { maxLiens: 26 });
+  assert.equal(first.filter(defect => defect.sorte === "lien_casse").length, 1);
+  assert.ok(!requests.some(value => /\/ok-([0-9]|[12][0-9]) |\/loop/.test(`${value} `)), "liens de la zone principale d'abord");
   await navigate("/error");
   assert.ok((await controlerPage(client)).some(defect => defect.sorte === "page_en_erreur" && defect.valeur === 500));
   await navigate("/healthy");
   assert.deepEqual(await controlerPage(client), []);
+
+  const sent: string[] = [];
+  const callerEvents: string[] = [];
+  const caller: CdpClient = {
+    send(method, params) { sent.push(method); return client.send(method, params); },
+    on() { throw new Error("Les listeners de l'appelant ne doivent pas être remplacés."); },
+  };
+  client.on("Runtime.consoleAPICalled", event => callerEvents.push(event.args.map((arg: any) => arg.value).join(" ")));
+  await installerJournalConsole(caller);
+  await navigate("/broken");
+  const shared = await controlerPage(caller, { connexionAppelant: true });
+  t.diagnostic(`Connexion de l'appelant : ${shared.map(defect => defect.sorte).join(", ")}`);
+  assert.ok(!sent.includes("Runtime.disable") && !sent.includes("Runtime.enable"));
+  for (const kind of ["debordement", "image_cassee", "lien_casse", "texte_erreur", "erreur_console"]) assert.ok(shared.some(defect => defect.sorte === kind), kind);
+  assert.ok(shared.some(defect => defect.valeur === "Erreur de démonstration"));
+  assert.ok(shared.some(defect => String(defect.valeur).includes("Exception de démonstration")));
+  await client.send("Runtime.evaluate", { expression: "console.error('Après le contrôle')" });
+  await new Promise(resolve => setTimeout(resolve, 100));
+  assert.ok(callerEvents.includes("Erreur de démonstration") && callerEvents.includes("Après le contrôle"));
+  await navigate("/healthy");
+  assert.deepEqual(await controlerPage(caller, { connexionAppelant: true }), []);
 });
