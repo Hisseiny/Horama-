@@ -170,3 +170,22 @@ test("capture contextuelle : défilement réel, viewport et restauration même e
     assert.equal(expressions.at(-1), "window.scrollTo(0, 200)");
   }
 });
+
+test("capture contextuelle : défaut à droite centré horizontalement", async () => {
+  let scroll: [number, number] = [0, 0];
+  const document = { documentElement: { scrollWidth: 4000, scrollHeight: 2000 } };
+  const client: ExplorationCdp = { on() {}, close() {}, async send(method, params) {
+    if (method === "Page.captureScreenshot") return { data: Buffer.from("png").toString("base64") };
+    const expression = String((params as Record<string, unknown> | undefined)?.expression);
+    const value = await runInNewContext(expression, {
+      document, window: { scrollTo(x: number, y: number) { scroll = [x, y]; },
+        get scrollX() { return scroll[0]; }, get scrollY() { return scroll[1]; } },
+      requestAnimationFrame: (callback: () => void) => callback(),
+      setTimeout: (callback: () => void) => callback(),
+    });
+    return { result: { value } };
+  } };
+  const result = await captureDefect(client, { x: 2500, y: 600, largeur: 100, hauteur: 40 }, [20, 30]);
+  assert.deepEqual(result.zone, { x: 590, y: 430, largeur: 100, hauteur: 40 });
+  assert.deepEqual(scroll, [20, 30]);
+});

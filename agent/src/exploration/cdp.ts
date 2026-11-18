@@ -74,7 +74,8 @@ export async function captureDefect(client: ExplorationCdp, zone: { x: number; y
   const evaluate = async (expression: string) => (await client.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true })).result?.value;
   try {
     await evaluate(`(async () => {
-      window.scrollTo(0, Math.max(0, Math.min(${JSON.stringify(zone.y + zone.hauteur / 2 - 450)}, document.documentElement.scrollHeight - 900)));
+      window.scrollTo(Math.max(0, Math.min(${JSON.stringify(zone.x + zone.largeur / 2 - 640)}, document.documentElement.scrollWidth - 1280)),
+        Math.max(0, Math.min(${JSON.stringify(zone.y + zone.hauteur / 2 - 450)}, document.documentElement.scrollHeight - 900)));
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       await new Promise(resolve => setTimeout(resolve, 300));
     })()`);
