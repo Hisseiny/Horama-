@@ -84,7 +84,7 @@ async function run({ png = original, skip = "", refuse = false, failure = false,
 }
 
 for (const context of ["plusieurs", "vide", "indisponible"]) {
-  test(`exception de relevé journalisée sans changer la réponse à H : CDP ${context}`, async () => {
+  test(`exception de relevé journalisée et page écartée : CDP ${context}`, async () => {
     const messages: string[] = [];
     const { responses } = await run({ actual: address => address, deps: {
       log: message => messages.push(message),
@@ -101,7 +101,7 @@ for (const context of ["plusieurs", "vide", "indisponible"]) {
         navigateur: async () => ({ channel: "fake", stop() {} }), close() {},
       },
     } });
-    assert.ok(responses.some(response => response.split("\n")[0] === "Relevé impossible : la capture a échoué. Réessaie ou appelle terminer en échec."));
+    assert.ok(responses.some(response => response.startsWith("Capture CDP originale\nContinue les autres relevés.")));
     const diagnostic = messages.find(message => message.startsWith("Relevé accueil :"))!;
     assert.match(diagnostic, /Error: Capture CDP originale/);
     assert.match(diagnostic, /exploration-explorer.test.ts/);
@@ -116,6 +116,27 @@ for (const context of ["plusieurs", "vide", "indisponible"]) {
     }
   });
 }
+
+test("exception de relevé : raison réelle immédiate, aucun retour vers la page et les autres continuent", async () => {
+  let attempts = 0;
+  const { result, responses } = await run({ actual: address => address, retries: 2, deps: {
+    runtime: {
+      relever: async ecran => {
+        if (ecran === "accueil") { attempts++; throw new Error("Capture hors délai : canal fermé"); }
+        return { png: original, texte: "FAQ", url_page: "https://example.org/faq", largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture" };
+      },
+      navigateur: async () => ({ channel: "fake", stop() {} }), close() {},
+    },
+    onglets: async () => [],
+  } });
+  assert.equal(attempts, 1);
+  assert.equal(result.pages[0].etat, "non_visitee");
+  assert.equal(result.pages[0].raison, "Capture hors délai : canal fermé");
+  assert.equal(result.pages[1].etat, "visitee");
+  assert.ok(responses.slice(0, 2).every(response => response.startsWith("Capture hors délai : canal fermé")));
+  assert.ok(responses.every(response => !response.includes('relever(ecran="accueil"')));
+  assert.ok(responses.every(response => !response.includes("Réessaie")));
+});
 
 test("préparation attendue avant capture et contrôles dans explorer", async () => {
   const events: string[] = [];

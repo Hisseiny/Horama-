@@ -16,6 +16,7 @@ import type { ExplorationCdp } from "./cdp.ts";
 import { controlerPage } from "./controles.ts";
 import { askHolo } from "./holo.ts";
 import { discoverPages, normalizePageQuery } from "./pages.ts";
+import { detecterBlocage } from "./blocage.ts";
 
 type Zone = EcartVisuel["zone"];
 export interface Finding {
@@ -109,6 +110,12 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
   const diagnosticReleve = async (ecran: string, action: () => Promise<ReleveCapture>) => {
     try { return await action(); }
     catch (error) {
+      const page = pages.find(page => page.ecran === ecran);
+      if (page) {
+        page.etat = "non_visitee"; page.statut = "INCONCLUSIVE"; page.fin = new Date().toISOString();
+        page.raison = error instanceof Error ? error.message : String(error);
+        save();
+      }
       let context = "URL et nombre d'onglets page CDP indisponibles";
       try {
         const tabs = (await onglets()).filter(tab => tab.type === "page");
@@ -132,12 +139,21 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
   const notes = lireNotes(vault, site);
   const decisions = lireDecisions(vault, site);
   let sitemap = false;
+  const loginUrl = (address: string) => /\/(?:log-?in|sign-?in|connexion|auth)(?:\/|$)/i.test(new URL(address, url).pathname);
+  let blocage: string | null = loginUrl(url) ? "Connexion demandée (adresse de connexion)." : null;
   const request: typeof fetch = async (address, init) => {
+    if (blocage) throw new Error(blocage);
     const response = await (deps.fetch ?? fetch)(address, { ...init, ...(signal ? { signal: init?.signal ? AbortSignal.any([signal, init.signal]) : signal } : {}) });
-    if (response.ok && /<(?:[\w-]+:)?(?:urlset|sitemapindex)\b/i.test(await response.clone().text())) sitemap = true;
+    const body = await response.clone().text();
+    const metadata = /\/(?:robots\.txt|[^/?]*\.xml)(?:\?|$)/i.test(String(address));
+    const login = response.status >= 300 && response.status < 400 && response.headers.get("location");
+    blocage = login && loginUrl(login) ? "Connexion demandée (redirection vers la connexion)." : metadata && [404, 410].includes(response.status) ? null : detecterBlocage(body, response.status);
+    if (blocage) throw new Error(blocage);
+    if (response.ok && /<(?:[\w-]+:)?(?:urlset|sitemapindex)\b/i.test(body)) sitemap = true;
     return response;
   };
   const discovery = await discoverPages(url, { max, fetch: request });
+  if (blocage && !discovery.pages.length) discovery.pages.push(url);
   const used = new Set<string>();
   const pages: ExplorationPage[] = discovery.pages.map((address, index) => {
     const path = decodeURIComponent(new URL(address).pathname).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "accueil";
@@ -186,6 +202,20 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
     id: `${page.ecran}--${source}--${findings.filter(item => item.source === source).length + 1}`, ecran: page.ecran, vue: "defaut", source,
     sorte: "non-conclu", statut: "INCONCLUSIVE", description: "La vérification n'a pas pu se faire.", textes_a_surligner: [], preuve: {}, capture: `captures/${page.ecran}.png`, agent: pages.find(candidate => candidate.ecran === page.ecran)?.agent ?? agent.agent, page: { largeur: 1280, hauteur: 900 }, ...fields });
   const inconclusive = (page: Pick<ExplorationPage, "ecran">, source: Finding["source"], findings: Finding[], raison: string) => findings.push(finding(page, source, findings, { raison, description: raison }));
+  const markBlocked = (reason: string) => {
+    blocage = reason;
+    agent.raison = reason;
+    for (const page of pages.filter(page => page.etat !== "visitee")) {
+      page.etat = "non_visitee"; page.raison = reason; page.statut = "INCONCLUSIVE"; page.fin = new Date().toISOString();
+      if (!report.constats.some(item => item.ecran === page.ecran)) inconclusive(page, "controle", report.constats, reason);
+    }
+    save();
+  };
+  const renderedBlock = async (client: ExplorationCdp) => {
+    const result = await client.send("Runtime.evaluate", { expression: "({ html: document.documentElement.outerHTML, status: performance.getEntriesByType('navigation')[0]?.responseStatus || null })", returnByValue: true });
+    const value = result.result?.value;
+    return typeof value?.html === "string" ? detecterBlocage(value.html, value.status) : null;
+  };
   const markResult = (page: ExplorationPage, passageId: string, replayUrl?: string): ResultatVerification => {
     const findings = report.constats.filter(item => item.ecran === page.ecran);
     page.statut = pageStatus(findings);
@@ -226,6 +256,10 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
   };
   const returned = { ...report, navigation };
   try {
+    if (blocage) {
+      markBlocked(blocage); report.etat = "fini"; agent.etat = "fini"; report.cout_usd = 0;
+      return returned;
+    }
     if (!consigne) {
       const failed = signal?.aborted || discovery.errors.length > 0;
       report.etat = failed ? "interrompu" : "fini"; agent.etat = failed ? "tombe" : "fini";
@@ -264,6 +298,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
               await input.onCreated(sessionId);
             },
             async onTool(name, args) {
+              if (blocage) return input.onTool("terminer", { etat: "echec", raison: blocage });
               const remaining = () => {
                 const page = unfinished()[0];
                 if (page && clickedPages < clicked) return `${pages.filter(page => page.etat === "visitee").length}/${pages.length} pages relevées dans ce passage. ${clickInstruction(unfinished())} Ne termine pas avant les relevés restants.`;
@@ -291,6 +326,13 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
                     }
                   }
                   if (!matched) {
+                    let client: ExplorationCdp | undefined;
+                    try {
+                      client = await (deps.connecter ?? connecterCdp)(port, address);
+                      const reason = await renderedBlock(client);
+                      if (reason) { markBlocked(reason); return input.onTool("terminer", { etat: "echec", raison: reason }); }
+                    } catch { /* Adresse hors liste sans preuve de blocage. */ }
+                    finally { client?.close(); }
                     log(`Adresse hors liste : ${address}`);
                     const next = unfinished()[0];
                     return `Cette adresse n'est pas dans la liste : ${address}. ${next ? `Ouvre ${next.url} avec go_to puis appelle relever(ecran="${next.ecran}", vue="defaut").` : remaining()}`;
@@ -301,6 +343,9 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
               const skipped = pages.find(page => page.ecran === args.ecran && page.etat === "non_visitee");
               if (name === "relever" && skipped) return `${skipped.raison}\n${remaining()}`;
               const response = await input.onTool(name, args);
+              if (blocage) return input.onTool("terminer", { etat: "echec", raison: blocage });
+              const inaccessible = pages.find(page => page.ecran === args.ecran && page.etat === "non_visitee");
+              if (name === "relever" && inaccessible) return `${inaccessible.raison}\nContinue les autres relevés. ${remaining()}`;
               const accepted = pages.find(page => page.ecran === args.ecran && page.etat === "visitee");
               if (name === "relever" && accepted && !navigation.arrivees[accepted.ecran]) {
                 const mode = accepted === pages[0] && launches === 1 ? "depart" : hadGoTo ? "adresse" : hadClick ? "clic" : "adresse";
@@ -402,8 +447,12 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
             const final = await resolveFinal(page, hookSignal);
             client = await connect(port, final ?? page.url);
           }
+          const reason = await renderedBlock(client);
+          if (reason) markBlocked(reason);
+          if (blocage) throw new Error(blocage);
           page.cookies = await prepareCapture(client);
         } catch { /* Les contrôles signalent une connexion indisponible. */ }
+        if (blocage) { hookSignal?.removeEventListener("abort", close); close(); throw new Error(blocage); }
         let capture: ReleveCapture;
         let consentFailed = false;
         try { capture = await runtime.relever(ecran, vue, async () => {
@@ -538,11 +587,12 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
     });
     const launched = await runner.lancerPassage({ logiciel: site, version_testee: version, version_reference: versionReference ?? version, tests: consigne.tests.map(test => test.id), cle: "dev" });
     const result = await runner.attendreFin(launched.passage_id);
-    report.etat = signal?.aborted || result.passage.etat !== "joue" || pages.some(page => page.etat !== "visitee") ? "interrompu" : "fini";
+    report.etat = blocage && !signal?.aborted ? "fini" : signal?.aborted || result.passage.etat !== "joue" || pages.some(page => page.etat !== "visitee") ? "interrompu" : "fini";
     if (pages.some(page => page.etat !== "visitee")) { agent.etat = "tombe"; agent.raison ??= "Des pages n'ont pas été visitées."; }
   } catch {
     report.etat = "interrompu"; agent.etat = "tombe"; agent.raison ??= "Le passage a été interrompu.";
   } finally {
+    if (blocage) { agent.raison = blocage; agent.etat = "fini"; log(blocage); }
     for (const page of pages) {
       if (page.etat !== "visitee" && page.etat !== "non_visitee") {
         page.etat = "non_visitee"; page.fin = new Date().toISOString();
