@@ -32,4 +32,3 @@ La barre latérale n'est **jamais violette**. Elle est en Papier `#FFFDF6`, avec
 - Le dossier `interface/` du dépôt n'est pas modifié : ces écrans vivent dans Figma Make (fichiers du CPO).
 - Une restauration de version dans Figma Make avait effacé les écrans 11.3 et 11.4 et remis l'ancien logo sur 11.1 : ils ont été recréés le 18/11 au soir. Avant de restaurer une version, vérifiez qu'elle contient les dossiers `interface/screen-11-3` à `screen-11-7`.
 - Les tableaux reproduits dans les maquettes (11.3, 11.5, 11.7) affichent « à mesurer » là où la spécification ne donne pas de valeur.
-- Sur 11.1, la barre latérale est un peu plus étroite que sur les autres écrans (« Passages & Rapports » passe sur deux lignes) et le quota « 14 / 40 passages · PRO » n'apparaît pas.
