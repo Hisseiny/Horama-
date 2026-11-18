@@ -26,6 +26,30 @@ export function ecrireCommentaire({ passage, rejoues, ecartes, prouves, doutes, 
   return lines.join("\n");
 }
 
+// The part of the exploration of the whole site of the preview (issue #122): mechanical checks prove, Holo only doubts,
+// the human says bug or voulu. Text only (option b): for each finding, its page, its zone in pixels of the capture
+// (1280 × 900) and its proof; the captures ringed stay in the note of the passage, whose path closes the part.
+// bilan: bilanExploration (scene/recapitulatif.mjs). prouves, doutes, dejaVoulus: [{ id, chemin, texte, preuve,
+// zone, capture }]; decisions: [{ ecart_id, decision }].
+export function ecrireSectionExploration({ adresse, bilan, totaux, prouves, doutes, dejaVoulus = [], decisions, note }) {
+  const decided = (id) => DECIDED[decisions.find((decision) => decision.ecart_id === id)?.decision] ?? "pas tranché";
+  const zone = ({ zone: box }) => (box ? `zone x ${Math.round(box.x)}, y ${Math.round(box.y)}, ${Math.round(box.largeur)} × ${Math.round(box.hauteur)} px sur la capture` : "zone non mesurée");
+  const line = (item, withDecision = true) => `- ${item.chemin} : ${item.texte}${item.preuve ? ` ${item.preuve}` : ""} (${zone(item)}${withDecision ? `, décision : ${decided(item.id)}` : ""})`;
+  const lines = ["### Exploration de tout le site de la prévisualisation", ""];
+  if (bilan.aucune) {
+    lines.push(`**${bilan.phrase}**`, "");
+  } else {
+    lines.push(`${adresse} : ${count(totaux.pages_visitees, "page visitée", "pages visitées")} sur ${count(totaux.pages_trouvees, "trouvée", "trouvées")}.`, "");
+    lines.push(`**${prouves.length ? count(prouves.length, "défaut de mise en page prouvé", "défauts de mise en page prouvés") : "Aucun défaut prouvé"}${doutes.length ? `, ${count(doutes.length, "doute", "doutes")}` : ""}.**`, "");
+    if (prouves.length) lines.push("#### Défauts prouvés par le code", "", ...prouves.map((item) => line(item)), "");
+    if (doutes.length) lines.push("#### Doutes du regard de Holo, rien n'est prouvé", "", ...doutes.map((item) => line(item)), "");
+    if (dejaVoulus.length) lines.push("#### Déjà déclarés voulus, non redemandés", "", ...dejaVoulus.map((item) => line(item, false)), "");
+    if (bilan.nonVisitees.length) lines.push("#### Pages non visitées", "", ...bilan.nonVisitees.map(({ chemin, raison }) => `- ${chemin}${raison ? ` : ${raison.replace(/\.+$/, "")}` : ""}`), "");
+  }
+  lines.push(`Les captures entourées et chaque décision : \`${note}\` (vault Horama).`, "");
+  return lines.join("\n");
+}
+
 // Posts the comment with gh (`gh pr comment <adresse> --body-file`). A failure is returned, never thrown: the scene
 // says it and goes on. run(command, args, options) is injectable, with the result of promisified execFile.
 export async function publierCommentaire(adresse, corps, { run = execute } = {}) {

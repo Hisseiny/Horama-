@@ -8,7 +8,8 @@
 //
 // Usage: node automatisation/reveil/pr.mjs --depot <propriétaire/dépôt> --logiciel <logiciel du vault> [--intervalle 20]
 //          [--une-fois] [--a-blanc] [--vault vault-horama] [--sortie .orchestrateur/reveil-pr] [--faux-github <fichier.json>]
-//          [--max 8] [--pages-cliquees 4] [--sans-exploration] [-- options des deux scènes, par exemple --vitrine]
+//          [--max 8] [--pages-cliquees 4] [--sans-exploration] [--commenter] [-- options des deux scènes, par exemple --vitrine]
+// --commenter: one answer on the PR, once both scenes are done (the part of each scene, text only).
 // --max, --pages-cliquees: the exploration of the preview (pages at most, pages the agent reaches by a click);
 // --sans-exploration: the vault tests only.
 // --a-blanc: one look at the repository, nothing played (no scene, no H, nothing written): the open PRs, the preview of
@@ -26,6 +27,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { lireNotes, lireTestsAcceptes } from "../../memoire/index.ts";
 import { choisirTests } from "../impact/impact.mjs";
+import { publierCommentaire } from "../pr-doc/commentaire.mjs";
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const gh = (path) => JSON.parse(execFileSync("gh", ["api", "--paginate", "--slurp", path], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })).flat();
@@ -179,6 +181,24 @@ export async function aBlanc(lecteur, { vault, logiciel, socle = [], ouverte = o
   return lines;
 }
 
+// The answer on the PR: the part of the vault tests (passage.json of the scene, commentaire_corps), then the part of the
+// exploration (scene.json, commentaire.corps). Without the first, a heading says why the vault tests did not run.
+export function reponseSurPr({ pr, impact, report, folder }) {
+  const read = (file) => {
+    try {
+      return JSON.parse(readFileSync(join(folder, file), "utf8"));
+    } catch {
+      return null;
+    }
+  };
+  const tests = read("scene/passage.json")?.commentaire_corps ?? null;
+  const site = read("exploration/scene.json")?.commentaire?.corps ?? null;
+  if (!tests && !site) return null;
+  const heading = tests ? [] : [`## Horama : PR #${pr.numero} (${pr.tete.slice(0, 7)})`, "",
+    report.langue ? `${report.langue.charAt(0).toUpperCase()}${report.langue.slice(1)}.` : impact.retenus.length ? "Tests de la documentation : non rendus." : "Tests de la documentation : aucun touché par cette PR.", ""];
+  return [...heading, ...(tests ? [tests] : []), ...(site ? [site] : [])].join("\n");
+}
+
 function runNode(args) {
   return new Promise((done, fail) => {
     const child = spawn(process.execPath, args, { cwd: ROOT, stdio: "inherit" });
@@ -192,7 +212,7 @@ function runNode(args) {
 // exploration of the whole site of the preview (exploration.mjs, public mode: mechanical checks and Holo), unless
 // `exploration` is null. Everything in <sortie>/pr-<numéro>-<sha court>/. A scene that fails is written in the report,
 // never thrown: the other one still runs, and the wake-up goes on with the next PR.
-export async function jouerPr({ pr, fichiers, vault, logiciel, socle, sortie, sceneArgs = [], exploration = { max: 8, pagesCliquees: 4 }, langue = langueDePage }, run = runNode) {
+export async function jouerPr({ pr, fichiers, vault, logiciel, socle, sortie, sceneArgs = [], exploration = { max: 8, pagesCliquees: 4 }, langue = langueDePage, commenter = false, publier = publierCommentaire }, run = runNode) {
   const started = performance.now();
   const folder = join(sortie, `pr-${pr.numero}-${pr.tete.slice(0, 7)}`);
   mkdirSync(folder, { recursive: true });
@@ -231,7 +251,13 @@ export async function jouerPr({ pr, fichiers, vault, logiciel, socle, sortie, sc
     }
     if (exploration) {
       await step("exploration", ["automatisation/scene/exploration.mjs", "--url", pr.previsualisation, "--max", String(exploration.max), "--pages-cliquees", String(exploration.pagesCliquees),
-        "--vault", vault, "--sortie", join(folder, "exploration"), ...sceneArgs]);
+        "--vault", vault, "--sortie", join(folder, "exploration"), "--pr", pr.adresse, ...sceneArgs]);
+    }
+    // One answer on the PR for both scenes (--commenter): what each wrote, put together.
+    if (commenter) {
+      const corps = reponseSurPr({ pr, impact, report, folder });
+      report.commentaire = corps ? await publier(pr.adresse, corps) : { status: "INCONCLUSIVE", reason: "aucune scène n'a écrit sa partie" };
+      console.log(report.commentaire.status === "publie" ? `réveil PR : réponse publiée, ${report.commentaire.url}` : `réveil PR : réponse non publiée, ${report.commentaire.reason}`);
     }
     const ran = [report.parcours, report.exploration].filter((item) => item && item.etat !== "aucun-test");
     report.etat = !ran.length ? "aucun-test" : ran.some((item) => item.etat === "echec") ? "echec" : "termine";
@@ -252,7 +278,7 @@ async function main() {
   const { values } = parseArgs({ args: process.argv.slice(2, separator < 0 ? undefined : separator), options: {
     depot: { type: "string" }, logiciel: { type: "string" }, intervalle: { type: "string", default: "20" }, "une-fois": { type: "boolean" }, "a-blanc": { type: "boolean" },
     vault: { type: "string", default: "vault-horama" }, sortie: { type: "string", default: ".orchestrateur/reveil-pr" }, "faux-github": { type: "string" },
-    max: { type: "string", default: "8" }, "pages-cliquees": { type: "string", default: "4" }, "sans-exploration": { type: "boolean" },
+    max: { type: "string", default: "8" }, "pages-cliquees": { type: "string", default: "4" }, "sans-exploration": { type: "boolean" }, commenter: { type: "boolean" },
   } });
   if (!values.logiciel || (!values.depot && !values["faux-github"])) throw new Error("--logiciel et --depot (ou --faux-github) sont requis");
   if (values.depot && !/^[\w.-]+\/[\w.-]+$/.test(values.depot)) throw new Error("--depot attend propriétaire/dépôt");
@@ -264,7 +290,7 @@ async function main() {
   }
   // Selection, target, vault and output belong to the wake-up, not to the forwarded scene options.
   for (const arg of sceneArgs) {
-    if (["tests", "impact", "base-url", "logiciel", "vault", "sortie", "pr", "url", "max", "pages-cliquees"].includes(arg.replace(/^--/, "").split("=")[0])) throw new Error(`option de scène réservée au réveil : ${arg}`);
+    if (["tests", "impact", "base-url", "logiciel", "vault", "sortie", "pr", "url", "max", "pages-cliquees", "commenter"].includes(arg.replace(/^--/, "").split("=")[0])) throw new Error(`option de scène réservée au réveil : ${arg}`);
   }
   const vault = resolve(ROOT, values.vault);
   if (!existsSync(join(vault, values.logiciel))) throw new Error(`pas de dossier ${values.logiciel} dans le vault ${vault}`);
@@ -289,7 +315,7 @@ async function main() {
         continue;
       }
       faits.add(`${pr.numero}@${pr.tete}`);
-      await jouerPr({ pr, fichiers: lecteur.fichiers(pr.numero), vault, logiciel: values.logiciel, socle, sortie, sceneArgs, exploration });
+      await jouerPr({ pr, fichiers: lecteur.fichiers(pr.numero), vault, logiciel: values.logiciel, socle, sortie, sceneArgs, exploration, commenter: Boolean(values.commenter) });
       if (values["une-fois"]) return;
     }
     await sleep(interval * 1000);

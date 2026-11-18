@@ -28,6 +28,14 @@ export function bilanExploration(report) {
   return { aucune: true, phrase, nonVisitees };
 }
 
+// A finding a human already said « voulu » for, on an earlier course of the same site: same page, same description,
+// zones that overlap (or no zone on one side). The engine applies the decisions to the image comparison only; this
+// keeps a defect of a check or a doubt of Holo, once accepted, from being asked again. decisions: lireDecisions.
+export function dejaVoulu(constat, decisions) {
+  const overlap = (a, b) => !a || !b || (a.x < b.x + b.largeur && b.x < a.x + a.largeur && a.y < b.y + b.hauteur && b.y < a.y + a.hauteur);
+  return decisions.find((decision) => decision.decision === "voulu" && decision.ecran === constat.ecran && decision.ecart === constat.description && overlap(decision.zone, constat.zone)) ?? null;
+}
+
 // mascot: (command, ...args) => layer call. recap: { titre, lignes, selection }. items: { id, genre ("defaut" or
 // "doute"), etat (of the mascot), texte (one line in the summary), png (the capture), zones, page, textes, question }. choix: the
 // answers of --choix, in order. answer(): a promise of the next { id, choix } the layer reports. Returns, per item, the

@@ -71,7 +71,8 @@ test("une PR jouée : impact, tests du vault sur la prévisualisation, puis expl
   assert.deepEqual(calls, [
     ["automatisation/scene/parcours.mjs", "--impact", join(folder, "impact.json"), "--base-url", "https://p.vercel.app", "--logiciel", "site-essai", "--vault", vault,
       "--pr", "https://github.com/o/d/pull/7", "--sortie", join(folder, "scene"), "--vitrine"],
-    ["automatisation/scene/exploration.mjs", "--url", "https://p.vercel.app", "--max", "8", "--pages-cliquees", "4", "--vault", vault, "--sortie", join(folder, "exploration"), "--vitrine"],
+    ["automatisation/scene/exploration.mjs", "--url", "https://p.vercel.app", "--max", "8", "--pages-cliquees", "4", "--vault", vault, "--sortie", join(folder, "exploration"),
+      "--pr", "https://github.com/o/d/pull/7", "--vitrine"],
   ]);
   // A PR that touches no screen of the vault: the exploration of the site still runs.
   const explored = [];
@@ -196,4 +197,34 @@ test("langue changée sur la prévisualisation : tests de la documentation écar
   const lecteur = { prs: () => [{ numero: 9, adresse: "u", titre: "Deutsch", base: "b", tete: "allemand000" }], previsualisation: () => ({ etat: "success", adresse: "https://p.vercel.app", source: "faux" }), fichiers: () => ["src/data/home.ts"] };
   const lines = await aBlanc(lecteur, { vault, logiciel: "site-essai", ouverte: async () => ({ ouverte: true, code: 200 }), langue: german });
   assert.deepEqual(lines.slice(2), ["  tests rejoués : aucun ; écartés : voir-programmes, voir-accueil", "  langue du site changée (fr → de) : tests de la documentation non joués (voir-accueil)"]);
+});
+
+test("--commenter : une seule réponse sur la PR, la partie des tests du vault puis celle de l'exploration", async (t) => {
+  const vault = vaultEssai(t);
+  const sortie = mkdtempSync(join(tmpdir(), "horama-pr-sortie-"));
+  t.after(() => rmSync(sortie, { recursive: true, force: true }));
+  const pr = { numero: 7, adresse: "https://github.com/o/d/pull/7", base: "b1", tete: "aaaaaaa0000", previsualisation: "https://p.vercel.app" };
+  // The scenes write their part where they write it for real.
+  const scenes = async (args) => {
+    const out = args[args.indexOf("--sortie") + 1];
+    mkdirSync(out, { recursive: true });
+    if (args[0].endsWith("parcours.mjs")) writeFileSync(join(out, "passage.json"), JSON.stringify({ commentaire_corps: "## Horama : passage P1\n\nTests." }));
+    else writeFileSync(join(out, "scene.json"), JSON.stringify({ commentaire: { corps: "### Exploration de tout le site de la prévisualisation\n\nSite." } }));
+  };
+  const posted = [];
+  const publier = async (adresse, corps) => (posted.push([adresse, corps]), { status: "publie", url: `${adresse}#issuecomment-1` });
+  const report = await jouerPr({ pr, fichiers: ["src/data/programmes.ts"], vault, logiciel: "site-essai", sortie, commenter: true, publier }, scenes);
+  assert.deepEqual(posted, [["https://github.com/o/d/pull/7", "## Horama : passage P1\n\nTests.\n### Exploration de tout le site de la prévisualisation\n\nSite."]]);
+  assert.deepEqual(report.commentaire, { status: "publie", url: "https://github.com/o/d/pull/7#issuecomment-1" });
+  // No vault test touched: a heading says it, then the exploration.
+  posted.length = 0;
+  await jouerPr({ pr: { ...pr, tete: "bbbbbbb0001" }, fichiers: ["README.md"], vault, logiciel: "site-essai", sortie, commenter: true, publier }, scenes);
+  assert.equal(posted[0][1], "## Horama : PR #7 (bbbbbbb)\n\nTests de la documentation : aucun touché par cette PR.\n\n### Exploration de tout le site de la prévisualisation\n\nSite.");
+  // Nothing written by the scenes: nothing posted, said.
+  posted.length = 0;
+  const silent = await jouerPr({ pr: { ...pr, tete: "ccccccc0002" }, fichiers: ["README.md"], vault, logiciel: "site-essai", sortie, commenter: true, publier }, async () => {});
+  assert.deepEqual([posted.length, silent.commentaire.status], [0, "INCONCLUSIVE"]);
+  // Without --commenter, nothing is posted.
+  await jouerPr({ pr: { ...pr, tete: "ddddddd0003" }, fichiers: ["src/data/programmes.ts"], vault, logiciel: "site-essai", sortie, publier }, scenes);
+  assert.equal(posted.length, 0);
 });
