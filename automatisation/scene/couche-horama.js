@@ -339,7 +339,8 @@
   // ---------- Where the mascot stands: hiding as little as it can ----------
   // Room kept free around the cursor, or around the point where it is about to land.
   const clearance = ({ x, y }) => ({ left: x - 70, top: y - 70, right: x + 110, bottom: y + 120, weight: 60 });
-  // What must stay readable: the texts and the controls of the page, and far more the zones and the cursor.
+  // What must stay readable: the texts and the controls of the page (a hard rule, weight 10), the pictures (above all
+  // their upper half), and far more the zones and the cursor.
   const busy = () => {
     const boxes = [];
     for (const control of document.querySelectorAll("a, button, summary, input, select, textarea")) {
@@ -351,6 +352,15 @@
       if (!node.nodeValue.trim()) continue;
       range.selectNodeContents(node);
       for (const { left, top, right, bottom } of range.getClientRects()) boxes.push({ left: left - 6, top: top - 6, right: right + 6, bottom: bottom + 6, weight: 10 });
+    }
+    // The pictures of the page: never on the upper half of one (where the faces are, weight 40), on its lower half only
+    // when the background has no room (weight 4). A bare background comes first.
+    for (const media of document.querySelectorAll("img, video, canvas, picture, [style*='background-image']")) {
+      for (const { left, top, right, bottom, width, height } of media.getClientRects()) {
+        if (width < 60 || height < 60 || bottom < 0 || top > innerHeight) continue;
+        const middle = top + height / 2;
+        boxes.push({ left, top, right, bottom: middle, weight: 40 }, { left, top: middle, right, bottom, weight: 4 });
+      }
     }
     for (const zone of state.zones[here()] ?? []) boxes.push(box(zone, 24, 60));
     if (state.cursor && !state.revue) boxes.push(clearance(state.cursor));
@@ -381,7 +391,8 @@
   // The companion (all along the course): a place on a ring around a point (where the arrow goes, or a finding being
   // drawn), that hides as little as it can of the page, nothing of the arrow, of its target or of the way to it, and
   // not too far from where the mascot already is, so that it flies a short way beside the arrow.
-  const nearSpot = (point, boxes, from) => {
+  // `near`: while it reads, being close to the title counts more than a short flight.
+  const nearSpot = (point, boxes, from, near = false) => {
     const p = { x: Math.max(0, Math.min(innerWidth, point.x)), y: Math.max(0, Math.min(innerHeight, point.y)) };
     const way = from ? [0.2, 0.4, 0.6, 0.8].map((t) => ({ x: from.x + (p.x - from.x) * t, y: from.y + (p.y - from.y) * t }))
       .map(({ x, y }) => ({ left: x - 34, top: y - 34, right: x + 34, bottom: y + 34, weight: 60 })) : [];
@@ -390,13 +401,13 @@
     // any place that covers some, even farther from the point; among free places, the cheapest.
     const readable = boxes.filter(({ weight }) => weight === 10);
     let best = null;
-    for (const r of [130, 170, 220, 280, 350, 430]) {
+    for (const r of [130, 170, 220, 280, 350, 430, 560, 700]) {
       for (let a = 0; a < 24; a++) {
         const x = Math.round(p.x + Math.cos((a / 24) * 2 * Math.PI) * r - M / 2);
         const y = Math.round(p.y + Math.sin((a / 24) * 2 * Math.PI) * r - M / 2);
         if (x < 8 || y < 8 || x > innerWidth - M - 8 || y > innerHeight - M - 8) continue;
         const covered = hidden(x, y, M, M, readable);
-        const cost = hidden(x, y, M, M, all) + 6 * Math.hypot(x - goal.x, y - goal.y) + 4 * r;
+        const cost = hidden(x, y, M, M, all) + (near ? 1 : 6) * Math.hypot(x - goal.x, y - goal.y) + (near ? 12 : 4) * r;
         if (!best || (covered === 0) > (best.covered === 0) || ((covered === 0) === (best.covered === 0) && (covered === 0 ? cost < best.cost : covered < best.covered || (covered === best.covered && cost < best.cost)))) best = { x, y, cost, covered };
       }
     }
@@ -465,7 +476,7 @@
       const arrow = state.cursor ?? { x: innerWidth / 2, y: innerHeight / 2 };
       const far = !reading && Math.hypot(goal.x + M / 2 - arrow.x, goal.y + M / 2 - arrow.y) > 340;
       const now = busy();
-      if (far || hidden(goal.x, goal.y, M, M, boxes.filter(({ weight }) => weight >= 60)) > 0 || hidden(goal.x, goal.y, M, M, now.filter(({ weight }) => weight === 10)) > 0) {
+      if (far || hidden(goal.x, goal.y, M, M, boxes.filter(({ weight }) => weight >= 60)) > 0 || hidden(goal.x, goal.y, M, M, now.filter(({ weight }) => weight === 10 || weight === 40)) > 0) {
         goTo(nearSpot(reading?.look ?? arrow, now));
       }
       return;
@@ -950,7 +961,7 @@
     const r = list[readIndex];
     const width = Math.min(r.width, 520);
     reading = { look: { x: r.left + width / 2, y: r.top + r.height / 2 }, half: width / 2 };
-    goTo(nearSpot(reading.look, busy()));
+    goTo(nearSpot(reading.look, busy(), null, true));
     wake();
     readTimer = setTimeout(readNext, READ_PAUSE + 1500);
   }

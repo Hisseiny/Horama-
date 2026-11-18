@@ -19,7 +19,9 @@ const PAGE = `<!doctype html><html><body style="margin:0;background:#fff;height:
 // keeps in the session of the tab.
 const around = async (page) => {
   const { x, y } = JSON.parse(await evaluate(page, `sessionStorage.getItem("horama")`)).mascot;
-  return { left: x - 20, top: y - 20, right: x + 116, bottom: y + 116 };
+  // Kept inside the page of 1280 × 900: the mascot may stand 8 px from an edge.
+  const [left, top] = [Math.max(0, Math.min(x - 20, 1280 - 136)), Math.max(0, Math.min(y - 20, 900 - 136))];
+  return { left, top, right: left + 136, bottom: top + 136 };
 };
 const OUT = process.env.MASCOTTE_CAPTURES;
 
