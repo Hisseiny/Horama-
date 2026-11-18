@@ -101,7 +101,7 @@ for (const context of ["plusieurs", "vide", "indisponible"]) {
         navigateur: async () => ({ channel: "fake", stop() {} }), close() {},
       },
     } });
-    assert.ok(responses.some(response => response.split("\n")[0] === "Relevé impossible : la capture a échoué. Réessaie ou appelle terminer en échec."));
+    assert.ok(responses.some(response => response.split("\n")[0] === "Relevé impossible pour accueil/defaut, la capture a échoué : Capture CDP originale Continue les autres relevés, puis termine le parcours."));
     const diagnostic = messages.find(message => message.startsWith("Relevé accueil :"))!;
     assert.match(diagnostic, /Error: Capture CDP originale/);
     assert.match(diagnostic, /exploration-explorer.test.ts/);

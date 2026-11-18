@@ -267,11 +267,16 @@ test("le détail F-118 est refusé lorsque le test accepté demande F-119", asyn
 test("erreurs de capture, création, session et finalisation restent explicites", async () => {
   const base = new BaseMemoire();
   const session = fakeSession(async ({ consigne, onTool }) => {
-    assert.match(await onTool("relever", { ...consigne.course[0] }), /capture a échoué/);
+    assert.match(await onTool("relever", { ...consigne.course[0] }), /capture a échoué : capture impossible Continue les autres relevés/);
+    assert.match(await onTool("relever", { ...consigne.course[0] }), /capture a échoué : capture impossible Continue les autres relevés/);
   });
-  const coureur = creerCoureur({ vault, base, session, signaler: () => {}, relever: async () => { throw new Error("capture impossible"); } });
+  let calls = 0;
+  const coureur = creerCoureur({ vault, base, session, signaler: () => {}, relever: async () => { calls++; throw new Error("capture impossible"); } });
   const { passage_id } = await coureur.lancerPassage(input);
-  assert.equal((await coureur.attendreFin(passage_id)).passage.etat, "echec");
+  const report = await coureur.attendreFin(passage_id);
+  assert.equal(report.passage.etat, "echec");
+  assert.equal(calls, 1);
+  assert.match(report.tests[0].raison!, /capture impossible$/);
   await assert.rejects(coureur.attendreFin("absent"), /Passage inconnu/);
   await assert.rejects(coureur.lancerPassage({ ...input, tests: [] }), /Aucun test/);
   const failed = creerCoureur({ vault, base, session: async () => { throw new Error("H indisponible"); }, relever: async () => { throw new Error(); } });
