@@ -264,6 +264,8 @@
   };
   function tick(now) {
     frame = 0;
+    // The clock of the page, not the one of the frame: the flight goes on when the animations are frozen (a test).
+    now = performance.now();
     const dt = Math.min(0.034, (now - last) / 1000);
     last = now;
     let moving = false;
@@ -299,10 +301,10 @@
   const animate = () => {
     pupil = body.querySelector(".pupils");
   };
-  // The pupil looks at the arrow of the agent while it works (4 units at most from its place), straight ahead at the end.
+  // The pupil looks where the arrow of the agent is going (its target while it travels) while it works (4 units at most from its place), straight ahead at the end.
   const look = () => {
     if (!pupil) return;
-    const target = state.bulle || state.revue ? null : cursorAt;
+    const target = state.bulle || state.revue ? null : state.travel?.to ?? cursorAt;
     const dx = target ? target.x - at.x - M / 2 : 0;
     const dy = target ? target.y - at.y - M / 2 : 0;
     const distance = Math.hypot(dx, dy) || 1;
@@ -368,6 +370,26 @@
     }
     return best;
   }
+  // The companion (all along the course): a place on a ring around a point (where the arrow goes, or a finding being
+  // drawn), that hides as little as it can of the page, nothing of the arrow, of its target or of the way to it, and
+  // not too far from where the mascot already is, so that it flies a short way beside the arrow.
+  const nearSpot = (point, boxes, from) => {
+    const p = { x: Math.max(0, Math.min(innerWidth, point.x)), y: Math.max(0, Math.min(innerHeight, point.y)) };
+    const way = from ? [0.2, 0.4, 0.6, 0.8].map((t) => ({ x: from.x + (p.x - from.x) * t, y: from.y + (p.y - from.y) * t }))
+      .map(({ x, y }) => ({ left: x - 34, top: y - 34, right: x + 34, bottom: y + 34, weight: 60 })) : [];
+    const all = [...boxes, clearance(p), ...way];
+    let best = null;
+    for (const r of [130, 170, 220, 280]) {
+      for (let a = 0; a < 16; a++) {
+        const x = Math.round(p.x + Math.cos((a / 16) * 2 * Math.PI) * r - M / 2);
+        const y = Math.round(p.y + Math.sin((a / 16) * 2 * Math.PI) * r - M / 2);
+        if (x < 8 || y < 8 || x > innerWidth - M - 8 || y > innerHeight - M - 8) continue;
+        const cost = hidden(x, y, M, M, all) + 6 * Math.hypot(x - goal.x, y - goal.y) + 4 * r;
+        if (!best || cost < best.cost) best = { x, y, cost };
+      }
+    }
+    return best ?? corner(all);
+  };
   // The corner that hides the least of these boxes; the nearest one when several hide nothing.
   const corner = (boxes) => corners().reduce((best, spot) => {
     const cost = hidden(spot.x, spot.y, M, M, boxes) + 0.01 * Math.hypot(spot.x - goal.x, spot.y - goal.y);
@@ -423,12 +445,14 @@
     if (live) await wait(200);
   }
   // The mascot steps aside when it or its bubble hides one of these boxes: where the cursor is about to land, or what
-  // a page shows once it has opened or reacted. Without a bubble (all along the course) it only leaves its corner for
-  // the cursor or a zone, and goes to the corner that hides the least.
+  // a page shows once it has opened or reacted. Without a bubble (all along the course) it keeps beside the arrow
+  // (nearSpot): it comes back when it is far, and moves when it hides the arrow, a zone or the page that reacted.
   const stepAside = (boxes) => {
     const spot = state.bulle?.spot;
     if (!spot) {
-      if (hidden(goal.x, goal.y, M, M, boxes.filter(({ weight }) => weight >= 60)) > 0) goTo(corner(busy()));
+      const arrow = state.cursor ?? { x: innerWidth / 2, y: innerHeight / 2 };
+      const far = Math.hypot(goal.x + M / 2 - arrow.x, goal.y + M / 2 - arrow.y) > 340;
+      if (far || hidden(goal.x, goal.y, M, M, boxes.filter(({ weight }) => weight >= 60)) > 0) goTo(nearSpot(arrow, busy()));
       return;
     }
     if (hidden(goal.x, goal.y, M, M, boxes) + hidden(goal.x + spot.left, goal.y + spot.top, bubble.offsetWidth, bubble.offsetHeight, boxes) === 0) return;
@@ -662,9 +686,12 @@
         scrollTo({ top: Math.max(0, first.y - innerHeight / 3), behavior: "smooth" });
         await wait(600);
       }
-      // The mascot moves away first when it stands on what is about to be drawn: to another corner.
-      if (hidden(goal.x, goal.y, M, M, zones.map((zone) => box(zone, 14))) > 0) {
-        goTo(corner(busy()));
+      // The mascot lands beside what is about to be drawn (never on it), then the stroke comes.
+      if (TITLE && first && !state.bulle) {
+        const marked = zones.map((zone) => box(zone, 14, 60));
+        const left = Math.min(...marked.map((b) => b.left)), top = Math.min(...marked.map((b) => b.top));
+        const right = Math.max(...marked.map((b) => b.right)), bottom = Math.max(...marked.map((b) => b.bottom));
+        goTo(nearSpot({ x: (left + right) / 2, y: (top + bottom) / 2 }, [...busy(), ...marked]));
         await arrived();
       }
       await Promise.all(zones.filter((zone) => !zone.trait).map((zone) => drawZone(zone, true)));
@@ -846,7 +873,8 @@
     }
     save();
     cursor.hidden = false;
-    if (TITLE) stepAside([clearance(to)]);
+    if (TITLE && !state.bulle) goTo(nearSpot(to, busy(), cursorAt));
+    else if (TITLE) stepAside([clearance(to)]);
     wake();
     if (!OPTIONS.direct) held = { target: event.target, ...to, heure, since: performance.now(), timer: setTimeout(replay, ms + (ms ? HOVER : 0) + PRESS) };
     const under = document.elementFromPoint(to.x, to.y);
@@ -874,7 +902,8 @@
     state.cursor = to;
     save();
     cursor.hidden = false;
-    if (TITLE) stepAside([clearance(to)]);
+    if (TITLE && !state.bulle) goTo(nearSpot(to, busy(), cursorAt));
+    else if (TITLE) stepAside([clearance(to)]);
     wake();
   };
   window.addEventListener("mousemove", (event) => {
