@@ -2,18 +2,22 @@
 // every 20 s or so, no public server. For each open PR whose last commit has a successful Vercel preview (a GitHub
 // deployment, or the Vercel status of the commit and the address in the comment of the Vercel bot) that opens without
 // a Vercel login, once: the files the PR changes (GitHub), the tests they touch (choisirTests of impact.mjs, on the vault of this
-// repository: notes whose `code:` field lists a changed file, plus the baseline), then the scene on the preview address.
+// repository: notes whose `code:` field lists a changed file, plus the baseline) played by the scene on the preview
+// address, then the exploration of the whole site of the preview (public mode, issue #122).
 // Several pushes in a row: only the last commit of the PR is played, once its own preview is ready.
 //
 // Usage: node automatisation/reveil/pr.mjs --depot <propriétaire/dépôt> --logiciel <logiciel du vault> [--intervalle 20]
 //          [--une-fois] [--a-blanc] [--vault vault-horama] [--sortie .orchestrateur/reveil-pr] [--faux-github <fichier.json>]
-//          [-- options de la scène, par exemple --vitrine]
+//          [--max 8] [--pages-cliquees 4] [--sans-exploration] [-- options des deux scènes, par exemple --vitrine]
+// --max, --pages-cliquees: the exploration of the preview (pages at most, pages the agent reaches by a click);
+// --sans-exploration: the vault tests only.
 // --a-blanc: one look at the repository, nothing played (no scene, no H, nothing written): the open PRs, the preview of
 // their last commit (where it was found, whether it opens without a Vercel login), their files and the tests they would
 // replay.
 // --faux-github: a JSON file { prs: [...], deploiements: { <sha>: { etat, adresse } }, fichiers: { <numéro>: [...] } }
 // read instead of GitHub, to try the chain without a real PR.
-// Exit: 0 (--une-fois: after the first PR played), 2 on a usage error or a failed impact or scene.
+// Exit: 0 (--une-fois: after the first PR played, whatever its scenes gave: see reveil.json), 2 on a usage error or a
+// failed impact.
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -141,30 +145,48 @@ function runNode(args) {
 }
 
 // One PR played: impact, then the scene on the preview. Everything in <sortie>/pr-<numéro>-<sha court>/.
-export async function jouerPr({ pr, fichiers, vault, logiciel, socle, sortie, sceneArgs = [] }, run = runNode) {
+// One PR played: impact, then the scene of the vault tests the PR touches (parcours.mjs, development mode), then the
+// exploration of the whole site of the preview (exploration.mjs, public mode: mechanical checks and Holo), unless
+// `exploration` is null. Everything in <sortie>/pr-<numéro>-<sha court>/. A scene that fails is written in the report,
+// never thrown: the other one still runs, and the wake-up goes on with the next PR.
+export async function jouerPr({ pr, fichiers, vault, logiciel, socle, sortie, sceneArgs = [], exploration = { max: 8, pagesCliquees: 4 } }, run = runNode) {
   const started = performance.now();
   const folder = join(sortie, `pr-${pr.numero}-${pr.tete.slice(0, 7)}`);
   mkdirSync(folder, { recursive: true });
-  const report = { pr: pr.adresse, tete: pr.tete, previsualisation: pr.previsualisation, recu_le: new Date().toISOString(), etat: "impact" };
+  const report = { pr: pr.adresse, tete: pr.tete, previsualisation: pr.previsualisation, recu_le: new Date().toISOString(), etat: "impact", parcours: null, exploration: null };
   const save = () => writeFileSync(join(folder, "reveil.json"), `${JSON.stringify(report, null, 2)}\n`);
   save();
+  const step = async (name, args) => {
+    report.etat = name;
+    report[name] = { etat: "lance", lance_ms: performance.now() - started };
+    save();
+    try {
+      await run(args);
+      report[name].etat = "termine";
+    } catch (error) {
+      report[name] = { ...report[name], etat: "echec", erreur: error.message };
+      console.log(`réveil PR : ${name} en échec, ${error.message}`);
+    }
+  };
   try {
     const impact = impactDePr({ pr, fichiers, vault, logiciel, socle });
     const impactFile = join(folder, "impact.json");
     writeFileSync(impactFile, `${JSON.stringify(impact, null, 2)}\n`);
     report.impact_ms = performance.now() - started;
     console.log(`réveil PR : #${pr.numero} (${pr.tete.slice(0, 7)}), ${fichiers.length} fichier(s) modifié(s), ${impact.retenus.length} test(s) retenu(s), ${impact.ecartes.length} écarté(s).`);
-    if (!impact.retenus.length) {
-      report.etat = "aucun-test";
-      console.log("réveil PR : aucun test touché par cette PR, scène non lancée.");
-      return report;
+    if (impact.retenus.length) {
+      await step("parcours", ["automatisation/scene/parcours.mjs", "--impact", impactFile, "--base-url", pr.previsualisation, "--logiciel", logiciel, "--vault", vault,
+        "--pr", pr.adresse, "--sortie", join(folder, "scene"), ...sceneArgs]);
+    } else {
+      report.parcours = { etat: "aucun-test" };
+      console.log("réveil PR : aucun test du vault touché par cette PR.");
     }
-    report.etat = "scene";
-    report.scene_lancee_ms = performance.now() - started;
-    save();
-    await run(["automatisation/scene/parcours.mjs", "--impact", impactFile, "--base-url", pr.previsualisation, "--logiciel", logiciel, "--vault", vault,
-      "--pr", pr.adresse, "--sortie", join(folder, "scene"), ...sceneArgs]);
-    report.etat = "termine";
+    if (exploration) {
+      await step("exploration", ["automatisation/scene/exploration.mjs", "--url", pr.previsualisation, "--max", String(exploration.max), "--pages-cliquees", String(exploration.pagesCliquees),
+        "--vault", vault, "--sortie", join(folder, "exploration"), ...sceneArgs]);
+    }
+    const ran = [report.parcours, report.exploration].filter((item) => item && item.etat !== "aucun-test");
+    report.etat = !ran.length ? "aucun-test" : ran.some((item) => item.etat === "echec") ? "echec" : "termine";
     report.total_ms = performance.now() - started;
     return report;
   } catch (error) {
@@ -182,14 +204,19 @@ async function main() {
   const { values } = parseArgs({ args: process.argv.slice(2, separator < 0 ? undefined : separator), options: {
     depot: { type: "string" }, logiciel: { type: "string" }, intervalle: { type: "string", default: "20" }, "une-fois": { type: "boolean" }, "a-blanc": { type: "boolean" },
     vault: { type: "string", default: "vault-horama" }, sortie: { type: "string", default: ".orchestrateur/reveil-pr" }, "faux-github": { type: "string" },
+    max: { type: "string", default: "8" }, "pages-cliquees": { type: "string", default: "4" }, "sans-exploration": { type: "boolean" },
   } });
   if (!values.logiciel || (!values.depot && !values["faux-github"])) throw new Error("--logiciel et --depot (ou --faux-github) sont requis");
   if (values.depot && !/^[\w.-]+\/[\w.-]+$/.test(values.depot)) throw new Error("--depot attend propriétaire/dépôt");
   const interval = Number(values.intervalle);
   if (!(interval >= 1)) throw new Error("--intervalle attend un nombre de secondes, 1 au moins");
+  const exploration = values["sans-exploration"] ? null : { max: Number(values.max), pagesCliquees: Number(values["pages-cliquees"]) };
+  if (exploration && !(Number.isInteger(exploration.max) && exploration.max >= 1 && Number.isInteger(exploration.pagesCliquees) && exploration.pagesCliquees >= 0)) {
+    throw new Error("--max attend un entier, 1 au moins, et --pages-cliquees un entier, 0 au moins");
+  }
   // Selection, target, vault and output belong to the wake-up, not to the forwarded scene options.
   for (const arg of sceneArgs) {
-    if (["tests", "impact", "base-url", "logiciel", "vault", "sortie", "pr"].includes(arg.replace(/^--/, "").split("=")[0])) throw new Error(`option de scène réservée au réveil : ${arg}`);
+    if (["tests", "impact", "base-url", "logiciel", "vault", "sortie", "pr", "url", "max", "pages-cliquees"].includes(arg.replace(/^--/, "").split("=")[0])) throw new Error(`option de scène réservée au réveil : ${arg}`);
   }
   const vault = resolve(ROOT, values.vault);
   if (!existsSync(join(vault, values.logiciel))) throw new Error(`pas de dossier ${values.logiciel} dans le vault ${vault}`);
@@ -214,7 +241,7 @@ async function main() {
         continue;
       }
       faits.add(`${pr.numero}@${pr.tete}`);
-      await jouerPr({ pr, fichiers: lecteur.fichiers(pr.numero), vault, logiciel: values.logiciel, socle, sortie, sceneArgs });
+      await jouerPr({ pr, fichiers: lecteur.fichiers(pr.numero), vault, logiciel: values.logiciel, socle, sortie, sceneArgs, exploration });
       if (values["une-fois"]) return;
     }
     await sleep(interval * 1000);

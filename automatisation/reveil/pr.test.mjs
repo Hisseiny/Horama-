@@ -57,7 +57,7 @@ test("les fichiers de la PR choisissent les tests par le champ code des notes", 
   assert.deepEqual(impact.ecartes, [{ id: "voir-programmes", raison: "page non touchée" }]);
 });
 
-test("une PR jouée : impact écrit, puis la scène sur la prévisualisation avec la PR et les options transmises", async (t) => {
+test("une PR jouée : impact, tests du vault sur la prévisualisation, puis exploration de tout le site", async (t) => {
   const vault = vaultEssai(t);
   const sortie = mkdtempSync(join(tmpdir(), "horama-pr-sortie-"));
   t.after(() => rmSync(sortie, { recursive: true, force: true }));
@@ -65,13 +65,27 @@ test("une PR jouée : impact écrit, puis la scène sur la prévisualisation ave
   const pr = { numero: 7, adresse: "https://github.com/o/d/pull/7", base: "b1", tete: "h1234567890", previsualisation: "https://p.vercel.app" };
   const report = await jouerPr({ pr, fichiers: ["src/data/programmes.ts"], vault, logiciel: "site-essai", sortie, sceneArgs: ["--vitrine"] }, async (args) => calls.push(args));
   assert.equal(report.etat, "termine");
+  assert.deepEqual([report.parcours.etat, report.exploration.etat], ["termine", "termine"]);
   const folder = join(sortie, "pr-7-h123456");
   assert.deepEqual(JSON.parse(readFileSync(join(folder, "impact.json"), "utf8")).ids, ["voir-programmes"]);
-  assert.deepEqual(calls, [["automatisation/scene/parcours.mjs", "--impact", join(folder, "impact.json"), "--base-url", "https://p.vercel.app", "--logiciel", "site-essai", "--vault", vault,
-    "--pr", "https://github.com/o/d/pull/7", "--sortie", join(folder, "scene"), "--vitrine"]]);
-  // A PR that touches no screen: said, the scene is not started.
-  const none = await jouerPr({ pr: { ...pr, tete: "autre000000" }, fichiers: ["README.md"], vault, logiciel: "site-essai", sortie }, async () => assert.fail("scène lancée"));
-  assert.equal(none.etat, "aucun-test");
+  assert.deepEqual(calls, [
+    ["automatisation/scene/parcours.mjs", "--impact", join(folder, "impact.json"), "--base-url", "https://p.vercel.app", "--logiciel", "site-essai", "--vault", vault,
+      "--pr", "https://github.com/o/d/pull/7", "--sortie", join(folder, "scene"), "--vitrine"],
+    ["automatisation/scene/exploration.mjs", "--url", "https://p.vercel.app", "--max", "8", "--pages-cliquees", "4", "--vault", vault, "--sortie", join(folder, "exploration"), "--vitrine"],
+  ]);
+  // A PR that touches no screen of the vault: the exploration of the site still runs.
+  const explored = [];
+  const none = await jouerPr({ pr: { ...pr, tete: "autre000000" }, fichiers: ["README.md"], vault, logiciel: "site-essai", sortie, exploration: { max: 3, pagesCliquees: 1 } }, async (args) => explored.push(args[0]));
+  assert.deepEqual([none.etat, none.parcours.etat, explored], ["termine", "aucun-test", ["automatisation/scene/exploration.mjs"]]);
+  // Without the exploration and without a test: nothing runs.
+  const nothing = await jouerPr({ pr: { ...pr, tete: "rien0000000" }, fichiers: ["README.md"], vault, logiciel: "site-essai", sortie, exploration: null }, async () => assert.fail("scène lancée"));
+  assert.equal(nothing.etat, "aucun-test");
+  // A scene that fails is written down, the other one still runs, nothing is thrown.
+  const failing = await jouerPr({ pr: { ...pr, tete: "echec000000" }, fichiers: ["src/data/programmes.ts"], vault, logiciel: "site-essai", sortie }, async (args) => {
+    if (args[0].endsWith("parcours.mjs")) throw new Error("automatisation/scene/parcours.mjs : sortie 1");
+  });
+  assert.deepEqual([failing.etat, failing.parcours.etat, failing.parcours.erreur, failing.exploration.etat], ["echec", "echec", "automatisation/scene/parcours.mjs : sortie 1", "termine"]);
+  assert.equal(JSON.parse(readFileSync(join(sortie, "pr-7-echec00", "reveil.json"), "utf8")).etat, "echec");
 });
 
 test("à blanc : PR, prévisualisation (source, accès sans connexion), fichiers et tests rejoués, sans rien jouer", async (t) => {
