@@ -75,6 +75,35 @@ test("les six expressions d'Inès : même taille, même place ; anciens noms ; h
     }
     await page.send("Animation.setPlaybackRate", { playbackRate: 1 });
 
+    // It moves (wings, eye, floating): two captures 240 ms apart differ around the mascot.
+    await layer(page, "etat", "observe");
+    await sleep(500);
+    const first = crop(await shot(page));
+    await sleep(240);
+    assert.notEqual(crop(await shot(page)).toString("base64"), first.toString("base64"), "la mascotte bouge");
+
+    // The pupil follows the arrow: animations stopped, the arrow far on the left then far up; only the eye changes.
+    await page.send("Animation.setPlaybackRate", { playbackRate: 0 });
+    const clickAndWait = async (x, y) => {
+      for (const type of ["mousePressed", "mouseReleased"]) await page.send("Input.dispatchMouseEvent", { type, x, y, button: "left", clickCount: 1 });
+      await sleep(1300);
+      return PNG.sync.read(crop(await shot(page)));
+    };
+    const left = await clickAndWait(40, 830);
+    const up = await clickAndWait(1208, 40);
+    let changed = 0, outside = 0;
+    for (let y = 0; y < left.height; y++) for (let x = 0; x < left.width; x++) {
+      const i = (y * left.width + x) * 4;
+      if (left.data[i] !== up.data[i] || left.data[i + 1] !== up.data[i + 1] || left.data[i + 2] !== up.data[i + 2]) {
+        changed++;
+        // The box of the mascot starts at (20, 20) in the crop; its eye, a circle of radius 20 around (48, 48).
+        if (Math.hypot(x - 20 - 48, y - 20 - 48) > 22) outside++;
+      }
+    }
+    assert.ok(changed > 20, `la pupille a bougé (${changed} pixels)`);
+    assert.equal(outside, 0, "seul l'œil change");
+    await page.send("Animation.setPlaybackRate", { playbackRate: 1 });
+
     // A click of the agent: « hesite » while the arrow travels, then back to « observe ».
     await layer(page, "etat", "observe");
     await page.send("Input.dispatchMouseEvent", { type: "mousePressed", x: 900, y: 600, button: "left", clickCount: 1 });

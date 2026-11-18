@@ -56,6 +56,11 @@
     .dim.on { opacity: 1; }
     .mascot { position: fixed; left: 0; top: 0; width: ${M}px; height: ${M}px; will-change: transform; }
     .body { width: ${M}px; height: ${M}px; transform-origin: 50% 80%; animation: hover 3.6s ease-in-out infinite; }
+    .body.pop { animation: hover 3.6s ease-in-out infinite, pop 350ms cubic-bezier(0.3, 1.6, 0.5, 1); }
+    /* The drawings of Inès move (decision of Nathan, 18/11): the wings flap from the rotation each expression gives them,
+       the eye blinks around its centre; the pupil follows the arrow (look, below). */
+    .wing { transform-box: view-box; transform-origin: 33px 43.5px; animation: flap 480ms ease-in-out infinite alternate; }
+    .lid { transform-box: view-box; transform-origin: 48px 48px; animation: blink 4.2s ease-in-out infinite; }
     .body > * { display: block; width: ${M}px; height: ${M}px; transform-origin: 50% 50%; overflow: visible; }
     .bubble { position: absolute; left: 0; top: 0; width: max-content; max-width: 470px; padding: 16px 22px; background: ${PAPER}; color: ${INK};
       font: 600 24px/1.28 ${FONT}; white-space: normal; opacity: 0; transform: scale(0.96); transition: opacity 180ms ease-out, transform 180ms ease-out; }
@@ -107,6 +112,9 @@
     .ripple { position: fixed; width: 28px; height: 28px; margin: -14px; border: 3px solid ${IRIS}; border-radius: 50%; animation: ripple 460ms ease-out forwards; }
     @keyframes rough-notation-dash { to { stroke-dashoffset: 0; } }
     @keyframes hover { 50% { transform: translateY(-5px); } }
+    @keyframes pop { from { scale: 0.82; } to { scale: 1; } }
+    @keyframes flap { from { transform: rotate(var(--base)); } to { transform: rotate(calc(var(--base) - 16deg)) scaleY(0.9); } }
+    @keyframes blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
     @keyframes thunk { from { opacity: 0; transform: rotate(-6deg) scale(1.8); } to { opacity: 1; transform: rotate(-6deg) scale(1); } }
     @keyframes ripple { from { transform: scale(0.5); opacity: 1; } to { transform: scale(3); opacity: 0; } }
   </style>
@@ -207,6 +215,7 @@
     if (Math.abs(goal.x - at.x) + Math.abs(goal.y - at.y) + Math.abs(at.vx) + Math.abs(at.vy) > 0.4) moving = true;
     else Object.assign(at, goal, { vx: 0, vy: 0 });
     mascot.style.transform = `translate(${at.x}px, ${at.y}px)`;
+    look();
     if (moving) wake();
   }
   const goTo = (spot) => {
@@ -218,12 +227,53 @@
   const arrived = async () => {
     for (const until = Date.now() + 900; Date.now() < until && Math.hypot(goal.x - at.x, goal.y - at.y) > 3; ) await wait(30);
   };
+  // The drawing of an expression made to move, without changing it: each wing (halo layer and drawn layer) loses its
+  // rotate() attribute for the same rotation in CSS (--base), so that it can flap from it; the group of the pupil (the
+  // child <g transform="translate(…)"> of the svg) is wrapped in a lid that blinks, and keeps its own position, from
+  // which look() moves it.
+  let pupil = null;
+  const animate = () => {
+    const svg = body.querySelector("svg");
+    for (const wing of svg.querySelectorAll('g[fill="#AFA9EC"] path')) {
+      wing.style.setProperty("--base", `${/rotate\((-?[\d.]+)/.exec(wing.getAttribute("transform") ?? "")?.[1] ?? 0}deg`);
+      wing.removeAttribute("transform");
+      wing.classList.add("wing");
+    }
+    pupil = [...svg.children].find((node) => node.tagName === "g" && /^translate/.test(node.getAttribute("transform") ?? "")) ?? null;
+    if (!pupil) return;
+    const [, x = 0, y = 0] = /translate\((-?[\d.]+)[ ,]+(-?[\d.]+)/.exec(pupil.getAttribute("transform")) ?? [];
+    pupil.dataset.x = x;
+    pupil.dataset.y = y;
+    const lid = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    lid.classList.add("lid");
+    pupil.replaceWith(lid);
+    lid.append(pupil);
+  };
+  // The pupil looks at the arrow of the agent while it works (4 units at most from its place), straight ahead at the end.
+  const look = () => {
+    if (!pupil) return;
+    const target = state.bulle || state.revue ? null : cursorAt;
+    const dx = target ? target.x - at.x - M / 2 : 0;
+    const dy = target ? target.y - at.y - M / 2 : 0;
+    const distance = Math.hypot(dx, dy) || 1;
+    const reach = target ? Math.min(1, distance / 220) * 4 : 0;
+    pupil.setAttribute("transform", `translate(${(Number(pupil.dataset.x) + (dx / distance) * reach).toFixed(2)} ${(Number(pupil.dataset.y) + (dy / distance) * reach).toFixed(2)})`);
+  };
   const setEtat = (name) => {
     const shown = expression(name);
+    const changed = shown !== state.etat || !body.firstChild;
     state.etat = shown;
     save();
     mascot.className = `mascot ${shown}`;
     body.innerHTML = MASCOT[shown];
+    animate();
+    look();
+    // A small jolt when the expression changes; the mascot keeps floating.
+    if (changed) {
+      body.classList.remove("pop");
+      void body.offsetWidth;
+      body.classList.add("pop");
+    }
   };
 
   // ---------- Where the mascot stands: hiding as little as it can ----------
