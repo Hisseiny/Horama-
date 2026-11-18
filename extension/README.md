@@ -16,7 +16,7 @@ La mascotte est celle de la charte (`mascotte/`, copie de `docs/da/mascotte/`), 
 2. Dans Chrome, ouvrir `chrome://extensions`, activer « Mode développeur » (en haut à droite).
 3. « Charger l'extension non empaquetée », puis choisir le dossier `extension/` (celui qui contient `manifest.json`).
 4. Épingler Horama dans la barre d'outils (icône de pièce de puzzle).
-5. Options de l'extension : l'adresse du service Horama (par défaut `http://127.0.0.1:8787`, le faux service local).
+5. Options de l'extension : l'adresse du service Horama (par défaut `https://explorations-production-70bf5b38.up.railway.app`, le service en ligne ; `http://127.0.0.1:8787` pour le faux service local).
 
 ## Le .zip pour le jury
 
