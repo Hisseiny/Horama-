@@ -8,6 +8,15 @@ export interface DiscoveryOptions {
   render?: (url: string, allowed: (url: string) => boolean) => Promise<{ body: string; url: string } | undefined>;
 }
 
+export function allowsRenderResource(target: string, page: string): boolean {
+  const address = new URL(target), origin = new URL(page);
+  if (address.host === origin.host) return true;
+  const host = address.hostname.toLowerCase().replace(/\.$/, "");
+  return !(/^(?:localhost|.*\.localhost)$/.test(host)
+    || /^(?:127\.|0\.0\.0\.0$|10\.|172\.(?:1[6-9]|2\d|3[01])\.|192\.168\.|169\.254\.)/.test(host)
+    || /^\[(?:::1|::|f[cd][\da-f]{2}:.*|fe[89ab][\da-f]:.*|::ffff:.*)\]$/.test(host));
+}
+
 export async function renderPage(port: number, url: string, allowed: (url: string) => boolean = () => true): Promise<{ body: string; url: string }> {
   const endpoint = `http://127.0.0.1:${port}`;
   let tab: { id: string } | undefined, client: ExplorationCdp | undefined;
@@ -21,10 +30,11 @@ export async function renderPage(port: number, url: string, allowed: (url: strin
         client = await connecterCdp(port, "about:blank#horama-discovery");
         const cdp = client;
         cdp.on("Fetch.requestPaused", event => {
-          const accept = event.request.method === "GET" && allowed(event.request.url);
+          const accept = allowsRenderResource(event.request.url, url)
+            && (event.resourceType !== "Document" || (event.request.method === "GET" && allowed(event.request.url)));
           void cdp.send(accept ? "Fetch.continueRequest" : "Fetch.failRequest", { requestId: event.requestId, ...(accept ? {} : { errorReason: "BlockedByClient" }) }).catch(() => {});
         });
-        await cdp.send("Fetch.enable", { patterns: [{ urlPattern: "*", resourceType: "Document", requestStage: "Request" }] });
+        await cdp.send("Fetch.enable", { patterns: [{ urlPattern: "*", requestStage: "Request" }] });
         const navigation = await cdp.send("Page.navigate", { url });
         if (navigation.errorText) throw new Error(navigation.errorText);
         const result = await cdp.send("Runtime.evaluate", { expression: `(async () => {
@@ -303,7 +313,7 @@ export async function discoverPages(url: string, { max = 15, sectionMax = 2, fet
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       const document = await Promise.race([
-        render(address, target => !!pageAddress(target, address)),
+        render(address, target => permitted(new URL(target)) && !!pageAddress(target, address)),
         new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("Rendu hors délai (20 s).")), 20000); }),
       ]);
       if (!document) throw new Error("Rendu indisponible.");

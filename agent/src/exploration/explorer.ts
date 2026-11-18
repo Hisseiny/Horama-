@@ -139,6 +139,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
     return response;
   };
   const discovery = await discoverPages(url, { max, fetch: request, render: deps.render ?? (deps.fetch ? undefined : (address, allowed) => renderPage(port, address, allowed)) });
+  for (const error of discovery.errors) if (error.message.startsWith("Rendu :")) log(`${error.url} — ${error.message}`);
   const used = new Set<string>();
   const pages: ExplorationPage[] = discovery.pages.map((address, index) => {
     const path = decodeURIComponent(new URL(address).pathname).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "accueil";
