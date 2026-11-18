@@ -6,9 +6,10 @@ import { deflateSync } from "node:zlib";
 import { afterEach, beforeEach, test } from "node:test";
 import { ecrireDecision } from "@horama/memoire";
 import { BaseMemoire } from "./src/base.ts";
-import { explorer, explorationStepBudget } from "./src/exploration/explorer.ts";
+import { construireExploration, explorer, explorationStepBudget } from "./src/exploration/explorer.ts";
 import type { ExplorerDependencies } from "./src/exploration/explorer.ts";
 import { lireArguments } from "./src/exploration/cli.ts";
+import { libelleAction } from "./src/session.ts";
 import type { Session } from "./src/session.ts";
 
 const original = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAACgAAAAKCAYAAADGmhxQAAAAI0lEQVR4nGP4P8gBw0A7gBAYdSClYNSBlIJRB1IKRh1IKQAAxLY6GzXsph8AAAAASUVORK5CYII=", "base64");
@@ -45,7 +46,7 @@ async function run({ png = original, skip = "", refuse = false, failure = false,
         address = last.address;
         const captured = await input.onTool("relever", { ecran: last.ecran, vue: "defaut" });
         assert.match(captured, /1\/2 pages relevées/);
-        assert.match(captured, /Ouvre https:\/\/example.org\//);
+        assert.match(captured, /go_to/);
         const response = await input.onTool("terminer", { etat: "reussi" });
         assert.match(response, /Fin refusée/);
         assert.match(response, /ecran="accueil"/);
@@ -57,7 +58,7 @@ async function run({ png = original, skip = "", refuse = false, failure = false,
         address += query;
         if (actual) address = actual(address);
         if (refuse) address = "https://example.org/wrong";
-        await input.onStep({ etape: step.part, horodatage: new Date().toISOString(), action: "Ouvre une page", etat_session: "en_cours" });
+        await input.onStep({ etape: step.part, horodatage: new Date().toISOString(), action: libelleAction(["go_to_web"]), etat_session: "en_cours" });
         for (let attempt = 0; attempt < retries; attempt++) {
           const response = await input.onTool("relever", { ecran: step.ecran, vue: "defaut" });
           responses.push(response);
@@ -70,7 +71,7 @@ async function run({ png = original, skip = "", refuse = false, failure = false,
     return { id: "session-1", fin };
   };
   const result = await explorer({ url: "https://example.org", max: 15, vault: join(root, "vault"), sortie: join(root, "out"), port: 9333 }, {
-    base, session, runtime: { relever: async () => ({ png, texte: "Page", url_page: address, largeur: 1280, hauteur: 900, defilement, phrase: "Capture enregistrée." }),
+    base, session, urlCourante: async () => null, runtime: { relever: async () => ({ png, texte: "Page", url_page: address, largeur: 1280, hauteur: 900, defilement, phrase: "Capture enregistrée." }),
       navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
     fetch: async input => {
       const path = new URL(String(input)).pathname;
@@ -127,7 +128,9 @@ test("shape atomique, totaux, un C4 par page et première mémoire sans écraser
   assert.equal(result.site, "example-org"); assert.equal(result.version, "1"); assert.equal(result.version_reference, null);
   assert.equal(result.trouvees.par, "sitemap");
   assert.deepEqual(result.totaux, { pages_trouvees: 2, pages_visitees: 2, defauts: 0, doutes: 0, sans_conclusion: 0, par_sorte: {} });
-  assert.deepEqual(JSON.parse(readFileSync(join(root, "out/exploration.json"), "utf8")), result);
+  const { navigation, ...report } = result;
+  assert.ok(navigation);
+  assert.deepEqual(JSON.parse(readFileSync(join(root, "out/exploration.json"), "utf8")), report);
   assert.equal(existsSync(join(root, "out/exploration.json.tmp")), false);
   assert.equal(result.agents.length, 1); assert.equal(result.agents[0].session_id, "session-1");
   assert.equal(result.cout_usd, 0.12); assert.ok(result.duree_s! >= 0);
@@ -247,7 +250,9 @@ test("découverte en échec : rapport interrompu avec raison sans démarrer H", 
   assert.match(result.agents[0].raison!, /robots\.txt : HTTP 503/);
   assert.ok(logs.some(message => /Découverte impossible.*HTTP 503/.test(message)));
   assert.equal(result.pages.length, 0); assert.equal(base.resultats.length, 0);
-  assert.deepEqual(JSON.parse(readFileSync(join(root, "out/exploration.json"), "utf8")), result);
+  const { navigation, ...report } = result;
+  assert.ok(navigation);
+  assert.deepEqual(JSON.parse(readFileSync(join(root, "out/exploration.json"), "utf8")), report);
 });
 
 test("échec de création de session : JSON interrompu et C4 non concluants", async () => {
@@ -288,9 +293,119 @@ test("identifiants normalisés, dédoublonnés et tronqués", async () => {
 test("arguments, aide, valeurs par défaut et erreurs", () => {
   assert.equal(lireArguments(["--", "--help"]), null);
   const options = lireArguments(["--url", "https://example.org", "--sans-base"])!;
+  assert.equal(options.pagesCliquees, 4);
+  for (const value of ["0", "7"]) assert.equal(lireArguments(["--url", "https://example.org", "--pages-cliquees", value])!.pagesCliquees, Number(value));
+  for (const value of ["-1", "1.5", "NaN", "Infinity", "9007199254740992", "--max"]) assert.throws(() => lireArguments(["--url", "https://example.org", "--pages-cliquees", value]));
   assert.equal(options.max, 15); assert.equal(options.port, 9333); assert.equal(options.sansBase, true);
   assert.match(options.sortie, /\.orchestrateur\/exploration$/); assert.match(options.vault, /vault-horama$/);
   for (const args of [[], ["--url", "file:///x"], ["--url", "https://u:p@example.org"], ["--url", "https://example.org", "--max", "-1"], ["--url", "https://example.org", "--chrome-port", "0"], ["--url", "https://example.org", "--url", "https://example.org"], ["--url"]]) assert.throws(() => lireArguments(args));
+});
+
+test("consigne : relever, défiler puis cliquer, liste dynamique et repli", () => {
+  const pages = ["accueil", "faq", "aide"].map(ecran => ({ ecran, url: `https://example.org/${ecran}` }));
+  const task = construireExploration(pages, "site", "1", 99).task;
+  assert.ok(task.indexOf('Appelle relever') < task.indexOf("scroll_web"));
+  assert.ok(task.indexOf("scroll_web") < task.indexOf("clique un lien"));
+  assert.match(task, /faq : https:\/\/example.org\/faq/);
+  assert.match(task, /Si aucun lien visible.*go_to/);
+  assert.equal(task.match(/sans go_to clique/g)?.length, 2);
+  assert.doesNotMatch(construireExploration(pages, "site", "1", 0).task, /clique un lien/);
+  assert.doesNotMatch(construireExploration(pages.slice(0, 1), "site", "1", 99).task, /clique un lien/);
+  assert.match(task, /3 défilements au plus jusqu'en bas/);
+  assert.match(task, /1 ou 2 défilements au plus/);
+  assert.match(task, /grands défilements/);
+  assert.match(task, /Ne répète pas les défilements déjà faits/);
+  const addressPart = construireExploration(pages, "site", "1", 0).task.split("Partie 2")[1];
+  assert.doesNotMatch(addressPart, /défile|scroll_web/);
+  assert.equal(explorationStepBudget(3, 99), 31);
+  assert.equal(explorationStepBudget(3, 0), 25);
+  assert.equal(explorationStepBudget(8, 4), 57);
+  assert.equal(explorationStepBudget(8, 4) - (4 * 8 + 3 + 3 * 4), 10);
+});
+
+test("URL courante : réécriture, refus hors liste et repli illisible", async () => {
+  let address: string | null = "https://example.org/faq/?x=1";
+  const messages: string[] = [];
+  const logs: string[] = [];
+  const { result } = await run({ deps: {
+    urlCourante: async () => address,
+    log: message => logs.push(message),
+    runtime: { relever: async () => ({ png: original, texte: "Page", url_page: address ?? "https://example.org/", largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture" }), navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
+    session: async input => {
+      await input.onCreated("urls");
+      return { id: "urls", fin: (async () => {
+        messages.push(await input.onTool("relever", { ecran: "accueil", vue: "defaut" }));
+        address = "https://outside.example/";
+        messages.push(await input.onTool("relever", { ecran: "accueil", vue: "defaut" }));
+        address = null;
+        messages.push(await input.onTool("relever", { ecran: "accueil", vue: "defaut" }));
+        await input.onTool("terminer", { etat: "reussi" });
+        return { id: "urls", muted: false, cout_usd: null, etapes: 3 };
+      })() };
+    },
+  } });
+  assert.equal(result.etat, "fini");
+  assert.match(messages[0], /1\/2 pages relevées/);
+  assert.match(messages[1], /n'est pas dans la liste.*go_to/);
+  assert.ok(logs.some(line => line.includes("https://outside.example/")));
+  assert.equal(result.pages[1].capture !== null, true);
+  assert.deepEqual(result.navigation.arrivees, { faq: "adresse", accueil: "depart" });
+});
+
+test("modes d'arrivée et compteurs des actions composées, sans champ sur disque", async () => {
+  let address = "https://example.org/";
+  const logs: string[] = [];
+  const { result } = await run({ deps: {
+    log: line => logs.push(line),
+    runtime: { relever: async () => ({ png: original, texte: "Page", url_page: address, largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture" }), navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
+    session: async input => {
+      await input.onCreated("actions");
+      return { id: "actions", fin: (async () => {
+        const first = await input.onTool("relever", { ecran: "accueil", vue: "defaut" });
+        assert.match(first, /3 défilements au plus jusqu'en bas/);
+        assert.match(first, /1 ou 2 défilements au plus/);
+        assert.match(first, /Ne répète pas les défilements déjà faits/);
+        await input.onStep({ etape: 1, horodatage: new Date().toISOString(), action: "Défile, Défile, Clique", etat_session: "en_cours" });
+        address = "https://example.org/faq";
+        const response = await input.onTool("relever", { ecran: "faq", vue: "defaut" });
+        assert.match(response, /Tous les relevés/);
+        await input.onTool("terminer", { etat: "reussi" });
+        return { id: "actions", muted: false, cout_usd: null, etapes: 2 };
+      })() };
+    },
+  } });
+  assert.deepEqual(result.navigation, { arrivees: { accueil: "depart", faq: "clic" }, clics: 1, defilements: 2, goTo: 0, defilementsDepart: 2 });
+  assert.ok(logs.includes("faq : clic"));
+  assert.ok(!("navigation" in JSON.parse(readFileSync(join(root, "out/exploration.json"), "utf8"))));
+  const ordinary = await run();
+  assert.deepEqual(ordinary.result.navigation.arrivees, { accueil: "depart", faq: "adresse" });
+  assert.equal(ordinary.result.navigation.goTo, 2);
+});
+
+test("clic avant le relevé de départ : départ exclu des pages cliquées et clic remis à zéro", async () => {
+  let address = "https://example.org/";
+  const logs: string[] = [];
+  const { result } = await run({ deps: {
+    log: line => logs.push(line),
+    runtime: { relever: async () => ({ png: original, texte: "Page", url_page: address, largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture" }), navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
+    session: async input => {
+      await input.onCreated("cookie-click");
+      return { id: "cookie-click", fin: (async () => {
+        await input.onStep({ etape: 1, horodatage: new Date().toISOString(), action: libelleAction(["go_to_web", "click_web"]), etat_session: "en_cours" });
+        const first = await input.onTool("relever", { ecran: "accueil", vue: "defaut" });
+        assert.match(first, /sans go_to clique un lien/);
+        address = "https://example.org/faq";
+        await input.onTool("relever", { ecran: "faq", vue: "defaut" });
+        await input.onTool("terminer", { etat: "reussi" });
+        return { id: "cookie-click", muted: false, cout_usd: null, etapes: 3 };
+      })() };
+    },
+  } });
+  assert.equal(result.etat, "fini");
+  assert.deepEqual(result.navigation.arrivees, { accueil: "depart", faq: "adresse" });
+  assert.equal(result.navigation.clics, 1);
+  assert.ok(logs.includes("accueil : depart"));
+  assert.ok(logs.some(line => line.startsWith("Navigation : 0 pages par clic")));
 });
 
 test("le coût total inclut Holo sans modifier le coût de la session H", async () => {
@@ -489,6 +604,57 @@ test("redirection de même origine acceptée après une seule résolution", asyn
   assert.match(responses.at(-1)!, /Parcours terminé/);
 });
 
+test("contrôle d'adresse : redirection même origine résolue avant le premier relevé", async () => {
+  let resolves = 0;
+  const { result, responses } = await run({ actual: url => url.includes("/faq") ? "https://example.org/help" : url, deps: {
+    urlCourante: async () => "https://example.org/help",
+    fetch: async (input, init) => {
+      if (init?.redirect === "follow") {
+        resolves++;
+        const response = new Response("Welcome");
+        Object.defineProperty(response, "url", { value: String(input).includes("/faq") ? "https://example.org/help" : "https://example.org/" });
+        return response;
+      }
+      const path = new URL(String(input)).pathname;
+      return new Response(path === "/robots.txt" ? "" : path === "/sitemap.xml" ? "<urlset><url><loc>https://example.org/faq</loc></url></urlset>" : "Welcome", { headers: { "Content-Type": path.endsWith(".xml") ? "application/xml" : "text/html" } });
+    },
+  } });
+  assert.match(responses[0], /n'est pas dans la liste/);
+  assert.equal(result.pages[1].etat, "visitee");
+  assert.equal(result.pages[1].url_finale, "https://example.org/help");
+  assert.match(responses[1], /Capture/);
+  assert.equal(resolves, 2);
+});
+
+for (const tracking of ["", "&utm_source=y&gclid=z"]) {
+test(`contrôle d'adresse : deux pages de même chemin gardent leur query et leur ecran (suivi : ${tracking || "aucun"})`, async () => {
+  let address = "https://example.org/";
+  const { result } = await run({ deps: {
+    urlCourante: async () => address,
+    fetch: async input => {
+      const path = new URL(String(input)).pathname;
+      return new Response(path === "/robots.txt" ? "" : path === "/sitemap.xml" ? "<urlset><url><loc>https://example.org/p?x=1</loc></url><url><loc>https://example.org/p?x=2</loc></url></urlset>" : "Welcome", { headers: { "Content-Type": path.endsWith(".xml") ? "application/xml" : "text/html" } });
+    },
+    runtime: { relever: async () => ({ png: original, texte: "Page", url_page: address, largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture" }), navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
+    session: async input => {
+      await input.onCreated("queries");
+      return { id: "queries", fin: (async () => {
+        assert.equal(input.consigne.course.length, 3);
+        for (const step of input.consigne.course) {
+          address = step.address + (step.address.includes("?") ? tracking : "");
+          assert.match(await input.onTool("relever", { ecran: step.ecran, vue: "defaut" }), /Capture/);
+        }
+        await input.onTool("terminer", { etat: "reussi" });
+        return { id: "queries", muted: false, cout_usd: null, etapes: 3 };
+      })() };
+    },
+  } });
+  assert.equal(result.etat, "fini");
+  assert.deepEqual(result.pages.map(page => [page.ecran, page.etat]), [["accueil", "visitee"], ["p", "visitee"], ["p-2", "visitee"]]);
+  assert.deepEqual(result.pages.slice(1).map(page => page.url), ["https://example.org/p?x=1", "https://example.org/p?x=2"]);
+});
+}
+
 for (const [actual, reason] of [
   ["https://other.example/", "La page redirige vers un autre site"],
   ["chrome-error://chromewebdata/", "La page n'a pas pu être chargée."],
@@ -575,8 +741,8 @@ async function budgetRun(limits: number[], { failCreation = false, rejectFinal =
 
 test("15 pages : budget pour navigation, relevé, attente, reprises et début/fin", async () => {
   const { result, budgets, launches } = await budgetRun([15]);
-  assert.equal(explorationStepBudget(15), 70);
-  assert.equal(budgets[0], 70);
+  assert.equal(explorationStepBudget(15, 4), 85);
+  assert.equal(budgets[0], 85);
   assert.ok(budgets[0] >= 15 * 3 + 10);
   assert.equal(launches, 1);
   assert.equal(result.etat, "fini");
@@ -589,7 +755,9 @@ test("budget épuisé après 13 pages : une seule relance limitée aux 2 restant
   assert.equal(result.totaux.sans_conclusion, 0);
   assert.equal(result.agents.length, 2);
   assert.deepEqual(plans[1], plans[0].slice(13));
-  assert.deepEqual(budgets, [70, 18]);
+  assert.deepEqual(budgets, [85, 21]);
+  assert.equal(result.navigation.arrivees[result.pages[0].ecran], "depart");
+  assert.ok(result.pages.slice(1).every(page => result.navigation.arrivees[page.ecran] === "adresse"));
   assert.deepEqual(closed, ["budget-1", "budget-2"]);
   assert.deepEqual(result.agents.map(agent => [agent.session_id, agent.etat, agent.pages.length, agent.cout_usd]),
     [["budget-1", "tombe", 13, 0.1], ["budget-2", "fini", 2, 0.02]]);

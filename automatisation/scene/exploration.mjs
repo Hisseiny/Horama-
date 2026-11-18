@@ -6,7 +6,7 @@
 // (recapitulatif.mjs): every defect and doubt with its capture ringed, then « bug » or « voulu », written as a decision
 // in the memory of the site. Nothing here is particular to a site.
 //
-// Usage: node [--env-file=<.env.local>] automatisation/scene/exploration.mjs --url <adresse> [--max 15] [--sans-agent]
+// Usage: node [--env-file=<.env.local>] automatisation/scene/exploration.mjs --url <adresse> [--max 15] [--pages-cliquees 4] [--sans-agent]
 //          [--sans-holo] [--sans-base | --avec-base] [--choix bug,voulu,...] [--sans-fin] [--par <nom>] [--rythme <s>]
 //          [--vault <dir>] [--sortie <dir>] [--temoins <dir>] [--port 9333] [--profil <dir>] [--fermer-chrome]
 // Env: HAI_API_KEY (H and Holo), SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, CHROME_BIN, HOLO_BIN.
@@ -23,12 +23,15 @@ import { findHolo, startBridge, stopIfMissing } from "./agent-h.mjs";
 import { creerEcrivainMemoire, creerEcrivainSupabase } from "./decisions.mjs";
 import { completerNote } from "./note-passage.mjs";
 import { revoir, sizeOf } from "./recapitulatif.mjs";
+import { ouvrirVitrine } from "./vitrine.mjs";
 import { HEIGHT, WIDTH, capture, captureZone, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, layer, navigate, openChrome, option, say, sleep } from "./scene.mjs";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 const SANS_AGENT = flag("sans-agent");
 const URL_SITE = option("url", "");
 const MAX = Number(option("max", 15));
+// How many pages after the page of departure the H agent reaches by a real click on a visible link (issue #91, PR #93).
+const CLICKED = Number(option("pages-cliquees", 4));
 const VAULT = resolve(option("vault", join(HERE, "../../vault-horama")));
 const PORT = Number(option("port", 9333));
 const PROFILE = resolve(option("profil", "/Users/nathan/Code/projet/horama/.orchestrateur/chrome-agent"));
@@ -48,6 +51,7 @@ try {
   missing.push("--url attend l'adresse HTTP(S) d'un site.");
 }
 if (!Number.isSafeInteger(MAX) || MAX < 1) missing.push("--max attend un entier positif.");
+if (!Number.isSafeInteger(CLICKED) || CLICKED < 0) missing.push("--pages-cliquees attend un entier positif ou nul.");
 if (CHOICES.some((choix) => choix !== "bug" && choix !== "voulu")) missing.push("--choix attend une liste de « bug » et de « voulu », séparés par des virgules.");
 if (flag("temoins") && !option("temoins")) missing.push("--temoins demande un dossier.");
 if (flag("sans-base") && flag("avec-base")) missing.push("--sans-base et --avec-base s'excluent.");
@@ -76,6 +80,13 @@ if (area.largeur !== WIDTH || area.hauteur !== HEIGHT || area.densite !== 1) {
   process.exit(2);
 }
 const mascot = (command, ...args) => layer(page, command, ...args);
+// The showcase (--vitrine): the scene enlarged to a whole screen in a separate Chrome; this page stays 1280 × 900.
+const vitrine = flag("vitrine") ? await ouvrirVitrine(page, { chromeBin: CHROME_BIN, profil: resolve(option("profil-vitrine", "/Users/nathan/Code/projet/horama/.orchestrateur/chrome-vitrine")),
+  debugPort: flag("vitrine-debug") ? Number(option("vitrine-debug")) : null, say }) : null;
+// The page of departure at once, the mascot reading: what the audience sees while the pages are found and the H agent
+// starts (about 20 s measured on 18/11, 11 h 45), instead of a blank page.
+await navigate(page, URL_SITE);
+await mascot("etat", "verification").catch(() => {});
 let witnesses = 0;
 let capturing = false;
 async function witness(label) {
@@ -93,7 +104,7 @@ const runtime = {
     return { png: new Uint8Array(shot.png), texte: shot.texte_page, url_page: shot.url_page, largeur: shot.largeur, hauteur: shot.hauteur, defilement: shot.defilement, phrase: "Capture enregistrée. Continue le parcours." };
   },
   async navigateur() {
-    await navigate(page, "about:blank");
+    // The page stays where it is (the page of departure at first): the agent opens it again by its go_to.
     const channel = randomUUID();
     const bridge = startBridge({ holo, port: PORT, channel, logFile: join(OUT, "pont-holo.log") });
     bridges.add(bridge);
@@ -228,7 +239,7 @@ process.on("SIGINT", () => {
 const errors = [];
 let report = null;
 try {
-  report = await explorer({ url: URL_SITE, max: MAX, sortie: OUT, vault: VAULT, port: PORT }, { base, runtime, session, signal: arret.signal, log: say, ...(flag("sans-holo") ? { holo: noHolo } : {}) });
+  report = await explorer({ url: URL_SITE, max: MAX, pagesCliquees: CLICKED, sortie: OUT, vault: VAULT, port: PORT }, { base, runtime, session, signal: arret.signal, log: say, ...(flag("sans-holo") ? { holo: noHolo } : {}) });
 } catch (error) {
   errors.push(error.message);
   say(`Échec : ${error.message}`);
@@ -249,13 +260,19 @@ if (report?.format === "horama-exploration-1") {
     const entry = report.pages.find((candidate) => candidate.ecran === ecran);
     return entry ? new URL(entry.url).pathname : ecran;
   };
+  // How the H agent reached each page, when the engine says it (optional field arrivee, decided in #69 for #91).
+  const ARRIVAL = { depart: "page de départ", clic: "atteinte par un clic de l'agent", adresse: "ouverte par son adresse" };
+  const arrivalOf = (ecran) => ARRIVAL[report.pages.find((candidate) => candidate.ecran === ecran)?.arrivee] ?? null;
+  const arrivals = report.pages.filter((entry) => ARRIVAL[entry.arrivee]);
+  const byClick = arrivals.filter((entry) => entry.arrivee === "clic").length;
+  const byAddress = arrivals.filter((entry) => entry.arrivee === "adresse").length;
   const proof = (constat) => (constat.source === "controle"
     ? `Prouvé par le code. Mesuré : ${constat.preuve.mesure}. Attendu : ${constat.preuve.attendu}`
     : constat.source === "holo" ? "Doute du regard de Holo, le modèle visuel de H : rien n'est prouvé." : "Écart d'image avec la capture du passage précédent.");
   const items = toDecide.map((constat) => {
     const png = readFileSync(join(OUT, constat.capture));
     return { id: constat.id, genre: GENRE[constat.statut], etat: LOOK[constat.statut], texte: `${pathOf(constat.ecran)} : ${constat.description}`, png, zones: constat.zone ? [constat.zone] : [], page: constat.page ?? sizeOf(png),
-      textes: [`Page ${pathOf(constat.ecran)} : ${constat.description}`, proof(constat)], question: "C'est un bug, ou c'est voulu ?" };
+      textes: [`Page ${pathOf(constat.ecran)}${arrivalOf(constat.ecran) ? ` (${arrivalOf(constat.ecran)})` : ""} : ${constat.description}`, proof(constat)], question: "C'est un bug, ou c'est voulu ?" };
   });
   const excluded = Object.entries(trouvees.exclues.reduce((all, { raison }) => ({ ...all, [raison]: (all[raison] ?? 0) + 1 }), {})).map(([raison, n]) => `${raison} (${n})`);
   const recap = {
@@ -264,7 +281,9 @@ if (report?.format === "horama-exploration-1") {
       `${report.adresse} : ${count(totaux.pages_visitees, "page visitée", "pages visitées")} sur ${count(totaux.pages_trouvees, "trouvée", "trouvées")}${report.etat === "fini" ? "" : ", passage interrompu"}.`,
       `${count(totaux.defauts, "défaut prouvé", "défauts prouvés")}, ${count(totaux.doutes, "doute", "doutes")}${totaux.sans_conclusion ? `, ${count(totaux.sans_conclusion, "point non vérifié", "points non vérifiés")}` : ""}.`,
     ],
-    selection: { titre: "Pages", lignes: [`Trouvées par ${trouvees.par === "sitemap" ? "le plan du site" : "les liens"}, ${trouvees.plafond} au plus.`, ...(excluded.length ? [`Écartées : ${excluded.join(", ")}.`] : [])] },
+    selection: { titre: "Pages", lignes: [`Trouvées par ${trouvees.par === "sitemap" ? "le plan du site" : "les liens"}, ${trouvees.plafond} au plus.`,
+      ...(arrivals.length ? [`${count(byClick, "page atteinte par un clic de l'agent", "pages atteintes par un clic de l'agent")}, ${count(byAddress, "ouverte par son adresse", "ouvertes par leur adresse")}.`] : []),
+      ...(excluded.length ? [`Écartées : ${excluded.join(", ")}.`] : [])] },
   };
   say(`Récapitulatif : ${recap.lignes.join(" ")}`);
   try {
@@ -289,7 +308,7 @@ if (report?.format === "horama-exploration-1") {
   }
   // The report the runner wrote in the memory of the site, completed after the choices (issue #71, point 2).
   try {
-    const visited = report.pages.filter((entry) => entry.etat === "visitee").map((entry) => new URL(entry.url).pathname);
+    const visited = report.pages.filter((entry) => entry.etat === "visitee").map((entry) => `${new URL(entry.url).pathname}${ARRIVAL[entry.arrivee] ? ` (${ARRIVAL[entry.arrivee]})` : ""}`);
     const reasonOf = (ecran) => constats.find((constat) => constat.ecran === ecran && constat.raison)?.raison;
     const notVisited = report.pages.filter((entry) => entry.etat !== "visitee").map((entry) => `${new URL(entry.url).pathname}${reasonOf(entry.ecran) ? ` : ${reasonOf(entry.ecran)}` : ""}`);
     const note = completerNote({ vault: VAULT, logiciel: report.site, passage: report.passage_id, tests: { titre: "Pages", lignes: [...visited.map((path) => `Visitée : ${path}`), ...notVisited.map((line) => `Non visitée : ${line}`), ...(excluded.length ? [`Écartées à la découverte : ${excluded.join(", ")}`] : [])] }, items, decisions });
@@ -306,7 +325,10 @@ if (report?.format === "horama-exploration-1") {
   }
 } else errors.push(`${FILE} absent ou illisible.`);
 
-writeFileSync(join(OUT, "scene.json"), `${JSON.stringify({ id: ID, passage_id: report?.passage_id ?? null, adresse: URL_SITE, mode: SANS_AGENT ? "sans agent" : "agent H", holo: !flag("sans-holo"), traits: Object.fromEntries(drawnOn), decisions, erreurs: errors }, null, 2)}\n`);
+const showcase = vitrine?.mesures() ?? null;
+if (showcase) say(`Vitrine : ${showcase.images_recues} images reçues, ${showcase.images_affichees} affichées, ${showcase.images_par_seconde} par seconde ; délai de l'image dessinée à l'image affichée : médiane ${showcase.delai_total_ms.mediane} ms, p95 ${showcase.delai_total_ms.p95} ms.`);
+await vitrine?.stop({ fermer: flag("fermer-chrome") });
+writeFileSync(join(OUT, "scene.json"), `${JSON.stringify({ id: ID, passage_id: report?.passage_id ?? null, adresse: URL_SITE, mode: SANS_AGENT ? "sans agent" : "agent H", holo: !flag("sans-holo"), traits: Object.fromEntries(drawnOn), decisions, vitrine: showcase, erreurs: errors }, null, 2)}\n`);
 for (const line of errors) say(`Erreur : ${line}`);
 runtime.close();
 page.close();

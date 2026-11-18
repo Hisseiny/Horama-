@@ -10,6 +10,13 @@ export interface PageDiscovery {
   errors: Array<{ url: string; message: string }>;
 }
 
+export function normalizePageQuery(url: URL): void {
+  for (const key of [...url.searchParams.keys()]) {
+    if (/^(utm_.*|gclid|dclid|fbclid|msclkid|gbraid|wbraid|mc_cid|mc_eid|_ga|_gl|_hsenc|_hsmi|hsctatracking|hsa_.*)$/i.test(key)) url.searchParams.delete(key);
+  }
+  url.searchParams.sort();
+}
+
 function decodeEntities(value: string): string {
   return value.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/&(#x[\da-f]+|#\d+|amp|quot|apos|lt|gt);/gi, (entity, key: string) => {
     if (key.startsWith("#")) {
@@ -103,10 +110,7 @@ export async function discoverPages(url: string, { max = 15, sectionMax = 2, fet
     parsed.protocol = start.protocol;
     parsed.host = start.host;
     parsed.hash = "";
-    for (const key of [...parsed.searchParams.keys()]) {
-      if (/^(utm_.*|gclid|dclid|fbclid|msclkid|gbraid|wbraid|mc_cid|mc_eid|_ga|_gl|_hsenc|_hsmi|hsctatracking|hsa_.*)$/i.test(key)) parsed.searchParams.delete(key);
-    }
-    parsed.searchParams.sort();
+    normalizePageQuery(parsed);
     return parsed;
   }
 

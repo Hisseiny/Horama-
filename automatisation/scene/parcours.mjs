@@ -25,9 +25,11 @@ import { libelleAction } from "../../agent/src/session.ts";
 import { appliquerCorrection, ecrireDecision, ecrireReference, lireDecisions, lireNotes, lireReferences, refuserCorrection } from "../../memoire/index.ts";
 import { findHolo, startBridge, stopIfMissing } from "./agent-h.mjs";
 import { creerEcrivainMemoire, creerEcrivainSupabase } from "./decisions.mjs";
+import { ecrireCommentaire, publierCommentaire } from "../pr-doc/commentaire.mjs";
 import { ouvrirPrDoc } from "../pr-doc/index.mjs";
 import { completerNote } from "./note-passage.mjs";
 import { revoir, sizeOf } from "./recapitulatif.mjs";
+import { ouvrirVitrine } from "./vitrine.mjs";
 import { HEIGHT, WIDTH, capture, clickAt, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, layer, navigate, openChrome, option, say, sleep, waitFor } from "./scene.mjs";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
@@ -170,6 +172,7 @@ const chrome = await openChrome({ bin: CHROME_BIN, port: PORT, profile: PROFILE 
 say(chrome.started ? `Chrome dédié lancé (${chrome.version}, port ${PORT}, profil ${PROFILE}).` : `Un Chrome écoute déjà sur le port ${PORT} (${chrome.version}) : réutilisé.`);
 let page = null;
 let filming = false;
+let vitrine = null; // the showcase (--vitrine, vitrine.mjs): the scene enlarged to a whole screen in a separate Chrome
 const bridges = new Set(); // the bridges of the sessions not yet ended
 let launched = 0; // H sessions asked by the runner (one more when a mute session is relaunched)
 const stop = async () => {
@@ -493,6 +496,8 @@ try {
   if (area.largeur !== WIDTH || area.hauteur !== HEIGHT || area.densite !== 1) {
     throw new Error(`zone de page ${area.largeur} × ${area.hauteur} à la densité ${area.densite} au lieu de ${WIDTH} × ${HEIGHT} à la densité 1 (émulation refusée ou zoom de page) : parcours non joué`);
   }
+  // The page of the scene stays 1280 × 900; the showcase only retransmits it. If it fails, the scene goes on.
+  if (flag("vitrine")) vitrine = await ouvrirVitrine(page, { chromeBin: CHROME_BIN, profil: resolve(option("profil-vitrine", "/Users/nathan/Code/projet/horama/.orchestrateur/chrome-vitrine")), debugPort: flag("vitrine-debug") ? Number(option("vitrine-debug")) : null, say });
   if (FILM) film();
   // What the change asks to replay: said in the terminal now, shown in the summary at the end (nothing on screen
   // before the agent starts).
@@ -656,15 +661,27 @@ if (page) {
 }
 // The report the runner wrote in the vault, completed with what only the scene knows (issue #71, point 2): the tests
 // replayed and set aside, each defect and doubt with its capture ringed, the decision of the human, the PR.
+const rejoues = impact ? impact.retenus.map(({ id, raisons }) => `${id}${raisons?.length ? ` (${raisons.join(" ; ")})` : ""}`) : tests.map((test) => test.id);
+const ecartes = [...(impact?.ecartes ?? []), ...dropped].map(({ id, raison }) => `${id}${raison ? ` (${raison})` : ""}`);
+let notePath = null;
 if (report) {
   try {
-    const rejoues = impact ? impact.retenus.map(({ id, raisons }) => `${id}${raisons?.length ? ` (${raisons.join(" ; ")})` : ""}`) : tests.map((test) => test.id);
-    const ecartes = [...(impact?.ecartes ?? []), ...dropped].map(({ id, raison }) => `${id}${raison ? ` (${raison})` : ""}`);
-    const note = completerNote({ vault: VAULT, logiciel: LOGICIEL, passage: ID, tests: { titre: "Tests", lignes: [...rejoues.map((line) => `Rejoué : ${line}`), ...ecartes.map((line) => `Écarté : ${line}`)] }, items: [...items.values()], decisions, pr: [...(PR ? [{ label: "PR qui a déclenché le passage", url: PR }] : []), ...prDoc] });
+    const note = notePath = completerNote({ vault: VAULT, logiciel: LOGICIEL, passage: ID, tests: { titre: "Tests", lignes: [...rejoues.map((line) => `Rejoué : ${line}`), ...ecartes.map((line) => `Écarté : ${line}`)] }, items: [...items.values()], decisions, pr: [...(PR ? [{ label: "PR qui a déclenché le passage", url: PR }] : []), ...prDoc] });
     say(note ? `Note du passage complétée : ${join(VAULT, note)}.` : `Aucune note du coureur pour ${ID} : rien à compléter.`);
   } catch (error) {
     errors.push(`Note du passage : ${error.message}`);
   }
+}
+// The answer on the PR that woke the passage (--commenter, with --pr): posted with gh. A failure is said, the scene
+// goes on and its exit does not change.
+let commentaire = null;
+if (PR && flag("commenter") && report) {
+  const entry = (constat) => ({ id: constat.id, ecran: constat.ecran, texte: formuler(constat).resultat });
+  const corps = ecrireCommentaire({ passage: ID, rejoues, ecartes, prouves: toDecide.filter((constat) => constat.statut === "VERIFIED_FAIL").map(entry),
+    doutes: toDecide.filter((constat) => constat.statut === "SUSPECTED").map(entry), decisions: decisions.map(({ decision }) => decision),
+    note: `vault-horama/${notePath ?? `${LOGICIEL}/passages/${ID}.md`}`, complet: complete });
+  commentaire = await publierCommentaire(PR, corps);
+  say(commentaire.status === "publie" ? `Commentaire publié sur la PR : ${commentaire.url}` : `Commentaire non publié sur la PR : ${commentaire.reason}`);
 }
 // The decisions of the human, then the state of the passage, in the base, only when the runner rendered the
 // passage as played. A refused write is said (its message only gives the HTTP code), the next ones are still
@@ -692,6 +709,9 @@ if (report?.passage.etat === "joue") {
   }
 } else say(`Passage ${report?.passage.etat ?? "non rendu"} : aucune décision ni état « verifie » en base.`);
 filming = false;
+const showcase = vitrine?.mesures() ?? null;
+if (showcase) say(`Vitrine : ${showcase.images_recues} images reçues, ${showcase.images_affichees} affichées, ${showcase.images_par_seconde} par seconde ; délai de l'image dessinée à l'image affichée : médiane ${showcase.delai_total_ms.mediane} ms, p95 ${showcase.delai_total_ms.p95} ms.`);
+await vitrine?.stop({ fermer: flag("fermer-chrome") });
 const delays = clics.map((click) => click.retard_ms).filter((ms) => ms !== undefined);
 // The totals come from rapport.passage; the steps, the session and the replay are repeated in each test entry.
 const { duree_s: dureeS = null, cout_usd: coutUsd = null } = report?.passage ?? {};
@@ -723,6 +743,8 @@ writeFileSync(join(OUT, "passage.json"), `${JSON.stringify({
   settle_s: SANS_AGENT ? null : SETTLE_S,
   fin_s: finMs === null ? null : finMs / 1000,
   film: FILM ? { dossier: FILM, images, duree_s: filmedMs / 1000 } : null,
+  vitrine: showcase,
+  commentaire,
   debut: started.toISOString(),
   fin: new Date().toISOString(),
   duree_s: dureeS,

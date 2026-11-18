@@ -7,6 +7,8 @@ const element = (tag, className, text) => Object.assign(document.createElement(t
 const count = (n, one, many) => `${n} ${n > 1 ? many : one}`;
 const COLOR = { defaut: "#e5484d", doute: "#e8a33d" };
 const STATE = { a_visiter: "à visiter", en_cours: "visite en cours", visitee: "visitée", non_visitee: "non visitée" };
+// How the H agent reached the page, when the service says it (optional field arrivee of horama-exploration-1, #91).
+const ARRIVAL = { depart: "page de départ", clic: "atteinte par un clic de l'agent", adresse: "ouverte par son adresse" };
 const shown = new Set(); // ids of the findings already on the page
 
 // A capture cropped around its zone (pixels of the capture), the zone ringed; without a zone, the whole capture.
@@ -69,7 +71,7 @@ function render(service, report) {
     const line = element("li", `${page.etat}${proven ? " defaut" : ""}`);
     const path = element("span", "chemin");
     path.append(element("span", "marque"), new URL(page.url).pathname);
-    const note = page.etat === "visitee" ? (proven ? count(proven, "défaut prouvé", "défauts prouvés") : "rien de prouvé") : STATE[page.etat];
+    const note = [page.etat === "visitee" ? (proven ? count(proven, "défaut prouvé", "défauts prouvés") : "rien de prouvé") : STATE[page.etat], ARRIVAL[page.arrivee]].filter(Boolean).join(" · ");
     line.append(path, element("span", "second", note));
     return line;
   }));
