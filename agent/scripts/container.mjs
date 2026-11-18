@@ -3,6 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CHROME_FLAGS, closeChrome } from "../../automatisation/scene/scene.mjs";
+import { publicProxyChromeFlags, startPublicProxy, writePublicChromePreferences } from "../src/exploration/reseau.ts";
 
 const args = process.argv.slice(2);
 if (args.includes("--help")) {
@@ -13,11 +14,14 @@ if (args.includes("--help")) {
   if (args.some(arg => arg === "--chrome-port" || arg === "--vault" || arg === "--sortie")) {
     throw new Error("Le conteneur réserve CDP 9333 et les sorties /data.");
   }
+  if (args.includes("--reseau-public")) throw new Error("Le conteneur active déjà --reseau-public.");
+  const proxy = await startPublicProxy({ log: message => console.error(message) });
   const profile = await mkdtemp(join(tmpdir(), "horama-chrome-"));
+  writePublicChromePreferences(profile);
   const chrome = spawn(process.env.CHROME_BIN ?? "/usr/bin/chromium", [
     "--headless=new", "--no-sandbox", "--disable-dev-shm-usage",
     "--remote-debugging-address=127.0.0.1", "--remote-debugging-port=9333",
-    `--user-data-dir=${profile}`, ...CHROME_FLAGS, "about:blank",
+    `--user-data-dir=${profile}`, ...publicProxyChromeFlags(proxy.port), ...CHROME_FLAGS, "about:blank",
   ], { stdio: ["ignore", "ignore", "inherit"] });
   let engine;
   let cancelled = false;
@@ -36,7 +40,7 @@ if (args.includes("--help")) {
     if (cancelled) process.exitCode = 130;
     else {
       if (!ready) throw new Error("Chrome CDP indisponible.");
-      engine = spawn(process.execPath, ["agent/explorer.ts", ...args, "--chrome-port", "9333",
+      engine = spawn(process.execPath, ["agent/explorer.ts", ...args, "--chrome-port", "9333", "--reseau-public",
         "--vault", "/data/vault", "--sortie", "/data/exploration"], { stdio: "inherit" });
       process.exitCode = await new Promise((resolve, reject) => {
         engine.on("error", reject);
@@ -56,5 +60,6 @@ if (args.includes("--help")) {
       });
     }
     await rm(profile, { recursive: true, force: true });
+    await proxy.close();
   }
 }

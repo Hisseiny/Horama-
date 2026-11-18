@@ -16,6 +16,7 @@ import type { ExplorationCdp } from "./cdp.ts";
 import { controlerPage } from "./controles.ts";
 import { askHolo } from "./holo.ts";
 import { discoverPages, normalizePageQuery, renderPage } from "./pages.ts";
+import { fetchPublic } from "./reseau.ts";
 import { detecterBlocage } from "./blocage.ts";
 
 type Zone = EcartVisuel["zone"];
@@ -37,7 +38,7 @@ interface ExplorationPage {
   cookies?: "refusee" | "aucune"; url_finale?: string; raison?: string;
   arrivee?: "depart" | "clic" | "adresse";
 }
-export interface ExplorerOptions { url: string; max: number; sortie: string; vault: string; port: number; pagesCliquees?: number }
+export interface ExplorerOptions { url: string; max: number; sortie: string; vault: string; port: number; pagesCliquees?: number; reseauPublic?: boolean }
 export interface ExplorerDependencies {
   base: BasePassages; runtime: BrowserRuntime; session: Session; signal?: AbortSignal;
   fetch?: typeof fetch; controler?: typeof controlerPage; holo?: typeof askHolo;
@@ -144,9 +145,10 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
   const startAddresses = new Set([normalized(url, true)]);
   const antiRobot = (reason: string) => reason.startsWith("ce site bloque les robots");
   let blocage: string | null = loginUrl(url) ? "Connexion demandée (adresse de connexion)." : null;
+  const siteFetch = deps.fetch ?? (options.reseauPublic ? fetchPublic : fetch);
   const request: typeof fetch = async (address, init) => {
     if (blocage) throw new Error(blocage);
-    const response = await (deps.fetch ?? fetch)(address, { ...init, ...(signal ? { signal: init?.signal ? AbortSignal.any([signal, init.signal]) : signal } : {}) });
+    const response = await siteFetch(address, { ...init, ...(signal ? { signal: init?.signal ? AbortSignal.any([signal, init.signal]) : signal } : {}) });
     const body = await response.clone().text();
     const metadata = !new Headers(init?.headers).get("Accept")?.includes("text/html");
     const start = !metadata && startAddresses.has(normalized(String(address), true));
@@ -207,7 +209,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
   const resolveFinal = async (page: ExplorationPage, requestSignal?: AbortSignal) => {
     if (!finalUrls.has(page.url)) {
       try {
-        const response = await (deps.fetch ?? fetch)(page.url, { redirect: "follow", signal: requestSignal });
+        const response = await siteFetch(page.url, { redirect: "follow", signal: requestSignal });
         finalUrls.set(page.url, response.url && new URL(response.url).origin === new URL(page.url).origin ? response.url : null);
       } catch { finalUrls.set(page.url, null); }
     }
@@ -541,12 +543,13 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
         const controlZones = new Map<string, Zone>();
         let http: number | null = null;
         const hookFetch: typeof fetch = (address, init) => (deps.fetch ?? fetch)(address, { ...init, ...(hookSignal ? { signal: init?.signal ? AbortSignal.any([hookSignal, init.signal]) : hookSignal } : {}) });
+        const linkFetch: typeof fetch = (address, init) => siteFetch(address, { ...init, ...(hookSignal ? { signal: init?.signal ? AbortSignal.any([hookSignal, init.signal]) : hookSignal } : {}) });
         try {
           if (!client) throw new Error("Connexion CDP indisponible.");
           hookSignal?.throwIfAborted();
           const status = await client.send("Runtime.evaluate", { expression: "performance.getEntriesByType('navigation')[0]?.responseStatus || null", returnByValue: true });
           http = status.result.value;
-          const defects = await (deps.controler ?? controlerPage)(client, { fetch: hookFetch });
+          const defects = await (deps.controler ?? controlerPage)(client, { fetch: linkFetch });
           for (const defect of defects) {
             const item = finding(page, "controle", findings, { sorte: sorts[defect.sorte], statut: "VERIFIED_FAIL", description: defect.message,
               preuve: { ...(defect.selecteur ? { element: defect.selecteur } : {}), mesure: String(defect.valeur ?? defect.message), attendu: expectedText(defect.sorte),
