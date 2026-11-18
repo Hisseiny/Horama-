@@ -543,3 +543,6 @@ Orchestrateur : Claude Code (Opus 5.5). Mission : J0 à J4 (scène branchée sur
 
 ### 18/11, reprise après la pause : vitrine finie
 - #92 fusionnée sans la vitrine. Vitrine : fermée en plein passage, la scène va au bout (code 0) ; options anti-ralentissement ajoutées au Chrome de la vitrine (81 images affichées sur 5 888 en plein écran caché sur l'écran du Mac seul, puis 5 066 sur 5 086). Rapport : `docs/tests/2026-11-18-vitrine.md`. Ensuite : brancher la PR #93 d'Ali (#91) dans la scène.
+
+### 18/11, 13 h 35 : PR de la vitrine (#94), branchement de #93
+- PR #94 (vitrine) ouverte depuis `dev-nathan`. Branchement de #93 sur une branche à part `nathan-91-scene` (depuis `dev`) : `--pages-cliquees`, `passage-reel.sh` en `--max 8 --pages-cliquees 4 --vitrine` (la vitrine prend effet quand #94 est fusionnée), le champ `arrivee` affiché s'il est présent (scène, note du passage, extension). Essai scripté avec #93 : code 0. Le champ n'est pas encore écrit par #93 (une ligne côté Ali).
