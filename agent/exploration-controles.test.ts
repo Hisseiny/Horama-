@@ -112,6 +112,9 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
   for (const [label, lang, html, count] of [
     ["français", "de-DE", `<p id="foreign">Les <strong>étudiants</strong> travaillent avec les entreprises pour apprendre et découvrir le monde.</p>`, 1],
     ["allemand", "de", "<p>Die Studierenden lernen mit den Unternehmen und entdecken die Welt für ihre Zukunft.</p>", 0],
+    ["on a français", "fr", "<p>On a travaillé, on a discuté, on a beaucoup appris ensemble.</p>", 0],
+    ["in an allemand", "de", "<p>In Berlin arbeiten Studierende an Projekten, in Hamburg an Prototypen.</p>", 0],
+    ["or français", "fr", "<p>Or on a travaillé, or on a discuté ensemble.</p>", 0],
     ["lang explicite", "de", `<section lang="fr"><p>${french}</p></section>`, 0],
     ["phrase courte", "de", "<p>Les étudiants et les entreprises.</p>", 0],
     ["code", "de", `<code>${french}</code><pre>${french}</pre>`, 0],

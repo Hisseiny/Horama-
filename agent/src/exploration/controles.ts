@@ -54,7 +54,7 @@ function inspectDocument() {
   const functionWords = {
     fr: new Set("le la les des du de un une et est sont pour avec dans sur qui que nous vous au aux ce cette ces ses leur mais ou par en".split(" ")),
     de: new Set("der die das den dem des ein eine einer einem einen und ist sind für mit im auf von zu zum zur wir sie sich nicht auch als bei aus oder".split(" ")),
-    en: new Set("the a an and is are for with in on of to from we you your our their that this these those which who not or by".split(" ")),
+    en: new Set("the and is are for with of to from we you your our their that this these those which who not by".split(" ")),
   };
   const names = { fr: "français", de: "allemands", en: "anglais" };
   type Language = keyof typeof functionWords;

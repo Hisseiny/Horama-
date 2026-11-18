@@ -190,3 +190,15 @@ Chrome de découverte (exploration-pages.test.ts:172, connexion about:blank),
 hors du trajet de capture modifié, puis est resté ouvert : processus arrêté.
 Le lancement complet ci-dessus, après le dernier ajout de test CDP, est vert ;
 aucun changement effectué dans les tests ou le code de découverte.
+
+## Revue 1 — mots outils ambigus
+
+Retrait de `a`, `on`, `in`, `an`, `or` de la liste anglaise : formes françaises
+ou allemandes usuelles aussi, même si elles manquaient aux autres listes.
+`be` n'était dans aucune liste ; `die` reste un article allemand, pas un mot
+outil anglais. Les chevauchements explicites (`des`, `en`, etc.) restent
+exclus par le vote existant. Trois cas négatifs ajoutés : français « on a »,
+français « or on a », allemand « in … an ».
+
+`node --test exploration-controles.test.ts` : code 0, `# tests 1`, `# pass 1`,
+`# fail 0`, `# skipped 0`, `# duration_ms 1200.733867`.
