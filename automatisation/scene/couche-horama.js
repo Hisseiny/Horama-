@@ -40,6 +40,7 @@
   // ---------- Sizes and times ----------
   const TIP = { x: 7, y: 5 }; // point of the cursor arrow in its 40 px box
   const PRESS = 120; // ms the arrow stays pressed before the click is given back to the page
+  const HOVER = 170; // ms the arrow rests on its target, as a hand does, before it presses
   const STROKE = 800; // ms to draw the line around a zone
   const GAP = 16; // between the mascot and its bubble
   const FONT = '"Funnel Sans", system-ui, sans-serif'; // the text
@@ -146,6 +147,8 @@
     .cursor { position: fixed; left: 0; top: 0; width: 40px; height: 40px; will-change: transform; }
     .cursor svg { display: block; width: 40px; height: 40px; transform-origin: ${TIP.x}px ${TIP.y}px; transition: transform 90ms ease-out; }
     .cursor.press svg { transform: scale(0.78); }
+    .cursor.wheel svg { animation: wheel 380ms ease-in-out; }
+    @keyframes wheel { 40% { transform: translateY(calc(var(--wheel, 1) * 5px)) scale(0.94); } }
     .ripple { position: fixed; width: 28px; height: 28px; margin: -14px; border: 3px solid ${IRIS}; border-radius: 50%; animation: ripple 460ms ease-out forwards; }
     @keyframes hover { 50% { transform: translateY(-5px); } }
     @keyframes pop { from { scale: 0.82; } to { scale: 1; } }
@@ -198,12 +201,34 @@
   let cursorAt = state.cursor;
   let frame = 0;
   let last = 0;
-  // A curve from one point to the other, bowed to one side, slow at both ends.
-  const along = ({ from, to }, t) => {
-    const e = t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2;
-    const cx = (from.x + to.x) / 2 - (to.y - from.y) * 0.16;
-    const cy = (from.y + to.y) / 2 + (to.x - from.x) * 0.16;
-    return { x: (1 - e) ** 2 * from.x + 2 * (1 - e) * e * cx + e * e * to.x, y: (1 - e) ** 2 * from.y + 2 * (1 - e) * e * cy + e * e * to.y };
+  // The way of a hand from one point to the point H chose, never another point: a curve bowed to one side (how much and
+  // which side follow from the two points), the speed of a reach (fast early, slow at the end), a small overshoot past
+  // the target, then the correction back onto it. The duration grows with the distance as for a pointing hand (Fitts).
+  const course = (from, to) => {
+    const d = Math.hypot(to.x - from.x, to.y - from.y);
+    if (d < 2) return { from, to, ms: 0, over: to, ctrl: to };
+    const ux = (to.x - from.x) / d, uy = (to.y - from.y) / d;
+    const seed = Math.abs(Math.sin(from.x * 12.9898 + from.y * 78.233 + to.x * 37.719 + to.y * 4.581)); // 0..1, from the points
+    const bow = (seed < 0.5 ? -1 : 1) * (0.07 + 0.11 * (seed * 2 % 1)) * d;
+    const past = Math.min(11, 0.035 * d);
+    return {
+      from, to,
+      ms: Math.round(Math.min(950, 300 + 140 * Math.log2(1 + d / 24))),
+      over: { x: to.x + ux * past - uy * past * 0.35, y: to.y + uy * past + ux * past * 0.35 },
+      ctrl: { x: (from.x + to.x) / 2 - uy * bow, y: (from.y + to.y) / 2 + ux * bow },
+    };
+  };
+  const REACH = 0.84; // share of the time spent reaching the overshoot point; the rest corrects onto the target
+  const along = (travel, t) => {
+    const { from, to } = travel;
+    const over = travel.over ?? to, ctrl = travel.ctrl ?? { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
+    if (t >= REACH) {
+      const c = (t - REACH) / (1 - REACH), e = c * c * (3 - 2 * c);
+      return { x: over.x + (to.x - over.x) * e, y: over.y + (to.y - over.y) * e };
+    }
+    // Minimum jerk on a time bent forward: the peak of speed comes before the middle, the end is long and slow.
+    const w = (t / REACH) ** 0.8, e = w ** 3 * (10 - 15 * w + 6 * w * w);
+    return { x: (1 - e) ** 2 * from.x + 2 * (1 - e) * e * ctrl.x + e * e * over.x, y: (1 - e) ** 2 * from.y + 2 * (1 - e) * e * ctrl.y + e * e * over.y };
   };
   const putCursor = (point) => {
     cursorAt = point;
@@ -212,7 +237,9 @@
   // The arrow presses where it arrives, with a ripple. Once the page has reacted (a menu that opens), the mascot checks
   // that it hides nothing.
   const land = () => {
+    const pressing = state.travel?.clic !== false;
     state.travel = null;
+    if (!pressing) return save();
     // The click is given: the mascot takes back the expression it had before it.
     if (state.avant_clic) {
       const before = state.avant_clic;
@@ -220,14 +247,17 @@
       if (state.etat === "hesite") setEtat(before);
     }
     save();
-    if (TITLE) setTimeout(() => state.revue || stepAside(busy()), PRESS + 350);
-    cursor.classList.add("press");
-    setTimeout(() => cursor.classList.remove("press"), PRESS + 120);
-    const ring = element("div", "ripple");
-    ring.style.left = `${cursorAt.x}px`;
-    ring.style.top = `${cursorAt.y}px`;
-    ring.addEventListener("animationend", () => ring.remove(), { once: true });
-    shadow.append(ring);
+    if (TITLE) setTimeout(() => state.revue || stepAside(busy()), HOVER + PRESS + 350);
+    // The arrow rests on its target a moment, then presses.
+    setTimeout(() => {
+      cursor.classList.add("press");
+      setTimeout(() => cursor.classList.remove("press"), PRESS + 120);
+      const ring = element("div", "ripple");
+      ring.style.left = `${cursorAt.x}px`;
+      ring.style.top = `${cursorAt.y}px`;
+      ring.addEventListener("animationend", () => ring.remove(), { once: true });
+      shadow.append(ring);
+    }, HOVER);
   };
   const wake = () => {
     frame ||= requestAnimationFrame(tick);
@@ -801,11 +831,13 @@
   const press = (event) => {
     attach();
     if (held) replay();
+    clearTimeout(moving);
     const to = { x: event.clientX, y: event.clientY };
-    const from = cursorAt ?? to;
-    const ms = cursorAt ? Math.round(Math.min(800, 500 + 0.4 * Math.hypot(to.x - from.x, to.y - from.y))) : 0;
+    // From where the arrow is now (it may be on its way after a move of the mouse of H).
+    const way = course(cursorAt ?? to, to);
+    const ms = cursorAt ? way.ms : 0;
     const heure = Date.now();
-    state.travel = { from, to, at: heure, ms };
+    state.travel = { ...way, ms, at: heure };
     state.cursor = to;
     // Just before the click of the agent, while the arrow travels to it: the mascot hesitates.
     if (TITLE && !state.revue && ms > 0 && MASCOT.hesite && state.etat !== "hesite") {
@@ -816,7 +848,7 @@
     cursor.hidden = false;
     if (TITLE) stepAside([clearance(to)]);
     wake();
-    if (!OPTIONS.direct) held = { target: event.target, ...to, heure, since: performance.now(), timer: setTimeout(replay, ms + PRESS) };
+    if (!OPTIONS.direct) held = { target: event.target, ...to, heure, since: performance.now(), timer: setTimeout(replay, ms + (ms ? HOVER : 0) + PRESS) };
     const under = document.elementFromPoint(to.x, to.y);
     const hit = under?.closest("a, summary, button") ?? under;
     window.horamaPress?.(JSON.stringify({
@@ -829,6 +861,37 @@
       trajet_ms: ms,
     }));
   };
+  // The other gestures of the mouse of H, shown where they really happen and nowhere else. A move of its mouse with no
+  // press just after (the bridge moves it before a scroll, or the agent hovers): the arrow goes there without pressing.
+  // A turn of the wheel (a scroll of the agent, at the point of its mouse): the arrow goes there if it is not, and nods
+  // in the direction of the scroll. Nothing moves while the agent thinks: then it is the mascot that lives.
+  let moving = 0;
+  const goWithoutPress = (to) => {
+    if (state.revue || (cursorAt && Math.hypot(to.x - (state.cursor?.x ?? cursorAt.x), to.y - (state.cursor?.y ?? cursorAt.y)) < 2)) return;
+    attach();
+    const way = course(cursorAt ?? to, to);
+    state.travel = { ...way, ms: cursorAt ? way.ms : 0, at: Date.now(), clic: false };
+    state.cursor = to;
+    save();
+    cursor.hidden = false;
+    if (TITLE) stepAside([clearance(to)]);
+    wake();
+  };
+  window.addEventListener("mousemove", (event) => {
+    if (!event.isTrusted || event.target === host || held) return;
+    clearTimeout(moving);
+    const to = { x: event.clientX, y: event.clientY };
+    moving = setTimeout(() => goWithoutPress(to), 60);
+  }, true);
+  window.addEventListener("wheel", (event) => {
+    if (!event.isTrusted || event.target === host || state.revue) return;
+    clearTimeout(moving);
+    goWithoutPress({ x: event.clientX, y: event.clientY });
+    cursor.style.setProperty("--wheel", event.deltaY < 0 ? -1 : 1);
+    cursor.classList.remove("wheel");
+    void cursor.offsetWidth;
+    cursor.classList.add("wheel");
+  }, { capture: true, passive: true });
   for (const type of ["pointerdown", "mousedown", "pointerup", "mouseup", "click"]) {
     window.addEventListener(type, (event) => {
       if (!event.isTrusted || event.button !== 0 || event.target === host) return;
