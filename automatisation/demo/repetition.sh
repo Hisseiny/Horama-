@@ -1,6 +1,6 @@
 #!/bin/bash
 # Rehearsal of the demo, end to end, in scripted mode (no H agent), on the live site of Eugenia School as a plain
-# visitor: change sheet in a local commit, impact file, announcement, course, summary, decision, base. Each step is
+# visitor: change sheet in a local commit, impact file, course, summary (with the choice of the tests), decision, base. Each step is
 # timed. Mode d'emploi : docs/demo/2026-11-17-repetition.md.
 #
 # Usage, from the repository root: bash automatisation/demo/repetition.sh [--agent]
@@ -59,7 +59,7 @@ if [ -n "$MODE" ]; then
   ' "$OUT/impact.json"
 fi
 
-step "4. Scène : annonce, parcours, récapitulatif, décision"
+step "4. Scène : parcours, récapitulatif (avec la sélection), décision"
 # shellcheck disable=SC2086
 node --env-file=.env.local automatisation/scene/parcours.mjs $MODE \
   --base-url https://www.eugeniaschool.com --logiciel eugenia --version 1 --reference 1 \

@@ -80,6 +80,8 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | 4.12 | Premier passage du banc : rappel et précision bruts | Inès | à faire |  |
 | 4.13 | Peer review du soir | Tous | à faire |  |
 | A57.2 | Moteur visuel à un agent, commande explorer, C4 et mémoire du site | Ali | codé non testé | Tests hors ligne, passages H réels et revue humaine : [rapport](tests/2026-11-18-mode-visuel.md), 2 vrais constats et 6 faux sur 8. Lecture par la scène et parallélisme à mesurer. |
+| N69 | Scène épurée : pendant le parcours, le curseur, la mascotte et un trait à la main ; tout le texte au récapitulatif ; le mode grand public dans la scène (`exploration.mjs`) | Nathan | codé non testé | Squelette validé par Nathan le 18/11 (PR #80 fusionnée). [Preuve](tests/2026-11-18-squelette-scene.md) : parcours scripté sur le site d'Eugenia (mode dev) et exploration scriptée de eugeniaschool.com (lien 404 entouré en direct), sans H ni Holo ; captures de vérification à 0 pixel hors zone ignorée. Puis albertschool.com et skema.edu sans H ([preuve](tests/2026-11-18-note-passage-et-banc.md)) ; aucun passage avec l'agent H. |
+| N71.2 | Note du passage dans le vault : tests rejoués et écartés, défauts avec capture entourée, décisions, PR | Nathan | codé non testé | [Preuve](tests/2026-11-18-note-passage-et-banc.md) : mode dev sur le site d'Eugenia et mode grand public sur deux sites du banc, sans H ; lien de la PR de documentation et `--pr` passé par le réveil : non branchés. |
 
 ## Phase 5. Jeudi : le P0 complet, mesuré, répété, gelé
 

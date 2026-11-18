@@ -43,6 +43,14 @@ Raisons d'exclusion : `form`, `login`, `file`, `external`, `scheme`, `credential
 
 Les réponses factices couvrent : robots et arrêt fermé, sitemap XML, index imbriqués avec cycle/namespace/CDATA, liens sans sitemap, exclusions, normalisation, ordre stable, plafond, erreurs HTTP/réseau et types non HTML, redirections sûres et slash/www, base HTML, absence de requêtes concurrentes. Aucun appel réseau dans ces tests.
 
+### Correctifs de revue après la PR #61
+
+Régression reproduite hors réseau : `/sitemap.xml` redirigé vers `/`, dont le HTML lie `/second`, donnait une liste vide. Le dédoublonnage des lectures distingue maintenant robots, sitemap et page : l'accueil reste lisible comme page, avec ses liens, après le rejet du HTML comme sitemap. La boucle de redirection reste bornée par rôle. Le test passe après correction ; aucun nouvel essai réel.
+
+Autre régression reproduite : douze `image:loc` internes sans extension après une première page du sitemap épuisent les tentatives avant la deuxième page HTML (`max: 3`). L'extraction ne retient désormais que les `loc` enfants directs des entrées `url` ou `sitemap`, pas ceux imbriqués dans les extensions image/vidéo. Le test couvre aussi les entrées préfixées ; aucun GET d'image n'est émis et les trois pages attendues sont trouvées.
+
+Vérification des deux correctifs depuis `dev` actualisé (`cab6a3e095ee6ed25be599635b738c1f46adb142`) : `pnpm install && pnpm -r --if-present run check` vert, dont 132 tests d'`agent/` et 20 tests de découverte. Le rejeu des 19 réponses de l'essai unique reste strictement identique (pages, exclusions, erreurs), sans accès réseau.
+
 ## Essai réel unique — Eugenia School
 
 Appel : `await discoverPages("https://www.eugeniaschool.com", { max: 15 })`, avec un wrapper de `fetch` pour journaliser les réponses, sans modifier leur contenu.
