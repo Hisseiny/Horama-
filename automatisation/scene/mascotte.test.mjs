@@ -1,6 +1,7 @@
-// The mascot of Inès in the layer (docs/da/mascotte/, PR #116): six expressions, same size and same place, the
-// names of the first skeleton still understood, « hesite » while the arrow travels to a click of the agent, « fini » when
-// the summary opens, « bloquee » kept by it. A real Chrome, a local page, no network, no H.
+// The mascot of the charter in the layer (docs/da/mascotte/, PR #130): five states, same size and same place, the
+// names of the first skeleton still understood, « observe » kept while the arrow travels to a click of the agent (no
+// « hesite » in the charter), « fini » when the summary opens, « bloquee » kept by it. A real Chrome, a local page, no
+// network, no H.
 // Run from this folder: node --test mascotte.test.mjs (MASCOTTE_CAPTURES=<dossier> also writes a capture per expression).
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -34,7 +35,7 @@ const crop = (image) => {
 };
 const etat = (page) => evaluate(page, `JSON.parse(sessionStorage.getItem("horama")).etat`);
 
-test("les six expressions d'Inès : même taille, même place ; anciens noms ; hésite au clic ; fini ou bloquée au récapitulatif", async () => {
+test("les cinq états de la mascotte de la charte : même taille, même place ; anciens noms ; observe au clic ; fini ou bloquée au récapitulatif", async () => {
   const server = createServer((request, response) => response.end(PAGE)).listen(0, "127.0.0.1");
   await new Promise((done) => server.once("listening", done));
   const profile = mkdtempSync(join(tmpdir(), "horama-mascotte-"));
@@ -60,8 +61,8 @@ test("les six expressions d'Inès : même taille, même place ; anciens noms ; h
       images[name] = crop(image);
       if (OUT) writeFileSync(join(OUT, `${name}.png`), images[name]);
     }
-    // Six different drawings, all in the corner, the centre of each within 6 px of the one of « observe »: no jump.
-    assert.equal(new Set(Object.values(images).map((png) => png.toString("base64"))).size, 6);
+    // Five different drawings, all in the corner, the centre of each within 6 px of the one of « observe »: no jump.
+    assert.equal(new Set(Object.values(images).map((png) => png.toString("base64"))).size, 5);
     for (const name of EXPRESSIONS) {
       assert.ok(boxes[name].right > 0, `${name} dessinée dans le coin`);
       assert.ok(Math.abs(boxes[name].cx - boxes.observe.cx) <= 6 && Math.abs(boxes[name].cy - boxes.observe.cy) <= 6, `${name} ne saute pas (${JSON.stringify(boxes[name])})`);
@@ -104,13 +105,13 @@ test("les six expressions d'Inès : même taille, même place ; anciens noms ; h
     assert.equal(outside, 0, "seul l'œil change");
     await page.send("Animation.setPlaybackRate", { playbackRate: 1 });
 
-    // A click of the agent: « hesite » while the arrow travels, then back to « observe ».
+    // A click of the agent: no « hesite » in the charter, the mascot keeps observing while the arrow travels.
     await layer(page, "etat", "observe");
     await page.send("Input.dispatchMouseEvent", { type: "mousePressed", x: 900, y: 600, button: "left", clickCount: 1 });
     await page.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: 900, y: 600, button: "left", clickCount: 1 });
     await sleep(80);
-    assert.equal(await etat(page), "hesite", "pendant le trajet de la flèche jusqu'au clic");
-    if (OUT) writeFileSync(join(OUT, "hesite-au-clic.png"), PNG.sync.write(await shot(page)));
+    assert.equal(await etat(page), "observe", "pendant le trajet de la flèche jusqu'au clic");
+    if (OUT) writeFileSync(join(OUT, "observe-au-clic.png"), PNG.sync.write(await shot(page)));
     await sleep(1200);
     assert.equal(await etat(page), "observe", "le clic donné");
 
