@@ -12,14 +12,16 @@ Les fichiers de la CDO sont à côté de la couche, sans la modifier :
 
 | Élément | Couche actuelle (squelette) | Avec le thème |
 |---|---|---|
-| Mascotte | ailes pointues, pastilles « ! », « ? », « ✓ » | l'œil ailé de référence de la CDO (`draft.eye.mp4`), chaque état se lit sur le visage, sans pastille |
+| Mascotte | ailes pointues, pastilles « ! », « ? », « ✓ » | l'œil ailé de référence de la CDO (`draft.eye.mp4`), chaque état se lit sur le visage, sans pastille ; quand il lit, un monocle fin avec sa chaînette lavande |
 | Trait sur la page | rouge `#E5484D` pour un défaut, orange `#E8A33D` pour un doute | corail `#E0503F` pour un défaut, violet `#6A5FD0` pour un doute : les couleurs de Horama, à 3,9:1 et 5,1:1 sur fond blanc (WCAG 1.4.11 : au moins 3:1) |
 | Voile de la fin | noir à 60 % | violet nuit à 72 % : le panneau clair ressort |
 | Panneau (récapitulatif, question, fin) | blanc, sans-serif, titres en capitales grises, angles droits | carte presque blanche aux coins arrondis sur un voile violet sombre, une arche fine en haut, logo exact, « ὅραμα · ce qui est vu » au-dessus du titre, titres à empattements (Georgia), intertitres en minuscules |
-| Trouvailles du récapitulatif | une pastille de couleur seule | une carte blanche arrondie, la capture aux coins arrondis, une étiquette avec un mot (« Défaut », « À trancher ») : la couleur n'est jamais seule |
-| Boutons « C'est un bug / C'est voulu » | texte blanc sur rouge et sur vert | texte violet foncé sur corail et sur citron, lisible sur les deux |
+| Trouvailles du récapitulatif | une pastille de couleur seule | regroupées dans une zone teintée sous un intertitre avec frise grecque ; chacune sur une carte blanche, avec sa pièce Α, Β, Γ et une étiquette douce avec un mot (« Défaut », « À trancher ») : la couleur n'est jamais seule |
+| Boutons « C'est un bug / C'est voulu » | texte blanc sur rouge et sur vert | texte violet foncé sur corail et sur citron, avec ✕ et ✓ : lisibles sans la couleur |
 | Tampon du verdict | tampon penché en capitales | pastille droite : « Bug noté », « Voulu » |
 | Bulle de correction | blanche, angles droits | carte claire arrondie ; l'ancien texte barré, le nouveau en vert foncé |
+
+Inspiration pour le panneau : « Agent Approvals Modal » (Chris Nijhof, Dribbble) : zone teintée qui regroupe ce qui attend une décision, badges doux, cartes blanches, sous-titre discret.
 
 Polices système seulement (Georgia, Segoe UI) : la couche vit dans la page testée et ne charge rien du web. Le corail et le citron ne servent que d'aplats, avec du texte violet foncé dessus. Tout texte sur fond clair est au moins à 4,5:1 (WCAG AA).
 

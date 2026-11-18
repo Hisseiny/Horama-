@@ -29,6 +29,7 @@
   const SERIF = 'Georgia, "Times New Roman", serif';
   const SANS = '"Segoe UI", "Helvetica Neue", Arial, sans-serif';
   const svgUrl = (svg) => `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+  const greekKey = svgUrl(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"><path d="M0 7.5h12V.5H3v4h5V3" fill="none" stroke="${C.mid}" stroke-width="1.2"/></svg>`);
   // One fine arch across the top of the panel: the only architectural line, light and round.
   const arch = svgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 40" preserveAspectRatio="none"><path d="M40 38Q500 -14 960 38" fill="none" stroke="${C.mid}" stroke-width="1.2" vector-effect="non-scaling-stroke" opacity=".5"/></svg>`);
 
@@ -41,8 +42,8 @@
   const svg = (inside) => `<svg viewBox="0 0 96 96">${wings}${inside}</svg>`;
   const sprites = {
     repos: svg(eye(C.iris)),
-    verification: svg(`<path d="M22 31v-9h9M65 22h9v9M74 65v9h-9M31 74h-9v-9" fill="none" stroke="${C.iris}" stroke-width="4"/>`
-      + eye(C.iris, 4.6, `<path d="M29.3 41A20 20 0 0 1 66.7 41Z" fill="${C.wing}" stroke="${C.ink}" stroke-width="2.5" stroke-linejoin="round"/>`)),
+    verification: svg(`<path d="M66 63Q74 76 70 86" fill="none" stroke="${C.wing}" stroke-width="2" stroke-linecap="round" stroke-dasharray="0.1 4"/>`
+      + eye(C.iris, 4.6, `<path d="M29.3 41A20 20 0 0 1 66.7 41Z" fill="${C.wing}" stroke="${C.ink}" stroke-width="2.5" stroke-linejoin="round"/>`) + `<circle cx="48" cy="48" r="24" fill="none" stroke="${C.ink}" stroke-width="2.2"/><circle cx="48" cy="48" r="24" fill="none" stroke="#fff" stroke-width="1" stroke-dasharray="6 60" stroke-dashoffset="-38" opacity=".9"/>`),
     interrogation: svg(brows("M28 23Q37 13 47 19") + brows("M53 25Q61 23 68 26") + eye(C.iris)),
     defaut: svg(brows("M28 21L45 29", 4) + brows("M68 21L51 29", 4) + eye(C.ko, 3.4)),
     conforme: svg(eye(C.ok, 4.6, `<path d="M30.7 58A20 20 0 0 0 65.3 58Q48 48 30.7 58Z" fill="${C.wing}" stroke="${C.ink}" stroke-width="2.5" stroke-linejoin="round"/>`)),
@@ -103,7 +104,29 @@
     .correction-file { color: ${C.mid}; font: 400 15px/1.4 ui-monospace, Consolas, monospace; }
     .correction-before { color: ${C.mid}; text-decoration-color: ${C.koT}; }
     .correction-after { color: ${C.okT}; }
-  `;;
+    @counter-style horama-grec { system: fixed; symbols: "Α" "Β" "Γ" "Δ" "Ε" "Ζ" "Η" "Θ" "Ι" "Κ" "Λ" "Μ"; }
+    /* --- richer panel: a tinted group for the findings, white cards, soft badges, Greek coins --- */
+    .panel h1 + p { color: ${C.mid}; font: 400 17px/1.45 ${SANS}; }
+    .panel h2 { display: flex; align-items: center; gap: 10px; margin: 22px 0 0; padding: 14px 18px 10px; border-radius: 16px 16px 0 0;
+      background: #F1EEF9; color: ${C.ink2}; font: 600 15px/1 ${SANS}; }
+    .panel h2::after { content: ""; flex: 1; height: 8px; background: ${greekKey} repeat-x 0 0 / 16px 8px; opacity: .55; }
+    .panel h2 + .items, .panel h2 + ul, .panel h2 + .files { margin: 0; padding: 4px 18px 18px; border-radius: 0 0 16px 16px; background: #F1EEF9; }
+    .panel h2 + .files { padding-top: 6px; }
+    .items { counter-reset: trouvaille; }
+    .item { counter-increment: trouvaille; border: 1px solid rgba(59, 54, 84, 0.08); }
+    .item p::before { content: counter(trouvaille, horama-grec); display: inline-grid; place-items: center; width: 24px; height: 24px; margin-right: 8px;
+      border-radius: 50%; background: ${C.ink2}; color: #F3EBDD; font: 400 13px/1 ${SERIF}; vertical-align: 1px;
+      outline: 1.5px dotted ${C.ink2}; outline-offset: 1px; }
+    .tag { height: 22px; padding: 0 9px; border-radius: 11px; font: 600 12.5px/1 ${SANS}; box-shadow: none; }
+    .tag.defaut { background: #FDE4E0; color: ${C.koT}; }
+    .tag.doute { background: #E9E6FB; color: #4B3FB0; }
+    .rank { display: inline-block; padding: 6px 12px; border-radius: 14px; background: #F1EEF9; }
+    .choice.bug::before { content: "✕"; margin-right: 10px; font-weight: 700; }
+    .choice.voulu::before { content: "✓"; margin-right: 10px; font-weight: 700; }
+    .panel .files li { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 10px; background: #fff; border: 1px solid rgba(59, 54, 84, 0.08); }
+    .panel .files li::before { content: ""; width: 12px; height: 15px; border: 1.5px solid ${C.mid}; border-radius: 2px 5px 2px 2px; }
+
+  `;
 
   return { colors, sprites, stamps, css };
 })
