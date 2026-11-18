@@ -3,7 +3,7 @@
 // GET /explorations/:id → { id, etat: "en_file", place } while waiting, then the file horama-exploration-1;
 // GET /explorations/:id/<capture> → the image. Points 1 to 6 of #68 (CORS, answers, queue, captures, cap): to confirm
 // by the service.
-const DEFAULT_SERVICE = "http://127.0.0.1:8787";
+const DEFAULT_SERVICE = "https://explorations-production-70bf5b38.up.railway.app";
 async function serviceAddress() {
   const { service } = await chrome.storage.local.get("service");
   return (service || DEFAULT_SERVICE).replace(/\/+$/, "");
