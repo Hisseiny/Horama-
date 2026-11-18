@@ -105,6 +105,9 @@ function groupControls(defects: Defaut[]) {
   }
   return groups;
 }
+function controlDescription(message: string, selectors: Set<string>): string {
+  return selectors.size > 1 ? `${message} Éléments : ${[...selectors].join(", ")}.` : message;
+}
 function pageStatus(findings: Finding[]): Statut {
   return (["VERIFIED_FAIL", "SUSPECTED", "INCONCLUSIVE"] as Statut[]).find(status => findings.some(finding => !finding.explique_par && finding.statut === status)) ?? "PASS";
 }
@@ -572,6 +575,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
         const findings: Finding[] = [];
         if (consentFailed) inconclusive(page, "controle", findings, "La revérification du consentement avant capture a échoué.");
         const controlZones = new Map<string, Zone>();
+        const recapturedControls: { item: Finding; message: string; selectors: Set<string> }[] = [];
         let http: number | null = null;
         const hookFetch: typeof fetch = (address, init) => (deps.fetch ?? fetch)(address, { ...init, ...(hookSignal ? { signal: init?.signal ? AbortSignal.any([hookSignal, init.signal]) : hookSignal } : {}) });
         const linkFetch: typeof fetch = (address, init) => siteFetch(address, { ...init, ...(hookSignal ? { signal: init?.signal ? AbortSignal.any([hookSignal, init.signal]) : hookSignal } : {}) });
@@ -582,8 +586,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
           http = status.result.value;
           const defects = await (deps.controler ?? controlerPage)(client, { fetch: linkFetch });
           for (const { defect, measure, selectors } of groupControls(defects)) {
-            const description = selectors.size > 1 ? `${defect.message} Éléments : ${[...selectors].join(", ")}.` : defect.message;
-            const item = finding(page, "controle", findings, { sorte: sorts[defect.sorte], statut: "VERIFIED_FAIL", description,
+            const item = finding(page, "controle", findings, { sorte: sorts[defect.sorte], statut: "VERIFIED_FAIL", description: controlDescription(defect.message, selectors),
               preuve: { ...(defect.selecteur ? { element: defect.selecteur } : {}), mesure: measure, attendu: expectedText(defect.sorte),
                 ...(["image_cassee", "lien_casse"].includes(defect.sorte) ? { url: String(defect.valeur).replace(/ : \d+$/, "") } : {}),
                 ...(defect.sorte === "erreur_console" ? { console: String(defect.valeur).slice(0, 300) } : {}) },
@@ -592,7 +595,6 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
             if (item.zone) {
               const documentZone = item.zone;
               const zone = { ...documentZone, x: documentZone.x - capture.defilement[0], y: documentZone.y - capture.defilement[1] };
-              controlZones.set(item.id, zone);
               item.zone = zone;
               if (zone.x < 0 || zone.y < 0 || zone.x + zone.largeur > 1280 || zone.y + zone.hauteur > 900) {
                 delete item.zone;
@@ -608,11 +610,20 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
                     } catch { /* Repli sur la capture CDP. */ }
                   }
                   extra ??= await captureDefect(client, documentZone, capture.defilement);
+                  const duplicate = extra.zone && recapturedControls.find(({ item: other }) =>
+                    other.sorte === item.sorte && other.preuve.mesure === measure && sameControlZone(other.zone, extra.zone));
+                  if (duplicate) {
+                    for (const selector of selectors) duplicate.selectors.add(selector);
+                    duplicate.item.description = controlDescription(duplicate.message, duplicate.selectors);
+                    continue;
+                  }
                   const file = `captures/${item.id}.png`;
                   writeFileSync(join(sortie, file), extra.png);
                   item.capture = file; item.zone = extra.zone;
+                  if (extra.zone) recapturedControls.push({ item, message: defect.message, selectors });
                 } catch { /* Le constat reste prouvé sans zone hors image. */ }
               }
+              controlZones.set(item.id, zone);
             }
             findings.push(item);
           }

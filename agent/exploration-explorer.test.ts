@@ -432,6 +432,36 @@ test("constats de contrôle regroupés par type, mesure et zone à un pixel prè
   }
 });
 
+test("trois éléments hors écran recadrés au même endroit donnent un constat et une capture", async () => {
+  let scrollY = 0;
+  const { result, base } = await run({ deps: {
+    connecter: async () => ({ send: async (method, params) => {
+      if (method === "Page.captureScreenshot") return { data: original.toString("base64") };
+      const expression = (params as { expression?: string } | undefined)?.expression ?? "";
+      if (expression === "[window.scrollX, window.scrollY]") return { result: { value: [0, scrollY] } };
+      const recenter = /top: Math.max\(0, Math.min\(([\d.]+)/.exec(expression);
+      if (recenter) scrollY = Math.round(Number(recenter[1]));
+      return { result: { value: 200 } };
+    }, on() {}, close() {} }),
+    controler: async () => [2553.6875, 2703.875, 2854.0625, 3000].map((y, index) => ({
+      statut: "VERIFIED_FAIL", sorte: "debordement", message: "Le texte dépasse.",
+      selecteur: `#element-${index + 1}`, valeur: "129×89 > 96×89",
+      zone: { x: index === 3 ? 500 : 668.5, y, largeur: 96, hauteur: 89.1875 },
+    })),
+  } });
+  assert.equal(result.totaux.defauts, 4);
+  for (const page of result.pages) {
+    const findings = result.constats.filter(item => item.ecran === page.ecran && item.source === "controle");
+    assert.equal(findings.length, 2);
+    assert.match(findings[0].description, /#element-1, #element-2, #element-3/);
+    assert.equal(findings[1].preuve.element, "#element-4");
+    assert.ok(existsSync(join(root, "out", findings[0].capture)));
+    assert.ok(existsSync(join(root, "out", findings[1].capture)));
+    assert.equal(existsSync(join(root, "out/captures", `${page.ecran}--controle--3.png`)), false);
+    assert.equal(Object.keys(base.resultats.find(item => item.test_id === `exploration--${page.ecran}`)!.valeurs).length, 2);
+  }
+});
+
 test("erreur H après le dernier relevé : toutes les pages visitées, passage fini", async () => {
   const { result } = await run({ lateError: true });
   assert.equal(result.etat, "fini");
