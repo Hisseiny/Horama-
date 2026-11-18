@@ -83,3 +83,25 @@ restent dans `~/.horama/ponts/`. `HOLO_BIN` permet de choisir l’exécutable.
 Les connexions et ponts sont fermés à la fin ; Chrome est laissé ouvert.
 
 Ce câblage n’a pas été joué avec H : attente de la clé Horama autorisée.
+
+## Exploration visuelle (#57, un agent)
+
+`pnpm --filter @horama/agent explorer -- --url https://exemple.org --sans-base`
+visite les pages publiques avec H, sans formulaire ni connexion. `--max` vaut 15,
+`--chrome-port` 9333 ; `--sortie` vaut `.orchestrateur/exploration/` (ignoré par Git).
+La clé `HAI_API_KEY` sert à H et Holo, jamais la clé de démonstration.
+`--help` décrit les options. Chrome et le pont ont les mêmes prérequis que `passage`.
+
+Le fichier atomique `exploration.json` suit `horama-exploration-1` ; les captures,
+contrôles prouvés, doutes Holo et comparaisons alimentent un C4 par page. Un relevé
+refusé ne produit ni constat ni référence. Les pages non visitées sont non concluantes.
+La provenance découverte est indicative : un XML sitemap utilisable observé pendant
+la découverte classe les pages hors accueil comme issues du sitemap, même si certaines
+viennent de liens (le découvreur ne donne pas cette provenance).
+
+`--vault` vaut le vault du dépôt : les premières captures y deviennent des références
+et les notes manquantes sont créées, sans écraser les notes existantes, même avec
+`--sans-base`. Ne jamais committer ces données. Les versions suivent le nombre de
+rapports de passages du site ; chaque écran compare sa dernière référence antérieure.
+Ctrl+C arrête la session et conserve une synthèse interrompue. Aucun passage réel ni
+contrôle visuel humain n'est attesté par les tests hors ligne.

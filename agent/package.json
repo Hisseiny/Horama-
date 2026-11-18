@@ -6,6 +6,7 @@
   "exports": { ".": "./index.ts" },
   "scripts": {
     "passage": "node passage.ts",
+    "explorer": "node explorer.ts",
     "lint": "tsc --noEmit --noUnusedLocals --noUnusedParameters --allowUnreachableCode false --allowUnusedLabels false",
     "check": "pnpm lint && tsc --noEmit && node --test *.test.ts *.test.mjs"
   },
