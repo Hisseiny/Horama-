@@ -1,25 +1,25 @@
 <!doctype html>
 <html lang="fr">
-<head><meta charset="utf-8"><title>Horama : rapport</title><link rel="stylesheet" href="commun.css"><link rel="stylesheet" href="rapport.css"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Horama : rapport</title><link rel="stylesheet" href="envoye.css"><link rel="stylesheet" href="commun.css"><link rel="stylesheet" href="rapport.css"></head>
 <body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="oeil" viewBox="26 26 44 44"><circle cx="48" cy="48" r="20" fill="#fff" stroke="#1C1C1C" stroke-width="3.6"/><circle cx="48" cy="48" r="10.5" fill="#7F77DD"/><circle cx="48" cy="48" r="4.6" fill="#1C1C1C"/><circle cx="51.6" cy="44.4" r="2.2" fill="#fff"/></symbol><symbol id="aile-g" viewBox="0 22 32 35"><path d="M30 46C24 30 10 24 2 28c6 3 7 7 5 10 5 1 7 5 5 8 5 1 8 5 7 9 5-1 9-4 11-9Z"/></symbol><symbol id="aile-d" viewBox="64 22 32 35"><path d="M66 46C72 30 86 24 94 28c-6 3-7 7-5 10-5 1-7 5-5 8-5 1-8 5-7 9-5-1-9-4-11-9Z"/></symbol></svg>
+  <header class="haut"><div class="astre"></div><span class="mot">H<svg class="o" aria-hidden="true"><use href="#oeil"/></svg>rama</span><div class="m" id="mascotte" aria-hidden="true"></div></header>
   <main>
-    <header>
-      <h1>Horama</h1>
-      <p id="adresse" class="second"></p>
-      <p id="etat" role="status"></p>
-    </header>
+    <h1 id="titre">Il part visiter le site.</h1>
+    <p id="adresse" class="site"></p>
+    <p id="etat" role="status"></p>
     <section id="bilan" hidden>
-      <h2>Bilan</h2>
-      <p id="bilan-texte"></p>
+      <div class="chiffres" id="chiffres"></div>
+      <p id="bilan-texte" class="second"></p>
     </section>
     <section id="prouves" hidden>
       <h2>Défauts prouvés</h2>
-      <p class="second">Chacun est mesuré par le code sur la page : la preuve est écrite sous la capture.</p>
+      <p class="second">Chacun est mesuré par le code sur la page : la mesure est écrite sous la capture.</p>
       <div class="cartes"></div>
     </section>
     <section id="a-verifier" hidden>
-      <h2>À vérifier</h2>
-      <p class="second">Ce que le regard de Holo, le modèle visuel de H, croit voir. Rien n'est prouvé : un humain regarde.</p>
+      <h2>À trancher</h2>
+      <p class="second">Ce que le regard de Holo, le modèle visuel de H, croit voir. Rien n'est prouvé : bug, ou voulu ?</p>
       <div class="cartes"></div>
     </section>
     <section id="non-verifie" hidden>
@@ -31,8 +31,8 @@
       <ol></ol>
     </section>
   </main>
-  <script src="lib/rough-notation.iife.js"></script>
   <script src="service.js"></script>
-  <script src="rapport.js"></script>
+  <script src="mascotte.js"></script>
+  <script type="module" src="rapport.js"></script>
 </body>
 </html>

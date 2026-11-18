@@ -148,10 +148,38 @@ flowchart LR
 Option A, décidée par Nathan : **un service sur notre serveur, dans un conteneur Docker hébergé sur Railway**. Le jury n'installe que l'extension Chrome ; elle appelle le service, qui fait tourner Chrome, le pont `holo` et le moteur `explorer`. Railway parce qu'il garde un processus qui tourne en continu, accepte une image Docker et déploie depuis une branche GitHub ; Render est écarté (son offre gratuite met le service en veille). Étapes, par Ali :
 
 1. Un `Dockerfile` (Node, Chrome, `holo`, le moteur) et un passage réel sur eugeniaschool.com dans ce conteneur, avant tout déploiement.
-2. Le service : `POST /explorations`, `GET /explorations/:id` (format `horama-exploration-1`), les captures par lien ; une file d'attente au-delà de 3 sessions H simultanées, avec un message clair.
+2. Le service HTTP et sa file d'attente, décrits ci-dessous.
 3. Le déploiement sur Railway, après deux conditions de sécurité : une clé H dédiée au service (supprimée après la démo de vendredi, jamais la clé de l'équipe) et Chrome sous un autre compte du conteneur que le moteur (ni la clé H ni les données du moteur ne lui sont visibles), prouvées par une commande dans le rapport.
 
 L'extension (couloir Nathan) vient après la direction artistique.
+
+#### Lancer le service en local
+
+Depuis la racine, avec une clé H dédiée déjà dans l'environnement :
+
+```sh
+docker build -t horama-explorations .
+docker run --rm --memory 1g -p 127.0.0.1:8787:8787 \
+  -e HAI_API_KEY -e HORAMA_MAX_PAGES=3 horama-explorations
+curl -fsS http://127.0.0.1:8787/sante
+curl -sS http://127.0.0.1:8787/explorations -H 'Content-Type: application/json' \
+  --data '{"url":"https://eugenia-school-website.vercel.app"}'
+```
+
+- `GET /sante` : état du serveur HTTP.
+- `POST /explorations` avec `{"url":"…"}` : `202 {id, place}` (`0` si le travail démarre). Chaque demande acceptée a un nouvel identifiant. `400` pour une adresse refusée, `429` au-delà du quota et `503` si la file est pleine ou le service indisponible ; les erreurs contiennent `erreur`.
+- `GET /explorations/:id` : `{id, etat: "en_file", place}` en attente, puis le rapport `horama-exploration-1` dès son écriture. `404` si l'identifiant est inconnu, `503` si le moteur s'arrête sans rapport final. Récupérer un PNG à `/explorations/:id/<capture>` (par exemple `captures/accueil.png`, chemin indiqué dans le rapport). CORS autorise `GET`, `POST` et `OPTIONS`.
+- Un passage à la fois : chaque passage utilise le même port CDP local (`9333`), mais un profil Chrome neuf. Cinq passages peuvent attendre. Quotas proposés : 12 admissions par heure au total, 4 par IP de connexion. Derrière un proxy, cette IP peut être partagée ; le service ne fait pas confiance aux en-têtes d'IP fournis par le client.
+- `HORAMA_MAX_PAGES` (1–8, défaut 8) et `HORAMA_MAX_SECONDS` (1–240, défaut 240, puis jusqu'à 5 s pour arrêter le moteur) fixent les plafonds, non modifiables par la requête. Le proxy Chrome et les fetchs du moteur refusent les destinations privées après résolution. Le parcours H ne demande pas de clic de navigation ni d'envoi de formulaire.
+- Le mode CLI est conservé : `docker run --rm horama-explorations --help`.
+
+#### Préparer Railway (pas encore déployé)
+
+Dans Railway, relier le dépôt **Hisseiny/Horama-** après fusion sur `main`, conserver la commande par défaut du Dockerfile, indiquer `/sante` comme chemin de santé, et ajouter `HAI_API_KEY` comme variable secrète propre au service. Le serveur écoute sur `0.0.0.0:$PORT` (8787 sans variable `PORT`) ; ne pas publier le port CDP. Utiliser une seule réplique : la file et les quotas sont en mémoire.
+
+Les sorties sont sous `/data` et expirent une heure après la fin (nettoyage lors des demandes). Les identifiants ne survivent pas au redémarrage, même avec un volume ; un volume est nécessaire pour conserver les fichiers bruts au-delà de la vie du conteneur, et il faut alors gérer le nettoyage après arrêt brutal.
+
+L'image exécute Chromium sous `horama-chrome` et le moteur sous `node`. Le compte Chrome n'a accès ni à l'environnement du moteur ni à `/data`. Si un volume est monté, conserver `/data` accessible en écriture uniquement par `node` (mode `0700`). Avant de publier le domaine, vérifier ces conditions et la mémoire dans Railway ; voir [le rapport de test du service](docs/tests/2026-11-18-service-explorations.md) pour l'essai Docker local. Pas de passage sur une offre payante sans accord de Nathan.
 
 ## Chiffres mesurés
 
@@ -188,6 +216,33 @@ Après le hackathon, dans cet ordre de dépendance :
 - **Plusieurs agents H en parallèle** (décision de Nathan, 18/11) : le moteur et le format `horama-exploration-1` sont prévus pour 1 à 3 agents qui se partagent les pages, mais la démo de vendredi tourne avec un seul agent. Pourquoi attendre : le plan gratuit de H plafonne à 3 sessions simultanées par organisation, et le mode à un agent doit d'abord être stable sur le banc de sites (#67).
 - **Des consignes de Holo spécialisées**, une par sorte de doute (texte coupé, chevauchement, élément décalé, image déformée, contraste) au lieu d'une consigne générale, quand la base sera stable : aujourd'hui, la plupart des faux constats viennent de Holo (6 sur 8 sur eugeniaschool.com le 17/11), et une consigne ne s'affine qu'en mesurant ses faux constats sur un banc qui ne bouge plus.
 - Le reste de la feuille de route (entrée « message d'un client », correction du code par Devin, autres sources de documentation et autres sorties que GitHub, accessibilité mesurée, notification par n8n) : [`docs/feuille-de-route.md`](docs/feuille-de-route.md).
+
+## Essayer Horama
+
+Pour le jury, sans rien installer côté serveur : le mode grand public, sur le site de votre choix. Les adresses marquées « à compléter » le seront quand le service sera en ligne (#68, #133).
+
+**Par la page d'accueil.** Ouvrez `adresse de la page d'accueil, à compléter` (#136), collez l'adresse d'un site public dans le champ et cliquez « Envoyer Horama ».
+
+**Par l'extension Chrome.**
+1. Téléchargez `horama-extension.zip` (`lien de la release, à compléter`), puis dézippez-le.
+2. Dans Chrome, ouvrez `chrome://extensions`, activez le « Mode développeur » et cliquez « Charger l'extension non empaquetée ». Choisissez le dossier dézippé.
+3. Ouvrez le site à vérifier, cliquez sur l'icône Horama : l'adresse de l'onglet est déjà remplie. Cliquez « Envoyer Horama ».
+
+Le rapport s'ouvre dans un onglet et se remplit page par page. Il montre :
+- les défauts **prouvés par le code**, chacun avec sa capture marquée d'un trait rouge et sa mesure (« mesuré : … », « attendu : … ») ;
+- à part, les doutes du regard de Holo, « à trancher » ;
+- les pages visitées.
+
+Le service visite 8 pages au plus. Sur le site d'Eugenia, 8 pages ont pris 212 s ([rapport](docs/tests/2026-11-18-a91-visite.md)). Un site qui bloque les robots, une page introuvable ou une connexion demandée finissent proprement, avec la raison.
+
+Limites du service (`agent/scripts/exploration-service.mjs`, #143) :
+- une exploration à la fois, 5 en file d'attente au plus ;
+- 4 demandes par heure et par adresse IP, 12 par heure en tout ;
+- seulement les adresses publiques en `http` ou `https`, sans identifiants.
+
+L'agent ne remplit aucun formulaire.
+
+**Pour l'équipe : régler l'adresse du service.** Une seule ligne, la constante `DEFAULT_SERVICE` de `extension/service.js` (aujourd'hui `http://127.0.0.1:8787`, le faux service). Une fois l'adresse réglée, `sh extension/empaqueter.sh` produit `extension/dist/horama-extension.zip` et rappelle l'adresse qu'il contient. Chaque utilisateur peut aussi la changer dans les options de l'extension. La publication du `.zip` en release GitHub attend le go de Nathan.
 
 ## Comment lancer
 

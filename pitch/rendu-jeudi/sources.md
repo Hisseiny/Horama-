@@ -13,7 +13,7 @@ Pour régénérer le PDF après une modification, depuis la racine du dépôt :
 
 ## Avant de déposer
 
-- Slide 3 : remplacer « à venir » par le lien du Loom (élément `#loom` de `index.html`), puis régénérer le PDF.
+- Slide 3 : lien du Loom ajouté le 18/11 au soir (`#loom`).
 
 ## Sources
 
