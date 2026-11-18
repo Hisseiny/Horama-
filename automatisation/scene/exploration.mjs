@@ -23,6 +23,7 @@ import { findHolo, startBridge, stopIfMissing } from "./agent-h.mjs";
 import { creerEcrivainMemoire, creerEcrivainSupabase } from "./decisions.mjs";
 import { completerNote } from "./note-passage.mjs";
 import { revoir, sizeOf } from "./recapitulatif.mjs";
+import { ouvrirVitrine } from "./vitrine.mjs";
 import { HEIGHT, WIDTH, capture, captureZone, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, layer, navigate, openChrome, option, say, sleep } from "./scene.mjs";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
@@ -76,6 +77,9 @@ if (area.largeur !== WIDTH || area.hauteur !== HEIGHT || area.densite !== 1) {
   process.exit(2);
 }
 const mascot = (command, ...args) => layer(page, command, ...args);
+// The showcase (--vitrine): the scene enlarged to a whole screen in a separate Chrome; this page stays 1280 × 900.
+const vitrine = flag("vitrine") ? await ouvrirVitrine(page, { chromeBin: CHROME_BIN, profil: resolve(option("profil-vitrine", "/Users/nathan/Code/projet/horama/.orchestrateur/chrome-vitrine")),
+  debugPort: flag("vitrine-debug") ? Number(option("vitrine-debug")) : null, say }) : null;
 // The page of departure at once, the mascot reading: what the audience sees while the pages are found and the H agent
 // starts (about 20 s measured on 18/11, 11 h 45), instead of a blank page.
 await navigate(page, URL_SITE);
@@ -310,7 +314,10 @@ if (report?.format === "horama-exploration-1") {
   }
 } else errors.push(`${FILE} absent ou illisible.`);
 
-writeFileSync(join(OUT, "scene.json"), `${JSON.stringify({ id: ID, passage_id: report?.passage_id ?? null, adresse: URL_SITE, mode: SANS_AGENT ? "sans agent" : "agent H", holo: !flag("sans-holo"), traits: Object.fromEntries(drawnOn), decisions, erreurs: errors }, null, 2)}\n`);
+const showcase = vitrine?.mesures() ?? null;
+if (showcase) say(`Vitrine : ${showcase.images_recues} images reçues, ${showcase.images_affichees} affichées, ${showcase.images_par_seconde} par seconde ; délai de l'image dessinée à l'image affichée : médiane ${showcase.delai_total_ms.mediane} ms, p95 ${showcase.delai_total_ms.p95} ms.`);
+await vitrine?.stop({ fermer: flag("fermer-chrome") });
+writeFileSync(join(OUT, "scene.json"), `${JSON.stringify({ id: ID, passage_id: report?.passage_id ?? null, adresse: URL_SITE, mode: SANS_AGENT ? "sans agent" : "agent H", holo: !flag("sans-holo"), traits: Object.fromEntries(drawnOn), decisions, vitrine: showcase, erreurs: errors }, null, 2)}\n`);
 for (const line of errors) say(`Erreur : ${line}`);
 runtime.close();
 page.close();
