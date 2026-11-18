@@ -28,6 +28,7 @@ import { creerEcrivainMemoire, creerEcrivainSupabase } from "./decisions.mjs";
 import { ouvrirPrDoc } from "../pr-doc/index.mjs";
 import { completerNote } from "./note-passage.mjs";
 import { revoir, sizeOf } from "./recapitulatif.mjs";
+import { ouvrirVitrine } from "./vitrine.mjs";
 import { HEIGHT, WIDTH, capture, clickAt, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, layer, navigate, openChrome, option, say, sleep, waitFor } from "./scene.mjs";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
@@ -170,6 +171,7 @@ const chrome = await openChrome({ bin: CHROME_BIN, port: PORT, profile: PROFILE 
 say(chrome.started ? `Chrome dédié lancé (${chrome.version}, port ${PORT}, profil ${PROFILE}).` : `Un Chrome écoute déjà sur le port ${PORT} (${chrome.version}) : réutilisé.`);
 let page = null;
 let filming = false;
+let vitrine = null; // the showcase (--vitrine, vitrine.mjs): the scene enlarged to a whole screen in a separate Chrome
 const bridges = new Set(); // the bridges of the sessions not yet ended
 let launched = 0; // H sessions asked by the runner (one more when a mute session is relaunched)
 const stop = async () => {
@@ -493,6 +495,8 @@ try {
   if (area.largeur !== WIDTH || area.hauteur !== HEIGHT || area.densite !== 1) {
     throw new Error(`zone de page ${area.largeur} × ${area.hauteur} à la densité ${area.densite} au lieu de ${WIDTH} × ${HEIGHT} à la densité 1 (émulation refusée ou zoom de page) : parcours non joué`);
   }
+  // The page of the scene stays 1280 × 900; the showcase only retransmits it. If it fails, the scene goes on.
+  if (flag("vitrine")) vitrine = await ouvrirVitrine(page, { chromeBin: CHROME_BIN, profil: resolve(option("profil-vitrine", "/Users/nathan/Code/projet/horama/.orchestrateur/chrome-vitrine")), debugPort: flag("vitrine-debug") ? Number(option("vitrine-debug")) : null, say });
   if (FILM) film();
   // What the change asks to replay: said in the terminal now, shown in the summary at the end (nothing on screen
   // before the agent starts).
@@ -692,6 +696,9 @@ if (report?.passage.etat === "joue") {
   }
 } else say(`Passage ${report?.passage.etat ?? "non rendu"} : aucune décision ni état « verifie » en base.`);
 filming = false;
+const showcase = vitrine?.mesures() ?? null;
+if (showcase) say(`Vitrine : ${showcase.images_recues} images reçues, ${showcase.images_affichees} affichées, ${showcase.images_par_seconde} par seconde ; délai de l'image dessinée à l'image affichée : médiane ${showcase.delai_total_ms.mediane} ms, p95 ${showcase.delai_total_ms.p95} ms.`);
+await vitrine?.stop({ fermer: flag("fermer-chrome") });
 const delays = clics.map((click) => click.retard_ms).filter((ms) => ms !== undefined);
 // The totals come from rapport.passage; the steps, the session and the replay are repeated in each test entry.
 const { duree_s: dureeS = null, cout_usd: coutUsd = null } = report?.passage ?? {};
@@ -723,6 +730,7 @@ writeFileSync(join(OUT, "passage.json"), `${JSON.stringify({
   settle_s: SANS_AGENT ? null : SETTLE_S,
   fin_s: finMs === null ? null : finMs / 1000,
   film: FILM ? { dossier: FILM, images, duree_s: filmedMs / 1000 } : null,
+  vitrine: showcase,
   debut: started.toISOString(),
   fin: new Date().toISOString(),
   duree_s: dureeS,
