@@ -10,7 +10,7 @@ export interface CdpClient {
 
 export interface Defaut {
   statut: "VERIFIED_FAIL";
-  sorte: "page_en_erreur" | "image_cassee" | "defilement_horizontal" | "debordement" | "texte_rogne" | "lien_casse" | "texte_erreur" | "erreur_console";
+  sorte: "page_en_erreur" | "image_cassee" | "defilement_horizontal" | "debordement" | "texte_rogne" | "lien_casse" | "texte_erreur" | "erreur_console" | "texte_non_traduit";
   message: string;
   selecteur?: string;
   zone?: Zone;
@@ -51,6 +51,47 @@ function inspectDocument() {
   const status = (performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined)?.responseStatus;
   if (status && status >= 400) add("page_en_erreur", "Le document renvoie une erreur HTTP.", status);
   const root = document.documentElement;
+  const functionWords = {
+    fr: new Set("le la les des du de un une et est sont pour avec dans sur qui que nous vous au aux ce cette ces ses leur mais ou par en".split(" ")),
+    de: new Set("der die das den dem des ein eine einer einem einen und ist sind für mit im auf von zu zum zur wir sie sich nicht auch als bei aus oder".split(" ")),
+    en: new Set("the a an and is are for with in on of to from we you your our their that this these those which who not or by".split(" ")),
+  };
+  const names = { fr: "français", de: "allemands", en: "anglais" };
+  type Language = keyof typeof functionWords;
+  const declared = root.lang.toLowerCase().split("-")[0] as Language;
+  if (Object.hasOwn(functionWords, declared)) {
+    const blocks = new Map<Element, string[]>();
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const parent = node.parentElement;
+      if (!parent || parent.closest("code,pre,kbd,samp,var,script,style,noscript,template") || !node.textContent?.trim()) continue;
+      let block: Element = parent;
+      while (block.parentElement && block !== document.body && ["inline", "contents"].includes(getComputedStyle(block).display) && !block.hasAttribute("lang")) block = block.parentElement;
+      if (!visible(block) || !visible(parent)) continue;
+      let clippedText = false;
+      for (let ancestor: Element | null = parent; ancestor; ancestor = ancestor.parentElement) {
+        const style = getComputedStyle(ancestor);
+        if (style.clip !== "auto" || style.clipPath !== "none") clippedText = true;
+      }
+      if (clippedText) continue;
+      const language = parent.closest("[lang]");
+      if (language && language !== root && block.contains(language)) block = language;
+      const words = blocks.get(block) ?? [];
+      words.push(...(node.textContent.match(/\p{L}+/gu) ?? []));
+      blocks.set(block, words);
+    }
+    for (const [block, original] of blocks) {
+      if (original.length < 8 || original.every(word => /^\p{Lu}/u.test(word))) continue;
+      const words = original.map(word => word.toLowerCase());
+      const counts = (Object.keys(functionWords) as Language[]).map(language => ({ language, words: words.filter(word => functionWords[language].has(word) && !Object.entries(functionWords).some(([other, list]) => other !== language && list.has(word))) }));
+      const total = counts.reduce((sum, count) => sum + count.words.length, 0);
+      const foreign = counts.find(count => count.language !== declared && count.words.length >= 3 && new Set(count.words).size >= 2 && count.words.length > total / 2);
+      if (!foreign) continue;
+      if (block.closest("[lang]")?.getAttribute("lang")?.toLowerCase().split("-")[0] === foreign.language) continue;
+      const measure = `${words.length} mots, ${foreign.words.length} mots outils ${names[foreign.language]}, ${counts.find(count => count.language === declared)!.words.length} ${names[declared]} ; page déclarée ${declared}`;
+      add("texte_non_traduit", `Un bloc de texte n'est pas dans la langue déclarée : ${measure}.`, measure, block);
+    }
+  }
   const clipped = [root, document.body].some(element => ["hidden", "clip"].includes(getComputedStyle(element).overflowX));
   if (!clipped && root.scrollWidth > root.clientWidth) add("defilement_horizontal", "La page dépasse la largeur du document.", `${root.scrollWidth} > ${root.clientWidth}`, root);
   for (const image of document.images) {

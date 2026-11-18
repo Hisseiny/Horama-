@@ -108,6 +108,34 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
   };
   t.diagnostic("Chrome connecté ; navigation locale.");
   await navigate("/healthy");
+  const french = "Les étudiants travaillent avec les entreprises pour apprendre et découvrir le monde.";
+  for (const [label, lang, html, count] of [
+    ["français", "de-DE", `<p id="foreign">Les <strong>étudiants</strong> travaillent avec les entreprises pour apprendre et découvrir le monde.</p>`, 1],
+    ["allemand", "de", "<p>Die Studierenden lernen mit den Unternehmen und entdecken die Welt für ihre Zukunft.</p>", 0],
+    ["lang explicite", "de", `<section lang="fr"><p>${french}</p></section>`, 0],
+    ["phrase courte", "de", "<p>Les étudiants et les entreprises.</p>", 0],
+    ["code", "de", `<code>${french}</code><pre>${french}</pre>`, 0],
+    ["caché", "de", `<p hidden>${french}</p><p style="display:none">${french}</p>`, 0],
+    ["lecteur d'écran", "de", `<span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">${french}</span>`, 0],
+    ["ambigu", "de", "<p>Paris Berlin London Madrid Rome Lisbon Oslo et Stockholm.</p>", 0],
+    ["noms propres", "de", "<p>Le Havre La Rochelle Le Mans La Baule</p>", 0],
+    ["lang incorrect", "de", `<p lang="en">${french}</p>`, 1],
+    ["vide", "de", "<p></p>", 0],
+    ["langue absente", "", `<p>${french}</p>`, 0],
+    ["langue inconnue", "es", `<p>${french}</p>`, 0],
+    ["anglais", "fr", "<p>The students are working with the companies for their future and their careers.</p>", 1],
+  ] as const) {
+    await client.send("Runtime.evaluate", { expression: `document.documentElement.lang = ${JSON.stringify(lang)}; document.body.innerHTML = ${JSON.stringify(html)}` });
+    const defects = (await controlerPage(client, { maxLiens: 0 })).filter(defect => defect.sorte === "texte_non_traduit");
+    assert.equal(defects.length, count, label);
+    if (label === "français") {
+      assert.equal(defects[0].statut, "VERIFIED_FAIL");
+      assert.equal(defects[0].selecteur, "#foreign");
+      assert.equal(defects[0].valeur, "12 mots, 6 mots outils français, 0 allemands ; page déclarée de");
+      assert.ok(defects[0].zone);
+    }
+  }
+  await navigate("/healthy");
   assert.deepEqual(await controlerPage(client), []);
   await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = '<main>' + ['code', 'pre', 'kbd', 'samp', 'var'].map(tag => '<' + tag + '>null <span>undefined <span>NULL</span></span></' + tag + '>').join('') + '</main>'` });
   assert.ok(!(await controlerPage(client, { maxLiens: 0 })).some(defect => defect.sorte === "texte_erreur"));
