@@ -615,3 +615,198 @@ introduit dans les sources. `git diff --check` : sortie vide.
   défilement/animations et les faux visuels, sans réglage propre à un site.
 - Revoir en-blog-3 et les pages non atteintes/INCONCLUSIVE si une validation
   complète est nécessaire, sans contourner une protection.
+
+## Banc 15 sites × 2 environnements (18/11, 17 h 11 – 19 h 20, heure de Paris)
+
+Point 3 du contrat du mode grand public (#67). Branche `a-67-banc-15`, après la
+fusion de #115 et #117 dans `dev`. Chaque site a été lancé deux fois avec
+`--sans-base --max 8 --pages-cliquees 4` : en local (Chrome avec fenêtre,
+`--force-device-scale-factor=1`, fenêtre 1280×900) et dans le conteneur du
+`Dockerfile` (Chromium sans fenêtre, `--memory=2g --cpus=2`, comme Railway).
+Les passages se sont enchaînés un par un, local puis conteneur pour chaque site,
+avec une seule session H à la fois (`queue: false`). Après chaque passage,
+l'API indiquait la session `completed` ou `interrupted` et le quota de
+l'organisation à `active: 0`. Clé : `HORAMA_HAI_API_KEY`, passée comme
+`HAI_API_KEY` à l'exécution, jamais écrite dans l'image ni dans un fichier.
+
+### Choix des sites
+
+| Site | Adresse | Raison du choix |
+|---|---|---|
+| Eugenia, Albert School, KPMG, Grant Thornton | adresses du banc précédent | les 7 sites du banc actuel |
+| SKEMA | https://www.skema.edu/fr | site protégé (Incapsula) : doit finir proprement sans contournement |
+| Quilombo | https://librairie-quilombo.org/ | la boutique déjà choisie |
+| Docs Python | https://docs.python.org/fr/3/ | la documentation déjà choisie |
+| EFREI | https://www.efrei.fr/ | autre école, sans anti-robot (demande de Nathan) |
+| RealWorld | https://demo.realworld.show/ | site construit en JavaScript (rendu côté navigateur, cas de #115) |
+| GOV.UK | https://www.gov.uk/ | site en anglais, très grand |
+| Apple France | https://www.apple.com/fr/ | site très lourd (images, animations) |
+| Louvre | https://www.louvre.fr/ | site culturel riche en carrousels |
+| Debian | https://www.debian.org/ | site statique ancien, pages longues |
+| BnF | https://www.bnf.fr/fr | site institutionnel français |
+| NASA | https://www.nasa.gov/ | second site anglais, WordPress chargé en scripts |
+
+`robots.txt` a été relu avant chaque passage (copie conservée hors Git). Il
+autorise la racine pour tous les sites. Debian n'en publie pas (HTTP 404), ce
+qui vaut autorisation. Aucun site ne demande de connexion. Aucun formulaire
+n'a été soumis. Le passage Quilombo a ouvert la page « Mon compte », sans la
+remplir.
+
+### Défauts génériques corrigés pendant le banc
+
+Le premier essai (Eugenia, avant correction) ne passait dans aucun des deux
+environnements :
+
+- **Conteneur :** 8 pages sur 8 relevées, mais passage `interrompu`. H a coupé
+  la session à 251 s parce que `max_time_s` était fixé à 240 s. L'erreur est
+  arrivée après le dernier relevé et le moteur a classé tout le passage en échec.
+- **Local :** 3 pages, puis un défilement resté sans réponse pendant 60 s
+  (« connection error » du pont). Le moteur a abandonné la session après 45 s et
+  demandé son arrêt. H n'applique l'arrêt qu'à la fin de l'outil en cours, soit
+  environ 15 s plus tard. `confirmStopped` n'attendait qu'environ 3 s : il a
+  conclu « fermeture non confirmée » et a refusé la relance.
+
+Corrections dans `agent/`, sans rien de propre à un site :
+
+1. `session.ts` accepte `maxTimeS` (240 s par défaut, inchangé pour les autres
+   usages). Le délai interne suit cette valeur (+90 s).
+2. `explorer.ts` calcule `explorationTimeBudget` : 8 s par étape du budget
+   (8 à 10 s mesurés par étape dans AGENTS.md), au moins 240 s et au plus 600 s.
+   Pour 8 pages dont 4 par clic : 57 étapes, soit 456 s.
+3. `confirmStopped` attend maintenant jusqu'à environ 63 s : trois lectures à
+   1 s d'intervalle avec DELETE, comme avant, puis douze lectures à 5 s. Le
+   nombre de DELETE ne change pas.
+4. Si toutes les pages sont `visitee`, une erreur H arrivée après le dernier
+   relevé ne rend plus le passage `interrompu`. La session concernée reste
+   marquée `tombe` avec sa raison. Une page manquante donne toujours
+   `interrompu`.
+
+Tests ajoutés ou ajustés : `agent/session.test.ts` et
+`agent/exploration-explorer.test.ts`. Tous les passages ci-dessous ont été
+rejoués après ces corrections, Eugenia compris.
+
+### Résultats
+
+Durée : `duree_s` du rapport JSON. Coût : `cout_usd` en USD (sessions H ; le
+coût Holo n'est pas compté). « Clic / adresse » : pages atteintes par clic et
+par ouverture d'adresse, hors page de départ. « Défauts » : constats
+`VERIFIED_FAIL`. « Doutes » : constats `SUSPECTED`, qui ne comptent jamais
+comme réussites. Mémoire : pic de `/sys/fs/cgroup/memory.peak` du conteneur.
+
+| Site | Env. | Allé au bout (pages) | Durée | Coût USD | Clic / adresse | Sessions H | Défauts relus | Doutes relus | Mémoire max | Raison d'arrêt |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Eugenia | local | oui (8/8) | 220 s | 0.0931 | 4 / 3 | 1 | 0 : 0 vrais, 0 faux | 0 : 0 vrais | — | — |
+| Eugenia | conteneur | oui (8/8) | 233 s | 0.0959 | 4 / 3 | 1 | 0 : 0 vrais, 0 faux | 0 : 0 vrais | 1020 Mio | — |
+| Albert School | local | oui (8/8) | 309 s | 0.0989 | 4 / 3 | 1 | 0 : 0 vrais, 0 faux | 0 : 0 vrais | — | — |
+| Albert School | conteneur | oui (8/8) | 397 s | 0.0502 | 0 / 8 | 2 | 0 : 0 vrais, 0 faux | 0 : 0 vrais | 1176 Mio | La session est restée sans réponse. |
+| KPMG | local | oui (8/8) | 298 s | 0.1175 | 4 / 3 | 1 | 14 : 14 vrais, 0 faux | 1 : 0 vrais | — | — |
+| KPMG | conteneur | oui (8/8) | 261 s | 0.1591 | 4 / 3 | 1 | 14 : 14 vrais, 0 faux | 1 : 0 vrais | 963 Mio | — |
+| SKEMA (protégé) | local | oui (0/1) | 2 s | 0.0000 | 0 / 0 | 0 | 0 : 0 vrais, 0 faux | 0 : 0 vrais | — | ce site bloque les robots (_Incapsula_Resource). |
+| SKEMA (protégé) | conteneur | oui (0/1) | 1 s | 0.0000 | 0 / 0 | 0 | 0 : 0 vrais, 0 faux | 0 : 0 vrais | 254 Mio | ce site bloque les robots (_Incapsula_Resource). |
+| Grant Thornton | local | oui (8/8) | 219 s | 0.0911 | 0 / 7 | 1 | 0 : 0 vrais, 0 faux | 0 : 0 vrais | — | — |
+| Grant Thornton | conteneur | oui (8/8) | 197 s | 0.0928 | 0 / 7 | 1 | 0 : 0 vrais, 0 faux | 0 : 0 vrais | 701 Mio | — |
+| Quilombo (boutique) | local | oui (8/8) | 226 s | 0.0861 | 4 / 3 | 1 | 0 : 0 vrais, 0 faux | 1 : 0 vrais | — | — |
+| Quilombo (boutique) | conteneur | oui (8/8) | 237 s | 0.0868 | 4 / 3 | 1 | 0 : 0 vrais, 0 faux | 2 : 0 vrais | 606 Mio | — |
+| Docs Python (documentation) | local | oui (8/8) | 148 s | 0.0812 | 3 / 4 | 1 | 2 : 0 vrais, 2 faux | 0 : 0 vrais | — | — |
+| Docs Python (documentation) | conteneur | oui (8/8) | 204 s | 0.1196 | 3 / 4 | 1 | 2 : 0 vrais, 2 faux | 0 : 0 vrais | 645 Mio | — |
+| EFREI (école) | local | oui (8/8) | 328 s | 0.1009 | 4 / 3 | 1 | 18 : 1 vrais, 17 faux | 0 : 0 vrais | — | — |
+| EFREI (école) | conteneur | oui (8/8) | 341 s | 0.1134 | 4 / 3 | 1 | 18 : 1 vrais, 17 faux | 0 : 0 vrais | 1237 Mio | — |
+| RealWorld (JavaScript) | local | oui (8/8) | 185 s | 0.0569 | 4 / 3 | 1 | 0 : 0 vrais, 0 faux | 0 : 0 vrais | — | — |
+| RealWorld (JavaScript) | conteneur | oui (8/8) | 160 s | 0.0585 | 4 / 3 | 1 | 0 : 0 vrais, 0 faux | 0 : 0 vrais | 500 Mio | — |
+| GOV.UK (anglais) | local | oui (8/8) | 498 s | 0.0924 | 4 / 3 | 1 | 0 : 0 vrais, 0 faux | 0 : 0 vrais | — | — |
+| GOV.UK (anglais) | conteneur | oui (8/8) | 486 s | 0.0803 | 4 / 3 | 1 | 0 : 0 vrais, 0 faux | 0 : 0 vrais | 1480 Mio | — |
+| Apple France (lourd) | local | oui (8/8) | 322 s | 0.1206 | 4 / 3 | 1 | 1 : 0 vrais, 1 faux | 1 : 0 vrais | — | — |
+| Apple France (lourd) | conteneur | oui (8/8) | 306 s | 0.0962 | 4 / 3 | 1 | 1 : 0 vrais, 1 faux | 1 : 0 vrais | 1338 Mio | — |
+| Louvre | local | oui (8/8) | 264 s | 0.1036 | 4 / 3 | 1 | 6 : 0 vrais, 6 faux | 2 : 0 vrais | — | — |
+| Louvre | conteneur | oui (8/8) | 250 s | 0.1287 | 4 / 3 | 1 | 6 : 0 vrais, 6 faux | 2 : 0 vrais | 787 Mio | — |
+| Debian | local | oui (8/8) | 183 s | 0.0801 | 2 / 5 | 1 | 1 : 0 vrais, 1 faux | 0 : 0 vrais | — | — |
+| Debian | conteneur | oui (8/8) | 196 s | 0.0852 | 2 / 5 | 1 | 1 : 0 vrais, 1 faux | 0 : 0 vrais | 572 Mio | — |
+| BnF | local | oui (8/8) | 302 s | 0.0705 | 0 / 7 | 1 | 9 : 9 vrais, 0 faux | 4 : 0 vrais | — | — |
+| BnF | conteneur | oui (8/8) | 316 s | 0.0898 | 0 / 7 | 1 | 9 : 9 vrais, 0 faux | 8 : 0 vrais | 892 Mio | — |
+| NASA (anglais) | local | oui (8/8) | 212 s | 0.0871 | 3 / 4 | 1 | 26 : 26 vrais, 0 faux | 1 : 0 vrais | — | — |
+| NASA (anglais) | conteneur | oui (8/8) | 223 s | 0.1216 | 4 / 3 | 1 | 26 : 26 vrais, 0 faux | 2 : 0 vrais | 1209 Mio | — |
+
+**Allés au bout : 15 sur 15 en local, 15 sur 15 en conteneur.** SKEMA va au
+bout au sens du contrat : il finit tout de suite, sortie 0, sans session H, avec
+la raison « ce site bloque les robots ». Les 14 autres relèvent 8 pages sur 8.
+
+Mémoire maximale du conteneur : **1480 Mio** (GOV.UK), sous la limite de 2 Gio.
+Aucun conteneur n'a été arrêté pour manque de mémoire.
+
+Coût total : 1,2799 USD en local et 1,3782 USD en conteneur. Durée cumulée :
+3717 s en local et 3809 s en conteneur.
+
+Seul Albert School en conteneur a eu besoin d'une relance. La première session
+n'a plus répondu pendant 45 s (« La session est restée sans réponse. »). Le
+moteur l'a fermée, a vérifié la fermeture, puis la relance unique a ouvert les
+8 pages par adresse. Le passage finit donc 8/8, mais avec 0 clic.
+
+Grant Thornton et BnF : 0 page par clic dans les deux environnements. Leur
+sitemap fournit des pages profondes (articles, services) qui ne sont pas
+reliées à l'écran de départ. H a essayé des clics, puis le moteur a ouvert ces
+pages par adresse, comme prévu. Ce n'est pas un échec, mais la couverture par
+clic reste limitée.
+
+### Relecture à la main des constats
+
+Relecture faite sur les captures, les sélecteurs et les mesures du JSON, avec
+un `curl` de contrôle quand c'était utile. Les constats sont identiques entre
+local et conteneur pour les défauts. Ils diffèrent seulement pour quelques doutes Holo.
+
+| Site | Constats | Verdict | Justification |
+|---|---|---|---|
+| KPMG | 14 `erreur-console` | **vrais** | `ReferenceError: _satellite is not defined` et `PPC is not enabled for the locale`, réellement dans la console |
+| NASA | 26 `erreur-console` | **vrais** | `jQuery is not defined` (18), `Cannot read properties of undefined (reading 'setLocaleData')` (7), `wp is not defined` (1) |
+| BnF | 9 `image-cassee` | **vrais** | icônes Facebook, Instagram et YouTube du pied de page affichées comme images vides sur 3 pages |
+| EFREI | 1 `lien-casse` (`/formation/mastere-green-it/`) | **vrai** | `curl` : HTTP 404 ; lien visible dans la page du bachelor |
+| EFREI | 16 `lien-casse` (`popin-evenement-…`) | **faux** | liens d'ouverture d'une fenêtre d'inscription (`data-form-url` HubSpot) : le script intercepte le clic, l'adresse n'est jamais ouverte par un visiteur |
+| EFREI | 1 `debordement` | **faux** | rien ne déborde à l'écran ; boîte de formulaire masquée |
+| Docs Python | 2 `texte-erreur` (`undefined`) | **faux** | prose normale (« remain undefined in the specification ») ; même cas que le banc précédent |
+| Debian | 1 `texte-erreur` (`NULL`) | **faux** | prose d'avis de sécurité (« fix NULL pointer dereference ») |
+| Apple | 1 `debordement` | **faux** | dernier élément d'un carrousel horizontal coupé volontairement, flèche de défilement visible |
+| Louvre | 4 `debordement` (accueil) | **faux** | textes de cartes tronqués volontairement par « … » ou carte sortant du carrousel |
+| Louvre | 2 `debordement` (pages pratiques) | **faux** | élément de 1 px de large, sans texte visible |
+| Tous | doutes Holo (`SUSPECTED`) | **0 vrai** | relus sur captures : retours à la ligne normaux, carrousels, couvertures de livres, widget fixe de la BnF, « Home » gris sur fond sombre lisible |
+
+**Taux de faux constats (défauts `VERIFIED_FAIL`) : 27 faux sur 77, soit 35 %,
+dans chaque environnement.** Les 50 vrais sont 40 erreurs de console, 9 images
+cassées et 1 lien cassé. Les faux viennent de quatre motifs génériques :
+
+- liens interceptés par un script (16) ;
+- texte technique pris pour un message d'erreur (3) ;
+- carrousels et textes tronqués volontairement (5) ;
+- éléments masqués ou invisibles (3).
+
+Doutes Holo : 10 en local, 16 en conteneur, aucun confirmé vrai. Ils restent
+hors réussites et hors taux ci-dessus.
+
+Aucun réglage n'a été ajouté pour faire baisser ce taux : chaque motif
+toucherait plusieurs sites et demande une décision. Voir « Ce qui reste » plus bas.
+
+### Vérifications
+
+- `pnpm -r --if-present run check` après récupération de `dev` : **vert**
+  (agent 261 réussis, 0 échec ; jugement 79 ; memoire 34 ; faux-saas 10 ;
+  interface 8). Un premier lancement, fait pendant qu'un autre Chrome tournait,
+  a échoué sur le test réel « Chrome réel découvre une page JS locale »
+  (« Onglet du relevé introuvable. »). Le fichier relancé seul passe, puis le
+  check complet passe : ce test semble instable sous charge.
+- `grep -riE "eugenia|albertschool|kpmg|skema|grantthornton" agent/src` : aucune
+  correspondance.
+- Les sorties (`exploration.json`, captures, journaux, `meta.json`) restent hors
+  Git, dans `~/a67-banc15/`. Rien n'est écrit dans `vault-horama/`.
+
+### Ce qui reste
+
+- Décider s'il faut ignorer les liens dont le clic est intercepté par un script
+  (`data-*`, adresse relative sans page). C'est la principale source de faux
+  (16 sur 27).
+- Affiner `texte-erreur` pour la prose technique (`undefined`, `NULL`) sans
+  perdre les vrais messages d'erreur, comme déjà signalé au banc précédent.
+- Ne pas signaler un débordement pour un carrousel, une troncature « … » ou un
+  élément de 1 px.
+- Couverture par clic nulle quand le sitemap ne propose que des pages profondes
+  (Grant Thornton, BnF) : choisir d'autres pages de la découverte reste à
+  décider, sans réglage propre à un site.
+- Les sites ont été joués une seule fois par environnement. La variabilité
+  entre deux passages n'est pas mesurée.

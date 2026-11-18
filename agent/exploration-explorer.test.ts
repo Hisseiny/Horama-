@@ -6,7 +6,7 @@ import { deflateSync } from "node:zlib";
 import { afterEach, beforeEach, test } from "node:test";
 import { ecrireDecision } from "@horama/memoire";
 import { BaseMemoire } from "./src/base.ts";
-import { construireExploration, exclusionLabel, explorer, explorationPassageId, explorationStepBudget } from "./src/exploration/explorer.ts";
+import { construireExploration, exclusionLabel, explorer, explorationPassageId, explorationStepBudget, explorationTimeBudget } from "./src/exploration/explorer.ts";
 import type { ExplorerDependencies } from "./src/exploration/explorer.ts";
 import { lireArguments } from "./src/exploration/cli.ts";
 import { libelleAction } from "./src/session.ts";
@@ -34,7 +34,7 @@ let root: string;
 beforeEach(() => { root = mkdtempSync(join(tmpdir(), "horama-explorer-")); });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-async function run({ png = original, skip = "", refuse = false, failure = false, earlyEnd = false, query = "", actual, retries = 1, defilement = [0, 0], deps = {}, site }: { site?: string; actual?: (url: string) => string; retries?: number; defilement?: [number, number]; png?: Buffer; skip?: string; refuse?: boolean; failure?: boolean; earlyEnd?: boolean; query?: string; deps?: Partial<ExplorerDependencies> } = {}) {
+async function run({ png = original, skip = "", refuse = false, failure = false, lateError = false, earlyEnd = false, query = "", actual, retries = 1, defilement = [0, 0], deps = {}, site }: { site?: string; actual?: (url: string) => string; retries?: number; defilement?: [number, number]; png?: Buffer; skip?: string; refuse?: boolean; failure?: boolean; lateError?: boolean; earlyEnd?: boolean; query?: string; deps?: Partial<ExplorerDependencies> } = {}) {
   let address = "https://example.org/";
   const base = new BaseMemoire();
   const responses: string[] = [];
@@ -66,7 +66,7 @@ async function run({ png = original, skip = "", refuse = false, failure = false,
         }
       }
       responses.push(await input.onTool("terminer", { etat: failure ? "echec" : "reussi", raison: "Arrêt demandé." }));
-      return { id: "session-1", muted: false, cout_usd: 0.12, etapes: input.consigne.course.length, replay_url: "https://replay.example/1" };
+      return { id: "session-1", muted: false, cout_usd: 0.12, etapes: input.consigne.course.length, replay_url: "https://replay.example/1", ...(lateError ? { erreur: "La session H est interrompue (erreur réseau ou outil)." } : {}) };
     })();
     return { id: "session-1", fin };
   };
@@ -388,6 +388,20 @@ test("contrôle en échec, Holo hors délai et session interrompue", async () =>
   assert.equal(result.etat, "interrompu"); assert.equal(result.agents[0].etat, "tombe");
   assert.equal(result.pages[0].holo?.etat, "hors_delai"); assert.equal(result.totaux.sans_conclusion, 4);
   assert.ok(base.resultats.every(item => item.statut === "INCONCLUSIVE" && item.raison));
+});
+
+test("erreur H après le dernier relevé : toutes les pages visitées, passage fini", async () => {
+  const { result } = await run({ lateError: true });
+  assert.equal(result.etat, "fini");
+  assert.ok(result.pages.every(page => page.etat === "visitee"));
+  assert.equal(result.agents[0].etat, "tombe");
+  assert.match(result.agents[0].raison!, /interrompue/);
+});
+
+test("budget de temps H proportionnel aux étapes et borné", () => {
+  assert.equal(explorationTimeBudget(10), 240);
+  assert.equal(explorationTimeBudget(57), 456);
+  assert.equal(explorationTimeBudget(200), 600);
 });
 
 test("découverte vide ne crée aucune session", async () => {

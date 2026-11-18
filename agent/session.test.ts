@@ -61,7 +61,7 @@ for (const remote of ["erreur", "illisible", "running"]) {
       await running.confirmStopped?.();
       assert.match(messages.at(-1)!, /lectures distantes indisponibles ; état terminal déjà connu : completed/);
     }
-    assert.equal(reads, 4);
+    assert.equal(reads, 16);
   });
 }
 
@@ -96,8 +96,8 @@ for (const outcome of ["completed", "idle", "running", "illisible", "erreur"]) {
       assert.deepEqual(messages, []);
     } else {
       await assert.rejects(async () => running.confirmStopped?.(), /arrêt H non confirmé/);
-      assert.equal(reads, 4);
-      assert.deepEqual(pauses, [1000, 1000, 1000]);
+      assert.equal(reads, 16);
+      assert.deepEqual(pauses, [1000, 1000, 1000, ...Array(12).fill(5000)]);
       assert.match(messages.at(-1)!, /arrêt H non confirmé ; état distant/);
       if (outcome === "running") {
         assert.equal(deletes, 4);
@@ -108,22 +108,23 @@ for (const outcome of ["completed", "idle", "running", "illisible", "erreur"]) {
 }
 
 test("budget transmis à H, valeur par défaut inchangée et queue désactivée", async () => {
-  for (const maxSteps of [undefined, 70, 18]) {
-    let observed = 0;
+  for (const [maxSteps, maxTimeS] of [[undefined, undefined], [70, 560], [18, undefined]]) {
+    let observed = 0, observedTime = 0;
     const session = creerSessionH({ key: "test-key", navigateur: async () => ({ channel: "fake", stop() {} }),
       requete: async (url, init) => {
         if (String(url).endsWith("/sessions")) {
           const body = JSON.parse(String(init?.body));
           assert.equal(body.queue, false);
-          observed = body.max_steps;
+          observed = body.max_steps; observedTime = body.max_time_s;
           return json({ id: "budget", status: { status: "completed" } });
         }
         if (String(url).endsWith("/share")) return json({ share_url: "/share/budget" });
         return new Response(null, { status: 204 });
       },
     });
-    await (await session({ ...defaults(), maxSteps })).fin;
+    await (await session({ ...defaults(), maxSteps, maxTimeS })).fin;
     assert.equal(observed, maxSteps ?? 40);
+    assert.equal(observedTime, maxTimeS ?? 240);
   }
 });
 
