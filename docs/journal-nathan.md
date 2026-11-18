@@ -521,3 +521,22 @@ Orchestrateur : Claude Code (Opus 5.5). Mission : J0 à J4 (scène branchée sur
 - `captureZone` (`scene.mjs`) et `runtime.capturerZone` (`exploration.mjs`), forme validée par Ali sur la PR #85 : défilement instantané, couche masquée, retour au défilement d'avant ; `capture-zone.test.mjs` sur un vrai Chrome (port 9334), qui échoue bien sans masquage ou sans défilement instantané. Poussé (e981a06), sans PR, pour le Devin d'Ali ; surveillance d'origin en attendant sa branche.
 - **Extension** (`extension/`, décision de Nathan relayée par « hackaton ») : Manifest V3, `activeTab` et `storage` seulement, fenêtre (adresse, Lancer), onglet de rapport (file, progression, défauts prouvés avec capture entourée et preuve, « À vérifier » à part, non vérifié), options (adresse du service). Contrat : six points proposés dans #68 (CORS, réponses du POST, file, captures par lien, identifiant, 429). Faux service sans dépendance qui rejoue l'exploration enregistrée depuis l'article.
 - Essai dans un Chrome séparé à profil jetable, extension chargée par CDP (`--load-extension` refusé par Chrome 157) : 404 affiché à 5,9 s, fin à 34,2 s ; 429, 503 et service absent affichés. « À vérifier » vu seulement avec un constat synthétique hors dépôt. Preuve : `docs/tests/2026-11-18-extension-squelette.md`.
+
+### 18/11, 12 h 50 : PAUSE (Nathan change de réseau). Reprendre ici.
+- **Fait depuis 11 h 45** : la répétition réelle (code 0, 15/15 pages, 262 s, 0,0827 $, `docs/tests/2026-11-18-repetition-reelle.md`) ; le diagnostic chiffré des retours de Nathan (0 clic de H, 15 `goto`) ; les corrections 3 (page de départ ouverte d'emblée) et B (un seul défilement doux jusqu'au défaut, sans aller-retour), dans la **PR #92**, ouverte et non fusionnée.
+- **Vitrine en cours** (`automatisation/scene/vitrine.mjs`, option `--vitrine` d'`exploration.mjs`), commitée « Vitrine : en cours », sans PR. Mesuré en scripté (0 $, 6 pages, depuis l'article) :
+  - code 0 ;
+  - 6 148 images reçues, 6 118 affichées, 73,9 par seconde ;
+  - délai de l'image dessinée à l'image affichée : médiane 12 ms, p95 14 ms (4 et 14 ms au premier essai) ;
+  - vitrine en plein écran 2560 × 1440, scène agrandie 1,6 fois avec bandes noires, texte lisible un peu adouci ;
+  - captures de vérification identiques au pixel près avec et sans vitrine, sur 6 pages sur 7. La 7e (l'article) diffère par son fil d'Ariane (« TECH HUB » ou « CONSEILS D'ORIENTATION »), qui change d'un passage à l'autre : c'est le site, pas la vitrine ;
+  - repli essayé : port 9400 occupé, « Vitrine indisponible », la scène continue (code 0).
+  Clip et capture : `docs/tests/captures/2026-11-18-vitrine/`.
+- **Prochaine action exacte (vitrine)** :
+  1. écrire `docs/tests/2026-11-18-vitrine.md` avec les mesures ci-dessus ;
+  2. essayer de fermer la vitrine en plein passage : la scène doit continuer ;
+  3. ajouter `--vitrine` à `passage-reel.sh` si Nathan le veut ;
+  4. ouvrir la PR de la vitrine (séparée de #92, à fusionner après elle).
+  Pas de passage avec H sous vitrine pour l'instant.
+- **Passage réel de 13 h 30** : `bash automatisation/demo/passage-reel.sh`, **seulement après le go de Nathan tapé dans la session de l'orchestrateur** (vérification d'avant-départ d'abord, environ 0,08 $). Nathan règle son écran externe en 1920 × 1080 pour une scène plus grande.
+- Pour #91 (Ali), côté scène : appeler `relever` avant de faire défiler, sinon la page remonte d'un coup pour la capture.
