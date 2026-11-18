@@ -34,7 +34,7 @@ let root: string;
 beforeEach(() => { root = mkdtempSync(join(tmpdir(), "horama-explorer-")); });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-async function run({ png = original, skip = "", refuse = false, failure = false, lateError = false, earlyEnd = false, query = "", actual, retries = 1, defilement = [0, 0], deps = {}, site }: { site?: string; actual?: (url: string) => string; retries?: number; defilement?: [number, number]; png?: Buffer; skip?: string; refuse?: boolean; failure?: boolean; lateError?: boolean; earlyEnd?: boolean; query?: string; deps?: Partial<ExplorerDependencies> } = {}) {
+async function run({ png = original, skip = "", refuse = false, failure = false, lateError = false, earlyEnd = false, query = "", actual, retries = 1, defilement = [0, 0], deps = {}, site, doux }: { doux?: boolean; site?: string; actual?: (url: string) => string; retries?: number; defilement?: [number, number]; png?: Buffer; skip?: string; refuse?: boolean; failure?: boolean; lateError?: boolean; earlyEnd?: boolean; query?: string; deps?: Partial<ExplorerDependencies> } = {}) {
   let address = "https://example.org/";
   const base = new BaseMemoire();
   const responses: string[] = [];
@@ -70,7 +70,7 @@ async function run({ png = original, skip = "", refuse = false, failure = false,
     })();
     return { id: "session-1", fin };
   };
-  const result = await explorer({ url: "https://example.org", max: 15, vault: join(root, "vault"), sortie: join(root, "out"), port: 9333, site }, {
+  const result = await explorer({ url: "https://example.org", max: 15, vault: join(root, "vault"), sortie: join(root, "out"), port: 9333, site, doux }, {
     base, session, urlCourante: async () => null, runtime: { relever: async () => ({ png, texte: "Page", url_page: address, largeur: 1280, hauteur: 900, defilement, phrase: "Capture enregistrée." }),
       navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
     fetch: async input => {
@@ -721,6 +721,20 @@ test("crochet de capture : résultat valide utilisé, sinon repli CDP sans perdr
       }
     }
   }
+});
+
+test("option douce transmise au repli CDP", async () => {
+  const scrolls: string[] = [];
+  await run({ doux: true, deps: {
+    connecter: async () => ({ on() {}, close() {}, async send(method, params) {
+      if (method === "Page.captureScreenshot") return { data: original.toString("base64") };
+      const expression = String((params as Record<string, unknown> | undefined)?.expression);
+      if (expression.includes('behavior: "smooth"')) scrolls.push(expression);
+      return { result: { value: expression === "[window.scrollX, window.scrollY]" ? [0, 4200] : 200 } };
+    } }),
+    controler: async () => [{ statut: "VERIFIED_FAIL", sorte: "debordement", message: "Texte coupé.", zone: { x: 10, y: 4583, largeur: 100, hauteur: 40 } }],
+  } });
+  assert.equal(scrolls.length, 4);
 });
 
 test("cookies préparés avant capture, client partagé puis fermé", async () => {

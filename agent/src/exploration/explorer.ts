@@ -38,7 +38,7 @@ interface ExplorationPage {
   cookies?: "refusee" | "aucune"; url_finale?: string; raison?: string;
   arrivee?: "depart" | "clic" | "adresse";
 }
-export interface ExplorerOptions { url: string; max: number; sortie: string; vault: string; port: number; pagesCliquees?: number; reseauPublic?: boolean; site?: string }
+export interface ExplorerOptions { url: string; max: number; sortie: string; vault: string; port: number; pagesCliquees?: number; reseauPublic?: boolean; site?: string; doux?: boolean }
 export interface ExplorerDependencies {
   base: BasePassages; runtime: BrowserRuntime; session: Session; signal?: AbortSignal;
   fetch?: typeof fetch; controler?: typeof controlerPage; holo?: typeof askHolo;
@@ -582,7 +582,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
                         && zone.x + zone.largeur <= 1280 && zone.y + zone.hauteur <= 900) extra = captured;
                     } catch { /* Repli sur la capture CDP. */ }
                   }
-                  extra ??= await captureDefect(client, documentZone, capture.defilement);
+                  extra ??= await captureDefect(client, documentZone, capture.defilement, { doux: options.doux });
                   const file = `captures/${item.id}.png`;
                   writeFileSync(join(sortie, file), extra.png);
                   item.capture = file; item.zone = extra.zone;

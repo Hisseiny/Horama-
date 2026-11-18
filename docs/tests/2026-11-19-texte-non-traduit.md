@@ -142,3 +142,51 @@ Soit **5 défauts pour 45 blocs**, aucun faux positif linguistique observé.
 # todo 0
 # duration_ms 1140.57808
 ```
+
+## B — captures douces optionnelles
+
+`captureDefect(client, zone, scroll, { doux: true })` utilise un défilement
+smooth à l'aller **et au retour**. Il attend quatre positions stables espacées
+de 50 ms, avec une borne de 5 s par trajet. Une instabilité persistante remonte
+une erreur sans capturer une position intermédiaire. Le retour doux est tenté
+également si la capture échoue. Sans option : trajet instantané et restauration
+instantanée conservés, comme avant.
+
+`ExplorerOptions.doux` est transmis au repli CDP `captureDefect`. Aucun contrat
+gelé ni type partagé BrowserRuntime modifié. Les tests couvrent la propagation,
+le trajet local Chrome (positions intermédiaires aller/retour, cadrage, retour à
+l'origine), le cas déjà stable, l'expiration, l'erreur de capture et l'exception
+CDP. Il ne s'agit pas d'une vérification visuelle de la scène.
+
+### Changement à demander au couloir Nathan (non effectué ici)
+
+- `automatisation/scene/exploration.mjs`, appel `explorer` vers la ligne 248 :
+  ajouter `doux: true` au premier argument pour couvrir le **repli** CDP.
+- Son `runtime.capturerZone(zone)` (vers 130) reste prioritaire sur ce repli.
+  Il appelle `captureZone(page, zone)` de `automatisation/scene/scene.mjs`.
+  L'option de l'explorateur ne modifie donc **pas** le trajet normal de ce hook.
+- `scene.mjs`, `captureZone` vers 302, utilise déjà smooth, attend la cible
+  pendant 1500 ms puis emploie **instant** en cas de dépassement ; il reste à
+  la zone après capture. Remplacer ce repli instantané par une attente bornée
+  de position stable, et en cas d'expiration lever une erreur, sans saut.
+  Conserver le masquage/réaffichage de la couche et le déplacement du pointeur.
+  Si le hook échoue, l'explorateur utilisera alors son repli doux.
+
+Aucun fichier automatisation/ modifié.
+
+Vérification B : `pnpm -r --if-present run check`, code 0 :
+
+```text
+agent check: # tests 266
+agent check: # pass 266
+agent check: # fail 0
+agent check: # skipped 0
+agent check: # duration_ms 21003.031184
+agent check: Done
+```
+
+Un premier lancement a rencontré `Onglet du relevé introuvable.` dans le test
+Chrome de découverte (exploration-pages.test.ts:172, connexion about:blank),
+hors du trajet de capture modifié, puis est resté ouvert : processus arrêté.
+Le lancement complet ci-dessus, après le dernier ajout de test CDP, est vert ;
+aucun changement effectué dans les tests ou le code de découverte.

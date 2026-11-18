@@ -99,10 +99,30 @@ export async function prepareCapture(client: ExplorationCdp): Promise<"refusee" 
   return result.result?.value === true ? "refusee" : "aucune";
 }
 
-export async function captureDefect(client: ExplorationCdp, zone: { x: number; y: number; largeur: number; hauteur: number }, scroll: [number, number]) {
-  const evaluate = async (expression: string) => (await client.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true })).result?.value;
+async function scrollSmooth(left: number, top: number): Promise<void> {
+  window.scrollTo({ left, top, behavior: "smooth" });
+  const deadline = Date.now() + 5000;
+  let previous = [window.scrollX, window.scrollY], stable = 0;
+  while (Date.now() < deadline) {
+    await new Promise(resolve => setTimeout(resolve, 50));
+    const current = [window.scrollX, window.scrollY];
+    stable = current.every((value, index) => Math.abs(value - previous[index]) < 0.5) ? stable + 1 : 0;
+    if (stable >= 4) return;
+    previous = current;
+  }
+  throw new Error("Le défilement doux ne s'est pas stabilisé en 5 secondes.");
+}
+
+export async function captureDefect(client: ExplorationCdp, zone: { x: number; y: number; largeur: number; hauteur: number }, scroll: [number, number], options: { doux?: boolean } = {}) {
+  const evaluate = async (expression: string) => {
+    const result = await client.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
+    if (options.doux && result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description ?? result.exceptionDetails.text);
+    return result.result?.value;
+  };
   try {
-    await evaluate(`(async () => {
+    if (options.doux) {
+      await evaluate(`(${scrollSmooth.toString()})(Math.max(0, Math.min(${JSON.stringify(zone.x + zone.largeur / 2 - 640)}, document.documentElement.scrollWidth - 1280)), Math.max(0, Math.min(${JSON.stringify(zone.y + zone.hauteur / 2 - 450)}, document.documentElement.scrollHeight - 900)))`);
+    } else await evaluate(`(async () => {
       window.scrollTo({ left: Math.max(0, Math.min(${JSON.stringify(zone.x + zone.largeur / 2 - 640)}, document.documentElement.scrollWidth - 1280)),
         top: Math.max(0, Math.min(${JSON.stringify(zone.y + zone.hauteur / 2 - 450)}, document.documentElement.scrollHeight - 900)), behavior: "instant" });
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -116,7 +136,8 @@ export async function captureDefect(client: ExplorationCdp, zone: { x: number; y
     const hauteur = Math.min(900, zone.y - actual[1] + zone.hauteur) - y;
     return { png: Buffer.from(image.data, "base64"), zone: largeur > 0 && hauteur > 0 ? { x, y, largeur, hauteur } : undefined };
   } finally {
-    await evaluate(`window.scrollTo({ left: ${JSON.stringify(scroll[0])}, top: ${JSON.stringify(scroll[1])}, behavior: "instant" })`);
+    if (options.doux) await evaluate(`(${scrollSmooth.toString()})(${JSON.stringify(scroll[0])}, ${JSON.stringify(scroll[1])})`);
+    else await evaluate(`window.scrollTo({ left: ${JSON.stringify(scroll[0])}, top: ${JSON.stringify(scroll[1])}, behavior: "instant" })`);
   }
 }
 

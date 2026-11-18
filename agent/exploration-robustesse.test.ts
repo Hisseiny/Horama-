@@ -188,6 +188,63 @@ test("refus des cookies sur de vraies pages Chrome locales", { skip: !available 
     const scroll = await client.send("Runtime.evaluate", { expression: "[scrollX, scrollY]", returnByValue: true });
     assert.deepEqual(scroll.result.value, [0, 0]);
   });
+  await t.test("capture douce : positions intermédiaires à l'aller et au retour, zone cadrée", async () => {
+    await client.send("Runtime.evaluate", { expression: `window.scrollTo({top:0,left:0,behavior:'instant'});
+      window.positions = []; window.addEventListener('scroll', () => window.positions.push(scrollY));` });
+    const bounds = await client.send("Runtime.evaluate", { expression: "(() => { const r = document.querySelector('#defect').getBoundingClientRect(); return { x: r.x + scrollX, y: r.y + scrollY, largeur: r.width, hauteur: r.height }; })()", returnByValue: true });
+    const capture = await captureDefect(surface, bounds.result.value, [0, 0], { doux: true });
+    assert.ok(capture.png.length > 100);
+    assert.ok(capture.zone && capture.zone.y >= 0 && capture.zone.y + capture.zone.hauteur <= 900);
+    const state = (await client.send("Runtime.evaluate", { expression: "({ y: scrollY, positions: window.positions })", returnByValue: true })).result.value;
+    assert.equal(state.y, 0);
+    const peak = Math.max(...state.positions);
+    const middle = state.positions.indexOf(peak);
+    assert.ok(peak > 8000);
+    assert.ok(state.positions.slice(0, middle).some((y: number) => y > 0 && y < peak));
+    assert.ok(state.positions.slice(middle + 1).some((y: number) => y > 0 && y < peak));
+  });
+});
+
+test("capture douce : position stable, borne d'attente et retour même en échec", async () => {
+  for (const mode of ["stable", "capture-error", "unstable"] as const) {
+    let clock = 0, moves = 0, screenshots = 0;
+    let scroll = [0, 0];
+    const client: ExplorationCdp = { on() {}, close() {}, async send(method, params) {
+      if (method === "Page.captureScreenshot") {
+        screenshots++;
+        if (mode === "capture-error") throw new Error("Capture impossible");
+        return { data: Buffer.from("png").toString("base64") };
+      }
+      const value = await runInNewContext(String((params as Record<string, unknown>)?.expression), {
+        Date: { now: () => clock },
+        setTimeout: (callback: () => void, ms: number) => { clock += ms; callback(); },
+        document: { documentElement: { scrollWidth: 1280, scrollHeight: 900 } },
+        window: {
+          scrollTo({ left, top, behavior }: { left: number; top: number; behavior: string }) { assert.equal(behavior, "smooth"); moves++; scroll = [left, top]; },
+          get scrollX() { return scroll[0]; },
+          get scrollY() { return mode === "unstable" && moves === 1 ? ++scroll[1] : scroll[1]; },
+        },
+      });
+      return { result: { value } };
+    } };
+    const result = captureDefect(client, { x: 10, y: 10, largeur: 100, hauteur: 40 }, [0, 0], { doux: true });
+    if (mode === "stable") assert.ok((await result).zone);
+    else await assert.rejects(result, mode === "unstable" ? /stabilisé/ : /Capture impossible/);
+    assert.equal(moves, 2);
+    assert.deepEqual(scroll, [0, 0]);
+    assert.equal(screenshots, mode === "unstable" ? 0 : 1);
+    assert.equal(clock, mode === "unstable" ? 5200 : 400);
+  }
+});
+
+test("capture douce : exception CDP de défilement propagée sans capture", async () => {
+  let evaluations = 0;
+  const client: ExplorationCdp = { on() {}, close() {}, async send(method) {
+    assert.equal(method, "Runtime.evaluate");
+    return ++evaluations === 1 ? { exceptionDetails: { text: "Défilement interrompu" } } : { result: { value: undefined } };
+  } };
+  await assert.rejects(captureDefect(client, { x: 0, y: 2000, largeur: 100, hauteur: 40 }, [0, 0], { doux: true }), /Défilement interrompu/);
+  assert.equal(evaluations, 2);
 });
 
 test("préparation : attend complete ou 15 secondes, puis continue", async () => {
