@@ -21,7 +21,7 @@ Recadrés le 18/11 ([décision](docs/decisions/2026-11-18-recadrage-grand-public
 | Ce qui est prouvé | Règles calculées (égalité, somme, filtre, format, présence, état) et comparaison d'images avec les références | Contrôles mécaniques (page en erreur, image cassée, texte qui déborde, lien mort, texte d'erreur affiché) |
 | Ce qui reste un doute | Un écart d'image | Ce que Holo voit sur la capture, un écart d'image au passage suivant |
 | Ce qui est gardé | Décisions bug ou voulu dans le vault, correction de note proposée par un modèle, PR de documentation | Captures de référence et décisions, pour comparer au passage suivant |
-| État au 17/11 au soir | Construit, joué en réel sur le site d'Eugenia (voir « Chiffres mesurés ») | À construire (issue [#57](https://github.com/Hisseiny/Horama-/issues/57)) ; format de sortie fixé ; rien de mesuré |
+| État au 18/11 au soir | Construit, joué en réel sur le site d'Eugenia (voir « Chiffres mesurés ») ; vault du clone d'Ali et réveil par une PR du clone essayés à blanc (#71) | Construit et joué en réel avec l'agent H sur eugeniaschool.com : 8 pages sur 8, dont 4 atteintes par un vrai clic, et le lien « portes ouvertes » en 404 prouvé ([rapport](docs/tests/2026-11-18-a91-visite.md)) ; sites construits en JavaScript lus après rendu ([rapport](docs/tests/2026-11-18-a67-sites-js.md)) ; un site protégé par un anti-robot finit proprement avec sa raison, sans session H ([rapport](docs/tests/2026-11-18-a67-anti-robot.md)) |
 
 Le mode grand public fait entrer un visiteur sans rien lui demander ; à la fin, Horama lui propose le mode développeur pour aller plus loin.
 
@@ -176,7 +176,7 @@ Ce qui n'est pas mesuré : le taux de faux constats d'un vrai défaut sur le sit
 - **Mode grand public** : moteur à un agent fusionné (#64) ; marche sur n'importe quel site à prouver (#67) ; extension Chrome et service que le jury essaie seul (#68).
 - **Direction artistique** de la scène (le squelette épuré est fait, #69), page d'accueil (#70).
 - **Mode dev de bout en bout** : réveil par un vrai déploiement Vercel, rapport dans Obsidian, commentaire sur la PR GitHub (#71).
-- **Fork du site d'Eugenia** : en attente de l'accord de l'école ; tant qu'il n'est pas là, le changement du site est simulé dans une copie du vault.
+- **Clone du site d'Eugenia** : le clone d'Ali (`Hisseiny/eugenia-school-website`) remplace le fork attendu de l'école. Il a son vault (`vault-horama/eugenia-clone/`), ses références prises sur sa production Vercel, et le réveil lit ses PR (#71). Reste à jouer un passage réel avec l'agent H sur une PR du clone.
 - **Interface web** (`interface/`) : sur données factices ; la démo se joue dans la scène.
 - **n8n** (C7, notification « cas à relire ») : non construit.
 - **Limites connues** : le mode scripté (sans agent H) ne sait pas cliquer un lien hors de l'écran ni ouvrir le menu burger ; un clic humain dans la fenêtre de la scène passe avant les réponses automatiques ; la correction de note varie d'un appel à l'autre.
