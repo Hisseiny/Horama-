@@ -131,6 +131,18 @@ test("refus des cookies sur de vraies pages Chrome locales", { skip: !available 
     }
   });
   t.diagnostic("Chrome : apparition différée et borne de stabilité vérifiées avant contrôles et capture.");
+  await t.test("capture contextuelle avec scroll-behavior smooth : zone dans l'image et restauration immédiate", async () => {
+    await client.send("Runtime.evaluate", { expression: `document.documentElement.style.scrollBehavior = 'smooth';
+      document.body.innerHTML = '<main style="height:12000px;position:relative"><div id="defect" style="position:absolute;top:9000px;left:30px;width:100px;height:40px;background:red">Défaut</div></main>';
+      window.scrollTo({ left: 0, top: 0, behavior: 'instant' });` });
+    const bounds = await client.send("Runtime.evaluate", { expression: "(() => { const r = document.querySelector('#defect').getBoundingClientRect(); return { x: r.x + scrollX, y: r.y + scrollY, largeur: r.width, hauteur: r.height }; })()", returnByValue: true });
+    const capture = await captureDefect(surface, bounds.result.value, [0, 0]);
+    assert.ok(capture.zone, "la capture doit contenir une zone");
+    assert.ok(capture.zone.x >= 0 && capture.zone.x + capture.zone.largeur <= 1280);
+    assert.ok(capture.zone.y >= 0 && capture.zone.y + capture.zone.hauteur <= 900);
+    const scroll = await client.send("Runtime.evaluate", { expression: "[scrollX, scrollY]", returnByValue: true });
+    assert.deepEqual(scroll.result.value, [0, 0]);
+  });
 });
 
 test("préparation : attend complete ou 15 secondes, puis continue", async () => {
@@ -167,7 +179,7 @@ test("capture contextuelle : défilement réel, viewport et restauration même e
     if (fail) await assert.rejects(result, /Capture impossible/);
     else assert.deepEqual((await result).zone, { x: 10, y: 383, largeur: 100, hauteur: 40 });
     assert.match(expressions[0], /requestAnimationFrame/);
-    assert.equal(expressions.at(-1), "window.scrollTo(0, 200)");
+    assert.equal(expressions.at(-1), 'window.scrollTo({ left: 0, top: 200, behavior: "instant" })');
   }
 });
 
@@ -178,7 +190,9 @@ test("capture contextuelle : défaut à droite centré horizontalement", async (
     if (method === "Page.captureScreenshot") return { data: Buffer.from("png").toString("base64") };
     const expression = String((params as Record<string, unknown> | undefined)?.expression);
     const value = await runInNewContext(expression, {
-      document, window: { scrollTo(x: number, y: number) { scroll = [x, y]; },
+      document, window: { scrollTo({ left, top, behavior }: { left: number; top: number; behavior: string }) {
+        assert.equal(behavior, "instant"); scroll = [left, top];
+      },
         get scrollX() { return scroll[0]; }, get scrollY() { return scroll[1]; } },
       requestAnimationFrame: (callback: () => void) => callback(),
       setTimeout: (callback: () => void) => callback(),

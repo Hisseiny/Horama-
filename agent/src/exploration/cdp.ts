@@ -74,8 +74,8 @@ export async function captureDefect(client: ExplorationCdp, zone: { x: number; y
   const evaluate = async (expression: string) => (await client.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true })).result?.value;
   try {
     await evaluate(`(async () => {
-      window.scrollTo(Math.max(0, Math.min(${JSON.stringify(zone.x + zone.largeur / 2 - 640)}, document.documentElement.scrollWidth - 1280)),
-        Math.max(0, Math.min(${JSON.stringify(zone.y + zone.hauteur / 2 - 450)}, document.documentElement.scrollHeight - 900)));
+      window.scrollTo({ left: Math.max(0, Math.min(${JSON.stringify(zone.x + zone.largeur / 2 - 640)}, document.documentElement.scrollWidth - 1280)),
+        top: Math.max(0, Math.min(${JSON.stringify(zone.y + zone.hauteur / 2 - 450)}, document.documentElement.scrollHeight - 900)), behavior: "instant" });
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       await new Promise(resolve => setTimeout(resolve, 300));
     })()`);
@@ -87,7 +87,7 @@ export async function captureDefect(client: ExplorationCdp, zone: { x: number; y
     const hauteur = Math.min(900, zone.y - actual[1] + zone.hauteur) - y;
     return { png: Buffer.from(image.data, "base64"), zone: largeur > 0 && hauteur > 0 ? { x, y, largeur, hauteur } : undefined };
   } finally {
-    await evaluate(`window.scrollTo(${JSON.stringify(scroll[0])}, ${JSON.stringify(scroll[1])})`);
+    await evaluate(`window.scrollTo({ left: ${JSON.stringify(scroll[0])}, top: ${JSON.stringify(scroll[1])}, behavior: "instant" })`);
   }
 }
 
