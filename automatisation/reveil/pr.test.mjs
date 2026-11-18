@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { aBlanc, aJouer, adresseCommentaireVercel, impactDePr, jouerPr, lecteurGithub, ouverteSansConnexion } from "./pr.mjs";
+import { aBlanc, aJouer, adresseCommentaireVercel, ecarterLangue, impactDePr, jouerPr, langueDePage, lecteurGithub, ouverteSansConnexion } from "./pr.mjs";
 
 // A vault of trial: two screens of a site whose code we have, one test per screen.
 function vaultEssai(t) {
@@ -150,4 +150,50 @@ test("prévisualisation protégée par Vercel, ouverte, ou muette", async () => 
   assert.deepEqual(await ouverteSansConnexion("https://p.vercel.app", answer(308, "/admissions")), { ouverte: true, code: 308 });
   const muette = await ouverteSansConnexion("https://p.vercel.app", async () => { throw new Error("fetch failed"); });
   assert.deepEqual(muette, { ouverte: false, raison: "la prévisualisation ne répond pas (fetch failed)" });
+});
+
+// The same vault, its notes declaring the language of their page.
+function vaultEnFrancais(t) {
+  const vault = vaultEssai(t);
+  for (const ecran of ["accueil", "programmes"]) {
+    const file = join(vault, "site-essai", "produit", `${ecran}.md`);
+    writeFileSync(file, readFileSync(file, "utf8").replace("vues: []", "vues: []\nlangue: fr"));
+  }
+  return vault;
+}
+
+test("langue d'une page : la première partie de <html lang>, en minuscules, ou null", async () => {
+  const page = (html) => async () => ({ text: async () => html });
+  assert.equal(await langueDePage("https://p", page('<!doctype html><html lang="de-DE"><body>')), "de");
+  assert.equal(await langueDePage("https://p", page("<html class='x' lang=FR>")), "fr");
+  assert.equal(await langueDePage("https://p", page("<html><body>")), null);
+  assert.equal(await langueDePage("https://p", async () => { throw new Error("fetch failed"); }), null);
+});
+
+test("langue changée sur la prévisualisation : tests de la documentation écartés, l'exploration seule tourne", async (t) => {
+  const vault = vaultEnFrancais(t);
+  const asked = [];
+  const german = async (url) => (asked.push(url), "de");
+  const impact = impactDePr({ pr: { base: "b", tete: "h", adresse: "u" }, fichiers: ["src/data/home.ts", "src/data/programmes.ts"], vault, logiciel: "site-essai" });
+  const filtered = await ecarterLangue(impact, { vault, logiciel: "site-essai", base: "https://p.vercel.app", langue: german });
+  assert.deepEqual(filtered.ids, []);
+  assert.deepEqual(filtered.ecartes.map((e) => [e.id, e.raison]), [
+    ["voir-accueil", "langue du site changée (fr → de) : tests de la documentation non joués"],
+    ["voir-programmes", "langue du site changée (fr → de) : tests de la documentation non joués"],
+  ]);
+  assert.deepEqual(asked.sort(), ["https://p.vercel.app/", "https://p.vercel.app/programmes"]);
+  // Same language, or a page that does not say it: kept.
+  assert.deepEqual((await ecarterLangue(impact, { vault, logiciel: "site-essai", base: "https://p", langue: async () => "fr" })).ids, ["voir-accueil", "voir-programmes"]);
+  assert.deepEqual((await ecarterLangue(impact, { vault, logiciel: "site-essai", base: "https://p", langue: async () => null })).ids, ["voir-accueil", "voir-programmes"]);
+  // In jouerPr: the vault tests are not played, the exploration is, and reveil.json says why.
+  const sortie = mkdtempSync(join(tmpdir(), "horama-pr-sortie-"));
+  t.after(() => rmSync(sortie, { recursive: true, force: true }));
+  const calls = [];
+  const report = await jouerPr({ pr: { numero: 9, adresse: "u", base: "b", tete: "allemand000", previsualisation: "https://p.vercel.app" }, fichiers: ["src/data/home.ts"], vault, logiciel: "site-essai", sortie, langue: german }, async (args) => calls.push(args[0]));
+  assert.deepEqual(calls, ["automatisation/scene/exploration.mjs"]);
+  assert.deepEqual([report.etat, report.parcours.etat, report.langue], ["termine", "aucun-test", "langue du site changée (fr → de) : tests de la documentation non joués"]);
+  // The dry run says it too.
+  const lecteur = { prs: () => [{ numero: 9, adresse: "u", titre: "Deutsch", base: "b", tete: "allemand000" }], previsualisation: () => ({ etat: "success", adresse: "https://p.vercel.app", source: "faux" }), fichiers: () => ["src/data/home.ts"] };
+  const lines = await aBlanc(lecteur, { vault, logiciel: "site-essai", ouverte: async () => ({ ouverte: true, code: 200 }), langue: german });
+  assert.deepEqual(lines.slice(2), ["  tests rejoués : aucun ; écartés : voir-programmes, voir-accueil", "  langue du site changée (fr → de) : tests de la documentation non joués (voir-accueil)"]);
 });

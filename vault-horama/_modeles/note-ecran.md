@@ -10,6 +10,9 @@ url: /notre-adn
 code: []
 # États nommés de la page atteints par une action (ex. [anglais] après un changement de langue) ; vide si la page n'a que son état par défaut.
 vues: []
+# Facultatif : langue de la page, comme son <html lang> (ex. fr). Si la prévisualisation d'une PR affiche la page dans
+# une autre langue (une traduction), le réveil par PR écarte les tests de cette page et ne lance que l'exploration (#122).
+langue: fr
 # Zones de la page qui changent à chaque visite (photo qui tourne, vidéo) : non comparées à la référence. Pixels de la page en 1280 × 900.
 zones_ignorees: []
 ---

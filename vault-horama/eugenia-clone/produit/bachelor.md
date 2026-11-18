@@ -4,6 +4,8 @@ url: /programme/bachelor-ia-business
 # La page, ses données, et le gabarit qu'elle partage avec la page du MSc.
 code: ["src/pages/programme/bachelor-ia-business.astro", "src/data/pages/programme-bachelor-ia-business.ts", "src/components/LivePage.astro"]
 vues: []
+# Langue de la page (<html lang>) : une prévisualisation dans une autre langue écarte les tests de cette page (réveil par PR, #122).
+langue: fr
 # Deux lectures du 18/11 à 1280 × 900 : 0 pixel d'écart sur le premier écran, aucune zone à ignorer.
 zones_ignorees: []
 ---

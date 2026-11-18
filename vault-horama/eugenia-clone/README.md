@@ -11,6 +11,10 @@ Ce dossier a été écrit le 18/11 à partir du clone au commit `4e7dd32`, const
 - `references/` : la capture du haut de chaque page, `defaut--v1.png`, prise le 18/11. Deux lectures à quelques secondes d'écart : 0 pixel d'écart sur les cinq pages.
 - `passages/`, `decisions/`, `changements/` : vides, remplis par les passages.
 
+## La langue des pages
+
+Chaque note déclare `langue: fr`, la langue de sa page (`<html lang="fr">` sur le clone, vérifié le 18/11 sur les 5 pages). Si la prévisualisation d'une PR affiche une page dans une autre langue, par exemple la traduction en allemand de la démo (#122), le réveil par PR écarte les tests de cette page avec la raison « langue du site changée (fr → de) : tests de la documentation non joués ». Seule l'exploration de tout le site tourne alors.
+
 ## Le champ `code:`
 
 Chaque note liste le fichier de sa page et ses fichiers de données, chemins depuis la racine du dépôt du clone, comme GitHub les donne dans la liste des fichiers d'une PR. Les fichiers communs à toutes les pages ne sont listés dans aucune note : un changement de l'un d'eux ne retient donc aucun test par le code. C'est le cas de `src/layouts/Base.astro`, `src/data/site.ts`, `src/data/images.ts`, des en-tête et pied de page de `src/components/`, et des styles.
