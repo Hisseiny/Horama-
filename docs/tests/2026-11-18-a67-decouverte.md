@@ -572,3 +572,70 @@ agent check: Done
 ```
 
 Vérification complète terminée avec code 0 après les fusions. Aucun domaine du banc dans `agent/src` (recherche insensible à la casse : aucune ligne, code 1 normal sans correspondance). Les modifications de contrôles, conteneur, scène et autres documents apportées par la fusion de `origin/dev` ne sont pas des éditions de ce lot. Aucun contrat ni format d'exploration modifié.
+
+## Départ depuis l'onglet ouvert : article profond, budget 15
+
+### Règle retenue et articulation avec le correctif précédent
+
+La page de départ est traitée avant toute réorganisation de la file par locale ou réservation. Pour un départ autorisé et lisible en HTML, avec `max > 0`, son adresse normalisée est donc `pages[0]` (en cas de redirection, l'adresse finale validée reste celle enregistrée). Les règles robots, exclusions et erreurs réseau restent applicables : une page interdite ou en erreur n'est pas artificiellement ajoutée aux pages découvertes. `max: 0` reste vide.
+
+**Le départ compte dans le budget global `max`, mais ne compte pas dans `sectionMax` et ne satisfait pas la réservation de sa section.** Une section répétitive peut donc contenir le départ **plus** jusqu'à `sectionMax` autres pages ; sa réservation reste destinée à une autre page. Les réservations des autres pages réussies sont toujours libérées, par recalcul avant chaque sélection.
+
+Cela révise explicitement la convention du correctif cbbd9d6 : le départ ne satisfait plus la section. Le correctif de recalcul reste valable, mais le compteur de section ignore désormais le départ. Le test précédent a été adapté à cette nouvelle décision : avec départ `/news/start`, `sectionMax: 1`, `max: 3` et un footer, le résultat est `/news/start`, `/news/a`, `/events/a` (ou `/events/b` si le premier événement répond 503). Le test utilise un paramètre de suivi et un fragment pour vérifier la normalisation du départ ; il couvre aussi `max: 1`.
+
+La protection du nav décidée précédemment demeure : **une réservation ne peut toujours pas évincer un lien nav**. L'exemption du départ ne crée pas une seizième place. Si le nav utilise tout le budget restant, une autre page de la section peut donc rester absente malgré sa réservation non satisfaite. C'est précisément le cas du passage réel ci-dessous : aucun autre article n'est retenu.
+
+### Un seul passage réel depuis l'article
+
+Découverte seule, séquentielle, sans navigateur ni H, depuis :
+
+```text
+https://www.eugeniaschool.com/blog/fin-de-parcoursup-ce-qui-change-premiere-terminale
+```
+
+Options `{ max: 15 }` (`sectionMax: 2` par défaut). Mesures : **15 pages retenues, 122 exclusions, 19 requêtes, 0,958 s, aucune erreur**. Exclusions : 40 `external`, 1 `file`, 80 `limit`, 1 `section-limit`.
+
+`pages[0]` est exactement l'adresse de départ ci-dessus. Les références sont **6/7** : seule la racine `/` manque ; Bachelor, MSc, processus d'admission, ADN, campus/paris et FAQ sont présents. Le budget fixe conserve l'article de départ à la place de la racine, contrairement au passage précédent depuis l'accueil. Ce résultat n'est donc pas présenté comme 7/7.
+
+Liste retenue, dans l'ordre, sous `https://www.eugeniaschool.com` :
+
+```text
+/blog/fin-de-parcoursup-ce-qui-change-premiere-terminale
+/programme/bachelor-ia-business
+/notre-adn
+/entreprises-partenaires
+/processus-admission
+/evenements
+/tech-hub
+/certification-architecte-ia
+/carrieres
+/recruter-nos-etudiants
+/faq
+/presse
+/programme/master-ia-business-alternance
+/campus/paris
+/projets-entreprises
+```
+
+L'article demandé est bien présent, en première position, sans nom d'article ou de domaine dans le code. Les deux défauts ne sont pas vérifiés visuellement. Aucun autre passage réel dans ce suivi. Script, réponses et résultats hors dépôt : `/home/ubuntu/a67-backup/deep-real-run.mjs`, `deep-responses-15.json`, `deep-real-15.json`.
+
+### Vérifications de ce suivi
+
+```text
+$ node --test agent/exploration-pages.test.ts
+# tests 33
+# pass 33
+# fail 0
+
+$ git merge origin/dev
+Already up to date.
+
+$ pnpm -r --if-present run check
+agent check: # tests 167
+agent check: # pass 167
+agent check: # fail 0
+agent check: # skipped 0
+agent check: Done
+```
+
+Vérification complète : code 0. Grep des cinq domaines dans `agent/src` : aucune ligne, code 1 normal sans correspondance. Seuls `pages.ts`, son test et ce rapport sont édités.

@@ -69,7 +69,7 @@ test("actions de formulaires globales : sitemap et candidats déjà en file ne d
   }
 });
 
-test("libère la réservation satisfaite par la page de départ pour une autre section", async () => {
+test("garde le départ profond en premier sans consommer le plafond ni la réservation de sa section", async () => {
   const paths = ["/news/a", "/news/b", "/news/c", "/events/a", "/events/b", "/events/c", "/other"];
   for (const failed of [false, true]) {
     const setup = fixture({
@@ -78,10 +78,15 @@ test("libère la réservation satisfaite par la page de départ pour une autre s
       ...Object.fromEntries(paths.map((path) => [path, ""])),
       ...(failed ? { "/events/a": () => new Response("Erreur", { status: 503 }) } : {}),
     });
-    const result = await discoverPages(origin + "/news/start", { ...setup, max: 2 });
-    assert.deepEqual(result.pages, ["/news/start", failed ? "/events/b" : "/events/a"].map((path) => origin + path));
+    const result = await discoverPages(origin + "/news/start?utm_source=test#top", { ...setup, max: 3, sectionMax: 1 });
+    assert.equal(result.pages[0], origin + "/news/start");
+    assert.deepEqual(result.pages, ["/news/start", "/news/a", failed ? "/events/b" : "/events/a"].map((path) => origin + path));
     assert.equal(result.errors.length, failed ? 1 : 0);
+    assert.equal(result.pages.filter((url) => url.includes("/news/")).length, 2);
+    assert.ok(!setup.calls.includes(origin + "/news/b"));
   }
+  const alone = fixture({ "/news/start": "", "/sitemap.xml": sitemap(...paths), ...Object.fromEntries(paths.map((path) => [path, ""])) });
+  assert.deepEqual((await discoverPages(origin + "/news/start", { ...alone, max: 1, sectionMax: 1 })).pages, [origin + "/news/start"]);
 });
 
 test("réserve sur le footer, garde l'ordre sitemap dans chaque section", async () => {

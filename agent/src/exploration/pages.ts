@@ -266,11 +266,11 @@ export async function discoverPages(url: string, { max = 15, sectionMax = 2, fet
   const preferredSections = queue.filter(sameLocale);
   let attempts = 0;
   for (let index = 0; index < queue.length; index++) {
-    if (locale && result.pages.length < max && attempts < max * 3 && !sameLocale(queue[index])) {
+    if (index > 0 && locale && result.pages.length < max && attempts < max * 3 && !sameLocale(queue[index])) {
       const offset = queue.slice(index + 1).findIndex(sameLocale);
       if (offset >= 0) queue.splice(index, 0, queue.splice(index + 1 + offset, 1)[0]);
     }
-    if (result.pages.length < max && attempts < max * 3) {
+    if (index > 0 && result.pages.length < max && attempts < max * 3) {
       const reserved = new Set<string>();
       for (const address of preferredSections) {
         const section = sectionOf(address);
@@ -289,7 +289,7 @@ export async function discoverPages(url: string, { max = 15, sectionMax = 2, fet
     const address = queue[index];
     if (result.pages.includes(address)) continue;
     if (!pageAddress(address, address)) continue;
-    const section = sectionOf(address);
+    const section = address === initial ? undefined : sectionOf(address);
     if (section && (sectionCounts.get(section) ?? 0) >= sectionMax) { exclude(address, "section-limit"); continue; }
     if (result.pages.length >= max) { exclude(address, "limit"); continue; }
     if (++attempts > max * 3) { exclude(address, "request-limit"); continue; }
