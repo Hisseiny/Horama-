@@ -344,7 +344,8 @@
   const busy = () => {
     const boxes = [];
     for (const control of document.querySelectorAll("a, button, summary, input, select, textarea")) {
-      for (const { left, top, right, bottom } of control.getClientRects()) boxes.push({ left: left - 6, top: top - 6, right: right + 6, bottom: bottom + 6, weight: 10 });
+      // A control keeps a wider margin than a text: the mascot does not brush a button or the edge of a card.
+      for (const { left, top, right, bottom } of control.getClientRects()) boxes.push({ left: left - 14, top: top - 14, right: right + 14, bottom: bottom + 14, weight: 10 });
     }
     const range = document.createRange();
     const walker = document.body && document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
@@ -884,6 +885,11 @@
     held = null;
     window.horamaPress?.(JSON.stringify({ rejoue: heure, retard_ms: Math.round(performance.now() - since) }));
     const on = target.isConnected ? target : document.elementFromPoint(x, y);
+    // A link that would open another tab opens in this one: a second tab would take the front from the tab of the
+    // scene, and the bridge of H loses its tab when the scene closes it (passage on albertschool.com, 19/11: H asked to
+    // close the tab, its session became invalid). Same address, same click of H, one tab.
+    const link = on?.closest?.("a[target]");
+    if (link && !/^_(self|top|parent)$/i.test(link.target)) link.target = "_self";
     const init = { bubbles: true, cancelable: true, composed: true, view: window, clientX: x, clientY: y, button: 0, detail: 1 };
     on?.dispatchEvent(new PointerEvent("pointerdown", { ...init, buttons: 1, pointerId: 1, isPrimary: true }));
     on?.dispatchEvent(new MouseEvent("mousedown", { ...init, buttons: 1 }));
