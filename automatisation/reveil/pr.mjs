@@ -32,6 +32,14 @@ import { publierCommentaire } from "../pr-doc/commentaire.mjs";
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const gh = (path) => JSON.parse(execFileSync("gh", ["api", "--paginate", "--slurp", path], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })).flat();
 
+// The preview address in the summary of the check « Vercel Preview Comments » of a commit: its link to the feedback of
+// the preview, « vercel.live/open-feedback/<host> ». One check per commit, even when the bot writes no comment on the PR
+// (seen on the PR #14 of the clone, 18/11).
+export function adresseControleVercel(summary) {
+  const host = /vercel\.live\/open-feedback\/([a-z0-9.-]+\.vercel\.app)/i.exec(summary ?? "")?.[1];
+  return host ? `https://${host}` : null;
+}
+
 // The preview address in the comment of the Vercel bot on a PR: the JSON of its hidden line « [vc]: #<id>:<base64> »
 // (projects[].previewUrl, the alias of the branch, which follows its last commit), else its « [Preview](<url>) » link.
 export function adresseCommentaireVercel(body) {
@@ -48,8 +56,8 @@ export function adresseCommentaireVercel(body) {
 // What GitHub says of a repository: its open PRs, the preview of a commit, the files of a PR. Two ways for Vercel to
 // give a preview: a GitHub deployment with an environment named « Preview » (sometimes « Preview – <projet> ») whose
 // status « success » carries environment_url; or, as on the clone of Eugenia (18/11), no deployment at all, only a commit
-// status whose context names Vercel (its target_url is the Vercel dashboard, not the site) and a comment of the
-// vercel[bot] on the PR that gives the address.
+// status whose context names Vercel (its target_url is the Vercel dashboard, not the site); the address is then read in
+// the check « Vercel Preview Comments » of the commit, else in the comment of the vercel[bot] on the PR.
 export function lecteurGithub(depot, read = gh) {
   return {
     prs: () => read(`repos/${depot}/pulls?state=open&per_page=100`).map((pr) => ({ numero: pr.number, adresse: pr.html_url, titre: pr.title, base: pr.base.sha, tete: pr.head.sha })),
@@ -61,7 +69,11 @@ export function lecteurGithub(depot, read = gh) {
       }
       const status = (read(`repos/${depot}/commits/${sha}/status`)[0]?.statuses ?? []).find((candidate) => /vercel/i.test(candidate.context ?? ""));
       if (!status) return null;
-      const comment = status.state === "success" && numero !== undefined
+      if (status.state !== "success") return { etat: status.state, adresse: null, source: "statut de Vercel" };
+      const checks = read(`repos/${depot}/commits/${sha}/check-runs?per_page=100`).flatMap((page) => page.check_runs ?? [page]);
+      const fromCheck = checks.filter((run) => run.app?.slug === "vercel").map((run) => adresseControleVercel(run.output?.summary)).find(Boolean);
+      if (fromCheck) return { etat: status.state, adresse: fromCheck, source: "statut et contrôle de Vercel" };
+      const comment = numero !== undefined
         ? read(`repos/${depot}/issues/${numero}/comments?per_page=100`).filter((candidate) => candidate.user?.login === "vercel[bot]").at(-1)
         : undefined;
       return { etat: status.state, adresse: adresseCommentaireVercel(comment?.body), source: "statut et commentaire de Vercel" };

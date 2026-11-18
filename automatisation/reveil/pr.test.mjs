@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { aBlanc, aJouer, adresseCommentaireVercel, ecarterLangue, impactDePr, jouerPr, langueDePage, lecteurGithub, ouverteSansConnexion } from "./pr.mjs";
+import { aBlanc, aJouer, adresseCommentaireVercel, adresseControleVercel, ecarterLangue, impactDePr, jouerPr, langueDePage, lecteurGithub, ouverteSansConnexion } from "./pr.mjs";
 
 // A vault of trial: two screens of a site whose code we have, one test per screen.
 function vaultEssai(t) {
@@ -137,7 +137,7 @@ test("GitHub sans déploiement : statut Vercel du commit, puis l'adresse dans le
   };
   const lecteur = lecteurGithub("o/d", (path) => answers[path] ?? []);
   assert.deepEqual(lecteur.previsualisation("h1", 11), { etat: "success", adresse: "https://site-git-branche-o.vercel.app", source: "statut et commentaire de Vercel" });
-  assert.deepEqual(lecteur.previsualisation("h2", 11), { etat: "pending", adresse: null, source: "statut et commentaire de Vercel" });
+  assert.deepEqual(lecteur.previsualisation("h2", 11), { etat: "pending", adresse: null, source: "statut de Vercel" });
   assert.equal(lecteur.previsualisation("h3", 11), null);
   // Ready but nothing played without an address.
   assert.deepEqual(aJouer({ prs: () => [{ numero: 11, adresse: "u", base: "b", tete: "h1" }], previsualisation: lecteur.previsualisation }, new Set()).map((pr) => pr.previsualisation), ["https://site-git-branche-o.vercel.app"]);
@@ -227,4 +227,19 @@ test("--commenter : une seule réponse sur la PR, la partie des tests du vault p
   // Without --commenter, nothing is posted.
   await jouerPr({ pr: { ...pr, tete: "ddddddd0003" }, fichiers: ["src/data/programmes.ts"], vault, logiciel: "site-essai", sortie, publier }, scenes);
   assert.equal(posted.length, 0);
+});
+
+test("contrôle « Vercel Preview Comments » du commit : l'adresse de la prévisualisation, même sans commentaire du bot", () => {
+  // Its summary on the PR #14 of the clone (18/11), the address changed.
+  const summary = "💬 0 unresolved, 0 resolved. [Go to feedback](https://vercel.live/open-feedback/site-git-branche-e9c30e-o.vercel.app?via=pr-comment-feedback-link)";
+  assert.equal(adresseControleVercel(summary), "https://site-git-branche-e9c30e-o.vercel.app");
+  assert.equal(adresseControleVercel("✅ No unresolved feedback"), null);
+  const answers = {
+    "repos/o/d/deployments?sha=h4&per_page=100": [],
+    "repos/o/d/commits/h4/status": [{ statuses: [{ context: "Vercel", state: "success" }] }],
+    "repos/o/d/commits/h4/check-runs?per_page=100": [{ total_count: 2, check_runs: [{ app: { slug: "github-actions" }, output: { summary: null } }, { app: { slug: "vercel" }, name: "Vercel Preview Comments", output: { summary } }] }],
+    "repos/o/d/issues/14/comments?per_page=100": [],
+  };
+  const lecteur = lecteurGithub("o/d", (path) => answers[path] ?? []);
+  assert.deepEqual(lecteur.previsualisation("h4", 14), { etat: "success", adresse: "https://site-git-branche-e9c30e-o.vercel.app", source: "statut et contrôle de Vercel" });
 });
