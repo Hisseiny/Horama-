@@ -252,12 +252,7 @@ export async function discoverPages(url: string, { max = 15, sectionMax = 2, fet
   function sectionOf(address: string): string | undefined {
     return sections(address).find((prefix) => repeated.has(prefix));
   }
-  const reserved = new Set<string>();
   const preferredSections = queue.filter(sameLocale);
-  for (const address of preferredSections) {
-    const section = sectionOf(address);
-    if (section && address !== initial && reserved.size < max - 1) reserved.add(section);
-  }
   let attempts = 0;
   for (let index = 0; index < queue.length; index++) {
     if (locale && result.pages.length < max && attempts < max * 3 && !sameLocale(queue[index])) {
@@ -265,6 +260,11 @@ export async function discoverPages(url: string, { max = 15, sectionMax = 2, fet
       if (offset >= 0) queue.splice(index, 0, queue.splice(index + 1 + offset, 1)[0]);
     }
     if (result.pages.length < max && attempts < max * 3) {
+      const reserved = new Set<string>();
+      for (const address of preferredSections) {
+        const section = sectionOf(address);
+        if (section && !sectionCounts.has(section) && address !== initial && reserved.size < max - 1) reserved.add(section);
+      }
       const pending = new Map<string, number>();
       for (let position = index; position < queue.length; position++) {
         const section = sectionOf(queue[position]);

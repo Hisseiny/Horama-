@@ -69,6 +69,21 @@ test("actions de formulaires globales : sitemap et candidats déjà en file ne d
   }
 });
 
+test("libère la réservation satisfaite par la page de départ pour une autre section", async () => {
+  const paths = ["/news/a", "/news/b", "/news/c", "/events/a", "/events/b", "/events/c", "/other"];
+  for (const failed of [false, true]) {
+    const setup = fixture({
+      "/news/start": `<footer>${link("/menu")}</footer>`, "/menu": "",
+      "/sitemap.xml": sitemap(...paths),
+      ...Object.fromEntries(paths.map((path) => [path, ""])),
+      ...(failed ? { "/events/a": () => new Response("Erreur", { status: 503 }) } : {}),
+    });
+    const result = await discoverPages(origin + "/news/start", { ...setup, max: 2 });
+    assert.deepEqual(result.pages, ["/news/start", failed ? "/events/b" : "/events/a"].map((path) => origin + path));
+    assert.equal(result.errors.length, failed ? 1 : 0);
+  }
+});
+
 test("réserve une place par section malgré un menu plein, ordre de découverte dans chaque section", async () => {
   const menu = Array.from({ length: 8 }, (_, index) => `/menu-${index}`);
   const articles = ["/journal/z", "/journal/a", "/journal/m"];
