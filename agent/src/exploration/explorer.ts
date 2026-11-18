@@ -282,8 +282,22 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
         const close = () => client?.close();
         hookSignal?.addEventListener("abort", close, { once: true });
         page.cookies = "aucune";
+        const resolveFinal = async () => {
+          if (!finalUrls.has(page.url)) {
+            try {
+              const response = await (deps.fetch ?? fetch)(page.url, { redirect: "follow", signal: hookSignal });
+              finalUrls.set(page.url, response.url && new URL(response.url).origin === new URL(page.url).origin ? response.url : null);
+            } catch { finalUrls.set(page.url, null); }
+          }
+          return finalUrls.get(page.url);
+        };
         try {
-          client = await (deps.connecter ?? connecterCdp)(port, page.url);
+          const connect = deps.connecter ?? connecterCdp;
+          try { client = await connect(port, page.url_finale ?? finalUrls.get(page.url) ?? page.url); }
+          catch {
+            const final = await resolveFinal();
+            client = await connect(port, final ?? page.url);
+          }
           page.cookies = await prepareCapture(client);
         } catch { /* Les contrôles signalent une connexion indisponible. */ }
         let capture: ReleveCapture;
@@ -306,13 +320,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
           else if (actual.origin !== new URL(page.url).origin) reason = `La page redirige vers un autre site : ${capture.url_page}`;
         } catch { reason = "La page n'a pas pu être chargée."; }
         if (!accepted && !reason) {
-          if (!finalUrls.has(page.url)) {
-            try {
-              const response = await (deps.fetch ?? fetch)(page.url, { redirect: "follow", signal: hookSignal });
-              finalUrls.set(page.url, response.url && new URL(response.url).origin === new URL(page.url).origin ? response.url : null);
-            } catch { finalUrls.set(page.url, null); }
-          }
-          const final = finalUrls.get(page.url);
+          const final = await resolveFinal();
           if (final && matches(final)) { accepted = true; page.url_finale = final; }
         }
         if (!accepted || reason) {

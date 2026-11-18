@@ -373,6 +373,34 @@ test("connexion CDP indisponible : capture conservée et contrôles non conclus"
   assert.equal(result.pages[0].statut, "INCONCLUSIVE");
 });
 
+test("onglets multiples : prépare et contrôle l'onglet redirigé avant capture", async () => {
+  let controls = 0;
+  const connected: string[] = [];
+  const { result } = await run({ actual: url => url.includes("/faq") ? "https://example.org/help" : url, deps: {
+    connecter: async (_port, url) => {
+      connected.push(url);
+      if (url.includes("/faq")) throw new Error("Onglet absent parmi deux onglets");
+      return { on() {}, close() {}, async send(_method, params) {
+        return { result: { value: String((params as Record<string, unknown> | undefined)?.expression).includes("responseStatus") ? 200 : true } };
+      } };
+    },
+    controler: async () => { controls++; return []; },
+    fetch: async (input, init) => {
+      if (init?.redirect === "follow") {
+        const response = new Response("Welcome");
+        Object.defineProperty(response, "url", { value: "https://example.org/help" });
+        return response;
+      }
+      const path = new URL(String(input)).pathname;
+      return new Response(path === "/robots.txt" ? "" : path === "/sitemap.xml" ? "<urlset><url><loc>https://example.org/faq</loc></url></urlset>" : "Welcome", { headers: { "Content-Type": path.endsWith(".xml") ? "application/xml" : "text/html" } });
+    },
+  } });
+  assert.equal(controls, 2);
+  assert.ok(connected.includes("https://example.org/help"));
+  assert.equal(result.pages[1].cookies, "refusee");
+  assert.equal(result.pages[1].http, 200);
+});
+
 test("redirection de même origine acceptée après une seule résolution", async () => {
   let resolves = 0;
   const { result, responses } = await run({ actual: url => url.includes("/faq") ? "https://example.org/help" : url, deps: {
