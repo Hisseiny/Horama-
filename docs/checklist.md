@@ -68,7 +68,7 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 |---|---|---|---|---|
 | 4.1 | Parcours utilisateur (maquette des 7 écrans dans l'ordre d'usage) | Axil | à faire |  |
 | 4.2 | Architecture (schéma simple : vault, Hugging Face, agent H, Holo, calcul, base, interface, n8n) | Ali | codé non testé | Schéma Mermaid, pôles, C1–C8 et limites dans le README ; [PR #16 fusionnée](https://github.com/Hisseiny/Horama-/pull/16), [preuve](tests/2026-11-17-readme-architecture.md). Jonction scène/coureur par appel direct documentée dans la [PR #17 fusionnée](https://github.com/Hisseiny/Horama-/pull/17). validation par une autre personne à attester. |
-| 4.3 | Loom de 2 minutes : problème, solution, avancement montré avec la vraie boucle de mardi | Noé | à faire |  |
+| 4.3 | Loom de 2 minutes : problème, solution, avancement montré avec la vraie boucle de mardi | Noé | en cours | Script minuté et sourcé : `pitch/loom-mercredi.md` ; enregistrement en attente des réponses de Nathan (dépôt, feu vert de l'école, quoi filmer) |
 | 4.4 | Roadmap jusqu'à jeudi (tirée de ce plan) | Noé | à faire |  |
 | 4.5 | Dépôt du rendu de mercredi | Noé | à faire |  |
 | 4.6 | Règle entre deux écrans prouvée par le calcul (le CA du tableau de bord égale le total de la liste) | Leslie, Ali | fait | Règle `egalite` : passage H réel `2026-11-17-13h14-6321` sur Facturo v13, `VERIFIED_FAIL`, « 1 240,00 ≠ 1 420,00, écart 180,00 » (`docs/tests/2026-11-17-c4-coureur.md`) |
