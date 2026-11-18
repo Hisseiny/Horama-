@@ -97,7 +97,37 @@ export async function connectTab(port) {
   await page.send("Page.enable");
   await page.send("Runtime.enable");
   await page.send("Page.bringToFront");
+  const stopGuard = await oneTab(port, tabs[0].id, page);
+  const close = page.close;
+  page.close = () => {
+    stopGuard();
+    close();
+  };
   return page;
+}
+
+// One tab only. A link with target=_blank, or window.open, clicked in the tab of the scene would open a second tab in
+// front: the tab of the scene goes to the background, where Chrome answers its input and its captures late or not at
+// all (measured on 18/11 on an article of albertschool.com: 5,7 s per capture instead of 0,14 s, and up to the 15 s
+// limit of CDP in a real passage, issue #91). Such a tab is closed as soon as its address is known, and the address
+// opens in the tab of the scene, put back in front. Tabs opened otherwise (by CDP) are left alone.
+async function oneTab(port, tabId, page) {
+  const version = await chromeVersion(port);
+  if (!version?.webSocketDebuggerUrl) return () => {};
+  const browser = await connect(version.webSocketDebuggerUrl);
+  const handled = new Set();
+  const follow = async ({ targetInfo: info }) => {
+    if (info.type !== "page" || info.openerId !== tabId || handled.has(info.targetId)) return;
+    if (!/^https?:/.test(info.url)) return; // about:blank first: the address comes with Target.targetInfoChanged
+    handled.add(info.targetId);
+    await browser.send("Target.closeTarget", { targetId: info.targetId }).catch(() => {});
+    await page.send("Page.navigate", { url: info.url }).catch(() => {});
+    await page.send("Page.bringToFront").catch(() => {});
+  };
+  browser.on("Target.targetCreated", (params) => void follow(params));
+  browser.on("Target.targetInfoChanged", (params) => void follow(params));
+  await browser.send("Target.setDiscoverTargets", { discover: true });
+  return () => browser.close();
 }
 
 async function run(page, expression, context = {}) {
