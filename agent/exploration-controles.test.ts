@@ -131,10 +131,17 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
     if (label === "français") {
       assert.equal(defects[0].statut, "VERIFIED_FAIL");
       assert.equal(defects[0].selecteur, "#foreign");
-      assert.equal(defects[0].valeur, "12 mots, 6 mots outils français, 0 allemands ; page déclarée de");
+      assert.equal(defects[0].valeur, "1 bloc en français ; le plus long : 12 mots, 6 mots outils français, 0 allemands ; page déclarée de");
       assert.ok(defects[0].zone);
     }
   }
+  await client.send("Runtime.evaluate", { expression: `document.documentElement.lang = 'de'; document.body.innerHTML = ${JSON.stringify(`<p>${french}</p><p id="largest">${french} ${french}</p><p>The students are working with the companies for their future and their careers.</p>`)}` });
+  const grouped = (await controlerPage(client, { maxLiens: 0 })).filter(defect => defect.sorte === "texte_non_traduit");
+  assert.equal(grouped.length, 1);
+  assert.equal(grouped[0].selecteur, "#largest");
+  assert.equal(grouped[0].message, "2 blocs en français, 1 bloc en anglais ; le plus long : 24 mots, 12 mots outils français, 0 allemands ; page déclarée de");
+  assert.equal(grouped[0].valeur, grouped[0].message);
+  assert.ok(grouped[0].zone);
   await navigate("/healthy");
   assert.deepEqual(await controlerPage(client), []);
   await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = '<main>' + ['code', 'pre', 'kbd', 'samp', 'var'].map(tag => '<' + tag + '>null <span>undefined <span>NULL</span></span></' + tag + '>').join('') + '</main>'` });

@@ -84,7 +84,7 @@ de tous les contenus cachés ou interactifs.
 | Accueil `/` | 0 | Aucun bloc au-dessus du seuil | 0 |
 | `/programmes` | 0 | Aucun bloc au-dessus du seuil | 0 |
 
-Total : 45 blocs signalés sur les cinq pages attendues, 0 sur les deux témoins.
+Total initial : 45 blocs signalés sur les cinq pages attendues, 0 sur les deux témoins.
 Sur événements, le bloc trouvé est le texte de conservation des réponses
 « Les réponses sont conservées dans cet onglet jusqu'à la fin de la simulation,
 pendant 12 heures maximum. Effacer mes réponses ». Aucun formulaire manipulé.
@@ -107,3 +107,38 @@ Limites : heuristique volontairement prudente, pas un modèle de traduction.
 Les titres courts, les blocs pauvres en mots outils et les langues non prises
 en charge ne prouvent aucun défaut. Pas de passage H de huit pages, de mesure
 de durée/coût ni de changement de défilement : points 1 et 2 de #170 hors tâche.
+
+## A — regroupement par page
+
+Le contrôle émet désormais **un seul défaut par page**, avec le nombre de blocs
+par langue et la mesure du bloc le plus long (nombre de mots). Le sélecteur et
+la zone sont ceux de ce bloc. Le tableau précédent et les couples de mesures
+décrivent les blocs détectés avant regroupement, pas le nombre final de défauts.
+Un test supplémentaire couvre deux blocs français et un anglais sur la même
+page, la sélection du plus long et l'unicité du défaut.
+
+Relevé Chrome rejoué avec le même script (code 0) :
+
+| Page | Défauts après regroupement | Blocs français | Mesure du plus long (mots / outils français / allemands) |
+|---|---:|---:|---|
+| `/carrieres` | 1 | 9 | 24 / 6 / 0 |
+| `/entreprises` | 1 | 7 | 27 / 8 / 0 |
+| `/ecole` | 1 | 16 | 28 / 6 / 0 |
+| `/evenements` | 1 | 1 | 17 / 6 / 0 |
+| Bachelor 3 | 1 | 12 | 51 / 12 / 0 |
+| `/` | 0 | 0 | — |
+| `/programmes` | 0 | 0 | — |
+
+Soit **5 défauts pour 45 blocs**, aucun faux positif linguistique observé.
+`node --test exploration-controles.test.ts` depuis agent/ :
+
+```text
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1140.57808
+```

@@ -80,6 +80,7 @@ function inspectDocument() {
       words.push(...(node.textContent.match(/\p{L}+/gu) ?? []));
       blocks.set(block, words);
     }
+    const foreignBlocks: Array<{ block: Element; length: number; language: Language; measure: string }> = [];
     for (const [block, original] of blocks) {
       if (original.length < 8 || original.every(word => /^\p{Lu}/u.test(word))) continue;
       const words = original.map(word => word.toLowerCase());
@@ -89,7 +90,17 @@ function inspectDocument() {
       if (!foreign) continue;
       if (block.closest("[lang]")?.getAttribute("lang")?.toLowerCase().split("-")[0] === foreign.language) continue;
       const measure = `${words.length} mots, ${foreign.words.length} mots outils ${names[foreign.language]}, ${counts.find(count => count.language === declared)!.words.length} ${names[declared]} ; page déclarée ${declared}`;
-      add("texte_non_traduit", `Un bloc de texte n'est pas dans la langue déclarée : ${measure}.`, measure, block);
+      foreignBlocks.push({ block, length: words.length, language: foreign.language, measure });
+    }
+    const largest = foreignBlocks.sort((a, b) => b.length - a.length)[0];
+    if (largest) {
+      const languages = { fr: "français", de: "allemand", en: "anglais" };
+      const summary = (Object.keys(languages) as Language[]).flatMap(language => {
+        const count = foreignBlocks.filter(block => block.language === language).length;
+        return count ? [`${count} bloc${count > 1 ? "s" : ""} en ${languages[language]}`] : [];
+      }).join(", ");
+      const measure = `${summary} ; le plus long : ${largest.measure}`;
+      add("texte_non_traduit", measure, measure, largest.block);
     }
   }
   const clipped = [root, document.body].some(element => ["hidden", "clip"].includes(getComputedStyle(element).overflowX));
