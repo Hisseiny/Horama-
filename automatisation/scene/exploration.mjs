@@ -98,9 +98,10 @@ async function witness(label) {
 // ---------- What the explorer is given: our Chrome, our captures (layer hidden), the bridge of each H session ----------
 const bridges = new Set();
 const runtime = {
-  async relever() {
+  // beforeCapture: the recheck of the cookie banner by the explorer (PR #102), just before the screenshot.
+  async relever(_ecran, _vue, beforeCapture) {
     capturing = true;
-    const shot = await capture(page).finally(() => (capturing = false));
+    const shot = await capture(page, beforeCapture).finally(() => (capturing = false));
     return { png: new Uint8Array(shot.png), texte: shot.texte_page, url_page: shot.url_page, largeur: shot.largeur, hauteur: shot.hauteur, defilement: shot.defilement, phrase: "Capture enregistrée. Continue le parcours." };
   },
   async navigateur() {
