@@ -2,7 +2,7 @@
 // no network. Run from this folder: node --test recapitulatif.test.mjs
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { bilanExploration } from "./recapitulatif.mjs";
+import { bilanExploration, dejaVoulu } from "./recapitulatif.mjs";
 
 // The site blocked by its anti-robot (as in docs/tests/2026-11-18-a67-anti-robot.md, skema.edu): no page, no H session.
 const bloquee = {
@@ -51,4 +51,16 @@ test("des pages visitées : chaque page non visitée avec sa raison, celle de la
 
 test("exploration en cours : jamais « n'a pas pu visiter »", () => {
   assert.equal(bilanExploration({ ...bloquee, etat: "en_cours" }).aucune, false);
+});
+
+test("déjà voulu : même page, même description, zones qui se recoupent ; une décision « bug » ne compte pas", () => {
+  const constat = { id: "programmes--controle--2", ecran: "programmes", description: "Le texte est rogné dans sa boîte.", zone: { x: 40, y: 600, largeur: 180, hauteur: 48 } };
+  const voulu = { id: "d1", decision: "voulu", ecran: "programmes", ecart: "Le texte est rogné dans sa boîte.", zone: { x: 44, y: 604, largeur: 180, hauteur: 48 } };
+  assert.equal(dejaVoulu(constat, [voulu]), voulu);
+  const sansZone = { ...voulu, zone: undefined };
+  assert.equal(dejaVoulu(constat, [sansZone]), sansZone, "décision sans zone : la page et la description suffisent");
+  assert.equal(dejaVoulu(constat, [{ ...voulu, decision: "bug" }]), null);
+  assert.equal(dejaVoulu(constat, [{ ...voulu, ecran: "accueil" }]), null);
+  assert.equal(dejaVoulu(constat, [{ ...voulu, ecart: "Le bouton déborde." }]), null);
+  assert.equal(dejaVoulu(constat, [{ ...voulu, zone: { x: 900, y: 100, largeur: 50, hauteur: 20 } }]), null);
 });

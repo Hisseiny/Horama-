@@ -18,11 +18,12 @@ import { fileURLToPath } from "node:url";
 import { BaseMemoire, creerBaseSupabase, creerSessionH } from "../../agent/index.ts";
 import { explorer, exclusionLabel } from "../../agent/src/exploration/explorer.ts";
 import { libelleAction } from "../../agent/src/session.ts";
-import { ecrireDecision } from "../../memoire/index.ts";
+import { ecrireDecision, lireDecisions } from "../../memoire/index.ts";
 import { findHolo, startBridge, stopIfMissing } from "./agent-h.mjs";
 import { creerEcrivainMemoire, creerEcrivainSupabase } from "./decisions.mjs";
 import { completerNote } from "./note-passage.mjs";
-import { bilanExploration, revoir, sizeOf } from "./recapitulatif.mjs";
+import { bilanExploration, dejaVoulu, revoir, sizeOf } from "./recapitulatif.mjs";
+import { ecrireSectionExploration, publierCommentaire } from "../pr-doc/commentaire.mjs";
 import { ouvrirVitrine } from "./vitrine.mjs";
 import { HEIGHT, WIDTH, capture, captureZone, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, layer, navigate, openChrome, option, say, sleep } from "./scene.mjs";
 
@@ -253,9 +254,23 @@ await queue;
 // ---------- The end: the summary, then bug or voulu for each defect and doubt ----------
 const count = (number, one, many) => `${number} ${number > 1 ? many : one}`;
 const decisions = [];
+// The PR that woke the exploration (réveil par PR, #122): its part of the answer is written in scene.json, and posted
+// with --commenter (the wake-up posts one answer for both scenes instead).
+const PR = option("pr", null);
+let commentaire = null;
 if (report?.format === "horama-exploration-1") {
   const { totaux, trouvees, constats } = report;
-  const toDecide = [...constats.filter((constat) => constat.statut === "VERIFIED_FAIL"), ...constats.filter((constat) => constat.statut === "SUSPECTED" && !constat.explique_par)];
+  // What a human already said « voulu » for, on an earlier course of this site, is not asked again.
+  let past = [];
+  try {
+    past = lireDecisions(VAULT, report.site);
+  } catch (error) {
+    errors.push(`Décisions passées : ${error.message}`);
+  }
+  const accepted = [];
+  const toDecide = [...constats.filter((constat) => constat.statut === "VERIFIED_FAIL"), ...constats.filter((constat) => constat.statut === "SUSPECTED" && !constat.explique_par)]
+    .filter((constat) => (dejaVoulu(constat, past) ? (accepted.push(constat), false) : true));
+  if (accepted.length) say(`Déjà déclarés voulus, non redemandés : ${accepted.map((constat) => constat.id).join(", ")}.`);
   const review = flag("sans-fin") ? [] : toDecide;
   const pathOf = (ecran) => {
     const entry = report.pages.find((candidate) => candidate.ecran === ecran);
@@ -287,6 +302,7 @@ if (report?.format === "horama-exploration-1") {
     selection: { titre: "Pages", lignes: [`Trouvées par ${trouvees.par === "sitemap" ? "le plan du site" : "les liens"}, ${trouvees.plafond} au plus.`,
       ...(arrivals.length ? [`${count(byClick, "page atteinte par un clic de l'agent", "pages atteintes par un clic de l'agent")}, ${count(byAddress, "ouverte par son adresse", "ouvertes par leur adresse")}.`] : []),
       ...(excluded.length ? [`Écartées : ${excluded.join(", ")}.`] : []),
+      ...(accepted.length ? [`${count(accepted.length, "constat déjà déclaré voulu, non redemandé", "constats déjà déclarés voulus, non redemandés")}.`] : []),
       ...bilan.nonVisitees.map(({ chemin, raison }) => `Non visitée : ${chemin}${raison ? `, ${raison.charAt(0).toLowerCase()}${raison.slice(1).replace(/\.+$/, "")}` : ""}.`)] },
   };
   say(`Récapitulatif : ${recap.lignes.join(" ")}`);
@@ -311,14 +327,28 @@ if (report?.format === "horama-exploration-1") {
     errors.push(`Fin du parcours : ${error.message}`);
   }
   // The report the runner wrote in the memory of the site, completed after the choices (issue #71, point 2).
+  let notePath = null;
   try {
     const visited = report.pages.filter((entry) => entry.etat === "visitee").map((entry) => `${new URL(entry.url).pathname}${ARRIVAL[entry.arrivee] ? ` (${ARRIVAL[entry.arrivee]})` : ""}`);
     const reasonOf = (ecran) => constats.find((constat) => constat.ecran === ecran && constat.raison)?.raison;
     const notVisited = report.pages.filter((entry) => entry.etat !== "visitee").map((entry) => `${new URL(entry.url).pathname}${reasonOf(entry.ecran) ? ` : ${reasonOf(entry.ecran)}` : ""}`);
-    const note = completerNote({ vault: VAULT, logiciel: report.site, passage: report.passage_id, tests: { titre: "Pages", lignes: [...visited.map((path) => `Visitée : ${path}`), ...notVisited.map((line) => `Non visitée : ${line}`), ...(excluded.length ? [`Écartées à la découverte : ${excluded.join(", ")}`] : [])] }, items, decisions });
-    say(note ? `Note du passage complétée : ${join(VAULT, note)}.` : `Aucune note du passage ${report.passage_id} : rien à compléter.`);
+    notePath = completerNote({ vault: VAULT, logiciel: report.site, passage: report.passage_id, tests: { titre: "Pages", lignes: [...visited.map((path) => `Visitée : ${path}`), ...notVisited.map((line) => `Non visitée : ${line}`), ...(excluded.length ? [`Écartées à la découverte : ${excluded.join(", ")}`] : [])] }, items, decisions });
+    say(notePath ? `Note du passage complétée : ${join(VAULT, notePath)}.` : `Aucune note du passage ${report.passage_id} : rien à compléter.`);
   } catch (error) {
     errors.push(`Note du passage : ${error.message}`);
+  }
+  // The part of the answer on the PR (text only: page, zone, proof; the captures ringed stay in the note).
+  if (PR) {
+    const entry = (constat) => ({ id: constat.id, chemin: pathOf(constat.ecran), texte: constat.description, zone: constat.zone ?? null, capture: constat.capture ?? null,
+      preuve: constat.source === "controle" && constat.preuve?.mesure ? `Mesuré : ${String(constat.preuve.mesure).replace(/\.+$/, "")}. Attendu : ${String(constat.preuve.attendu).replace(/\.+$/, "")}.` : null });
+    const corps = ecrireSectionExploration({ adresse: report.adresse, bilan: bilanExploration(report), totaux, decisions: decisions.map(({ decision }) => decision),
+      prouves: toDecide.filter((constat) => constat.statut === "VERIFIED_FAIL").map(entry), doutes: toDecide.filter((constat) => constat.statut === "SUSPECTED").map(entry),
+      dejaVoulus: accepted.map(entry), note: `vault-horama/${notePath ?? `${report.site}/passages/${report.passage_id}.md`}` });
+    commentaire = { corps, publication: null };
+    if (flag("commenter")) {
+      commentaire.publication = await publierCommentaire(PR, corps);
+      say(commentaire.publication.status === "publie" ? `Commentaire publié sur la PR : ${commentaire.publication.url}` : `Commentaire non publié sur la PR : ${commentaire.publication.reason}`);
+    }
   }
   // The decisions in the base, then the passage « verifie », as in the development mode.
   try {
@@ -332,7 +362,7 @@ if (report?.format === "horama-exploration-1") {
 const showcase = vitrine?.mesures() ?? null;
 if (showcase) say(`Vitrine : ${showcase.images_recues} images reçues, ${showcase.images_affichees} affichées, ${showcase.images_par_seconde} par seconde ; délai de l'image dessinée à l'image affichée : médiane ${showcase.delai_total_ms.mediane} ms, p95 ${showcase.delai_total_ms.p95} ms.`);
 await vitrine?.stop({ fermer: flag("fermer-chrome") });
-writeFileSync(join(OUT, "scene.json"), `${JSON.stringify({ id: ID, passage_id: report?.passage_id ?? null, adresse: URL_SITE, mode: SANS_AGENT ? "sans agent" : "agent H", holo: !flag("sans-holo"), traits: Object.fromEntries(drawnOn), decisions, vitrine: showcase, erreurs: errors }, null, 2)}\n`);
+writeFileSync(join(OUT, "scene.json"), `${JSON.stringify({ id: ID, passage_id: report?.passage_id ?? null, adresse: URL_SITE, mode: SANS_AGENT ? "sans agent" : "agent H", holo: !flag("sans-holo"), traits: Object.fromEntries(drawnOn), decisions, pr: PR, commentaire, vitrine: showcase, erreurs: errors }, null, 2)}\n`);
 for (const line of errors) say(`Erreur : ${line}`);
 runtime.close();
 page.close();
