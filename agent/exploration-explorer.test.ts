@@ -349,6 +349,51 @@ test("capture supplémentaire en échec : défaut conservé sans zone hors image
   assert.equal(result.constats[0].capture, "captures/accueil.png");
 });
 
+test("crochet de capture : résultat valide utilisé, sinon repli CDP sans perdre le défaut", async () => {
+  const documentZone = { x: 10, y: 4583, largeur: 100, hauteur: 40 };
+  const goodZone = { x: 10, y: 300, largeur: 100, hauteur: 40 };
+  const badZones = [undefined, { ...goodZone, x: -1 }, { ...goodZone, y: 890 },
+    { ...goodZone, x: NaN }, { ...goodZone, largeur: 0 }, { ...goodZone, x: 1280 }];
+  for (const mode of ["valid", "throws", "absent", "both-fail", ...badZones] as const) {
+    let hooks = 0, fallbacks = 0;
+    const { result } = await run({ deps: {
+      runtime: {
+        relever: async ecran => ({ png: original, texte: "Page", url_page: ecran === "accueil" ? "https://example.org/" : "https://example.org/faq",
+          largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture" }),
+        navigateur: async () => ({ channel: "fake", stop() {} }), close() {},
+        ...(mode === "absent" ? {} : { async capturerZone(zone: typeof documentZone) {
+          hooks++;
+          assert.deepEqual(zone, documentZone);
+          if (mode === "throws" || mode === "both-fail") throw new Error("Couche indisponible");
+          return { png: changed, zone: mode === "valid" ? goodZone : typeof mode === "object" ? mode : undefined, defilement: [0, 4283] as [number, number] };
+        } }),
+      },
+      connecter: async () => ({ on() {}, close() {}, async send(method, params) {
+        if (method === "Page.captureScreenshot") {
+          fallbacks++;
+          if (mode === "both-fail") throw new Error("CDP indisponible");
+          return { data: original.toString("base64") };
+        }
+        return { result: { value: (params as Record<string, unknown> | undefined)?.expression === "[window.scrollX, window.scrollY]" ? [0, 4200] : 200 } };
+      } }),
+      controler: async () => [{ statut: "VERIFIED_FAIL", sorte: "debordement", message: "Texte coupé.", zone: documentZone }],
+    } });
+    assert.equal(hooks, mode === "absent" ? 0 : 2);
+    assert.equal(fallbacks, mode === "valid" ? 0 : 2);
+    for (const item of result.constats) {
+      assert.equal(item.statut, "VERIFIED_FAIL");
+      if (mode === "both-fail") {
+        assert.equal(item.zone, undefined);
+        assert.equal(item.capture, `captures/${item.ecran}.png`);
+      } else {
+        assert.equal(item.capture, `captures/${item.id}.png`);
+        assert.deepEqual(item.zone, mode === "valid" ? goodZone : { ...documentZone, y: 383 });
+        assert.ok(readFileSync(join(root, "out", item.capture)).equals(mode === "valid" ? changed : original));
+      }
+    }
+  }
+});
+
 test("cookies préparés avant capture, client partagé puis fermé", async () => {
   const calls: string[] = [];
   const { result } = await run({ deps: {

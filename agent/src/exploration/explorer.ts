@@ -362,7 +362,17 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
               if (zone.x < 0 || zone.y < 0 || zone.x + zone.largeur > 1280 || zone.y + zone.hauteur > 900) {
                 delete item.zone;
                 try {
-                  const extra = await captureDefect(client, documentZone, capture.defilement);
+                  let extra: { png: Buffer; zone?: Zone } | undefined;
+                  if (runtime.capturerZone) {
+                    try {
+                      const captured = await runtime.capturerZone(documentZone);
+                      const zone = captured.zone;
+                      if (zone && [zone.x, zone.y, zone.largeur, zone.hauteur].every(Number.isFinite)
+                        && zone.x >= 0 && zone.y >= 0 && zone.largeur > 0 && zone.hauteur > 0
+                        && zone.x + zone.largeur <= 1280 && zone.y + zone.hauteur <= 900) extra = captured;
+                    } catch { /* Repli sur la capture CDP. */ }
+                  }
+                  extra ??= await captureDefect(client, documentZone, capture.defilement);
                   const file = `captures/${item.id}.png`;
                   writeFileSync(join(sortie, file), extra.png);
                   item.capture = file; item.zone = extra.zone;
