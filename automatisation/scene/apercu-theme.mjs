@@ -3,6 +3,7 @@
 // played on a page and captured. If the layer changed and a wiring point is no longer found, the script stops and says
 // which one.
 // Usage: node automatisation/scene/apercu-theme.mjs <url> <outDir> [--facturo]
+//   THEME_FILE=./theme-collage-nuit.js to preview the second proposal instead of theme-horama.js.
 //   default course: the live site of Eugenia School; --facturo: the fake SaaS (total of the invoice list).
 import { spawn } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -33,7 +34,7 @@ if (!url || !outDir) {
   console.error("Usage : node apercu-theme.mjs <url> <dossier> [--facturo]");
   process.exit(2);
 }
-const source = `(() => {\n${read("./node_modules/rough-notation/lib/rough-notation.iife.js")};\n${wire(read("./couche-horama.js"))}("apercu-theme", "Horama vérifie le site", {}, RoughNotation.annotate, ${read("./theme-horama.js")}());\n})();`;
+const source = `(() => {\n${read("./node_modules/rough-notation/lib/rough-notation.iife.js")};\n${wire(read("./couche-horama.js"))}("apercu-theme", "Horama vérifie le site", {}, RoughNotation.annotate, ${read(process.env.THEME_FILE ?? "./theme-horama.js")}());\n})();`;
 
 // ---------- Chrome over CDP ----------
 const CHROME = process.env.CHROME ?? (process.platform === "win32" ? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" : process.platform === "darwin" ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" : "google-chrome");

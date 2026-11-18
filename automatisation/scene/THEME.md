@@ -21,6 +21,27 @@ Ce qui change par rapport au « Musée grec » :
 
 Contrastes du panneau : texte crème 16:1, texte second 7,3:1 au moins, étiquettes 7:1 au moins (WCAG AA).
 
+### Deuxième proposition : « Collage nuit »
+
+Le fichier `theme-collage-nuit.js` est une seconde piste, à comparer pendant le vote de l'équipe. Elle n'est pas branchée : le thème actif reste `theme-horama.js` (Stèle nuit). Elle s'inspire d'une présentation « minimaliste absurde » : collage, filets fins, petits carrés de repère. Elle reprend les violets de Horama :
+
+- **Cadres dans les cadres** :
+  - le cadre extérieur est vide, avec seulement ses filets et des carrés aux angles ;
+  - l'intérieur est plein, violet nuit `#140F24` avec du grain ;
+  - chaque trouvaille a son cadre, avec la capture décalée à l'intérieur et une légende en capitales grasses.
+- **Titres** : capitales fines et larges, avec un petit sur-titre très espacé au-dessus.
+- **Statue** : une colonne ionique gravée au trait, fissurée, dans son propre cadre, avec la légende « FIG. Ι · ΚΙΩΝ ».
+- **Inchangés** : le logo exact, en signature en bas à gauche, et la mascotte.
+- **Couleurs des états** : celles de Horama. Le trait de doute est violet `#6A5FD0` (5:1 sur blanc).
+
+Captures sur Eugenia et une vidéo du parcours de 38 s : `docs/da/collage-nuit/`. Aperçu :
+
+```
+THEME_FILE=./theme-collage-nuit.js node automatisation/scene/apercu-theme.mjs https://www.eugeniaschool.com <dossier>
+```
+
+Pour l'activer après le vote, il suffit de copier son contenu dans `theme-horama.js`. Le branchement ne change pas.
+
 Le tableau ci-dessous décrit le premier thème, par rapport au squelette de la couche. Les structures n'ont pas changé, seulement les couleurs et les polices.
 
 Les fichiers de la CDO sont à côté de la couche, sans la modifier :
