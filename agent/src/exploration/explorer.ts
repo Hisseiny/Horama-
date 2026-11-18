@@ -140,6 +140,15 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
   const consigne = pages.length ? construireExploration(pages, site, version, clickTarget) : null;
   const attempts = new Map<string, number>();
   const finalUrls = new Map<string, string | null>();
+  const resolveFinal = async (page: ExplorationPage, requestSignal?: AbortSignal) => {
+    if (!finalUrls.has(page.url)) {
+      try {
+        const response = await (deps.fetch ?? fetch)(page.url, { redirect: "follow", signal: requestSignal });
+        finalUrls.set(page.url, response.url && new URL(response.url).origin === new URL(page.url).origin ? response.url : null);
+      } catch { finalUrls.set(page.url, null); }
+    }
+    return finalUrls.get(page.url);
+  };
   const acquired = new Map<string, ReleveCapture>();
   const pending = new Map<string, { findings: Finding[]; http: number | null; holo: ExplorationPage["holo"] }>();
   const finding = (page: Pick<ExplorationPage, "ecran">, source: Finding["source"], findings: Finding[], fields: Partial<Finding>): Finding => ({
@@ -236,6 +245,13 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
                 if (address) {
                   let matched: ExplorationPage | undefined;
                   try { matched = pages.find(page => normalized(page.url) === normalized(address!) || (page.url_finale && normalized(page.url_finale) === normalized(address!))); } catch { /* Adresse hors liste. */ }
+                  if (!matched) {
+                    const requested = unfinished().find(page => page.ecran === args.ecran);
+                    if (requested) {
+                      const final = await resolveFinal(requested, signal);
+                      if (final && normalized(final) === normalized(address)) matched = requested;
+                    }
+                  }
                   if (!matched) {
                     log(`Adresse hors liste : ${address}`);
                     const next = unfinished()[0];
@@ -339,20 +355,11 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
         const close = () => client?.close();
         hookSignal?.addEventListener("abort", close, { once: true });
         page.cookies = "aucune";
-        const resolveFinal = async () => {
-          if (!finalUrls.has(page.url)) {
-            try {
-              const response = await (deps.fetch ?? fetch)(page.url, { redirect: "follow", signal: hookSignal });
-              finalUrls.set(page.url, response.url && new URL(response.url).origin === new URL(page.url).origin ? response.url : null);
-            } catch { finalUrls.set(page.url, null); }
-          }
-          return finalUrls.get(page.url);
-        };
         try {
           const connect = deps.connecter ?? connecterCdp;
           try { client = await connect(port, page.url_finale ?? finalUrls.get(page.url) ?? page.url); }
           catch {
-            const final = await resolveFinal();
+            const final = await resolveFinal(page, hookSignal);
             client = await connect(port, final ?? page.url);
           }
           page.cookies = await prepareCapture(client);
@@ -377,7 +384,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
           else if (actual.origin !== new URL(page.url).origin) reason = `La page redirige vers un autre site : ${capture.url_page}`;
         } catch { reason = "La page n'a pas pu être chargée."; }
         if (!accepted && !reason) {
-          const final = await resolveFinal();
+          const final = await resolveFinal(page, hookSignal);
           if (final && matches(final)) { accepted = true; page.url_finale = final; }
         }
         if (!accepted || reason) {

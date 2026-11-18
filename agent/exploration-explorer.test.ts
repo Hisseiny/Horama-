@@ -581,6 +581,28 @@ test("redirection de même origine acceptée après une seule résolution", asyn
   assert.match(responses.at(-1)!, /Parcours terminé/);
 });
 
+test("contrôle d'adresse : redirection même origine résolue avant le premier relevé", async () => {
+  let resolves = 0;
+  const { result, responses } = await run({ actual: url => url.includes("/faq") ? "https://example.org/help" : url, deps: {
+    urlCourante: async () => "https://example.org/help",
+    fetch: async (input, init) => {
+      if (init?.redirect === "follow") {
+        resolves++;
+        const response = new Response("Welcome");
+        Object.defineProperty(response, "url", { value: String(input).includes("/faq") ? "https://example.org/help" : "https://example.org/" });
+        return response;
+      }
+      const path = new URL(String(input)).pathname;
+      return new Response(path === "/robots.txt" ? "" : path === "/sitemap.xml" ? "<urlset><url><loc>https://example.org/faq</loc></url></urlset>" : "Welcome", { headers: { "Content-Type": path.endsWith(".xml") ? "application/xml" : "text/html" } });
+    },
+  } });
+  assert.match(responses[0], /n'est pas dans la liste/);
+  assert.equal(result.pages[1].etat, "visitee");
+  assert.equal(result.pages[1].url_finale, "https://example.org/help");
+  assert.match(responses[1], /Capture/);
+  assert.equal(resolves, 2);
+});
+
 for (const [actual, reason] of [
   ["https://other.example/", "La page redirige vers un autre site"],
   ["chrome-error://chromewebdata/", "La page n'a pas pu être chargée."],
