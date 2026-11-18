@@ -34,7 +34,7 @@ main { max-width: 1440px; margin: 0 auto; padding: 40px 32px 96px; }
 
 .entete { border-bottom: 1px solid var(--encre); }
 .entete-ligne { max-width: 1440px; margin: 0 auto; padding: 14px 32px; display: flex; align-items: baseline; gap: 24px; position: relative; }
-.marque { display: inline-flex; align-self: center; padding: 4px 8px; border-radius: 8px; background: #f2ecdd; line-height: 0; text-decoration: none; }
+.marque { display: inline-flex; align-self: center; padding: 4px 8px; border-radius: 8px; background: var(--plaque-logo); line-height: 0; text-decoration: none; }
 .marque img { display: block; height: 24px; width: auto; }
 .contexte { flex: 1; }
 .factice { font-size: 17px; color: var(--texte-second); }
@@ -69,7 +69,7 @@ main { max-width: 1440px; margin: 0 auto; padding: 40px 32px 96px; }
 
 /* ---------- Verdict blocks: a light card, the state on its left edge (one colour stands out, not a page of colour) ---------- */
 
-.bloc { padding: 20px 24px; border-radius: var(--rayon); color: var(--encre); --texte-second: var(--encre); background: var(--surface); border: 1px solid var(--filet-leger); box-shadow: 0 1px 2px rgb(42 33 99 / 0.06); }
+.bloc { padding: 20px 24px; border-radius: var(--rayon); color: var(--encre); --texte-second: var(--encre); background: var(--surface); border: 1px solid var(--filet-leger); box-shadow: 0 1px 2px var(--ombre); }
 .bloc-defaut { border-left: 8px solid var(--etat-defaut); background: color-mix(in srgb, var(--etat-defaut) 9%, var(--surface)); }
 .bloc-conforme { border-left: 8px solid var(--etat-conforme); }
 .bloc-a_trancher { border-left: 8px solid var(--etat-a-trancher); background: color-mix(in srgb, var(--etat-a-trancher) 18%, var(--surface)); }
@@ -97,7 +97,7 @@ td { padding: 14px; vertical-align: top; border-bottom: 1px solid var(--filet-le
 
 /* ---------- A capture of the tested software, or the frame that waits for it ---------- */
 
-.capture-cadre { position: relative; aspect-ratio: 1280 / 900; background: var(--surface); border: 1px solid var(--filet-leger); border-radius: var(--rayon); box-shadow: 0 2px 10px rgb(42 33 99 / 0.08); }
+.capture-cadre { position: relative; aspect-ratio: 1280 / 900; background: var(--surface); border: 1px solid var(--filet-leger); border-radius: var(--rayon); box-shadow: 0 2px 10px var(--ombre); }
 .capture-contenu { position: absolute; inset: 0; }
 .capture-cadre img { display: block; width: 100%; height: 100%; border-radius: inherit; }
 .capture-attendue { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 12px; text-align: center; font-size: 17px; color: var(--texte-second); }
@@ -109,3 +109,34 @@ td { padding: 14px; vertical-align: top; border-bottom: 1px solid var(--filet-le
 .zone-defaut { --couleur-zone: var(--etat-defaut); }
 .zone-a_trancher { --couleur-zone: var(--etat-a-trancher); }
 .zone-conforme { --couleur-zone: var(--etat-conforme); }
+
+/* ---------- Direction artistique grecque (CDO) : la même que la scène ---------- */
+
+/* Titres à empattements ; une arche fine au-dessus du titre de chaque page. */
+h1, h2 { font-family: var(--police-titre); font-weight: 400; letter-spacing: -0.01em; }
+h1 { font-size: 3.1rem; }
+main h1::before { content: ""; display: block; width: min(520px, 70%); height: 16px; margin-bottom: 12px; background: var(--arche) no-repeat left bottom / 100% 16px; opacity: 0.7; }
+.cas h2, .verdict-titre, .rapport-verdict { font-family: var(--police-titre); font-weight: 400; }
+
+/* ὅραμα, « ce qui est vu », à côté du logo. */
+.marque { position: relative; margin-right: 92px; }
+.marque::after { content: "ὅραμα"; position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%); line-height: 1; color: var(--texte-second); font: italic 400 18px var(--police-titre); white-space: nowrap; }
+
+/* La frise grecque au lieu des traits plats : sous l'en-tête et entre les grandes sections. */
+.entete { border-bottom: 0; padding-bottom: 10px; background: var(--meandre) repeat-x left bottom / 16px 8px; }
+html .ecran, html .test + .test, html .direct-tete, html .note-tete { border-bottom-color: transparent; background: var(--meandre) repeat-x left bottom / 16px 8px; }
+html .test + .test { border-top-color: transparent; background-position: left top; }
+html .lecture, html .rapport-resume, html .comparaison-phrase { border-block-color: transparent; background: var(--meandre) repeat-x left top / 16px 8px, var(--meandre) repeat-x left bottom / 16px 8px; }
+
+/* Étapes Α à Θ : la lettre dans une pièce. */
+.etapes .mono { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1px solid currentColor; font: 400 13px/1 var(--police-titre); }
+
+/* Le numéro d'une zone sur une capture : une pièce perlée, comme dans la scène. */
+.zone { border-radius: 8px; }
+.zone b { left: -6px; min-width: 30px; height: 30px; padding: 0; display: grid; place-items: center; border-radius: 50%; font: 400 16px/1 var(--police-titre); outline: 2px dotted var(--encre); outline-offset: 1px; }
+
+/* Le statut d'un cas, en pastille, précédé d'un fragment de frise. */
+.cas-statut::before { content: ""; display: inline-block; width: 32px; height: 8px; margin-right: 8px; background: var(--meandre) repeat-x left center / 16px 8px; vertical-align: 1px; }
+
+/* Les grandes phrases de résumé, comme les titres. */
+html .couverture-phrase, html .rapport-resume, html .direct-tete .mono { font-family: var(--police-titre); font-weight: 400; }

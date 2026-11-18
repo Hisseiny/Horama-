@@ -32,7 +32,7 @@ export function Steps({ notes, passage, comparaison }: { notes: string; passage?
         {steps.map(([label, href], i) => (
           <li key={label}>
             <Link href={href} aria-current={current === i + 1 ? "step" : undefined} data-etape={i + 1}>
-              <span className="mono">{i + 1}</span>
+              <span className="mono" aria-hidden="true">{"ΑΒΓΔΕΖΗΘ"[i]}</span>
               {label}
             </Link>
           </li>

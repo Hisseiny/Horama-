@@ -39,7 +39,7 @@ export function Screenshot({ image, legende, zones = [], recadrer = false }: { i
             className={`zone zone-${z.etat}`}
             style={{ left: `${(z.x / WIDTH) * 100}%`, top: `${(z.y / HEIGHT) * 100}%`, width: `${(z.largeur / WIDTH) * 100}%`, height: `${(z.hauteur / HEIGHT) * 100}%` }}
           >
-            <b>{z.numero}</b>
+            <b>{"ΑΒΓΔΕΖΗΘΙΚΛΜ"[z.numero - 1] ?? z.numero}</b>
           </span>
         ))}
         </div>
