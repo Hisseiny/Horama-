@@ -12,11 +12,11 @@ zones_ignorees: []
 
 Relevé le 18/11 sur le clone servi en local (commit `4e7dd32`), texte de la page tel qu'affiché.
 
-Fil d'Ariane « Accueil / Programmes / Bachelor AI Applied to Business », puis le surtitre « Bachelor · Bac+3 ».
+Fil d'Ariane de l'accueil à cette page, par Programmes, puis le surtitre « Bachelor · Bac+3 ».
 
 Le titre de la page, en grand : « Bachelor AI Applied to Business ».
 
-Le texte d'ouverture : « Le Bachelor AI Applied to Business est un Bac+3 en trois ans (180 ECTS), à Paris, hors Parcoursup, ouvert après une terminale générale ou technologique. » Il cite un stage de 6 semaines en 1re année et le « Titre RNCP 41143 (niveau 6) ».
+Le texte d'ouverture : « … est un Bac+3 en trois ans (180 ECTS), à Paris, hors Parcoursup, ouvert après une terminale générale ou technologique. » Il cite un stage de 6 semaines en 1re année et le « Titre RNCP 41143 (niveau 6) ».
 
 Les chiffres, chacun au-dessus de son libellé : « 1er » (« projet IA déployé en S1 »), « 3-5 » (« hackathons par an »), « 3 ans · 180 ECTS », « 100+ » (« entreprises partenaires »).
 
