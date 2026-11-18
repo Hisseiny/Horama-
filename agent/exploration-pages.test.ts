@@ -84,12 +84,12 @@ test("libère la réservation satisfaite par la page de départ pour une autre s
   }
 });
 
-test("réserve une place par section malgré un menu plein, ordre de découverte dans chaque section", async () => {
+test("réserve sur le footer, garde l'ordre sitemap dans chaque section", async () => {
   const menu = Array.from({ length: 8 }, (_, index) => `/menu-${index}`);
   const articles = ["/journal/z", "/journal/a", "/journal/m"];
   const events = ["/agenda/three", "/agenda/one", "/agenda/two"];
   const routes: Record<string, Reply> = {
-    "/": `<nav>${link(...menu)}</nav>`,
+    "/": `<footer>${link(...menu)}</footer>`,
     "/sitemap.xml": sitemap(...articles, ...events),
     ...Object.fromEntries([...menu, ...articles, ...events].map((path) => [path, ""])),
   };
@@ -107,7 +107,7 @@ test("réserve une place par section malgré un menu plein, ordre de découverte
 test("réservation bornée par max, remplace une erreur par le candidat suivant", async () => {
   const paths = ["/news/z", "/news/a", "/news/b", "/events/z", "/events/a", "/events/b"];
   const routes: Record<string, Reply> = {
-    "/": `<nav>${link("/about", "/help")}</nav>`, "/about": "", "/help": "",
+    "/": `<footer>${link("/about", "/help")}</footer>`, "/about": "", "/help": "",
     "/sitemap.xml": sitemap(...paths),
     ...Object.fromEntries(paths.map((path) => [path, ""])),
     "/news/z": () => new Response("Erreur", { status: 503 }),
@@ -120,6 +120,26 @@ test("réservation bornée par max, remplace une erreur par le candidat suivant"
   assert.deepEqual((await discoverPages(origin, { ...tiny, max: 2 })).pages, [origin + "/", origin + "/news/a"]);
   const empty = fixture({ "/": "" });
   assert.deepEqual((await discoverPages(origin, { ...empty, max: 1 })).pages, [origin + "/"]);
+});
+
+test("protège le nav et réserve les places restantes sur footer et sitemap", async () => {
+  const paths = ["/news/z", "/news/a", "/news/b", "/events/z", "/events/a", "/events/b"];
+  for (const mode of ["normal", "full", "error", "empty"]) {
+    const setup = fixture({
+      "/": `<nav>${mode === "empty" ? "" : link("/about#top", "/help")}</nav><footer>${link("/legal", "/contact")}</footer>`,
+      "/sitemap.xml": sitemap("/about", "/help", "/map-only", ...paths),
+      ...Object.fromEntries(["/about", "/help", "/legal", "/contact", "/map-only", ...paths].map((path) => [path, ""])),
+      ...(mode === "error" ? { "/about": () => new Response("Erreur", { status: 503 }) } : {}),
+    });
+    const max = mode === "full" ? 3 : mode === "error" || mode === "empty" ? 4 : 5;
+    const result = await discoverPages(origin, { ...setup, max });
+    const expected = mode === "full" ? ["/", "/about", "/help"]
+      : mode === "error" ? ["/", "/help", "/news/z", "/events/z"]
+      : mode === "empty" ? ["/", "/legal", "/news/z", "/events/z"]
+      : ["/", "/about", "/help", "/news/z", "/events/z"];
+    assert.deepEqual(result.pages, expected.map((path) => origin + path));
+    assert.equal(result.errors.length, mode === "error" ? 1 : 0);
+  }
 });
 
 test("préfère les pages de la locale initiale, même aux liens de menu internationaux", async () => {

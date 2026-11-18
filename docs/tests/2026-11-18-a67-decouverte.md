@@ -474,3 +474,101 @@ Ces corrections ont suivi la mesure réseau Eugenia. Pour éviter une deuxième 
 ```
 
 La liste mesurée ci-dessus et le bilan **article absent, 5 références sur 7** restent donc inchangés sur ces réponses. Les trois constats sont regroupés dans un commit distinct de la réservation des sections (commit réservation : f68e449), avec une seule poussée à la fin du lot.
+
+## Décision finale : nav protégé, réservations sur le budget restant
+
+Ce passage remplace le bilan précédent de 5/7 pour la sélection courante. Pour #63 et #67, les liens HTML du `<nav>` de la page de départ ne peuvent plus être évincés par une réservation. Les réservations prennent les places restantes sur les liens footer, header hors nav, contenu ou sitemap seulement. Si le nav remplit le budget, aucune place supplémentaire n'est garantie aux sections. Les autres filtres, la préférence de locale et le plafond par section restent applicables : protéger le nav ne contourne ni robots, ni les erreurs HTTP, ni `sectionMax`.
+
+L'ordre prioritaire du nav est conservé. Pour une section découverte par sitemap, les candidats restent dans l'ordre XML du sitemap, sans tri lexical ni tri par date. Sur les deux réponses sitemap de ce passage, **94 entrées, aucun `lastmod`**, dont 38 articles de blog : le tri par `lastmod` n'aiderait donc pas. L'article demandé est le **11e du blog dans l'ordre XML**, sans rang chronologique mesurable.
+
+### Réservation de la section du départ
+
+Correctif séparé **cbbd9d6** : les réservations sont recalculées avant chaque sélection en excluant les sections déjà satisfaites. Une place occupée par la section de départ n'empêche donc plus une autre section d'être réservée après lecture du départ. Le test part de `/news/start`, utilise `max: 2`, deux sections répétitives et un lien footer : le résultat est `/news/start`, `/events/a`, ou `/events/b` si le premier événement répond 503. Avec un lien nav plutôt que footer, la nouvelle politique protégerait ce lien nav : c'est le compromis voulu, pas une garantie de deux sections sous `max: 2`.
+
+### Deux passages réels, successifs, sans rejeu ni nouvelle tentative
+
+Découverte seule par fetch, requêtes strictement séquentielles, sans navigateur et sans H. Les deux passages ont été effectués dans cet ordre :
+
+| Options | Retenues | Exclusions | Requêtes | Durée | Références | Article demandé | Erreurs |
+|---|---:|---:|---:|---:|---:|---|---:|
+| `{ max: 15 }` | 15 | 115 | 19 | 1,191 s | **7/7** | **Non** | 0 |
+| `{ max: 40, sectionMax: 12 }` | 40 | 151 | 44 | 2,158 s | **7/7** | **Oui, page 39/40** | 0 |
+
+Exclusions du premier passage : 32 `external`, 1 `file`, 81 `limit`, 1 `section-limit`. Second passage : 88 `external`, 1 `file`, 62 `limit`. Ces nombres ne mesurent pas les mêmes pages sources : les pages supplémentaires révèlent aussi d'autres liens. La détection d'une section dépend de `sectionMax` ; avec 12, certaines petites sections ne sont plus considérées répétitives.
+
+Les 15 pages suivantes sont retenues dans **les deux passages**, sous `https://www.eugeniaschool.com`, dans cet ordre :
+
+```text
+/
+/programme/bachelor-ia-business
+/notre-adn
+/entreprises-partenaires
+/processus-admission
+/evenements
+/tech-hub
+/certification-architecte-ia
+/carrieres
+/recruter-nos-etudiants
+/faq
+/presse
+/programme/master-ia-business-alternance
+/campus/paris
+/projets-entreprises
+```
+
+Le passage à 15 s'arrête là : **aucun article de blog retenu**, malgré le rétablissement des sept références. Le passage à 40 ajoute exactement les 25 pages suivantes, dans cet ordre :
+
+```text
+/financement
+/conseils-orientation
+/certification-concepteur-solutions-no-code
+/portfolio
+/candidature
+/programme/bachelor-ia-business-3eme-annee-alternance
+/approche-pedagogique
+/alternance
+/vie-etudiante
+/simulateur-trajectoire
+/entrepreneuriat
+/contact
+/brochure
+/blog/7-idees-de-business-a-lancer-pendant-ses-etudes
+/blog/agents-ia-tout-savoir-sur-ces-assistants-dintelligence-artificielle-et-leurs-applications-metiers
+/blog/algorithme-parcoursup-classement-2027
+/blog/chatgpt-vs-mistral-ai-deux-visions-de-lintelligence-artificielle
+/blog/choix-ecole-ia
+/blog/comment-lintelligence-artificielle-revolutionne-t-elle-lentrepreneuriat-dans-le-e-commerce-en-2025
+/blog/comment-trouver-premier-stage
+/blog/creer-agent-ia-sans-coder-tutoriel
+/blog/data-analyst-data-scientist-data-engineer-quelles-differences-et-quel-role-dans-le-cycle-de-la-donnee
+/blog/excel-vs-power-bi-vs-tableau-quel-outil-de-data-visualisation-choisir
+/blog/fin-de-parcoursup-ce-qui-change-premiere-terminale
+/evenements/apres-midi-portes-ouvertes
+```
+
+**Compromis mesuré :** 25 pages et 25 requêtes supplémentaires, environ 0,966 s supplémentaires pour la découverte seule ; l'article est alors le 11e article de blog retenu. `{ max: 40, sectionMax: 12 }` est donc une configuration de démonstration effectivement mesurée, et non une promesse de trouver les deux défauts. Ni le lien 404 ni le chapô tronqué n'ont été contrôlés visuellement ici. Aucun passage supplémentaire sur les autres sites. Réponses, résultats et script conservés hors dépôt dans `/home/ubuntu/a67-backup/nav-{responses,real}-{15,40}.json` et `nav-real-runs.mjs`.
+
+### Vérifications finales
+
+Les tests de réservation antérieurs utilisent maintenant un footer pour tester l'éviction autorisée. Un nouveau test vérifie la protection du nav avec budget restant, budget rempli, nav vide et erreur 503 sur un lien nav ; l'ordre sitemap non alphabétique et le remplacement d'un candidat de section en erreur restent couverts.
+
+```text
+$ node --test agent/exploration-pages.test.ts
+# tests 33
+# pass 33
+# fail 0
+
+$ git merge origin/dev
+Merge made by the 'ort' strategy.
+$ git merge origin/a-57-pages-sitemaps-correctifs
+Already up to date.
+
+$ pnpm -r --if-present run check
+agent check: # tests 167
+agent check: # pass 167
+agent check: # fail 0
+agent check: # skipped 0
+agent check: Done
+```
+
+Vérification complète terminée avec code 0 après les fusions. Aucun domaine du banc dans `agent/src` (recherche insensible à la casse : aucune ligne, code 1 normal sans correspondance). Les modifications de contrôles, conteneur, scène et autres documents apportées par la fusion de `origin/dev` ne sont pas des éditions de ce lot. Aucun contrat ni format d'exploration modifié.

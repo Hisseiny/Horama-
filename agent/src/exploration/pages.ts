@@ -181,6 +181,7 @@ export async function discoverPages(url: string, { max = 15, sectionMax = 2, fet
   enqueue(start.href, root);
   const initial = queue[0];
   const homepage = initial ? await read(normalize(start.href, root)!.href, "page") : undefined;
+  const navigationLinks = new Set<string>();
   function links(document: { body: string; url: string }, priorityOnly = false) {
     const html = document.body.replace(/<!--[\s\S]*?-->|<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, "");
     const baseTag = html.match(/<base\b[^>]*>/i)?.[0];
@@ -205,6 +206,16 @@ export async function discoverPages(url: string, { max = 15, sectionMax = 2, fet
       if (parsed) {
         parsed.pathname = parsed.pathname.replace(/\/+$/, "") || "/";
         formActions.add(parsed.href); exclude(parsed.href, "form");
+      }
+    }
+    if (priorityOnly) {
+      for (const navigation of html.matchAll(/<nav\b[^>]*>[\s\S]*?<\/nav\s*>/gi)) {
+        for (const anchor of navigation[0].matchAll(/<(?:a|area)\b[^>]*>/gi)) {
+          if (/\sdownload(?:\s|=|>)/i.test(anchor[0])) continue;
+          const target = attribute(anchor[0], "href");
+          const candidate = target && pageAddress(target, base);
+          if (candidate) navigationLinks.add(candidate);
+        }
       }
     }
     for (const match of source.matchAll(/<(a|area)\b[^>]*>/gi)) {
@@ -270,7 +281,7 @@ export async function discoverPages(url: string, { max = 15, sectionMax = 2, fet
         const section = sectionOf(queue[position]);
         if (section && reserved.has(section) && !sectionCounts.has(section) && !pending.has(section)) pending.set(section, position);
       }
-      if (max - result.pages.length <= pending.size) {
+      if (max - result.pages.length <= pending.size && !navigationLinks.has(queue[index])) {
         const position = pending.values().next().value;
         if (position !== undefined && position > index) queue.splice(index, 0, queue.splice(position, 1)[0]);
       }
