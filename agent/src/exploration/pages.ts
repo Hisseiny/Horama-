@@ -22,9 +22,30 @@ export async function renderPage(port: number, url: string, allowed: (url: strin
   let tab: { id: string } | undefined, client: ExplorationCdp | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    const response = await fetch(`${endpoint}/json/new?${encodeURIComponent("about:blank#horama-discovery")}`, { method: "PUT", signal: AbortSignal.timeout(2000) });
-    if (!response.ok) throw new Error("Création de l'onglet CDP impossible.");
-    tab = await response.json() as { id: string };
+    const response = await fetch(`${endpoint}/json/version`, { signal: AbortSignal.timeout(2000) });
+    if (!response.ok) throw new Error("Version du navigateur CDP inaccessible.");
+    const version = await response.json() as { webSocketDebuggerUrl: string };
+    const socket = new WebSocket(version.webSocketDebuggerUrl);
+    try {
+      tab = await new Promise<{ id: string }>((resolve, reject) => {
+        timer = setTimeout(() => reject(new Error("Création de l'onglet CDP hors délai (2 s).")), 2000);
+        socket.addEventListener("open", () => {
+          socket.send(JSON.stringify({ id: 1, method: "Target.createTarget", params: { url: "about:blank#horama-discovery", background: true } }));
+        }, { once: true });
+        socket.addEventListener("message", event => {
+          const message = JSON.parse(String(event.data));
+          if (message.id !== 1) return;
+          if (message.error) reject(new Error(message.error.message));
+          else if (!message.result?.targetId) reject(new Error("Création de l'onglet CDP impossible."));
+          else resolve({ id: message.result.targetId });
+        });
+        socket.addEventListener("error", () => reject(new Error("Connexion au navigateur CDP impossible.")), { once: true });
+        socket.addEventListener("close", () => reject(new Error("Connexion au navigateur CDP fermée.")), { once: true });
+      });
+    } finally {
+      clearTimeout(timer);
+      socket.close();
+    }
     return await Promise.race([
       (async () => {
         client = await connecterCdp(port, "about:blank#horama-discovery");
