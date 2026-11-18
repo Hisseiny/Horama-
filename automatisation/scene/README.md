@@ -61,6 +61,7 @@ Options :
 | `--avec-base` | sans l'agent : le passage scripté s'écrit dans Supabase |
 | `--rythme <s>` | pause fixe entre deux gestes du script ; sans elle, entre 2 et 4 s au hasard |
 | `--sans-presentation` | pour l'intégration continue : même parcours, même coureur, mêmes relevés, verdicts et décisions. Pendant le parcours rien ne change sauf l'expression gardée 1,2 s et l'attente de 800 ms d'un écran sans trait, retirées ; à la fin, le panneau s'affiche sans temps de lecture, aucune bulle (« Je range tout ça. »), `--choix` répond dès que la question est posée, pas d'attente de 900 ms pour regarder. Restent : la pause entre deux gestes du script (`--rythme`), le clic retenu, le dessin des traits (les questions de la fin en ont besoin), les questions, l'écran de fin. `sans_presentation` dans `passage.json`. Mesure : `docs/tests/2026-11-17-rythme-ci.md` |
+| `--vitrine` | la scène agrandie en plein écran dans un Chrome séparé, comme en mode grand public (`vitrine.mjs`, voir plus bas) ; la page de la scène reste à 1280 × 900 ; si la vitrine ne démarre pas, la scène continue ; mesures sous `vitrine` dans `passage.json`. `--profil-vitrine`, `--vitrine-debug` comme pour `exploration.mjs` |
 | `--clic-direct` | le clic n'est pas retenu : la page réagit tout de suite, le curseur suit |
 | `--choix bug,voulu,…` | répond tout seul aux questions de la fin, dans l'ordre (essais, captures) ; une question sans réponse attend un vrai clic |
 | `--sans-fin` | s'arrête au bilan : ni questions, ni écriture |
