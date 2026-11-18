@@ -639,3 +639,53 @@ agent check: Done
 ```
 
 Vérification complète : code 0. Grep des cinq domaines dans `agent/src` : aucune ligne, code 1 normal sans correspondance. Seuls `pages.ts`, son test et ce rapport sont édités.
+
+## Complément : racine en deuxième après un départ profond
+
+Lorsque le départ normalisé n'est pas la racine, celle-ci est ajoutée immédiatement après lui, avant les liens nav. Le départ et la racine ne sont pas déplacés par la préférence de locale ou les réservations. La racine compte dans `max` et passe par les mêmes contrôles robots, HTML et erreurs réseau que les autres pages. Avec `max: 1`, seul le départ est retenu ; si la racine est interdite ou illisible, elle n'est pas ajoutée artificiellement et la découverte continue. Le départ reste hors compteur de section et ne satisfait toujours pas sa réservation.
+
+Les tests hors ligne vérifient `pages[1] === root`, y compris pour un départ sous `/en/`, avant le nav ; ils couvrent également une racine interdite par robots et une racine répondant 503. Le test des réservations utilise désormais quatre places pour le départ, la racine et les deux sections. Les tests de locale sont adaptés à cette place explicitement prioritaire hors locale.
+
+Un seul nouveau passage réel, découverte uniquement, requêtes séquentielles, depuis `https://www.eugeniaschool.com/blog/fin-de-parcoursup-ce-qui-change-premiere-terminale`, avec `{ max: 15 }` :
+
+| Retenues | Exclusions | Requêtes | Durée | Références | Erreurs |
+|---:|---:|---:|---:|---:|---:|
+| 15 | 125 | 19 | 1,046 s | **7/7** | 0 |
+
+`pages[0]` est l'article demandé et `pages[1]` est `https://www.eugeniaschool.com/`. La racine remplace `/projets-entreprises` dans les quinze places, par rapport au passage profond précédent. Liste complète, sous `https://www.eugeniaschool.com` :
+
+```text
+/blog/fin-de-parcoursup-ce-qui-change-premiere-terminale
+/
+/programme/bachelor-ia-business
+/notre-adn
+/entreprises-partenaires
+/processus-admission
+/evenements
+/tech-hub
+/certification-architecte-ia
+/carrieres
+/recruter-nos-etudiants
+/faq
+/presse
+/programme/master-ia-business-alternance
+/campus/paris
+```
+
+L'article et les sept références sont donc présents simultanément avec le budget 15 pour ce départ. Aucun autre article n'est retenu. Aucun navigateur ni H : ni le lien 404 ni le chapô tronqué ne sont vérifiés visuellement par cette découverte. Réponses et résultats hors dépôt : `/home/ubuntu/a67-backup/root-responses-15.json`, `root-real-15.json`, script `root-real-run.mjs`.
+
+```text
+$ node --test agent/exploration-pages.test.ts
+# tests 34
+# pass 34
+# fail 0
+
+$ pnpm -r --if-present run check
+agent check: # tests 168
+agent check: # pass 168
+agent check: # fail 0
+agent check: # skipped 0
+agent check: Done
+```
+
+Vérification complète : code 0. Grep des cinq domaines dans `agent/src` : aucune ligne, code 1 normal sans correspondance. Seuls les trois fichiers autorisés sont modifiés.

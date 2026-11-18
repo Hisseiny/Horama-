@@ -180,6 +180,7 @@ export async function discoverPages(url: string, { max = 15, sectionMax = 2, fet
   }
   enqueue(start.href, root);
   const initial = queue[0];
+  if (initial && initial !== root) enqueue(root, root);
   const homepage = initial ? await read(normalize(start.href, root)!.href, "page") : undefined;
   const navigationLinks = new Set<string>();
   function links(document: { body: string; url: string }, priorityOnly = false) {
@@ -266,11 +267,12 @@ export async function discoverPages(url: string, { max = 15, sectionMax = 2, fet
   const preferredSections = queue.filter(sameLocale);
   let attempts = 0;
   for (let index = 0; index < queue.length; index++) {
-    if (index > 0 && locale && result.pages.length < max && attempts < max * 3 && !sameLocale(queue[index])) {
+    const pinned = queue[index] === initial || queue[index] === root;
+    if (!pinned && locale && result.pages.length < max && attempts < max * 3 && !sameLocale(queue[index])) {
       const offset = queue.slice(index + 1).findIndex(sameLocale);
       if (offset >= 0) queue.splice(index, 0, queue.splice(index + 1 + offset, 1)[0]);
     }
-    if (index > 0 && result.pages.length < max && attempts < max * 3) {
+    if (!pinned && result.pages.length < max && attempts < max * 3) {
       const reserved = new Set<string>();
       for (const address of preferredSections) {
         const section = sectionOf(address);

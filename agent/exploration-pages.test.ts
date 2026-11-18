@@ -35,11 +35,12 @@ test("la locale et un préfixe majoritaire ne sont pas des sections répétitive
   for (const prefix of ["/fr", "/products"]) {
     const paths = ["/about", "/services", "/team", "/help"].map((path) => prefix + path);
     const setup = fixture({
+      "/": "",
       [prefix + "/"]: `<nav>${link(...paths)}</nav>`,
       ...Object.fromEntries(paths.map((path) => [path, ""])),
     });
     const result = await discoverPages(origin + prefix + "/", setup);
-    assert.deepEqual(result.pages, [prefix, ...paths].map((path) => origin + path));
+    assert.deepEqual(result.pages, [prefix, "/", ...paths].map((path) => origin + path));
     assert.ok(!result.excluded.some((item) => item.reason === "section-limit"));
   }
 });
@@ -73,20 +74,40 @@ test("garde le départ profond en premier sans consommer le plafond ni la réser
   const paths = ["/news/a", "/news/b", "/news/c", "/events/a", "/events/b", "/events/c", "/other"];
   for (const failed of [false, true]) {
     const setup = fixture({
+      "/": "",
       "/news/start": `<footer>${link("/menu")}</footer>`, "/menu": "",
       "/sitemap.xml": sitemap(...paths),
       ...Object.fromEntries(paths.map((path) => [path, ""])),
       ...(failed ? { "/events/a": () => new Response("Erreur", { status: 503 }) } : {}),
     });
-    const result = await discoverPages(origin + "/news/start?utm_source=test#top", { ...setup, max: 3, sectionMax: 1 });
+    const result = await discoverPages(origin + "/news/start?utm_source=test#top", { ...setup, max: 4, sectionMax: 1 });
     assert.equal(result.pages[0], origin + "/news/start");
-    assert.deepEqual(result.pages, ["/news/start", "/news/a", failed ? "/events/b" : "/events/a"].map((path) => origin + path));
+    assert.equal(result.pages[1], origin + "/");
+    assert.deepEqual(result.pages, ["/news/start", "/", "/news/a", failed ? "/events/b" : "/events/a"].map((path) => origin + path));
     assert.equal(result.errors.length, failed ? 1 : 0);
     assert.equal(result.pages.filter((url) => url.includes("/news/")).length, 2);
     assert.ok(!setup.calls.includes(origin + "/news/b"));
   }
   const alone = fixture({ "/news/start": "", "/sitemap.xml": sitemap(...paths), ...Object.fromEntries(paths.map((path) => [path, ""])) });
   assert.deepEqual((await discoverPages(origin + "/news/start", { ...alone, max: 1, sectionMax: 1 })).pages, [origin + "/news/start"]);
+});
+
+test("racine en deuxième avant le nav et hors locale, sauf robots ou erreur HTTP", async () => {
+  for (const mode of ["normal", "blocked", "error"]) {
+    const setup = fixture({
+      "/robots.txt": mode === "blocked" ? "User-agent: *\nDisallow: /$" : "",
+      "/en/article": `<nav>${link("/en/about")}</nav>`, "/en/about": "",
+      "/": mode === "error" ? () => new Response("Erreur", { status: 503 }) : "",
+    });
+    const result = await discoverPages(origin + "/en/article", { ...setup, max: 3 });
+    assert.equal(result.pages[0], origin + "/en/article");
+    assert.deepEqual(result.pages, (mode === "normal" ? ["/en/article", "/", "/en/about"] : ["/en/article", "/en/about"]).map((path) => origin + path));
+    assert.equal(result.errors.length, mode === "error" ? 1 : 0);
+    if (mode === "blocked") {
+      assert.ok(!setup.calls.includes(origin + "/"));
+      assert.ok(result.excluded.some((item) => item.url === origin + "/" && item.reason === "robots"));
+    }
+  }
 });
 
 test("réserve sur le footer, garde l'ordre sitemap dans chaque section", async () => {
@@ -152,22 +173,23 @@ test("préfère les pages de la locale initiale, même aux liens de menu interna
     const start = locale === "/fr/fr" ? locale + ".html" : locale + "/";
     const paths = ["/other/en/page", locale + "/services", locale + "/products", locale + "ance/other"];
     const setup = fixture({
+      "/": "",
       [start]: `<nav>${link(paths[0], paths[1])}</nav>`,
       "/sitemap.xml": sitemap(paths[3], paths[2]),
       [paths[1]]: link(locale + "/details"),
       [locale + "/details"]: "", [paths[2]]: "", [paths[0]]: "", [paths[3]]: "",
     });
-    const result = await discoverPages(origin + start, { ...setup, max: 4, sectionMax: 10 });
-    assert.deepEqual(result.pages, [start.replace(/\/$/, ""), paths[1], paths[2], locale + "/details"].map((path) => origin + path));
+    const result = await discoverPages(origin + start, { ...setup, max: 5, sectionMax: 10 });
+    assert.deepEqual(result.pages, [start.replace(/\/$/, ""), "/", paths[1], paths[2], locale + "/details"].map((path) => origin + path));
     assert.ok(!setup.calls.includes(origin + paths[0]));
     assert.deepEqual(result.errors, []);
   }
 });
 
 test("locale sans autre page disponible : conserve le repli hors locale", async () => {
-  const setup = fixture({ "/en/": link("/shared"), "/shared": "" });
+  const setup = fixture({ "/": "", "/en/": link("/shared"), "/shared": "" });
   const result = await discoverPages(origin + "/en/", setup);
-  assert.deepEqual(result.pages, [origin + "/en", origin + "/shared"]);
+  assert.deepEqual(result.pages, [origin + "/en", origin + "/", origin + "/shared"]);
   assert.deepEqual(result.errors, []);
 });
 
