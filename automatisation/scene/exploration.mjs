@@ -6,7 +6,7 @@
 // (recapitulatif.mjs): every defect and doubt with its capture ringed, then « bug » or « voulu », written as a decision
 // in the memory of the site. Nothing here is particular to a site.
 //
-// Usage: node [--env-file=<.env.local>] automatisation/scene/exploration.mjs --url <adresse> [--max 15] [--pages-cliquees 4] [--sans-agent]
+// Usage: node [--env-file=<.env.local>] automatisation/scene/exploration.mjs --url <adresse> [--site <dossier du vault>] [--max 15] [--pages-cliquees 4] [--sans-agent]
 //          [--sans-holo] [--sans-base | --avec-base] [--choix bug,voulu,...] [--sans-fin] [--par <nom>] [--rythme <s>]
 //          [--vault <dir>] [--sortie <dir>] [--temoins <dir>] [--port 9333] [--profil <dir>] [--fermer-chrome]
 // Env: HAI_API_KEY (H and Holo), SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, CHROME_BIN, HOLO_BIN.
@@ -31,6 +31,9 @@ const HERE = fileURLToPath(new URL(".", import.meta.url));
 const SANS_AGENT = flag("sans-agent");
 const URL_SITE = option("url", "");
 const MAX = Number(option("max", 15));
+// The folder of the site in the vault (PR #157): stable between previews of one repository, whose host names differ.
+// Without it, the explorer names the site after the host of --url.
+const SITE = option("site", "");
 // How many pages after the page of departure the H agent reaches by a real click on a visible link (issue #91, PR #93).
 const CLICKED = Number(option("pages-cliquees", 4));
 const VAULT = resolve(option("vault", join(HERE, "../../vault-horama")));
@@ -51,6 +54,7 @@ try {
 } catch {
   missing.push("--url attend l'adresse HTTP(S) d'un site.");
 }
+if (flag("site") && !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(SITE)) missing.push("--site attend un identifiant de dossier (lettres, chiffres, tirets, soulignés).");
 if (!Number.isSafeInteger(MAX) || MAX < 1) missing.push("--max attend un entier positif.");
 if (!Number.isSafeInteger(CLICKED) || CLICKED < 0) missing.push("--pages-cliquees attend un entier positif ou nul.");
 if (CHOICES.some((choix) => choix !== "bug" && choix !== "voulu")) missing.push("--choix attend une liste de « bug » et de « voulu », séparés par des virgules.");
@@ -241,7 +245,7 @@ process.on("SIGINT", () => {
 const errors = [];
 let report = null;
 try {
-  report = await explorer({ url: URL_SITE, max: MAX, pagesCliquees: CLICKED, sortie: OUT, vault: VAULT, port: PORT }, { base, runtime, session, signal: arret.signal, log: say, ...(flag("sans-holo") ? { holo: noHolo } : {}) });
+  report = await explorer({ url: URL_SITE, max: MAX, pagesCliquees: CLICKED, sortie: OUT, vault: VAULT, port: PORT, ...(SITE ? { site: SITE } : {}) }, { base, runtime, session, signal: arret.signal, log: say, ...(flag("sans-holo") ? { holo: noHolo } : {}) });
 } catch (error) {
   errors.push(error.message);
   say(`Échec : ${error.message}`);

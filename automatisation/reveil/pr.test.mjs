@@ -71,7 +71,7 @@ test("une PR jouée : impact, tests du vault sur la prévisualisation, puis expl
   assert.deepEqual(calls, [
     ["automatisation/scene/parcours.mjs", "--impact", join(folder, "impact.json"), "--base-url", "https://p.vercel.app", "--logiciel", "site-essai", "--vault", vault,
       "--pr", "https://github.com/o/d/pull/7", "--sortie", join(folder, "scene"), "--vitrine"],
-    ["automatisation/scene/exploration.mjs", "--url", "https://p.vercel.app", "--max", "8", "--pages-cliquees", "4", "--vault", vault, "--sortie", join(folder, "exploration"),
+    ["automatisation/scene/exploration.mjs", "--url", "https://p.vercel.app", "--max", "8", "--pages-cliquees", "4", "--vault", vault, "--site", "site-essai", "--sortie", join(folder, "exploration"),
       "--pr", "https://github.com/o/d/pull/7", "--vitrine"],
   ]);
   // A PR that touches no screen of the vault: the exploration of the site still runs.
