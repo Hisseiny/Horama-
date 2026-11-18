@@ -76,6 +76,10 @@ if (area.largeur !== WIDTH || area.hauteur !== HEIGHT || area.densite !== 1) {
   process.exit(2);
 }
 const mascot = (command, ...args) => layer(page, command, ...args);
+// The page of departure at once, the mascot reading: what the audience sees while the pages are found and the H agent
+// starts (about 20 s measured on 18/11, 11 h 45), instead of a blank page.
+await navigate(page, URL_SITE);
+await mascot("etat", "verification").catch(() => {});
 let witnesses = 0;
 let capturing = false;
 async function witness(label) {
@@ -93,7 +97,7 @@ const runtime = {
     return { png: new Uint8Array(shot.png), texte: shot.texte_page, url_page: shot.url_page, largeur: shot.largeur, hauteur: shot.hauteur, defilement: shot.defilement, phrase: "Capture enregistrée. Continue le parcours." };
   },
   async navigateur() {
-    await navigate(page, "about:blank");
+    // The page stays where it is (the page of departure at first): the agent opens it again by its go_to.
     const channel = randomUUID();
     const bridge = startBridge({ holo, port: PORT, channel, logFile: join(OUT, "pont-holo.log") });
     bridges.add(bridge);

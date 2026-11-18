@@ -37,3 +37,25 @@ bash automatisation/demo/passage-reel.sh
 - Le curseur de l'agent reste immobile au centre tout le passage : H n'ouvre les pages que par `go_to`, sans clic (scène).
 - « section-limit » s'affiche tel quel dans les raisons d'exclusion (moteur).
 - L'identifiant du passage est à l'heure UTC (10h45), le dossier à l'heure de Paris (11h45) (moteur).
+
+## Corrections de la scène après la répétition (même jour, essai scripté, 0 $)
+
+Diagnostic, tiré des journaux de ce passage : l'agent H n'a fait **aucun clic, aucun défilement, aucune frappe**. Le pont a reçu 15 `goto`, 16 `observation_bundle`, 15 `current_url` et 1 `destroy`. L'écart entre deux `goto` va de 9 à 22 s (médiane 11 s). Les défilements visibles venaient du code, et seulement sur l'article :
+- le saut aller-retour de `captureZone` jusqu'au lien, puis retour ;
+- puis le défilement doux de la couche pour tracer le cercle.
+
+Au démarrage, la page restait blanche environ 21 s :
+- 2 s pour trouver les pages ;
+- 1 s pour démarrer le pont ;
+- 10,1 s jusqu'à la première observation de H ;
+- 7,3 s jusqu'à son premier `goto`.
+
+Corrections dans la scène :
+1. La page de départ est ouverte dès le lancement, la mascotte en lecture ; elle n'est plus remplacée par une page blanche avant la session H.
+2. `captureZone` : un seul défilement doux jusqu'au défaut, capture à cet endroit, couche masquée pour la capture seulement, puis la page reste là et le cercle s'y trace. Plus d'aller-retour.
+
+Le test `capture-zone.test.mjs` passe. Il échoue bien si le défilement redevient instantané. L'essai scripté depuis l'article (`--sans-agent --sans-holo --rythme 3`) a rendu le code 0 en 161 s, avec l'article visité en premier, le 404 entouré à l'endroit où la page s'est arrêtée et une vignette centrée (zone y 422 à 478).
+
+![](captures/2026-11-18-repetition-reelle/apres-correction-trait-defaut.jpg)
+
+La partie « computer use » (des défilements et des clics faits par H) relève de la consigne du moteur : issue #91 (Ali).
