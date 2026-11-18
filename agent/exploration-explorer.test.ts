@@ -436,7 +436,7 @@ test("site anglais sans sitemap et pages HTTP 404/500 : visite complète", async
   }
 });
 
-async function budgetRun(limits: number[], { failCreation = false, rejectFinal = false, muted = false, abort = false, failClose = false } = {}) {
+async function budgetRun(limits: number[], { failCreation = false, rejectFinal = false, muted = false, abort = false, failClose = false, unconfirmedClose = false } = {}) {
   const plans: string[][] = [], budgets: number[] = [], closed: string[] = [];
   const controller = new AbortController();
   let address = "https://example.org/", launches = 0;
@@ -458,7 +458,8 @@ async function budgetRun(limits: number[], { failCreation = false, rejectFinal =
       budgets.push(input.maxSteps!);
       if (failCreation && index === 1) throw new Error("Création impossible");
       await input.onCreated(id);
-      return { id, stop: async () => { closed.push(id); if (failClose) throw new Error("Fermeture impossible"); }, fin: (async () => {
+      return { id, confirmStopped: async () => { if (unconfirmedClose) throw new Error("Fermeture non confirmée"); },
+        stop: async () => { closed.push(id); if (failClose) throw new Error("Fermeture impossible"); }, fin: (async () => {
         const course = input.consigne.course.slice(0, limits[index] ?? 0);
         for (const step of course) {
           address = step.address;
@@ -551,8 +552,10 @@ test("annulation : aucune relance", async () => {
 });
 
 test("fermeture non confirmée : aucune relance susceptible de consommer une deuxième place", async () => {
-  const { result, launches } = await budgetRun([13], { failClose: true });
-  assert.equal(launches, 1);
-  assert.equal(result.etat, "interrompu");
-  assert.ok(result.pages.slice(13).every(page => page.etat === "non_visitee" && /fermeture/.test(page.raison!)));
+  for (const options of [{ failClose: true }, { unconfirmedClose: true }]) {
+    const { result, launches } = await budgetRun([13], options);
+    assert.equal(launches, 1);
+    assert.equal(result.etat, "interrompu");
+    assert.ok(result.pages.slice(13).every(page => page.etat === "non_visitee" && /fermeture/.test(page.raison!)));
+  }
 });

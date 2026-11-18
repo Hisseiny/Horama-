@@ -224,7 +224,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
             } catch {
               result = { id: running?.id ?? "", muted: false, cout_usd: null, etapes: 0, erreur: "La session a été interrompue." };
             } finally {
-              try { await running?.stop?.(); }
+              try { await running?.stop?.(); await running?.confirmStopped?.(); }
               catch { closeFailed = true; agent.raison = "La fermeture de la session n'a pas pu être confirmée."; }
             }
             totalCost = totalCost === null || result.cout_usd === null ? null : totalCost + result.cout_usd;

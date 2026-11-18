@@ -8,6 +8,22 @@ const consigne: Consigne = { tests: [], dropped: [], course: [], start: "http://
 const json = (value: unknown) => new Response(JSON.stringify(value));
 const defaults = (): SessionInput => ({ consigne, cle: "dev", onCreated: async () => {}, onStep: async () => {}, onTool: async () => "Continue." });
 
+test("suppression refusée : arrêt compatible mais confirmation de fermeture en échec", async () => {
+  const session = creerSessionH({
+    key: "test-key", navigateur: async () => ({ channel: "fake", stop() {} }), signaler() {},
+    requete: async (url, init) => {
+      if (String(url).endsWith("/sessions")) return json({ id: "unclosed", status: { status: "running" } });
+      if (String(url).endsWith("/share")) return json({ share_url: "/share/unclosed" });
+      if (init?.method === "DELETE") return new Response("", { status: 503 });
+      throw new Error("Connexion interrompue");
+    },
+  });
+  const running = await session(defaults());
+  await running.fin;
+  await running.stop?.();
+  await assert.rejects(async () => { await running.confirmStopped?.(); }, /arrêt H non confirmé/);
+});
+
 test("budget transmis à H, valeur par défaut inchangée et queue désactivée", async () => {
   for (const maxSteps of [undefined, 70, 18]) {
     let observed = 0;

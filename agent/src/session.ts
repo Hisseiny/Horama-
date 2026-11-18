@@ -26,7 +26,7 @@ export interface SessionInput {
   onStep(etape: EtapeSession): Promise<void>;
   onTool(name: string, args: Record<string, unknown>): Promise<string>;
 }
-export interface SessionEnCours { id: string; fin: Promise<ResultatSession>; stop?(): Promise<void> }
+export interface SessionEnCours { id: string; fin: Promise<ResultatSession>; stop?(): Promise<void>; confirmStopped?(): Promise<void> }
 export type Session = (input: SessionInput) => Promise<SessionEnCours>;
 export interface NavigateurSession {
   channel: string;
@@ -111,11 +111,15 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
     const id: string = session.id;
     let status: string = session.status?.status ?? "";
     let stopping: Promise<void> | undefined;
+    let stopFailure: Error | undefined;
     const stop = () => stopping ??= (async () => {
       const closed = closeBrowser(browser);
       if (!TERMINAL.includes(status)) {
         try { await h("DELETE", `/sessions/${id}`, undefined, true); }
-        catch { signaler(`Session ${id} : arrêt H non confirmé ; session abandonnée.`); }
+        catch {
+          stopFailure = new Error(`Session ${id} : arrêt H non confirmé ; session abandonnée.`);
+          signaler(stopFailure.message);
+        }
       }
       await closed;
     })();
@@ -199,6 +203,6 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
       }
       return { id, muted, cout_usd: metrics?.total_cost ?? null, etapes, ...(erreur ? { erreur } : {}), ...(replay_url ? { replay_url } : {}) };
     })();
-    return { id, fin, stop };
+    return { id, fin, stop, async confirmStopped() { await stop(); if (stopFailure) throw stopFailure; } };
   };
 }
