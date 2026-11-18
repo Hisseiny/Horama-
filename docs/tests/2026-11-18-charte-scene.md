@@ -59,3 +59,10 @@ Couloir Nathan. Nathan a choisi la charte « L'envoyé » (`docs/da/charte-graph
 - Le mode dev (`parcours.mjs`) de bout en bout : son récapitulatif reprend les mêmes commandes de la couche, mais la répétition écrit dans la base partagée et n'a pas été lancée ici.
 - Un site dont la politique de sécurité refuse Google Fonts : le récapitulatif s'affiche alors avec les polices de repli.
 - Aucun passage avec H.
+
+## Deux détails corrigés après relecture (coordination)
+
+- **La capture d'une question n'est plus coupée au milieu d'un mot.** Elle montre toute la largeur de la page, la hauteur centrée sur la zone. Avant : un cadrage au plus près de la zone, qui coupait « Sandales » et « atelier » à gauche.
+- **Le compte des pages tombe juste.** La ligne des pages compte aussi la page de départ : « 1 page de départ, 1 page atteinte par un clic de l'agent, 1 ouverte par son adresse », pour 3 pages visitées. Sur l'exploration scriptée : « 1 page de départ, 0 page atteinte par un clic de l'agent, 1 ouverte par son adresse », pour 2 pages visitées sur 2 (arrivées `depart` et `adresse` dans `exploration.json`).
+
+Les captures `03` à `06` et celle de l'exploration scriptée sont reprises avec ces corrections.

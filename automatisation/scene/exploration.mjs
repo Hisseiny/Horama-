@@ -282,6 +282,7 @@ if (report?.format === "horama-exploration-1") {
   const arrivals = report.pages.filter((entry) => ARRIVAL[entry.arrivee]);
   const byClick = arrivals.filter((entry) => entry.arrivee === "clic").length;
   const byAddress = arrivals.filter((entry) => entry.arrivee === "adresse").length;
+  const fromStart = arrivals.filter((entry) => entry.arrivee === "depart").length;
   const proof = (constat) => (constat.source === "controle"
     ? `Prouvé par le code. Mesuré : ${constat.preuve.mesure}. Attendu : ${constat.preuve.attendu}`
     : constat.source === "holo" ? "Doute du regard de Holo, le modèle visuel de H : rien n'est prouvé." : "Écart d'image avec la capture du passage précédent.");
@@ -311,7 +312,8 @@ if (report?.format === "horama-exploration-1") {
       ...(totaux.sans_conclusion ? [`${count(totaux.sans_conclusion, "point non vérifié", "points non vérifiés")}.`] : []),
     ],
     selection: { titre: "Pages", lignes: [`Trouvées par ${trouvees.par === "sitemap" ? "le plan du site" : "les liens"}, ${trouvees.plafond} au plus.`,
-      ...(arrivals.length ? [`${count(byClick, "page atteinte par un clic de l'agent", "pages atteintes par un clic de l'agent")}, ${count(byAddress, "ouverte par son adresse", "ouvertes par leur adresse")}.`] : []),
+      // Every visited page counted once, the page of departure too, so that the sum is the figure of the pages visited.
+      ...(arrivals.length ? [`${count(fromStart, "page de départ", "pages de départ")}, ${count(byClick, "page atteinte par un clic de l'agent", "pages atteintes par un clic de l'agent")}, ${count(byAddress, "ouverte par son adresse", "ouvertes par leur adresse")}.`] : []),
       ...(excluded.length ? [`Écartées : ${excluded.join(", ")}.`] : []),
       ...(accepted.length ? [`${count(accepted.length, "constat déjà déclaré voulu, non redemandé", "constats déjà déclarés voulus, non redemandés")}.`] : []),
       ...bilan.nonVisitees.map(({ chemin, raison }) => `Non visitée : ${chemin}${raison ? `, ${raison.charAt(0).toLowerCase()}${raison.slice(1).replace(/\.+$/, "")}` : ""}.`)] },
