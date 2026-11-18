@@ -153,6 +153,16 @@ test("sitemap valide citant des fournisseurs : aucune protection inventée", asy
   assert.equal(result.agents[0].raison, null);
 });
 
+test("repli JavaScript fusionné : les liens rendus restent explorés", async () => {
+  const rendered: string[] = [];
+  const { result } = await run({ deps: {
+    render: async address => { rendered.push(address); return { url: address, body: '<html><a href="/about">About</a></html>' }; },
+  } });
+  assert.equal(result.etat, "fini");
+  assert.ok(rendered.includes("https://example.org/"));
+  assert.equal(result.pages.find(page => page.ecran === "about")?.etat, "visitee");
+});
+
 test("challenge rendu : une fermeture H non confirmée ne devient jamais une fin propre", async () => {
   for (const failClose of [false, true]) {
     let launches = 0;

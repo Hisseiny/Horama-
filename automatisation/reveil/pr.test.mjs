@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { aBlanc, aJouer, impactDePr, jouerPr, lecteurGithub } from "./pr.mjs";
+import { aBlanc, aJouer, adresseCommentaireVercel, impactDePr, jouerPr, lecteurGithub, ouverteSansConnexion } from "./pr.mjs";
 
 // A vault of trial: two screens of a site whose code we have, one test per screen.
 function vaultEssai(t) {
@@ -30,7 +30,7 @@ test("GitHub : PR ouvertes, prévisualisation Vercel du dernier commit, fichiers
   };
   const lecteur = lecteurGithub("o/d", (path) => answers[path] ?? []);
   assert.deepEqual(lecteur.prs(), [{ numero: 7, adresse: "https://github.com/o/d/pull/7", titre: "Durée", base: "b1", tete: "h1" }]);
-  assert.deepEqual(lecteur.previsualisation("h1"), { etat: "success", adresse: "https://eugenia-git-pr-7.vercel.app" });
+  assert.deepEqual(lecteur.previsualisation("h1"), { etat: "success", adresse: "https://eugenia-git-pr-7.vercel.app", source: "déploiement GitHub" });
   assert.equal(lecteur.previsualisation("inconnu"), null);
   assert.deepEqual(lecteur.fichiers(7), ["src/data/home.ts"]);
 });
@@ -74,18 +74,66 @@ test("une PR jouée : impact écrit, puis la scène sur la prévisualisation ave
   assert.equal(none.etat, "aucun-test");
 });
 
-test("à blanc : PR, prévisualisation, fichiers et tests rejoués, sans rien jouer ; dépôt sans Vercel signalé", (t) => {
+test("à blanc : PR, prévisualisation (source, accès sans connexion), fichiers et tests rejoués, sans rien jouer", async (t) => {
   const vault = vaultEssai(t);
   const pr = { numero: 7, adresse: "u", titre: "Durée", base: "b", tete: "abcdef123" };
-  const relie = { deploiementsPreview: () => 1, prs: () => [pr], previsualisation: () => ({ etat: "success", adresse: "https://p.vercel.app" }), fichiers: () => ["src/data/home.ts"] };
-  assert.deepEqual(aBlanc(relie, { vault, logiciel: "site-essai" }), [
-    "1 déploiement(s) Preview sur le dépôt.",
-    "PR #7 (abcdef1) « Durée » : prévisualisation prête, https://p.vercel.app.",
+  const prete = { prs: () => [pr], previsualisation: () => ({ etat: "success", adresse: "https://p.vercel.app", source: "statut et commentaire de Vercel" }), fichiers: () => ["src/data/home.ts"] };
+  const ouverte = async () => ({ ouverte: true, code: 200 });
+  assert.deepEqual(await aBlanc(prete, { vault, logiciel: "site-essai", ouverte }), [
+    "PR #7 (abcdef1) « Durée » : prévisualisation prête (statut et commentaire de Vercel), https://p.vercel.app, répond sans connexion (code 200).",
     "  1 fichier(s) : src/data/home.ts",
     "  tests rejoués : voir-accueil ; écartés : voir-programmes",
   ]);
-  const seul = { deploiementsPreview: () => 0, prs: () => [], previsualisation: () => null, fichiers: () => [] };
-  assert.deepEqual(aBlanc(seul, { vault, logiciel: "site-essai" }), ["Aucun déploiement Preview sur le dépôt : Vercel n'y est pas encore relié.", "Aucune PR ouverte."]);
-  const enAttente = { ...relie, deploiementsPreview: () => 0, previsualisation: () => null };
-  assert.equal(aBlanc(enAttente, { vault, logiciel: "site-essai" })[1], "PR #7 (abcdef1) « Durée » : pas de déploiement Preview pour ce commit.");
+  const protegee = async () => ({ ouverte: false, raison: "la prévisualisation demande une connexion Vercel (code 302)" });
+  assert.equal((await aBlanc(prete, { vault, logiciel: "site-essai", ouverte: protegee }))[0],
+    "PR #7 (abcdef1) « Durée » : prévisualisation prête (statut et commentaire de Vercel), https://p.vercel.app, pas jouable : la prévisualisation demande une connexion Vercel (code 302).");
+  const rien = { prs: () => [], previsualisation: () => null, fichiers: () => [] };
+  assert.deepEqual(await aBlanc(rien, { vault, logiciel: "site-essai", ouverte }), ["Aucune PR ouverte."]);
+  const sans = { ...prete, previsualisation: () => null };
+  assert.equal((await aBlanc(sans, { vault, logiciel: "site-essai", ouverte }))[0], "PR #7 (abcdef1) « Durée » : pas de prévisualisation pour ce commit (ni déploiement GitHub, ni statut Vercel).");
+  const enCours = { ...prete, previsualisation: () => ({ etat: "pending", adresse: null, source: "statut et commentaire de Vercel" }) };
+  assert.equal((await aBlanc(enCours, { vault, logiciel: "site-essai", ouverte }))[0], "PR #7 (abcdef1) « Durée » : prévisualisation « pending », pas encore jouable.");
+});
+
+// The comment of the Vercel bot as it was on the PR #11 of the clone (18/11): a hidden line with the JSON in base64,
+// then a table with a « Preview » link. Same shape, made-up project.
+const vercelComment = (previewUrl) => `[vc]: #abc123=:${Buffer.from(JSON.stringify({ isMonorepo: true, type: "github", projects: [{ name: "site", previewUrl, nextCommitStatus: "DEPLOYED" }] })).toString("base64")}
+The latest updates on your projects.
+| Project | Deployment | Actions | Updated |
+| :--- | :----- | :------ | :------ |
+| [site](https://vercel.com/o/site) | Ready | [Preview](https://site-git-branche-o.vercel.app) | Nov 18 |`;
+
+test("commentaire du bot Vercel : l'adresse de la ligne cachée, sinon le lien « Preview »", () => {
+  assert.equal(adresseCommentaireVercel(vercelComment("site-git-branche-o.vercel.app")), "https://site-git-branche-o.vercel.app");
+  assert.equal(adresseCommentaireVercel("| [Preview](https://autre-git-b-o.vercel.app) |"), "https://autre-git-b-o.vercel.app");
+  assert.equal(adresseCommentaireVercel("Rien ici."), null);
+  assert.equal(adresseCommentaireVercel(undefined), null);
+});
+
+test("GitHub sans déploiement : statut Vercel du commit, puis l'adresse dans le commentaire du bot", () => {
+  const answers = {
+    "repos/o/d/deployments?sha=h1&per_page=100": [],
+    "repos/o/d/commits/h1/status": [{ state: "success", statuses: [{ context: "Devin Review", state: "success" }, { context: "Vercel", state: "success", target_url: "https://vercel.com/o/site/Eu59" }] }],
+    "repos/o/d/issues/11/comments?per_page=100": [{ user: { login: "devin-ai-integration[bot]" }, body: "[Preview](https://faux.vercel.app)" }, { user: { login: "vercel[bot]" }, body: vercelComment("site-git-branche-o.vercel.app") }],
+    "repos/o/d/deployments?sha=h2&per_page=100": [],
+    "repos/o/d/commits/h2/status": [{ state: "pending", statuses: [{ context: "Vercel", state: "pending" }] }],
+    "repos/o/d/deployments?sha=h3&per_page=100": [],
+    "repos/o/d/commits/h3/status": [{ state: "success", statuses: [{ context: "Devin Review", state: "success" }] }],
+  };
+  const lecteur = lecteurGithub("o/d", (path) => answers[path] ?? []);
+  assert.deepEqual(lecteur.previsualisation("h1", 11), { etat: "success", adresse: "https://site-git-branche-o.vercel.app", source: "statut et commentaire de Vercel" });
+  assert.deepEqual(lecteur.previsualisation("h2", 11), { etat: "pending", adresse: null, source: "statut et commentaire de Vercel" });
+  assert.equal(lecteur.previsualisation("h3", 11), null);
+  // Ready but nothing played without an address.
+  assert.deepEqual(aJouer({ prs: () => [{ numero: 11, adresse: "u", base: "b", tete: "h1" }], previsualisation: lecteur.previsualisation }, new Set()).map((pr) => pr.previsualisation), ["https://site-git-branche-o.vercel.app"]);
+});
+
+test("prévisualisation protégée par Vercel, ouverte, ou muette", async () => {
+  const answer = (status, location) => async () => ({ status, headers: new Headers(location ? { location } : {}) });
+  assert.deepEqual(await ouverteSansConnexion("https://p.vercel.app", answer(302, "https://vercel.com/sso-api?url=x")), { ouverte: false, raison: "la prévisualisation demande une connexion Vercel (code 302)" });
+  assert.deepEqual(await ouverteSansConnexion("https://p.vercel.app", answer(401)), { ouverte: false, raison: "la prévisualisation demande une connexion Vercel (code 401)" });
+  assert.deepEqual(await ouverteSansConnexion("https://p.vercel.app", answer(200)), { ouverte: true, code: 200 });
+  assert.deepEqual(await ouverteSansConnexion("https://p.vercel.app", answer(308, "/admissions")), { ouverte: true, code: 308 });
+  const muette = await ouverteSansConnexion("https://p.vercel.app", async () => { throw new Error("fetch failed"); });
+  assert.deepEqual(muette, { ouverte: false, raison: "la prévisualisation ne répond pas (fetch failed)" });
 });

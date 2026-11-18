@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { discoverPages } from "./src/exploration/pages.ts";
+import { spawn } from "node:child_process";
+import { createServer } from "node:http";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { allowsRenderResource, discoverPages, renderPage } from "./src/exploration/pages.ts";
+import { explorer } from "./src/exploration/explorer.ts";
+import { BaseMemoire } from "./src/base.ts";
+import { connecterCdp } from "./src/exploration/cdp.ts";
 
 const origin = "https://www.example.test";
 type Reply = string | Error | (() => Response);
@@ -30,6 +38,135 @@ function fixture(routes: Record<string, Reply>) {
 const sitemap = (...urls: string[]) => `<urlset>${urls.map((url) => `<url><loc>${url}</loc></url>`).join("")}</urlset>`;
 const link = (...urls: string[]) => urls.map((url) => `<a href="${url}">Page</a>`).join("");
 const redirect = (location: string) => () => new Response(null, { status: 302, headers: { location } });
+
+test("ressources rendues : refuse les adresses privées sauf l'hôte:port exploré", () => {
+  for (const host of ["localhost", "other.localhost", "127.0.0.1", "127.255.1.2", "0.0.0.0", "10.2.3.4", "172.16.0.1", "172.31.255.255", "192.168.1.1", "169.254.1.1", "[::1]", "[fc00::1]", "[fdff::1]", "[fe80::1]", "[febf::1]", "[::ffff:127.0.0.1]"]) {
+    for (const scheme of ["http", "https", "ws", "wss"]) assert.equal(allowsRenderResource(`${scheme}://${host}/asset`, origin), false, host);
+  }
+  for (const host of ["172.15.1.1", "172.32.0.1", "192.169.1.1", "[2001:db8::1]", "cdn.example.test"]) assert.equal(allowsRenderResource(`https://${host}/asset`, origin), true);
+  assert.equal(allowsRenderResource("http://127.0.0.1:4000/script.js", "http://127.0.0.1:4000/"), true);
+  assert.equal(allowsRenderResource("http://127.0.0.1:4001/script.js", "http://127.0.0.1:4000/"), false);
+});
+
+test("le prédicat rendu vérifie robots avant de supprimer le suivi", async () => {
+  const setup = fixture({ "/robots.txt": "User-agent: *\nDisallow: /safe?utm_source=", "/": "" });
+  await discoverPages(origin, { ...setup, render: async (url, allowed) => {
+    assert.equal(allowed(origin + "/safe?utm_source=blocked"), false);
+    assert.equal(allowed(origin + "/safe"), true);
+    return { url, body: "" };
+  } });
+});
+
+test("l'explorateur journalise l'erreur de rendu même avec une page conservée", async () => {
+  const setup = fixture({ "/": "Page" });
+  const root = mkdtempSync(join(tmpdir(), "horama-render-log-"));
+  const stop = new Error("Journal vérifié avant la session H");
+  try {
+    await assert.rejects(explorer({ url: origin, max: 3, vault: join(root, "vault"), sortie: join(root, "out"), port: 0 }, {
+      base: new BaseMemoire(), fetch: setup.fetch,
+      render: async () => { throw new Error("Chrome absent"); },
+      log: message => { assert.equal(message, origin + "/ — Rendu : Chrome absent"); throw stop; },
+      session: async () => { assert.fail("Aucune session H pour ce test"); },
+      runtime: { relever: async () => { assert.fail(); }, navigateur: async () => { assert.fail(); }, close() {} },
+    }), error => error === stop);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("repli rendu : seuil, erreurs visibles et budget partagé", async () => {
+  const setup = fixture({ "/": '<div id="root"></div>' });
+  const calls: string[] = [];
+  const result = await discoverPages(origin, { ...setup, max: 4, render: async url => {
+    calls.push(url);
+    throw new Error("Chrome absent");
+  } });
+  assert.deepEqual(result.pages, [origin + "/"]);
+  assert.deepEqual(calls, [origin + "/"]);
+  assert.match(result.errors[0].message, /Rendu.*Chrome absent/);
+  const enough = fixture({ "/": link("/one", "/two"), "/one": "", "/two": "" });
+  await discoverPages(origin, { ...enough, render: async () => { assert.fail("Pas de repli au seuil"); } });
+  const empty = fixture({ "/robots.txt": "User-agent: *\nDisallow: /" });
+  assert.deepEqual((await discoverPages(origin, { ...empty, render: async () => { assert.fail("Robots"); } })).pages, []);
+  const budget = fixture({ "/": "" });
+  const limited = await discoverPages(origin, { ...budget, max: 2, render: async url => ({ url, body: link(...Array.from({ length: 20 }, (_, i) => `/missing-${i}`)) }) });
+  assert.equal(budget.calls.length, 7);
+  assert.ok(limited.excluded.some(item => item.reason === "request-limit"));
+  const chain = fixture({ "/": "", "/next": "", "/end": "" });
+  const continued = await discoverPages(origin, { ...chain, max: 6, render: async url => ({
+    url: url.endsWith("/next") ? origin + "/final" : url,
+    body: url.endsWith("/next") ? link("/end") : url.endsWith("/end") ? "" : link("/next"),
+  }) });
+  assert.deepEqual(continued.pages, ["/", "/final", "/end"].map(path => origin + path));
+  const unavailable = fixture({ "/": "" });
+  assert.match((await discoverPages(origin, { ...unavailable, render: async () => undefined })).errors[0].message, /Rendu indisponible/);
+});
+
+test("Chrome réel découvre une page JS locale sans clic ni soumission et ferme ses onglets", { timeout: 30000 }, async () => {
+  const requests: string[] = [];
+  const privateRequests: string[] = [];
+  const privateServer = createServer((req, res) => { privateRequests.push(req.url!); res.end("private"); });
+  await new Promise<void>(resolve => privateServer.listen(0, "127.0.0.1", resolve));
+  const privateUrl = `http://127.0.0.1:${(privateServer.address() as { port: number }).port}`;
+  const html = '<div id="root"></div><script>setTimeout(() => { document.getElementById("root").innerHTML = ' + JSON.stringify('<nav><a href="/about">About</a><a href="/contact">Contact</a><a href="/private">Private</a><a href="/file.pdf">PDF</a><a href="/login">Login</a><a href="/send">Send</a><a href="/redirect">Redirect</a></nav><form action="/send"><input></form>') + '; }, 50)</script>';
+  const server = createServer((req, res) => {
+    requests.push(req.url!);
+    if (req.url === "/robots.txt") { res.end("User-agent: *\nDisallow: /private\nDisallow: /safe?utm_source="); return; }
+    if (req.url === "/sitemap.xml") { res.writeHead(404); res.end(); return; }
+    if (req.url === "/redirect") { res.writeHead(302, { location: "/private" }); res.end(); return; }
+    res.setHeader("content-type", "text/html");
+    if (req.url === "/resources") {
+      res.end(`<main>Resources</main><script src="/same-site.js"></script><img src="${privateUrl}/image"><script src="${privateUrl}/script"></script><script>fetch('${privateUrl}/fetch').catch(() => {});</script>`);
+      return;
+    }
+    if (req.url === "/same-site.js") { res.setHeader("content-type", "text/javascript"); res.end("document.body.dataset.loaded = 'yes'"); return; }
+    if (req.url === "/script-redirect") { res.end("<main>Redirecting</main><script>setTimeout(() => { location.href='/safe?utm_source=blocked'; }, 50)</script>"); return; }
+    res.end(req.url === "/" ? html : '<main>Page<form><input></form></main>');
+  });
+  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address() as { port: number };
+  const base = `http://127.0.0.1:${address.port}`;
+  const profile = mkdtempSync(join(tmpdir(), "horama-pages-chrome-"));
+  const chrome = spawn("google-chrome", ["--headless", "--no-sandbox", "--disable-dev-shm-usage", "--remote-debugging-port=0", `--user-data-dir=${profile}`, "--force-device-scale-factor=1", "--window-size=1280,900", "about:blank"], { stdio: ["ignore", "ignore", "pipe"] });
+  let chromePort: number | undefined;
+  try {
+    const port = await new Promise<number>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("Chrome indisponible")), 8000);
+      chrome.once("error", error => { clearTimeout(timer); reject(error); });
+      chrome.stderr.on("data", chunk => {
+        const match = String(chunk).match(/DevTools listening on ws:\/\/127\.0\.0\.1:(\d+)/);
+        if (match) { clearTimeout(timer); resolve(Number(match[1])); }
+      });
+    });
+    chromePort = port;
+    const before = await discoverPages(base, { max: 8 });
+    assert.deepEqual(before.pages, [base + "/"]);
+    const result = await discoverPages(base, { max: 8, render: (url, allowed) => renderPage(port, url, allowed) });
+    assert.deepEqual(result.pages, ["/", "/about", "/contact"].map(path => base + path));
+    assert.deepEqual(result.errors, []);
+    for (const reason of ["robots", "file", "login", "form"]) assert.ok(result.excluded.some(item => item.reason === reason));
+    assert.ok(!requests.some(path => /private|file\.pdf|login|send/.test(path)));
+    const tabs = await (await fetch(`http://127.0.0.1:${port}/json`)).json() as Array<{ type: string }>;
+    assert.equal(tabs.filter(tab => tab.type === "page").length, 1);
+    await assert.rejects(renderPage(port, base + "/redirect", url => !url.endsWith("/private")), /ERR_BLOCKED/);
+    assert.ok(!requests.includes("/private"));
+    const resources = await renderPage(port, base + "/resources");
+    assert.match(resources.body, /data-loaded="yes"/);
+    assert.deepEqual(privateRequests, [], "Images, scripts et fetch vers un autre port local sont bloqués.");
+    const redirected = await discoverPages(base + "/script-redirect", { max: 3, render: (url, allowed) => renderPage(port, url, allowed) });
+    assert.ok(redirected.excluded.some(item => item.reason === "robots" && item.url.includes("utm_source=blocked")));
+    assert.ok(!requests.some(path => path.startsWith("/safe")));
+  } finally {
+    if (chromePort) {
+      const client = await connecterCdp(chromePort, "about:blank");
+      try { await client.send("Browser.close"); } finally { client.close(); }
+    } else chrome.kill();
+    await new Promise<void>(resolve => { if (chrome.exitCode !== null) resolve(); else chrome.once("exit", () => resolve()); });
+    server.closeAllConnections();
+    await new Promise<void>(resolve => server.close(() => resolve()));
+    privateServer.closeAllConnections();
+    await new Promise<void>(resolve => privateServer.close(() => resolve()));
+    rmSync(profile, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+  }
+});
 
 test("la locale et un préfixe majoritaire ne sont pas des sections répétitives", async () => {
   for (const prefix of ["/fr", "/products"]) {

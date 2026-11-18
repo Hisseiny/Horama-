@@ -71,16 +71,19 @@ test("robots HTML protégé et sitemap protégés : arrêt avant session H", asy
   for (const path of ["/robots.txt", "/sitemap.xml"]) {
     const root = mkdtempSync(join(tmpdir(), "horama-policy-"));
     const base = new BaseMemoire();
+    let renders = 0;
     try {
       const result = await explorer({ url: "https://example.org/", max: 3, port: 9333, sortie: join(root, "out"), vault: join(root, "vault") }, {
         base, log() {},
         fetch: async address => new Response(new URL(String(address)).pathname === path ? '<iframe src="/_Incapsula_Resource"></iframe>' : "", { headers: { "Content-Type": "text/html" } }),
+        render: async () => { renders++; throw new Error("Aucun rendu après un blocage de découverte"); },
         runtime: { relever: async () => { throw new Error("Capture interdite"); }, navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
         session: async () => { throw new Error("Session interdite"); },
       });
       assert.equal(result.etat, "fini");
       assert.match(result.agents[0].raison!, /robots.*Incapsula/);
       assert.equal(result.agents[0].session_id, null);
+      assert.equal(renders, 0);
       assert.equal(base.passages.size, 1);
       assert.equal(base.rapports.size, 1);
       assert.equal(base.resultats.length, result.pages.length);
@@ -88,6 +91,27 @@ test("robots HTML protégé et sitemap protégés : arrêt avant session H", asy
       assert.ok([...base.rapports.values()].every(item => item.passage.etat === "echec" && item.tests.every(test => test.etat === "non_concluant" && !test.session_id)));
     } finally { rmSync(root, { recursive: true, force: true }); }
   }
+});
+
+test("repli JavaScript : challenge rendu en découverte, aucune session H créée", async () => {
+  const root = mkdtempSync(join(tmpdir(), "horama-rendered-discovery-"));
+  const base = new BaseMemoire();
+  let renders = 0;
+  try {
+    const result = await explorer({ url: "https://example.org/", max: 3, port: 9333, sortie: join(root, "out"), vault: join(root, "vault") }, {
+      base, log() {},
+      fetch: async address => new Response(new URL(String(address)).pathname === "/" ? '<html><div id="app"></div></html>' : "", { headers: { "Content-Type": "text/html" } }),
+      render: async address => { renders++; return { url: address, body: '<title>Verify you are human</title><div class="h-captcha"></div>' }; },
+      runtime: { relever: async () => { throw new Error("Capture interdite"); }, navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
+      session: async () => { throw new Error("Session interdite"); },
+    });
+    assert.equal(renders, 1);
+    assert.equal(result.etat, "fini");
+    assert.equal(result.agents[0].session_id, null);
+    assert.match(result.agents[0].raison!, /robots/);
+    assert.equal(base.resultats.length, result.pages.length);
+    assert.ok(result.pages.every(page => page.etat === "non_visitee"));
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
 test("blocage sans session : échec de persistance visible, JSON non concluant conservé", async () => {

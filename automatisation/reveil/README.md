@@ -42,16 +42,20 @@ Pour un site dont on a le code (le clone du site d'Eugenia d'Ali, `Hisseiny/euge
 node automatisation/reveil/pr.mjs --depot <propriétaire/dépôt> --logiciel <logiciel du vault> -- --vitrine
 ```
 
-- **Quand** : une PR ouverte dont le **dernier commit** a un déploiement Vercel d'environnement Preview à l'état `success`. L'adresse de prévisualisation est lue dans `environment_url` du statut de ce déploiement. Une PR dont la prévisualisation n'est pas prête est attendue. Plusieurs poussées rapprochées : seul le dernier commit de la PR est joué, une fois.
+- **Quand** : une PR ouverte dont le **dernier commit** a une prévisualisation Vercel prête, qui s'ouvre sans connexion. Il y a deux façons de la trouver :
+  - un déploiement GitHub d'environnement Preview à l'état `success`, dont l'adresse est dans `environment_url` ;
+  - sinon, comme sur le clone le 18/11 (aucun déploiement GitHub), le statut de commit « Vercel » à l'état `success` (son `target_url` mène au tableau de bord de Vercel, pas au site) et l'adresse donnée par le commentaire du bot `vercel[bot]` sur la PR. C'est l'alias de la branche, qui suit son dernier commit.
+
+  Une prévisualisation qui redirige vers une connexion Vercel (protection active) n'est pas jouée : le réveil le dit une fois et réessaie au tour suivant. Une PR dont la prévisualisation n'est pas prête est attendue. Plusieurs poussées rapprochées : seul le dernier commit de la PR est joué, une fois.
 - **Quoi** : les fichiers modifiés par la PR (`pulls/<n>/files`) choisissent les tests par `choisirTests` d'`impact.mjs`, sur le vault de ce dépôt : les écrans dont la note déclare un fichier modifié dans son champ `code:`, plus le socle d'`impact/socle.json`. Le fichier `impact.json` (format `horama-impact-1`, avec `depuis` = base de la PR, `vers` = son dernier commit, `fichiers`, et l'adresse de la PR dans `pr`) part à la scène.
 - **La scène** : `parcours.mjs --impact <fichier> --base-url <prévisualisation> --logiciel <logiciel> --vault <vault> --pr <adresse de la PR> --sortie <dossier>`, plus les options données après `--` (par exemple `--vitrine`, ou `--sans-agent` pour un essai). La sélection, la cible, le vault, la sortie et la PR sont réservés au réveil.
 - **Le vault** : `--vault vault-horama` par défaut. Les décisions, la note du passage et les corrections de note s'y écrivent : c'est la mémoire du mode dev. Pour un essai, donner une copie.
 - **Sorties** : `<sortie>/pr-<numéro>-<commit court>/` (`.orchestrateur/reveil-pr/` par défaut) : `impact.json`, `reveil.json` (heures, état, `impact_ms`, `scene_lancee_ms`, `total_ms`), `scene/`.
 - **Essai sans vraie PR** : `--faux-github <fichier.json>` lit `{ prs: [{ numero, adresse, titre, base, tete }], deploiements: { <sha>: { etat, adresse } }, fichiers: { <numéro>: [...] } }` à la place de GitHub.
-- **À blanc** : `--a-blanc` regarde GitHub une fois et ne joue rien : ni scène, ni H, ni écriture. Il affiche :
-  - le nombre de déploiements Preview du dépôt (« aucun » veut dire que Vercel n'y est pas encore relié) ;
-  - chaque PR ouverte, avec l'état de la prévisualisation de son dernier commit et ses fichiers ;
-  - les tests que la PR ferait rejouer, et ceux écartés.
+- **À blanc** : `--a-blanc` regarde GitHub une fois et ne joue rien : ni scène, ni H, ni écriture. Pour chaque PR ouverte, il affiche :
+  - la prévisualisation de son dernier commit : où elle a été trouvée, son adresse, et si elle s'ouvre sans connexion ;
+  - ses fichiers ;
+  - les tests qu'elle ferait rejouer, et ceux écartés.
 
   Pour le clone : `node automatisation/reveil/pr.mjs --depot Hisseiny/eugenia-school-website --logiciel eugenia-clone --a-blanc`. Le dépôt est public, la lecture ne demande aucun accès.
 - **Ce qu'il faut côté cible** (Ali, #78) : le dépôt relié à Vercel avec une prévisualisation par PR, la protection des prévisualisations coupée (sinon l'agent tombe sur la connexion Vercel), les formulaires désactivés sur la démo. `gh` doit être connecté avec un compte qui lit le dépôt.
