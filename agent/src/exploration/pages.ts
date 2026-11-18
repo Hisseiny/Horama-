@@ -76,6 +76,12 @@ export async function discoverPages(url: string, { max = 15, sectionMax = 2, fet
   if (max === 0) return result;
   const site = start.hostname.replace(/^www\./, "");
   const root = new URL("/", start).href;
+  const locale = start.pathname.match(/^\/([a-z]{2}(?:-[a-z]{2})?)(?:\/([a-z]{2}(?:-[a-z]{2})?))?(?=\/|\.html?$|$)/i)?.[0];
+  function sameLocale(address: string): boolean {
+    if (!locale) return true;
+    const path = new URL(address).pathname;
+    return path === locale || path === `${locale}.html` || path === `${locale}.htm` || path.startsWith(`${locale}/`);
+  }
   const exclusions = new Set<string>(), seen = new Set<string>(), fetched = new Set<string>();
   let rules: RobotRule[] = [];
 
@@ -241,6 +247,10 @@ export async function discoverPages(url: string, { max = 15, sectionMax = 2, fet
   }
   let attempts = 0;
   for (let index = 0; index < queue.length; index++) {
+    if (locale && result.pages.length < max && attempts < max * 3 && !sameLocale(queue[index])) {
+      const offset = queue.slice(index + 1).findIndex(sameLocale);
+      if (offset >= 0) queue.splice(index, 0, queue.splice(index + 1 + offset, 1)[0]);
+    }
     const address = queue[index];
     if (result.pages.includes(address)) continue;
     const section = sections(address).find((prefix) => repeated.has(prefix));

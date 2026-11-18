@@ -239,3 +239,133 @@ Fusions de `origin/dev` puis `origin/a-57-pages-sitemaps-correctifs` effectuées
 - Détection des sections fondée sur les candidats initiaux accueil/sitemaps : les sections découvertes uniquement en profondeur peuvent y échapper.
 - Domaines tiers de formulaires non exhaustifs ; les autres domaines externes restent exclus comme externes. Un chemin submit est une convention, pas une preuve de méthode HTTP serveur.
 - #63 autorise à visiter un formulaire : interprétation retenue, conserver la page qui en contient un, ne pas suivre ses actions. #67 demande bien davantage que ce lot découverte. SKEMA et le bruit international KPMG restent des limites réelles ; aucune prétention de clôturer ces issues.
+
+## Complément — diagnostic SKEMA et préférence de locale
+
+### Diagnostic SKEMA : blocage anti-bot observé
+
+Trois requêtes diagnostiques GET en série, sans navigateur ni tentative de contournement :
+
+| Adresse | HTTP | Type reçu | Longueur du texte |
+|---|---:|---|---:|
+| `https://www.skema.edu/robots.txt` | 200 | text/html | 212 caractères |
+| `https://www.skema.edu/fr` | 200 | text/html | 837 caractères |
+| `https://www.skema.edu/sitemap.xml` | 200 | text/html | 212 caractères |
+
+Le corps de robots.txt n'a **aucune ligne Sitemap**, seulement une page HTML avec meta `noindex,nofollow` et script `/_Incapsula_Resource`. L'accueil contient un iframe `/_Incapsula_Resource` et le texte explicite **« Request unsuccessful. Incapsula incident ID: … »**. Le sitemap renvoie le même petit HTML/script que robots.txt. Ces corps expliquent directement le résultat : robots ne fournit aucun sitemap, le sitemap par défaut n'est ni un urlset ni un index XML, et l'accueil n'a aucun lien a/area à extraire.
+
+Vérification de l'hypothèse concurrente « parseur XML ou contenu uniquement JavaScript » : le sitemap reçu est du HTML, pas du gzip/XML à namespaces XHTML ; l'accueil affiche explicitement l'échec Incapsula. Le blocage est donc observé dans les réponses de cette machine, et non déduit de la seule absence de liens. Le contenu réel du site derrière cette protection n'a pas été obtenu : son éventuel rendu JavaScript reste inconnu. Aucun correctif spécifique au fournisseur, aucune tentative de contourner la protection. Le statut 200 ne prouve pas que la vraie page ait été consultée : l'unique page retenue par l'API reste une candidate, pas une couverture réussie du site. La politique robots réelle est également inaccessible derrière le blocage.
+
+### Préférence de locale
+
+Extraction générique d'un préfixe de chemin à un ou deux segments de deux lettres (avec variante régionale telle que pt-BR), y compris une adresse d'entrée terminant par .html/.htm : /fr/, /fr/fr.html, /en/, etc. Avant chaque sélection, les candidats de même locale passent avant les autres, à origine déjà validée par le filtre existant. L'ordre menu/footer/sitemap reste stable à l'intérieur de chaque groupe. Les nouvelles pages de même locale découvertes pendant la visite passent aussi avant le repli hors locale. Sans locale ou si ce groupe est épuisé, comportement de repli conservé.
+
+Tests hors ligne : préfixes /fr/fr.html, /fr/, /en/, /pt-BR/, lien international de menu devant un candidat local de sitemap, découverte locale en profondeur, frontière de segment (pas de confusion /fr/ et /france/), repli hors locale sans autre candidat. Aucun domaine du banc ajouté dans le code.
+
+La préférence ne pénalise pas les pages légales **de la bonne locale**. Elles restent pertinentes au sens de la navigation et restent dans le résultat KPMG : ce lot réduit le bruit international, pas tous les liens légaux. Le motif de locale est syntaxique ; un chemin métier de deux lettres peut être interprété comme une locale. Il ne change pas les règles de filtrage ni le format de sortie.
+
+### Nouvelle mesure, une découverte par site affecté
+
+Appels séquentiels SKEMA, KPMG, Eugenia ; max 15, compteur fetch et performance.now comme auparavant. Ces découvertes s'ajoutent aux trois requêtes diagnostiques SKEMA. Aucun H, clé ou navigateur.
+
+| Site | Retenues | Exclusions | Erreurs | Requêtes | Durée (s) |
+|---|---:|---:|---:|---:|---:|
+| SKEMA | 1 | 0 | 1 | 3 | 0.171650 |
+| KPMG | 15 | 33795 | 0 | 46 | 6.327831 |
+| Eugenia | 15 | 115 | 0 | 19 | 1.152732 |
+
+#### SKEMA — résultat du complément
+
+Pages retenues :
+
+- https://www.skema.edu/fr
+
+Exclusions par raison : aucune.
+
+Erreurs : `https://www.skema.edu/sitemap.xml` : Plan du site XML non reconnu (urlset ou sitemapindex attendu)..
+
+#### KPMG — résultat du complément
+
+Pages retenues :
+
+- https://kpmg.com/fr/fr.html
+- https://kpmg.com/fr/fr/insights.html
+- https://kpmg.com/fr/fr/services.html
+- https://kpmg.com/fr/fr/secteurs.html
+- https://kpmg.com/fr/fr/carrieres.html
+- https://kpmg.com/fr/fr/a-propos.html
+- https://kpmg.com/fr/fr/misc/contactez-nous.html
+- https://kpmg.com/fr/fr/media.html
+- https://kpmg.com/fr/fr/misc/legal/mentions.html
+- https://kpmg.com/fr/fr/misc/legal/accessibilite.html
+- https://kpmg.com/fr/fr/misc/confidentialite-gestion-donnees.html
+- https://kpmg.com/fr/fr/misc/confidentialite-gestion-donnees/notice-cookies.html
+- https://kpmg.com/fr/fr/a-propos/engagement-citoyen.html
+- https://kpmg.com/fr/fr/a-propos/gouvernance.html
+- https://kpmg.com/fr/fr/abonnement.html
+
+Exclusions par raison : `external` : 31 ; `login` : 16 ; `sitemap-limit` : 147 ; `file` : 18 ; `scheme` : 1 ; `section-limit` : 9 ; `limit` : 33573.
+
+Erreurs : aucune.
+
+#### Eugenia — résultat du complément
+
+Pages retenues :
+
+- https://www.eugeniaschool.com/
+- https://www.eugeniaschool.com/programme/bachelor-ia-business
+- https://www.eugeniaschool.com/notre-adn
+- https://www.eugeniaschool.com/entreprises-partenaires
+- https://www.eugeniaschool.com/processus-admission
+- https://www.eugeniaschool.com/evenements
+- https://www.eugeniaschool.com/tech-hub
+- https://www.eugeniaschool.com/certification-architecte-ia
+- https://www.eugeniaschool.com/carrieres
+- https://www.eugeniaschool.com/recruter-nos-etudiants
+- https://www.eugeniaschool.com/faq
+- https://www.eugeniaschool.com/presse
+- https://www.eugeniaschool.com/programme/master-ia-business-alternance
+- https://www.eugeniaschool.com/campus/paris
+- https://www.eugeniaschool.com/projets-entreprises
+
+Exclusions par raison : `external` : 32 ; `file` : 1 ; `limit` : 81 ; `section-limit` : 1.
+
+Erreurs : aucune.
+
+Bilan : KPMG retient maintenant **15 pages sur 15 sous /fr/fr**, contre 12 précédemment ; les trois adresses internationales ont disparu. Les pages légales locales restent présentes. SKEMA reste insuffisant, résultat honnête cohérent avec le blocage observé. Eugenia conserve **les mêmes 15 URL et les 7 références sur 7**, y compris les deux programmes, processus-admission, notre-adn, campus/paris et faq. Albert School et Grant Thornton n'ont pas été relancés ; leurs mesures historiques ci-dessus restent inchangées.
+
+Résultats bruts locaux : `/home/ubuntu/a67-backup/followup-{skema,kpmg,eugenia}.json`. Ils ne contiennent pas les cookies de réponse. Les listes d'exclusions ne sont toujours pas recopiées exhaustivement dans ce rapport ; les comptes par raison sont exhaustifs.
+
+### Vérification du complément
+
+`git fetch origin && git merge origin/dev` : `Already up to date.`
+
+```text
+$ node --test agent/exploration-pages.test.ts
+1..26
+# tests 26
+# suites 0
+# pass 26
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 137.261511
+
+$ pnpm -r --if-present run check
+agent check: 1..154
+agent check: # tests 154
+agent check: # suites 0
+agent check: # pass 154
+agent check: # fail 0
+agent check: # cancelled 0
+agent check: # skipped 0
+agent check: # todo 0
+agent check: # duration_ms 757.258161
+agent check: Done
+
+$ grep -riE "eugenia|albertschool|kpmg|skema|grantthornton" agent/src
+[aucune ligne ; code 1 normal de grep sans correspondance]
+```
+
+Toujours aucune vérification graphique, aucun second passage visuel ou contrôle de défaut : le complément reste dans le périmètre découverte de #67/#63.

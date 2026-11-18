@@ -31,6 +31,30 @@ const sitemap = (...urls: string[]) => `<urlset>${urls.map((url) => `<url><loc>$
 const link = (...urls: string[]) => urls.map((url) => `<a href="${url}">Page</a>`).join("");
 const redirect = (location: string) => () => new Response(null, { status: 302, headers: { location } });
 
+test("préfère les pages de la locale initiale, même aux liens de menu internationaux", async () => {
+  for (const locale of ["/fr/fr", "/fr", "/en", "/pt-BR"]) {
+    const start = locale === "/fr/fr" ? locale + ".html" : locale + "/";
+    const paths = ["/other/en/page", locale + "/services", locale + "/products", locale + "ance/other"];
+    const setup = fixture({
+      [start]: `<nav>${link(paths[0], paths[1])}</nav>`,
+      "/sitemap.xml": sitemap(paths[3], paths[2]),
+      [paths[1]]: link(locale + "/details"),
+      [locale + "/details"]: "", [paths[2]]: "", [paths[0]]: "", [paths[3]]: "",
+    });
+    const result = await discoverPages(origin + start, { ...setup, max: 4, sectionMax: 10 });
+    assert.deepEqual(result.pages, [start.replace(/\/$/, ""), paths[1], paths[2], locale + "/details"].map((path) => origin + path));
+    assert.ok(!setup.calls.includes(origin + paths[0]));
+    assert.deepEqual(result.errors, []);
+  }
+});
+
+test("locale sans autre page disponible : conserve le repli hors locale", async () => {
+  const setup = fixture({ "/en/": link("/shared"), "/shared": "" });
+  const result = await discoverPages(origin + "/en/", setup);
+  assert.deepEqual(result.pages, [origin + "/en", origin + "/shared"]);
+  assert.deepEqual(result.errors, []);
+});
+
 test("menu et footer anglais avant sitemap, sections répétitives plafonnées sans mots-clés", async () => {
   const paths = ["/en/stories/one", "/en/stories/two", "/en/stories/three", "/en/stories/four"];
   const setup = fixture({
