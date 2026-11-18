@@ -68,7 +68,7 @@ function inspectDocument() {
       const parent = node.parentElement;
       let shown = parent;
       while (shown && shown !== element && getComputedStyle(shown).display === "contents") shown = shown.parentElement;
-      if (!parent || !shown || !(node.textContent ?? "").trim() || !visible(shown)) continue;
+      if (!parent || !shown || !(node.textContent ?? "").trim() || getComputedStyle(parent).visibility !== "visible" || !visible(shown)) continue;
       let hidden = false;
       for (let ancestor: Element | null = parent; ancestor && !hidden; ancestor = ancestor === element ? null : ancestor.parentElement) {
         const style = getComputedStyle(ancestor);

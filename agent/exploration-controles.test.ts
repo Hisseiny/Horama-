@@ -32,6 +32,7 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
 <button id="ring" style="position:relative;width:61px;height:61px;border-radius:50%;border:0;margin:40px">▶${[..."En savoir plus"].map((c, i) => `<span style="position:absolute;left:26px;top:-16px;height:46px;transform-origin:4px 46px;transform:rotate(${i * 18 - 120}deg)">${c}</span>`).join("")}</button>
 <button id="svg" style="width:61px;height:61px;border:0;padding:0"><svg width="61" height="61" overflow="visible"><text x="-20" y="-6">Texte sur un cercle</text></svg></button>
 <button id="contents" style="width:60px;height:24px;padding:0;white-space:nowrap"><span style="display:contents">Texte beaucoup trop long</span></button>
+<button id="contents-hidden" style="width:60px;height:24px;padding:0;white-space:nowrap"><span style="display:contents;visibility:hidden">Texte beaucoup trop long</span></button>
 <div id="border" style="display:inline-block;border:8px solid #000;height:20px;white-space:nowrap">Texte qui touche la bordure</div>
 <div style="transform:scale(.5);transform-origin:0 0"><button id="scaled" style="width:120px;height:24px;font-size:16px;line-height:20px;padding:0">Première ligne<br>Deuxième ligne</button></div>
 <div id="real" style="width:60px;height:20px;white-space:nowrap;background:#eee">Texte beaucoup trop long pour la boîte</div>
