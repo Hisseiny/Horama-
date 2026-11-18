@@ -7,6 +7,7 @@ import type { ExplorerOptions } from "./explorer.ts";
 
 export const HELP = `Usage : pnpm --filter @horama/agent explorer -- --url adresse [options]
   --url adresse       Adresse HTTP(S) requise, visite sans connexion ni formulaire
+  --site identifiant  Remplace le nom du site dérivé de l’hôte (lettres, chiffres, - et _)
   --max 15            Plafond de pages ; avec --max 8, le passage vise 2 à 3 min
   --pages-cliquees 4  Pages à atteindre par clic (entier ≥ 0)
   --sortie chemin     Sortie (.orchestrateur/exploration du dépôt par défaut)
@@ -25,7 +26,7 @@ export function lireArguments(args: string[]): (ExplorerOptions & { sansBase: bo
   const values = new Map<string, string>();
   for (let index = 0; index < args.length; index++) {
     const name = args[index];
-    if (!["--url", "--max", "--pages-cliquees", "--sortie", "--vault", "--sans-base", "--chrome-port", "--reseau-public"].includes(name) || values.has(name)) throw new Error("Option inconnue ou répétée ; utiliser --help.");
+    if (!["--url", "--site", "--max", "--pages-cliquees", "--sortie", "--vault", "--sans-base", "--chrome-port", "--reseau-public"].includes(name) || values.has(name)) throw new Error("Option inconnue ou répétée ; utiliser --help.");
     if (name === "--sans-base" || name === "--reseau-public") { values.set(name, "true"); continue; }
     const value = args[++index];
     if (!value || value.startsWith("--")) throw new Error(`Valeur requise pour ${name}.`);
@@ -40,7 +41,9 @@ export function lireArguments(args: string[]): (ExplorerOptions & { sansBase: bo
   const pagesCliquees = Number(values.get("--pages-cliquees") ?? 4);
   if (!Number.isSafeInteger(pagesCliquees) || pagesCliquees < 0) throw new Error("--pages-cliquees attend un entier positif ou nul.");
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("Port Chrome invalide.");
-  return { url: address, max, port, pagesCliquees, sortie: values.get("--sortie") ?? fileURLToPath(new URL("../../../.orchestrateur/exploration", import.meta.url)),
+  const site = values.get("--site");
+  if (site !== undefined && !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(site)) throw new Error("Site invalide : utiliser lettres, chiffres, tirets ou soulignements.");
+  return { url: address, max, port, pagesCliquees, ...(site !== undefined ? { site } : {}), sortie: values.get("--sortie") ?? fileURLToPath(new URL("../../../.orchestrateur/exploration", import.meta.url)),
     vault: values.get("--vault") ?? fileURLToPath(new URL("../../../vault-horama", import.meta.url)), sansBase: values.has("--sans-base"), reseauPublic: values.has("--reseau-public") };
 }
 
