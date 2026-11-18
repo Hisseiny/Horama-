@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { aJouer, impactDePr, jouerPr, lecteurGithub } from "./pr.mjs";
+import { aBlanc, aJouer, impactDePr, jouerPr, lecteurGithub } from "./pr.mjs";
 
 // A vault of trial: two screens of a site whose code we have, one test per screen.
 function vaultEssai(t) {
@@ -72,4 +72,20 @@ test("une PR jouée : impact écrit, puis la scène sur la prévisualisation ave
   // A PR that touches no screen: said, the scene is not started.
   const none = await jouerPr({ pr: { ...pr, tete: "autre000000" }, fichiers: ["README.md"], vault, logiciel: "site-essai", sortie }, async () => assert.fail("scène lancée"));
   assert.equal(none.etat, "aucun-test");
+});
+
+test("à blanc : PR, prévisualisation, fichiers et tests rejoués, sans rien jouer ; dépôt sans Vercel signalé", (t) => {
+  const vault = vaultEssai(t);
+  const pr = { numero: 7, adresse: "u", titre: "Durée", base: "b", tete: "abcdef123" };
+  const relie = { deploiementsPreview: () => 1, prs: () => [pr], previsualisation: () => ({ etat: "success", adresse: "https://p.vercel.app" }), fichiers: () => ["src/data/home.ts"] };
+  assert.deepEqual(aBlanc(relie, { vault, logiciel: "site-essai" }), [
+    "1 déploiement(s) Preview sur le dépôt.",
+    "PR #7 (abcdef1) « Durée » : prévisualisation prête, https://p.vercel.app.",
+    "  1 fichier(s) : src/data/home.ts",
+    "  tests rejoués : voir-accueil ; écartés : voir-programmes",
+  ]);
+  const seul = { deploiementsPreview: () => 0, prs: () => [], previsualisation: () => null, fichiers: () => [] };
+  assert.deepEqual(aBlanc(seul, { vault, logiciel: "site-essai" }), ["Aucun déploiement Preview sur le dépôt : Vercel n'y est pas encore relié.", "Aucune PR ouverte."]);
+  const enAttente = { ...relie, deploiementsPreview: () => 0, previsualisation: () => null };
+  assert.equal(aBlanc(enAttente, { vault, logiciel: "site-essai" })[1], "PR #7 (abcdef1) « Durée » : pas de déploiement Preview pour ce commit.");
 });
