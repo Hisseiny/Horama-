@@ -50,7 +50,7 @@ On a recréé le site d'Eugenia (le clone d'Ali, `Hisseiny/eugenia-school-websit
 
 | Ce qu'on cherche | Comment Horama le voit | État au 18/11 |
 |---|---|---|
-| Texte coupé ou qui déborde d'un bouton | Le code mesure le texte qui sort de sa boîte (débordement) ; l'IA signale ce qui semble coupé | Construit : sur des pages d'essai, les 4 débordements plantés sont trouvés et aucun faux ; sur 5 sites réels (dont Eugenia), aucun faux. Jamais essayé sur une page traduite |
+| Texte coupé ou qui déborde d'un bouton | Le code mesure le texte qui sort de sa boîte (débordement) ; l'IA signale ce qui semble coupé | Construit : sur des pages d'essai, les 4 débordements plantés sont trouvés et aucun faux ; sur 4 sites réels (dont Eugenia), aucun faux, mais aucun vrai débordement n'y existait. Jamais essayé sur une page traduite |
 | Bouton ou lien qui ne mène plus nulle part | Le code suit chaque lien et lit la réponse finale | Construit et prouvé sur le site d'Eugenia en ligne (le lien des portes ouvertes en 404, à chaque passage) |
 | Bouton introuvable sous son nom allemand | L'agent H cherche le bouton à l'écran | Jamais essayé en allemand |
 | « La plupart des boutons ne marchent pas en allemand » | | À mesurer : la version allemande n'existe pas encore ; qui la fait et quand est à déterminer |
