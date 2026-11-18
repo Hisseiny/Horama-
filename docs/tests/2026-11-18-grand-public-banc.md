@@ -2,8 +2,8 @@
 
 ## Périmètre et correctifs dans la même PR
 
-Branche `a-67-banc`. Les mesures ci-dessous sont **antérieures au correctif
-`7233ce3`**, inclus dans la même PR :
+Branche `a-67-banc`. Les mesures de la section « avant correction » sont
+**antérieures au correctif `7233ce3`**, inclus dans la même PR :
 
 - faux `texte-erreur` sur la documentation Python : des mots techniques
   `null`, `undefined`, `NULL` ont été qualifiés de défauts ; le contrôle
@@ -35,10 +35,11 @@ L'instant exact d'apparition lors des passages historiques n'a pas été établi
 ## Sources, sites et robots
 
 Sources locales : `~/a67-banc/resume.md` (journal de procédure de l'étape 3)
-et les **16** `~/a67-banc/<site>/p<n>/exploration.json`, y compris les deux
-passages racine Eugenia de l'étape 2. Les JSON sont la source des mesures et
-comptages, pas la relecture vrai/faux. Les qualifications de relecture
-ci-dessous sont celles fournies par l'utilisateur après ouverture des captures ;
+et les **16** `~/a67-banc/<site>/p<n>/exploration.json` avant correction, y compris
+les deux passages racine Eugenia de l'étape 2, puis **4 JSON après correction**
+sous `python-fix/` et `skema-fix/`. Les JSON sont la source des mesures et
+comptages, pas la relecture vrai/faux. Les qualifications avant correction
+sont celles fournies par l'utilisateur après ouverture des captures ;
 la vérification comparative Grant Thornton a également été faite pour ce rapport.
 
 Deux genres complémentaires ont été retenus :
@@ -98,7 +99,7 @@ Après le lot : toutes nos sessions terminales, **0 running propre au lot**,
 dernier quota `{"scope":"org","limit":3,"active":0,"available":3}`.
 Dernière fin Python p2 : `2026-11-18T12:02:49.693Z`, soit **13:02:49 à Paris**.
 Aucun lancement après 13:05, aucune session H pendant **13:15–14:30** ;
-aucune session H relancée pour rédiger ce rapport. État git vide après chaque
+aucune session H relancée avant 14 h 30. État git vide après chaque
 passage, aucun code changé pendant les mesures.
 
 Commandes moteur (depuis la racine du dépôt, clé liée par l'environnement) :
@@ -383,23 +384,231 @@ Vidéo Eugenia p1 à joindre à la PR comme indiqué plus haut, **pas dans Git**
 
 ## Après correction (passages du 18/11 après 14 h 30)
 
-Aucun de ces passages n'a été lancé pour ce document.
-Les chiffres seront fournis par l'utilisateur ; ne pas réutiliser les mesures
-avant correctif comme si elles validaient celui-ci.
+### Procédure et horaires effectivement observés
 
-| Site | Durée / coûts H-Holo-total | Trouvées / visitées / NV | Agents H | VF / S / I | Comparaisons | Cookies / qualification |
-|---|---|---|---|---|---|---|
-| Python | à mesurer | à mesurer | à mesurer | à mesurer | à mesurer | à mesurer |
-| SKEMA | à mesurer | à mesurer | à mesurer | à mesurer | à mesurer | à mesurer |
+Attente sans aucune session H jusqu'à `TZ=Europe/Paris date` =
+`Wed Nov 18 14:30:08 CET 2026`. Code mesuré : branche à `b840d84`, contenant
+7233ce3 sans changement moteur depuis. **Les mesures précèdent la fusion
+d'origin/dev demandée en fin d'étape**, ce qui préserve l'attribution au correctif.
+Profils Chrome neufs pour **chaque passage**, vault propre à chaque site corrigé,
+commun à ses p1/p2 ; même Chrome visible, simple visite sans formulaire,
+une seule session H de ce lot à la fois et `queue: false`.
 
-Python : vérifier les six anciens emplacements et les vrais messages normaux.
-SKEMA : vérifier fermeture effective, `cookies: refusee`, section Public et
-stabilité des captures entre p1/p2 ; conserver les protections sans contournement.
+Robots revérifiés avant les sites : Python conserve `User-agent: *`,
+`Disallow: /dev`, `/release`, versions anciennes ; `/fr/3/` non interdit.
+SKEMA renvoie encore le HTML Incapsula (`noindex,nofollow`,
+`/_Incapsula_Resource`) : autorisation robots toujours **indéterminable**, aucune
+interdiction lisible ni contournement. Réponses conservées sous
+`~/a67-banc/{python,skema}-fix-robots.txt` et `*-headers.txt`.
+
+Heure de Paris contrôlée avant **chaque** démarrage du moteur :
+
+| Passage | Contrôle juste avant lancement | Début / fin moteur (Paris) | Quota avant → après (active / available) |
+|---|---|---|---|
+| Python p1 | 14:30:15 | 14:30:16 → 14:34:02 | 0 / 3 → 1 / 2 |
+| Python p2 | 14:34:05 | 14:34:06 → 14:37:49 | 1 / 2 → 1 / 2 |
+| SKEMA p1 | 14:38:05 | 14:38:05 → 14:39:11 | 1 / 2 → 1 / 2 |
+| SKEMA p2 | 14:39:15 | 14:39:15 → 14:40:08 | 1 / 2 → 1 / 2 |
+
+L'activité restante appartient à **un autre couloir** : nos quatre sessions
+ont été contrôlées individuellement `completed/success`, aucune `running` ni
+fermeture incertaine. Aucun besoin de DELETE, aucun autre couloir modifié.
+Git vide après chacun des quatre passages ; Chrome dédié fermé après chacun.
+Métadonnées, IDs, quotas et commandes : `~/a67-banc/<site>-fix/p<n>-meta.json`.
+
+| Passage | Session H |
+|---|---|
+| Python p1 | `5646368a-55d3-4f1a-87a9-1bb4e9e1abf4` |
+| Python p2 | `3658edad-536f-4745-b6e5-f361e99ceec4` |
+| SKEMA p1 | `dbb6a3ff-6979-4564-9397-5e5105ccfec5` |
+| SKEMA p2 | `1fe5f671-b588-444a-9f55-23388b0d7b3f` |
+
+Commandes moteur exactes, avec la même liaison de clé de développement :
+
+```sh
+HOLO_BIN="$HOME/.venvs/holo/bin/holo" pnpm --filter @horama/agent explorer -- --url https://docs.python.org/fr/3/ --sans-base --max 15 --chrome-port 9333 --sortie "$HOME/a67-banc/python-fix/p1" --vault "$HOME/a67-banc/python-fix/vault"
+HOLO_BIN="$HOME/.venvs/holo/bin/holo" pnpm --filter @horama/agent explorer -- --url https://docs.python.org/fr/3/ --sans-base --max 15 --chrome-port 9333 --sortie "$HOME/a67-banc/python-fix/p2" --vault "$HOME/a67-banc/python-fix/vault"
+HOLO_BIN="$HOME/.venvs/holo/bin/holo" pnpm --filter @horama/agent explorer -- --url https://www.skema.edu/fr --sans-base --max 15 --chrome-port 9333 --sortie "$HOME/a67-banc/skema-fix/p1" --vault "$HOME/a67-banc/skema-fix/vault"
+HOLO_BIN="$HOME/.venvs/holo/bin/holo" pnpm --filter @horama/agent explorer -- --url https://www.skema.edu/fr --sans-base --max 15 --chrome-port 9333 --sortie "$HOME/a67-banc/skema-fix/p2" --vault "$HOME/a67-banc/skema-fix/vault"
+```
+
+Commande Chrome identique au protocole précédent, avec profils
+`~/a67-banc/python-fix/profil-p1`, `profil-p2`, puis
+`~/a67-banc/skema-fix/profil-p1`, `profil-p2`. Logs de supervision :
+`~/a67-banc/fix-batch-{python,skema}.log` ; logs moteur dans chaque dossier de site.
+
+### Mesures et couverture
+
+Coûts USD tous connus, calculés depuis les JSON avec les mêmes règles qu'avant.
+S inclut les comparaisons ; C les isole.
+
+| Passage | Durée s | H USD | Holo USD | Total USD | Trouvées / visitées / NV | Agents H | VF / S / I | C |
+|---|---:|---:|---:|---:|---|---:|---|---:|
+| Python corrigé p1 | 226,212 | 0,0855100 | 0,0088776 | 0,0943876 | 15 / 15 / 0 | 1 | 2 / 0 / 0 | 0 |
+| Python corrigé p2 | 222,683 | 0,0796192 | 0,0088776 | 0,0884968 | 15 / 15 / 0 | 1 | 2 / 0 / 0 | 0 |
+| SKEMA corrigé p1 | 66,128 | 0,0279568 | 0,0006980 | 0,0286548 | 2 / 1 / 1 | 1 | 0 / 1 / 1 | 0 |
+| SKEMA corrigé p2 | 52,873 | 0,0235528 | 0,0005900 | 0,0241428 | 2 / 1 / 1 | 1 | 0 / 1 / 1 | 1 |
+
+Python : CLI 0, moteur `fini`, un agent H fini par passage, aucune relance.
+SKEMA : CLI **1**, moteur **interrompu**, sans exception ; H `completed/success`
+mais agent moteur `tombe`, raison exacte **« Des pages n'ont pas été visitées. »**.
+Ce n'est ni un succès du passage ni une fermeture H manquée. Pas de relance H
+dans ces deux passages. Holo écarté faute de zone : **0** sur les quatre passages.
+
+La découverte SKEMA est réduite à **2 URL** (source `liens`), contre 15 avant.
+Seule `/fr` est visitée. La cause précise de cette réduction n'a pas été isolée ;
+le robots est protégé, mais cela ne suffit pas à prouver chaque lien causal.
+Pas de nouvelle tentative pour élargir le périmètre ou contourner la protection.
+Aux deux passages, `/` reste `non_visitee` :
+**« Page non atteinte après 2 essais : https://www.skema.edu/ »**.
+Le podcast antérieurement non atteint n'est **plus découvert**, donc pas validé.
+
+### Cookies par page (valeurs JSON p1 et p2)
+
+| Site | Écran / page | p1 | p2 |
+|---|---|---|---|
+| Python | `fr-3` | aucune | aucune |
+| Python | `3` | aucune | aucune |
+| Python | `fr-3-download-html` | aucune | aucune |
+| Python | `fr-3-genindex-html` | aucune | aucune |
+| Python | `fr-3-py-modindex-html` | aucune | aucune |
+| Python | `fr-3-whatsnew-3-15-html` | aucune | aucune |
+| Python | `fr-3-whatsnew-index-html` | aucune | aucune |
+| Python | `fr-3-tutorial-index-html` | aucune | aucune |
+| Python | `fr-3-builtins-index-html` | aucune | aucune |
+| Python | `fr-3-library-index-html` | aucune | aucune |
+| Python | `fr-3-reference-index-html` | aucune | aucune |
+| Python | `fr-3-using-index-html` | aucune | aucune |
+| Python | `fr-3-howto-index-html` | aucune | aucune |
+| Python | `fr-3-installing-index-html` | aucune | aucune |
+| Python | `fr-3-extending-index-html` | aucune | aucune |
+| SKEMA | `fr` (visitée) | aucune | aucune |
+| SKEMA | `accueil` (`/`, non visitée) | aucune | aucune |
+
+Aucun `refusee` rapporté. Les deux captures SKEMA `/fr` ne montrent **pas de
+bannière cookies**. Ce résultat n'établit **pas** qu'une bannière effectivement
+apparue a été fermée par le moteur : elle n'est ni observée ni attestée cliquée
+dans ces passages. Le bandeau « Journée Portes Ouvertes » en haut reste présent,
+normalement : ce n'est pas un consentement cookies. La section Public et la page
+career-fair ne sont pas revisitées ; leur validation reste à faire.
+
+### Relecture des constats et de la comparaison restante
+
+Relecture visuelle effectuée pour cette étape par l'assistant, non assimilée à
+une validation humaine. Chemins ci-dessous relatifs à `~/a67-banc/`.
+
+**Python : attendu zéro, observé deux `texte-erreur` VF par passage.**
+Les quatre captures centrées p1/p2 ont été ouvertes. Les deux occurrences
+restantes sont `undefined` dans des paragraphes normaux (`p`), hors des balises
+exclues, sur `/fr/3/whatsnew/3.15.html` :
+
+- section typing : « their exact semantics remain undefined in the
+  specification » ;
+- section urllib.parse : « distinguish between empty and undefined URI
+  components ».
+
+Ce sont **deux FAUX positifs** techniques, pas des erreurs affichées du site.
+Le correctif élimine quatre occurrences de code sur six, **pas ces deux usages
+lexicaux en prose**. Ne pas étendre le filtre ni changer le moteur pendant ce
+banc. Captures : `python-fix/{p1,p2}/captures/fr-3-whatsnew-3-15-html--controle--1.png`
+et `--2.png`. Avec page+sorte+description, ces deux alertes fusionnent en
+**un distinct faux**, comme les six anciennes alertes.
+
+**SKEMA p1 :** `fr--holo--1`, `contraste-illisible`, S, phrase :
+« Le texte circulaire du bouton de lecture est difficile à lire sur l'image. »
+Qualification visuelle **VRAI, à valider humainement** : portions de lettres
+blanches sur le fond clair au bas du bouton circulaire « En savoir plus ».
+Il s'agit d'un doute de contraste local, pas d'un texte tronqué ; aucun ratio
+WCAG mesuré, aucune réussite stricte. Capture : `skema-fix/p1/captures/fr.png`.
+Le constat n'est pas réémis en p2 ; l'orientation du texte a changé.
+
+**SKEMA p2 : une seule comparaison**, `fr--comparaison--1`, S, zone
+`x=583, y=678, largeur=102, hauteur=92`, sur `/fr`.
+Les deux captures `skema-fix/{p1,p2}/captures/fr.png` ont été ouvertes :
+**le texte circulaire « En savoir plus » a tourné autour du bouton de lecture**.
+Changement réel expliqué par l'animation, **pas un défaut de régression**.
+Pas d'écart de bannière cookies sur cette page ; **44 → 1 écarts bruts**,
+mais sur **12 → 1 pages comparées porteuses d'écarts**, avec forte réduction de
+couverture : ne pas attribuer cette baisse entière au correctif de consentement.
+Python p2 : aucune comparaison. Les seuls autres constats sont les
+`INCONCLUSIVE` SKEMA pour `/`, exclus des taux et jamais des réussites.
+
+### Taux après correction — seulement les deux sites remesurés
+
+Même clé page+sorte+description et union p1∪p2. Les anciennes mesures et
+qualifications restent dans les sections précédentes. Pas de total global
+« après » mélangeant cinq anciens sites et deux nouveaux passages.
+
+| Site | Défauts distincts avant / faux | Défauts distincts après / faux | Taux faux après |
+|---|---|---|---|
+| Python | 1 / 1 | 1 / 1 | 1/1 = 100 % |
+| SKEMA | 3 / 2 | 1 / 0 | 0/1 = 0 % |
+| **Total remesuré** | **4 / 3** | **2 / 1** | **1/2 = 50 %** |
+
+Calcul avant sur ces deux sites : (1+2)/(1+3)=3/4=75 % ; après :
+(1+0)/(1+1)=1/2=50 %. Le taux distinct Python reste 100 % malgré la baisse
+de 6 à 2 occurrences par passage. SKEMA n'a plus la même couverture ; cette
+différence interdit de conclure à une amélioration globale de précision.
+Le vrai de contraste après correction reste S et sa qualification est visuelle
+provisoire, à valider humainement. **Aucun vrai VF** dans le lot corrigé.
+
+| Site | Comparaisons brutes / distinctes après | Fausses alertes | Changement réel expliqué |
+|---|---|---|---|
+| Python | 0 / 0 | 0 (taux non défini) | 0 |
+| SKEMA | 1 / 1 | 0/1 = 0 % | 1/1 = 100 % |
+| **Total remesuré** | **1 / 1** | **0/1 = 0 %** | **1/1 = 100 %** |
+
+Lecture large « tout signal sans défaut de régression » : **1/1=100 %**,
+le seul changement étant l'animation. Avant, sur ces deux sites, 44 zones,
+12 distincts, 12 fausses alertes de bannière. Après : 1 zone, 1 distinct,
+0 fausse alerte non expliquée, 1 changement voulu expliqué.
+`INCONCLUSIVE` après : **2 occurrences, 1 distinct** SKEMA `/` ; aucun Python.
+
+### Vérification après fusion de dev
+
+Après les quatre passages et leur relecture : `git fetch origin`, puis
+`git merge --no-edit origin/dev`, fusion automatique sans conflit de
+`origin/dev` à **50115c7**, commit de fusion **f4a543b**. Les évolutions amont
+sont conservées ; le diff propre à cette branche dans `explorer.ts` reste limité
+à la vérification de consentement, sans modification propre de consigne H ni de
+budget. **Aucun passage H supplémentaire sur le moteur fusionné** : les mesures
+ci-dessus portent bien sur 7233ce3 avant cette fusion.
+
+```sh
+CHROME_BIN="$HOME/.local/bin/google-chrome" pnpm -r --if-present run check
+```
+
+Sortie 0, fin exacte :
+
+```text
+agent check: 1..210
+agent check: # tests 214
+agent check: # suites 0
+agent check: # pass 214
+agent check: # fail 0
+agent check: # cancelled 0
+agent check: # skipped 0
+agent check: # todo 0
+agent check: # duration_ms 16509.410598
+agent check: Done
+```
+
+Sortie complète conservée dans `~/a67-banc/etape6-check.log`.
+
+```sh
+grep -riE "eugenia|albertschool|kpmg|skema|grantthornton|quilombo|python\.org" agent/src
+```
+
+Sortie **vide**, code **1** : aucune correspondance, aucun domaine du banc
+introduit dans les sources. `git diff --check` : sortie vide.
 
 ## Ce qui reste à un humain
 
-- Fournir les chiffres après 14 h 30, relire les captures Python/SKEMA et compléter
-  la section réservée ; les tests locaux ne remplacent pas cette validation.
+- Valider les nouvelles qualifications visuelles, notamment le contraste local
+  SKEMA et les deux usages `undefined` Python ; décider si le contrôle doit être
+  affiné pour la prose technique sans perdre les vrais messages d'erreur.
+- Remesurer la fermeture d'une bannière réellement apparue sur les pages SKEMA
+  concernées, si elles sont accessibles sans contournement ; ce lot ne la prouve pas.
 - Joindre la vidéo hors Git à la PR et rendre accessibles les preuves locales
   nécessaires aux relecteurs ; aucune PR créée ni pièce téléversée ici.
 - Décider la suite pour la découverte plafonnée, la comparaison des barres de
