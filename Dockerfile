@@ -21,4 +21,4 @@ RUN pnpm --filter @horama/agent... install --frozen-lockfile --prod \
     && mkdir -p /data && chown node:node /data
 USER node
 ENTRYPOINT ["/usr/bin/tini", "--", "node", "agent/scripts/container.mjs"]
-CMD ["--help"]
+CMD ["--service"]
