@@ -15,7 +15,7 @@ import { captureDefect, connecterCdp, dismissCookies, prepareCapture } from "./c
 import type { ExplorationCdp } from "./cdp.ts";
 import { controlerPage } from "./controles.ts";
 import { askHolo } from "./holo.ts";
-import { discoverPages, normalizePageQuery } from "./pages.ts";
+import { discoverPages, normalizePageQuery, renderPage } from "./pages.ts";
 
 type Zone = EcartVisuel["zone"];
 export interface Finding {
@@ -41,6 +41,7 @@ export interface ExplorerDependencies {
   base: BasePassages; runtime: BrowserRuntime; session: Session; signal?: AbortSignal;
   fetch?: typeof fetch; controler?: typeof controlerPage; holo?: typeof askHolo;
   connecter?: (port: number, address: string) => Promise<ExplorationCdp>;
+  render?: import("./pages.ts").DiscoveryOptions["render"];
   log?: (message: string) => void;
   urlCourante?: () => Promise<string | null>;
   onglets?: () => Promise<Array<{ type: string; url: string }>>;
@@ -137,7 +138,8 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
     if (response.ok && /<(?:[\w-]+:)?(?:urlset|sitemapindex)\b/i.test(await response.clone().text())) sitemap = true;
     return response;
   };
-  const discovery = await discoverPages(url, { max, fetch: request });
+  const discovery = await discoverPages(url, { max, fetch: request, render: deps.render ?? (deps.fetch ? undefined : (address, allowed) => renderPage(port, address, allowed)) });
+  for (const error of discovery.errors) if (error.message.startsWith("Rendu :")) log(`${error.url} — ${error.message}`);
   const used = new Set<string>();
   const pages: ExplorationPage[] = discovery.pages.map((address, index) => {
     const path = decodeURIComponent(new URL(address).pathname).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "accueil";
