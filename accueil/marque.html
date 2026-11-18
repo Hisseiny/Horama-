@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horama · la marque, direction « L'envoyé »</title>
+<meta name="description" content="Planche de marque d'Horama : le mot, la règle du trait, la palette, les polices, la mascotte et ses états, l'extension et le récapitulatif.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="envoye.css?v=3">
+<style>
+  .retour-page { position: absolute; left: 0; top: -58px; z-index: 3; font-weight: 600; font-size: 15.5px; }
+  h2 { font-size: 46px; line-height: 1; }
+  .lg { font-size: 15.5px; color: var(--encre-2); margin: 10px 0 0; max-width: 46ch; }
+
+  /* 1. le mot : en très grand, devant le soleil */
+  .entree { position: relative; overflow: clip; padding: 96px 0 130px; background: radial-gradient(820px 560px at calc(50% + 380px) 330px, rgba(255, 214, 102, .55), rgba(255, 214, 102, 0) 70%); }
+  .entree .wrap { position: relative; }
+  .entree .mot { font-size: 236px; letter-spacing: -.02em; position: relative; z-index: 2; margin-left: -8px; }
+  .entree .phrase { font: 400 44px/1.12 var(--affiche); max-width: 16ch; margin: 22px 0 0; position: relative; z-index: 2; text-wrap: balance; }
+  .entree .phrase i { font-style: normal; background-image: radial-gradient(circle, var(--encre) 2.6px, transparent 3px); background-size: 11px 8px; background-repeat: repeat-x; background-position: 0 100%; padding-bottom: 9px; }
+  .entree .phrase b { font-weight: 400; position: relative; white-space: nowrap; margin: 0 .16em; }
+  .entree .phrase b svg { position: absolute; left: -12px; top: -8px; width: calc(100% + 24px); height: calc(100% + 16px); overflow: visible; }
+  .entree .etym { margin: 30px 0 0; font-size: 18px; max-width: 40ch; position: relative; z-index: 2; }
+  .entree .soleil { position: absolute; right: -30px; top: -20px; width: 560px; height: 560px; overflow: visible; }
+  .soleil .rayons { transform-origin: 0 0; animation: tourne 160s linear infinite; }
+  .soleil .rayons line { stroke: var(--encre); stroke-width: 3.6; stroke-linecap: round; stroke-dasharray: 0 13; opacity: .55; }
+  @keyframes tourne { to { transform: rotate(360deg); } }
+  .entree .perche { position: absolute; right: 150px; top: 150px; z-index: 2; }
+  .nuage { position: absolute; overflow: visible; }
+  .nuage path { fill: var(--papier); stroke: var(--encre); stroke-width: 3; stroke-linejoin: round; }
+  .entree .nuage { right: 440px; top: 330px; width: 150px; }
+  .entree::after, .ciel::before, .ciel::after { content: ""; position: absolute; left: 0; right: 0; height: 72px; z-index: 3; pointer-events: none;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='72'%3E%3Cpath d='M0 0V30a40 34 0 0 0 80 0a26 22 0 0 0 52 0a48 38 0 0 0 96 0a30 24 0 0 0 60 0a44 36 0 0 0 88 0a24 20 0 0 0 48 0a28 24 0 0 0 56 0V0Z' fill='%23FBF5E6'/%3E%3Cpath d='M0 30a40 34 0 0 0 80 0a26 22 0 0 0 52 0a48 38 0 0 0 96 0a30 24 0 0 0 60 0a44 36 0 0 0 88 0a24 20 0 0 0 48 0a28 24 0 0 0 56 0' fill='none' stroke='%231C1C1C' stroke-width='3' stroke-linejoin='round'/%3E%3C/svg%3E") repeat-x 0 0 / 480px 72px; }
+  .entree::after { bottom: -1px; transform: scaleY(-1); background-position-x: -210px; }
+
+  /* 2. la mascotte et ses états, dans le ciel */
+  .ciel { position: relative; background: var(--aile-2); padding: 130px 0 150px; }
+  .ciel::before { top: -1px; } .ciel::after { bottom: -1px; transform: scale(-1, -1); }
+  .etats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin-top: 54px; }
+  .etat { text-align: left; }
+  .etat .pose { height: 190px; display: flex; align-items: center; justify-content: center; position: relative; }
+  .etat .pose .disque { position: absolute; width: 168px; height: 168px; border-radius: 50%; border: var(--trait) solid var(--encre); background: var(--papier); }
+  .etat:nth-child(1) .disque { background: var(--soleil); }
+  .etat .pose > div:last-child { position: relative; }
+  .etat h3 { font-size: 28px; margin-top: 18px; }
+  .etat p { margin: 8px 0 0; font-size: 16px; line-height: 1.45; max-width: 26ch; }
+  .etat .signe { margin-top: 14px; height: 34px; }
+  .etat .signe svg { overflow: visible; }
+  .inchange { margin: 46px 0 0; font-size: 15.5px; max-width: 70ch; }
+
+  /* 3. la règle du trait, la palette, les polices : trois blocs francs */
+  .planche { padding: 120px 0 0; }
+  .grille { display: grid; grid-template-columns: repeat(12, 1fr); gap: 24px; }
+  .case { border-radius: 32px; padding: 40px 40px 44px; position: relative; overflow: hidden; }
+  .case.regle { grid-column: 1 / 8; background: var(--papier); border: var(--trait) solid var(--encre); }
+  .case.objets { grid-column: 8 / 13; background: var(--soleil); }
+  .regle .trois { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 34px; }
+  .regle .trois div { font-size: 15.5px; line-height: 1.45; }
+  .regle .trois b { display: block; font: 400 24px/1.1 var(--affiche); margin: 16px 0 6px; }
+  .regle .demo { height: 74px; position: relative; display: flex; align-items: center; }
+  .regle .demo span { font: 600 19px var(--texte); position: relative; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+  .regle .demo svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .objets .rang { display: flex; flex-wrap: wrap; align-items: center; gap: 22px 26px; margin-top: 30px; }
+  .objets .champ { max-width: 100%; width: 100%; }
+  .objets .pli { transform: rotate(-2deg); }
+  .objets .lgd { font-size: 14.5px; margin: 26px 0 0; }
+
+  .palette { grid-column: 1 / 13; display: grid; grid-template-columns: repeat(10, 1fr); gap: 14px; margin-top: 34px; }
+  .teinte { font-size: 14px; line-height: 1.35; }
+  .teinte i { display: block; aspect-ratio: 1; border-radius: 50%; border: var(--trait) solid var(--encre); margin-bottom: 12px; }
+  .teinte b { display: block; font: 400 21px/1.1 var(--affiche); }
+  .teinte code { font: 500 12.5px var(--mesure); display: block; margin: 3px 0 4px; }
+  .teinte span { color: var(--encre-2); }
+  .titre-bloc { grid-column: 1 / 13; margin-top: 70px; }
+
+  .polices { grid-column: 1 / 13; display: grid; grid-template-columns: 7fr 5fr; gap: 24px; margin-top: 34px; }
+  .police { border-radius: 32px; padding: 36px 40px 40px; position: relative; overflow: hidden; }
+  .police.a { background: var(--nuit); color: #F3EEFF; grid-row: span 2; }
+  .police.t { background: var(--engobe-2); } .police.m { background: var(--aile-2); }
+  .police small { font: 500 13.5px var(--mesure); display: block; }
+  .police.a .grand { font: 400 150px/.9 var(--affiche); margin: 22px 0 0 -4px; letter-spacing: -.02em; }
+  .police.a .biais { font: 400 64px/1 var(--affiche); margin: 26px 0 0; color: var(--soleil); display: flex; gap: 26px; flex-wrap: wrap; }
+  .police.a .biais span:nth-child(1) { font-variation-settings: "XROT" 30, "YROT" -16; }
+  .police.a .biais span:nth-child(2) { font-variation-settings: "XROT" 15, "YROT" -8; }
+  .police.a p { margin: 22px 0 0; font-size: 16px; max-width: 46ch; color: #D8D2F2; }
+  .police.t .ex { font: 400 30px/1.25 var(--texte); margin: 16px 0 0; } .police.t .ex b { font-weight: 700; }
+  .police.m .ex { font: 500 19px/1.6 var(--mesure); margin: 16px 0 0; }
+  .police p.role { margin: 14px 0 0; font-size: 15px; color: var(--encre-2); }
+
+  /* 4. les deux surfaces du produit dans cette direction */
+  .surfaces { padding: 120px 0 130px; }
+  .deux { display: grid; grid-template-columns: 5fr 7fr; gap: 24px; margin-top: 44px; align-items: start; }
+  .deux > * { min-width: 0; }
+  .cadre { border-radius: 32px; padding: 40px; }
+  .cadre.e { background: var(--aile-2); } .cadre.r { background: var(--soleil-2); }
+  .cadre > small { font: 500 13.5px var(--mesure); display: block; margin-bottom: 22px; }
+  .popup { width: 360px; max-width: 100%; margin: 0 auto; background: var(--engobe); border: var(--trait) solid var(--encre); border-radius: 16px; overflow: hidden; }
+  .popup .haut { position: relative; height: 112px; background: var(--aile-2); border-bottom: var(--trait) solid var(--encre); overflow: hidden; }
+  .popup .haut .astre { position: absolute; right: 34px; top: 34px; width: 150px; height: 150px; border-radius: 50%; background: var(--soleil); border: var(--trait) solid var(--encre); }
+  .popup .haut .mot { position: absolute; left: 18px; top: 16px; font-size: 26px; }
+  .popup .haut .m { position: absolute; right: 68px; top: 18px; }
+  .popup .corps { padding: 18px; }
+  .popup label { font-size: 13.5px; font-weight: 600; display: block; margin-bottom: 7px; }
+  .popup .adresse { font: 500 13.5px var(--mesure); background: var(--papier); border: 2.5px solid var(--encre); border-radius: 999px; padding: 11px 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .popup .bouton { width: calc(100% - 34px); margin: 16px 17px 4px; height: 52px; }
+  .popup ul { list-style: none; margin: 16px 0 0; padding: 0; border-top: 2px dashed var(--filet); }
+  .popup li { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 2px dashed var(--filet); font-size: 14.5px; }
+  .popup li code { font: 500 13px var(--mesure); flex: 1; }
+  .popup li i { width: 18px; height: 18px; border: 2.2px solid var(--encre); flex: none; font: 800 12px/14px var(--texte); text-align: center; color: #fff; font-style: normal; }
+  .popup li i.t { background: var(--miltos); } .popup li i.d { background: var(--ocre); } .popup li i.c { background: var(--olivier); }
+  .popup li i.v { border-radius: 50%; background: var(--aile); animation: bat 1.2s ease-in-out infinite; }
+  @keyframes bat { 50% { transform: scale(.7); } }
+
+  .recap { background: var(--engobe); border: var(--trait) solid var(--encre); border-radius: 16px; overflow: hidden; max-width: 640px; margin: 0 auto; }
+  .recap .haut { position: relative; height: 150px; background: var(--aile-2); border-bottom: var(--trait) solid var(--encre); overflow: hidden; }
+  .recap .haut .astre { position: absolute; left: 50%; margin-left: -130px; top: 44px; width: 260px; height: 260px; border-radius: 50%; background: var(--soleil); border: var(--trait) solid var(--encre); }
+  .recap .haut .m { position: absolute; left: 50%; margin-left: -52px; top: 18px; }
+  .recap .corps { padding: 26px 30px 30px; }
+  .recap h3 { font-size: 56px; line-height: 1; }
+  .recap .site { font: 500 13.5px var(--mesure); margin: 8px 0 0; color: var(--encre-2); }
+  .recap .chiffres { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 24px 0 0; }
+  .recap .chiffres div { font-size: 14.5px; line-height: 1.3; font-weight: 600; }
+  .recap .chiffres b { display: block; font: 400 76px/.9 var(--affiche); margin-bottom: 8px; }
+  .recap .chiffres .t b { color: var(--miltos); } .recap .chiffres .d b { color: var(--ocre); margin-bottom: 18px; } .recap .chiffres .t b, .recap .chiffres div:last-child b { margin-bottom: 18px; }
+  .recap .chiffres .d b span { background-image: radial-gradient(circle, var(--ocre) 3px, transparent 3.5px); background-size: 12px 9px; background-repeat: repeat-x; background-position: 2px 100%; padding-bottom: 10px; }
+  .recap .releves { margin: 26px 0 0; display: grid; gap: 10px; }
+  .recap .releves div { display: flex; align-items: center; gap: 12px; background: var(--papier); border: 2.5px solid var(--encre); border-radius: 10px; padding: 12px 14px; font-size: 15px; }
+  .recap .releves i { width: 20px; height: 20px; border: 2.2px solid var(--encre); flex: none; font: 800 13px/15.6px var(--texte); text-align: center; color: #fff; font-style: normal; }
+  .recap .releves i.t { background: var(--miltos); } .recap .releves i.d { background: var(--ocre); }
+  .recap .releves span { flex: 1; font-weight: 600; } .recap .releves code { font: 500 12.5px var(--mesure); color: var(--encre-2); white-space: nowrap; }
+  .recap .bouton { margin: 26px 0 0 18px; }
+  .demo-note { font-size: 14px; color: var(--encre-2); margin: 18px 0 0; text-align: center; }
+  footer { background: var(--encre); color: var(--engobe); padding: 28px 0 32px; font-size: 15px; }
+  footer .wrap { display: flex; justify-content: space-between; gap: 14px 40px; flex-wrap: wrap; } footer a { color: var(--engobe); }
+
+  @media (max-width: 1240px) { .entree .mot { font-size: 190px; } .entree .perche { right: 110px; } .palette { grid-template-columns: repeat(5, 1fr); } }
+  @media (max-width: 1099px) {
+    h2 { font-size: 36px; }
+    .entree { padding: 84px 0 330px; }
+    .entree .mot { font-size: clamp(84px, 24vw, 170px); margin-left: -3px; }
+    .entree .phrase { font-size: 31px; max-width: 13ch; }
+    .entree .etym { font-size: 16.5px; max-width: 30ch; }
+    .entree .soleil { right: -70px; top: auto; bottom: -350px; width: 380px; height: 380px; }
+    .entree .perche { right: 40px; top: auto; bottom: -262px; }
+    .entree .nuage { display: none; }
+    .ciel { padding: 104px 0 120px; }
+    .etats { grid-template-columns: 1fr 1fr; gap: 34px 16px; }
+    .etat .pose { height: 150px; } .etat .pose .disque { width: 130px; height: 130px; }
+    .etat h3 { font-size: 23px; } .etat p { font-size: 15px; }
+    .planche { padding-top: 90px; }
+    .grille { display: block; }
+    .case { padding: 28px 22px 30px; border-radius: 24px; margin-top: 14px; }
+    .regle .trois { grid-template-columns: 1fr; gap: 10px; }
+    .titre-bloc { margin-top: 64px; }
+    .palette { grid-template-columns: repeat(3, 1fr); gap: 22px 12px; }
+    .polices { grid-template-columns: 1fr; gap: 14px; }
+    .police { padding: 28px 22px 30px; border-radius: 24px; }
+    .police.a .grand { font-size: clamp(84px, 25vw, 150px); } .police.a .biais { font-size: 44px; gap: 16px; }
+    .police.t .ex { font-size: 23px; } .police.m .ex { font-size: 15.5px; }
+    .surfaces { padding: 90px 0 96px; }
+    .deux { grid-template-columns: 1fr; gap: 14px; margin-top: 30px; }
+    .cadre { padding: 24px 14px 26px; border-radius: 24px; } .cadre > small { margin-left: 8px; }
+    .recap .corps { padding: 22px 18px 24px; } .recap h3 { font-size: 44px; }
+    .recap .chiffres b { font-size: 58px; } .recap .chiffres div { font-size: 13px; }
+    .recap .releves div { flex-wrap: wrap; } .recap .releves code { white-space: normal; flex-basis: 100%; padding-left: 32px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .soleil .rayons, .popup li i.v { animation: none; } }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="aile-g" viewBox="0 22 32 35"><path d="M30 46C24 30 10 24 2 28c6 3 7 7 5 10 5 1 7 5 5 8 5 1 8 5 7 9 5-1 9-4 11-9Z"/></symbol>
+    <symbol id="aile-d" viewBox="64 22 32 35"><path d="M66 46C72 30 86 24 94 28c-6 3-7 7-5 10-5 1-7 5-5 8-5 1-8 5-7 9-5-1-9-4-11-9Z"/></symbol>
+    <symbol id="oeil" viewBox="26 26 44 44"><circle cx="48" cy="48" r="20" fill="#fff" stroke="#1C1C1C" stroke-width="3.6"/><circle cx="48" cy="48" r="10.5" fill="#7F77DD"/><circle cx="48" cy="48" r="4.6" fill="#1C1C1C"/><circle cx="51.6" cy="44.4" r="2.2" fill="#fff"/></symbol>
+  </defs>
+</svg>
+
+<section class="entree">
+  <div class="wrap">
+    <a class="retour-page" href="index.html">Retour à la page</a>
+    <div class="mot" aria-label="Horama">H<svg class="o"><use href="#oeil"/></svg>rama</div>
+    <p class="phrase">Ce qui est <b>prouvé<svg id="trait-phrase" aria-hidden="true"></svg></b> est tracé. Le reste est en <i>pointillé.</i></p>
+    <p class="etym">Horama, du grec ὅραμα : ce qui est vu. La marque raconte un envoyé ailé qu'on envoie voir un site, et qui ne revient qu'avec des preuves.</p>
+    <svg class="soleil" viewBox="-280 -280 560 560" aria-hidden="true"><g class="rayons"></g><circle r="196" fill="var(--soleil)" stroke="var(--encre)" stroke-width="3"/></svg>
+    <svg class="nuage" viewBox="0 0 150 62" aria-hidden="true"><path d="M22 58C8 58 2 50 3 42c1-8 8-13 16-12 0-12 10-20 22-18 5-9 18-12 28-7 8 4 12 11 12 18 9-5 22-2 27 6 12-2 22 5 22 16 1 8-6 13-14 13Z"/></svg>
+    <div class="perche" data-mascotte="regarde" data-taille="210"></div>
+  </div>
+</section>
+
+<section class="ciel">
+  <div class="wrap">
+    <h2>La mascotte fait le travail, elle ne décore pas.</h2>
+    <p class="lg">Quatre états, un par moment du produit. Le badge et la couleur de l'iris changent, le dessin jamais.</p>
+    <div class="etats">
+      <div class="etat"><div class="pose"><span class="disque"></span><div data-mascotte="regarde" data-taille="150"></div></div><h3>Il regarde.</h3><p>En vol, devant le soleil. Il laisse derrière lui un pointillé d'encre : le chemin parcouru.</p><div class="signe"><svg width="170" height="20"><path d="M4 10h160" stroke="var(--encre)" stroke-width="5.6" stroke-linecap="round" stroke-dasharray="0 13" opacity=".78"/></svg></div></div>
+      <div class="etat"><div class="pose"><span class="disque"></span><div data-mascotte="trouve" data-taille="150"></div></div><h3>Il a trouvé.</h3><p>Défaut prouvé. Un seul trait rouge, d'un geste, et la mesure à côté.</p><div class="signe"><svg width="170" height="34" id="signe-trait"></svg></div></div>
+      <div class="etat"><div class="pose"><span class="disque"></span><div data-mascotte="doute" data-taille="150"></div></div><h3>Il doute.</h3><p>Ce qu'il croit seulement voir. Des points sous l'élément, et une question pour vous.</p><div class="signe"><svg width="170" height="34" id="signe-doute"></svg></div></div>
+      <div class="etat"><div class="pose"><span class="disque"></span><div data-mascotte="fini" data-taille="150"></div></div><h3>C'est rangé.</h3><p>Visite finie ou réponse notée. Il revient avec ses plis accrochés.</p><div class="signe"><svg width="170" height="34"><rect x="2" y="5" width="24" height="24" fill="var(--olivier)" stroke="var(--encre)" stroke-width="2.4"/><path d="M7 17.5l5 5 9-10" fill="none" stroke="#fff" stroke-width="3"/></svg></div></div>
+    </div>
+    <p class="inchange">Mascotte d'Inès, dessin repris tel quel depuis <code class="mesure">mascotte.js</code> : œil rond, ailes lilas, badge par état. La direction ne lui ajoute que son décor (le soleil, les nuages) et ce qu'elle rapporte.</p>
+  </div>
+</section>
+
+<section class="planche">
+  <div class="wrap grille">
+    <div class="case regle">
+      <h2>Une seule règle de dessin.</h2>
+      <p class="lg">Elle vient du produit : Horama n'affirme que ce que le code a mesuré.</p>
+      <div class="trois">
+        <div><div class="demo"><span>portes ouvertes</span><svg id="demo-trait"></svg></div><b>Trait plein</b>Prouvé. Rouge sur une page, encre pour tout ce qui existe dans le monde dessiné.</div>
+        <div><div class="demo"><span>54 €</span><svg id="demo-doute"></svg></div><b>Points ocre</b>Vu, pas prouvé. Un humain tranche : bug, ou voulu.</div>
+        <div><div class="demo"><svg viewBox="0 0 200 74" preserveAspectRatio="xMinYMid meet"><path d="M6 54C40 54 50 16 86 18s30 34 62 30 34-22 46-30" fill="none" stroke="var(--encre)" stroke-width="5.6" stroke-linecap="round" stroke-dasharray="0 13" opacity=".78"/></svg></div><b>Points d'encre</b>Le vol, les rayons, les ombres : ce qui est parcouru ou éclairé, sans être affirmé.</div>
+      </div>
+    </div>
+    <div class="case objets">
+      <h2>Les objets du monde.</h2>
+      <div class="rang">
+        <form class="champ" onsubmit="return false"><input type="text" value="https://votre-site.fr" aria-label="Exemple de champ d'adresse" readonly><button class="bouton" type="button"><svg class="aile g"><use href="#aile-g"/></svg><svg class="aile d"><use href="#aile-d"/></svg>Envoyer Horama</button></form>
+        <div class="pli"><div class="tete"><i>!</i>Défaut prouvé</div><div class="mesure m1">mesuré</div><b class="gros">404</b><div class="mesure">attendu : une réponse sous 400</div></div>
+      </div>
+      <p class="lgd">Le bouton ailé (les ailes battent au survol), le champ d'adresse, le pli que l'envoyé rapporte.</p>
+    </div>
+
+    <div class="titre-bloc"><h2>Dix couleurs, toutes nommées.</h2><p class="lg">L'encre, le lilas et l'iris sont relevés sur la mascotte. Les trois couleurs d'état sont celles de son badge.</p></div>
+    <div class="palette">
+      <div class="teinte"><i style="background:#FBF5E6"></i><b>Engobe</b><code>#FBF5E6</code><span>Le fond, clair comme un vase à fond blanc.</span></div>
+      <div class="teinte"><i style="background:#1C1C1C"></i><b>Encre</b><code>#1C1C1C</code><span>Le trait et le texte.</span></div>
+      <div class="teinte"><i style="background:#FFC93C"></i><b>Soleil</b><code>#FFC93C</code><span>Ce qui est mis en lumière : la preuve.</span></div>
+      <div class="teinte"><i style="background:#FFE39A"></i><b>Soleil clair</b><code>#FFE39A</code><span>Le mode de jour.</span></div>
+      <div class="teinte"><i style="background:#AFA9EC"></i><b>Aile</b><code>#AFA9EC</code><span>Les ailes, celles du bouton aussi.</span></div>
+      <div class="teinte"><i style="background:#E3E0F9"></i><b>Ciel</b><code>#E3E0F9</code><span>Là où l'envoyé vole.</span></div>
+      <div class="teinte"><i style="background:#2A2647"></i><b>Nuit</b><code>#2A2647</code><span>Les déploiements.</span></div>
+      <div class="teinte"><i style="background:#B8321F"></i><b>Miltos</b><code>#B8321F</code><span>Ocre rouge : défaut prouvé.</span></div>
+      <div class="teinte"><i style="background:#C48A1E"></i><b>Ocre</b><code>#C48A1E</code><span>Le doute, à trancher.</span></div>
+      <div class="teinte"><i style="background:#2E7D55"></i><b>Olivier</b><code>#2E7D55</code><span>Conforme, rangé.</span></div>
+    </div>
+
+    <div class="titre-bloc"><h2>Trois voix.</h2></div>
+    <div class="polices">
+      <div class="police a"><small>Tilt Warp · l'affiche</small><div class="grand">Aé 404</div><div class="biais"><span>404</span><span>404</span><span>404</span></div><p>Titres, chiffres, mot de marque. La fonte sait se montrer de biais : une mesure arrive tournée, puis fait face quand elle est lue.</p></div>
+      <div class="police t"><small>Funnel Sans · le texte</small><div class="ex">Il visite le site comme un visiteur et ne revient qu'avec <b>les défauts qu'il peut prouver.</b></div><p class="role">Paragraphes, boutons, libellés. Graisses 400, 600, 700.</p></div>
+      <div class="police m"><small>Spline Sans Mono · la mesure</small><div class="ex">mesuré : 404<br>attendu : une réponse sous 400</div><p class="role">Tout ce que le code a mesuré, et les adresses.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="surfaces" id="extension">
+  <div class="wrap">
+    <h2>Les deux autres surfaces.</h2>
+    <p class="lg">La fenêtre de l'extension Chrome et le récapitulatif de fin de visite, dans la même pâte.</p>
+    <div class="deux">
+      <div class="cadre e"><small>Extension Chrome, 360 px</small>
+        <div class="popup">
+          <div class="haut"><span class="astre"></span><span class="mot" aria-label="Horama">H<svg class="o"><use href="#oeil"/></svg>rama</span><div class="m" data-mascotte="regarde" data-taille="84"></div></div>
+          <div class="corps">
+            <label>Le site de cet onglet</label>
+            <div class="adresse">talaria.exemple/sandales-ailees</div>
+          </div>
+          <button class="bouton" type="button"><svg class="aile g"><use href="#aile-g"/></svg><svg class="aile d"><use href="#aile-d"/></svg>Envoyer Horama</button>
+          <div class="corps" style="padding-top: 0">
+            <ul>
+              <li><i class="c">✓</i><code>/</code>rien de prouvé</li>
+              <li><i class="t">!</i><code>/sandales-ailees</code>1 défaut prouvé</li>
+              <li><i class="d">?</i><code>/panier</code>1 à trancher</li>
+              <li><i class="v"></i><code>/livraison</code>en visite</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="cadre r"><small>Récapitulatif de fin de visite</small>
+        <div class="recap">
+          <div class="haut"><span class="astre"></span><div class="m" data-mascotte="fini" data-taille="104"></div></div>
+          <div class="corps">
+            <h3>J'ai fini.</h3>
+            <p class="site">talaria.exemple</p>
+            <div class="chiffres">
+              <div class="t"><b>1</b>défaut prouvé</div>
+              <div class="d"><b><span>2</span></b>à trancher</div>
+              <div><b>12</b>pages visitées</div>
+            </div>
+            <div class="releves">
+              <div><i class="t">!</i><span>Un lien mène à une page introuvable.</span><code>mesuré : 404</code></div>
+              <div><i class="d">?</i><span>Le prix change entre la fiche et le panier.</span><code>bug, ou voulu ?</code></div>
+            </div>
+            <button class="bouton" type="button"><svg class="aile g"><use href="#aile-g"/></svg><svg class="aile d"><use href="#aile-d"/></svg>Les regarder un par un</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="demo-note">Les deux vignettes montrent un site de démonstration : les chiffres sont des exemples.</p>
+  </div>
+</section>
+
+<footer><div class="wrap"><span>Horama · direction « L'envoyé », planche de marque du 18/11</span><span><a href="index.html">Voir la page</a></span></div></footer>
+
+<script type="module">
+import { creerMascotte } from "./mascotte.js";
+import { tracerDefaut, poserDoute } from "./trait.js";
+const NS = "http://www.w3.org/2000/svg";
+for (const g of document.querySelectorAll(".soleil .rayons")) for (let i = 0; i < 30; i++) {
+  const a = (i / 30) * Math.PI * 2, r2 = i % 2 ? 250 : 276, l = document.createElementNS(NS, "line");
+  l.setAttribute("x1", (Math.cos(a) * 214).toFixed(1)); l.setAttribute("y1", (Math.sin(a) * 214).toFixed(1));
+  l.setAttribute("x2", (Math.cos(a) * r2).toFixed(1)); l.setAttribute("y2", (Math.sin(a) * r2).toFixed(1)); g.appendChild(l);
+}
+for (const e of document.querySelectorAll("[data-mascotte]")) {
+  const petit = innerWidth < 1100, t = +e.dataset.taille, m = creerMascotte(petit && t > 120 ? Math.round(t * .78) : t);
+  m.etat(e.dataset.mascotte); e.appendChild(m.el);
+  if (e.classList.contains("perche")) m.regarder(-.8, .5);
+}
+// les marques, tracées avec le fichier de l'équipe
+function autour(svg, cible, marge = 0) {
+  const s = svg.getBoundingClientRect(), c = cible.getBoundingClientRect();
+  svg.setAttribute("viewBox", `0 0 ${s.width} ${s.height}`);
+  return { x: c.left - s.left - marge, y: c.top - s.top + 2, w: c.width + marge * 2, h: c.height - 4 };
+}
+function marques() {
+  for (const id of ["trait-phrase", "demo-trait", "demo-doute", "signe-trait", "signe-doute"]) document.getElementById(id).textContent = "";
+  const ph = document.getElementById("trait-phrase"), b = ph.parentElement.getBoundingClientRect();
+  ph.setAttribute("viewBox", `0 0 ${b.width + 24} ${b.height + 16}`);
+  const lw = Math.max(10, (b.width / 2 - 3) / .535), lh = b.height - 22;
+  tracerDefaut(ph, { x: 12 + b.width / 2 - lw / 2, y: 8 + (b.height - lh) / 2 + 2, w: lw, h: lh }, { instant: true, epaisseur: 4.4 });
+  const dt = document.getElementById("demo-trait"); tracerDefaut(dt, autour(dt, dt.previousElementSibling, -8), { instant: true, epaisseur: 3.6 });
+  const dd = document.getElementById("demo-doute"); poserDoute(dd, autour(dd, dd.previousElementSibling), { instant: true });
+  tracerDefaut(document.getElementById("signe-trait"), { x: 40, y: 9, w: 84, h: 16 }, { instant: true, epaisseur: 3.6 });
+  poserDoute(document.getElementById("signe-doute"), { x: 4, y: 0, w: 150, h: 8 }, { instant: true });
+}
+(document.fonts?.ready ?? Promise.resolve()).then(() => requestAnimationFrame(marques));
+let tr; addEventListener("resize", () => { clearTimeout(tr); tr = setTimeout(marques, 150); });
+</script>
+</body>
+</html>
