@@ -34,6 +34,7 @@ interface ExplorationPage {
   holo: { etat: string; modele: string | null; duree_ms: number; ecartes_sans_zone: number; jetons: { entree: number; sortie: number } | null; cout_usd: number | null } | null;
   statut: Statut | null;
   cookies?: "refusee" | "aucune"; url_finale?: string; raison?: string;
+  arrivee?: "depart" | "clic" | "adresse";
 }
 export interface ExplorerOptions { url: string; max: number; sortie: string; vault: string; port: number; pagesCliquees?: number }
 export interface ExplorerDependencies {
@@ -47,6 +48,16 @@ export interface ExplorerDependencies {
 
 const clickedCount = (pageCount: number, clicked: number) => Math.min(clicked, Math.max(0, pageCount - 1));
 export const explorationStepBudget = (pageCount: number, clicked = 0) => 4 * pageCount + 13 + 3 * clickedCount(pageCount, clicked);
+
+export function explorationPassageId(date: Date): string {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("fr-FR", {
+    timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(date).map(part => [part.type, part.value]));
+  return `${parts.year}-${parts.month}-${parts.day}-${parts.hour}h${parts.minute}-${randomUUID().slice(0, 4)}`;
+}
+
+export const exclusionLabel = (reason: string) => reason === "section-limit" ? "limite de pages par rubrique atteinte" : reason;
 
 function clickInstruction(pages: Array<{ ecran: string; url: string }>): string {
   return `Après relever, fais 1 ou 2 défilements au plus avec scroll_web sur une page atteinte par clic, en grands défilements, avant de cliquer. Pour la page de départ, conserve la limite de 3 défilements au plus jusqu'en bas. Ne répète pas les défilements déjà faits sur la page courante ; aucun défilement demandé sur les autres pages atteintes par adresse. Puis sans go_to clique un lien visible de la page courante (menu, corps ou pied de page) vers une page pas encore relevée de cette liste : ${pages.map(page => `${page.ecran} : ${page.url}`).join(" ; ")}. Attends le chargement puis appelle relever avec l'ecran de la page atteinte. Si aucun lien visible ne mène à une page de la liste : ouvre ${pages[0]?.url} avec go_to puis appelle relever(ecran="${pages[0]?.ecran}", vue="defaut").`;
@@ -137,7 +148,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
     return { ecran, url: address, ordre: index + 1, trouvee_par: new URL(address).pathname === "/" ? "adresse" : sitemap ? "sitemap" : "lien", agent: 1,
       etat: "a_visiter", http: null, debut: null, fin: null, capture: null, reference: reference ? { fichier: join(vault, reference.chemin), version: reference.version } : null, holo: null, statut: null };
   });
-  const id = `${new Date().toISOString().slice(0, 16).replace("T", "-").replace(":", "h")}-${randomUUID().slice(0, 4)}`;
+  const id = explorationPassageId(new Date(started));
   const createAgent = (number: number) => ({ agent: number, session_id: null as string | null, etat: "en_attente", pages: [] as string[], replay_url: null as string | null, duree_s: null as number | null, cout_usd: null as number | null, raison: null as string | null });
   let agent = createAgent(1);
   const report = { format: "horama-exploration-1", etat: "en_cours", passage_id: id, adresse: url, site, version, version_reference: versionReference,
@@ -294,6 +305,8 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
               if (name === "relever" && accepted && !navigation.arrivees[accepted.ecran]) {
                 const mode = accepted === pages[0] && launches === 1 ? "depart" : hadGoTo ? "adresse" : hadClick ? "clic" : "adresse";
                 navigation.arrivees[accepted.ecran] = mode;
+                accepted.arrivee = mode;
+                save();
                 if (mode === "clic") clickedPages++;
                 log(`${accepted.ecran} : ${mode}`);
                 currentScreen = accepted.ecran; hadClick = false; hadGoTo = false;

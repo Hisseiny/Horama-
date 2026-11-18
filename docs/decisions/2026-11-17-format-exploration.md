@@ -180,6 +180,7 @@ Exemple écrit à la main pour montrer la forme, **pas une mesure** : passage su
 |---|---|---|
 | `ecran`, `url`, `ordre` | texte, texte, nombre | Identifiant, adresse complète, rang dans le plan du site |
 | `trouvee_par` | `"adresse"`, `"sitemap"`, `"lien"` | |
+| `arrivee` | `"depart"`, `"clic"`, `"adresse"`, ou absent | Mode d'arrivée sur la page ; absent si inconnu. Champ facultatif validé par Nathan dans #69 |
 | `agent` | nombre ou `null` | Agent qui l'a visitée ou la visite ; `null` tant qu'elle n'est pas attribuée |
 | `etat` | `"a_visiter"`, `"en_cours"`, `"visitee"`, `"non_visitee"` | `non_visitee` porte un constat `INCONCLUSIVE` qui dit pourquoi |
 | `http` | nombre ou `null` | Code de la réponse du document |
