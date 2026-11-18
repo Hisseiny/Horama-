@@ -23,7 +23,7 @@ import { findHolo, startBridge, stopIfMissing } from "./agent-h.mjs";
 import { creerEcrivainMemoire, creerEcrivainSupabase } from "./decisions.mjs";
 import { completerNote } from "./note-passage.mjs";
 import { revoir, sizeOf } from "./recapitulatif.mjs";
-import { HEIGHT, WIDTH, capture, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, layer, navigate, openChrome, option, say, sleep } from "./scene.mjs";
+import { HEIGHT, WIDTH, capture, captureZone, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, layer, navigate, openChrome, option, say, sleep } from "./scene.mjs";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 const SANS_AGENT = flag("sans-agent");
@@ -107,6 +107,16 @@ const runtime = {
       throw new Error(bridge.failed);
     }
     return { channel, stop: stopBridge, failed: () => bridge.failed };
+  },
+  // The capture of a defect out of the first screen, for captures/<id>.png (hook validated by Ali on PR #85): scrolled
+  // at once, layer hidden, scroll put back. On failure the explorer falls back on its own capture.
+  async capturerZone(zone) {
+    capturing = true;
+    try {
+      return await captureZone(page, zone);
+    } finally {
+      capturing = false;
+    }
   },
   close() {
     for (const bridge of bridges) bridge.stop();

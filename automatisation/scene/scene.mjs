@@ -241,6 +241,36 @@ export async function capture(page) {
   }
 }
 
+// The capture of a zone out of the first screen (hook capturerZone of the explorer, PR #85): the page scrolled at once
+// (a site with « scroll-behavior: smooth » would otherwise be caught half-way) so that the zone is in the middle of the
+// screen, layer hidden, pointer out of the page; then the scroll of before and the layer are put back. zone: pixels of
+// the document. Returns the PNG, the zone in pixels of the capture (absent when it is not in the image) and the scroll.
+export async function captureZone(page, zone) {
+  const before = await evaluate(page, "[scrollX, scrollY]");
+  try {
+    await inLayer(page, "window.__horama?.masquer()").catch(() => {});
+    await page.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: -10, y: 450 }).catch(() => {});
+    const defilement = await evaluate(page, `(async () => {
+      const root = document.documentElement;
+      const top = Math.max(0, Math.min(${zone.y + zone.hauteur / 2} - innerHeight / 2, root.scrollHeight - innerHeight));
+      scrollTo({ left: 0, top, behavior: "instant" });
+      await new Promise((done) => { requestAnimationFrame(() => requestAnimationFrame(done)); setTimeout(done, 300); });
+      return [scrollX, scrollY];
+    })()`);
+    const { data } = await page.send("Page.captureScreenshot", { format: "png" });
+    const png = Buffer.from(data, "base64");
+    const [width, height] = [png.readUInt32BE(16), png.readUInt32BE(20)];
+    const x = Math.max(0, zone.x - defilement[0]);
+    const y = Math.max(0, zone.y - defilement[1]);
+    const largeur = Math.min(width, zone.x - defilement[0] + zone.largeur) - x;
+    const hauteur = Math.min(height, zone.y - defilement[1] + zone.hauteur) - y;
+    return { png, ...(largeur > 0 && hauteur > 0 ? { zone: { x, y, largeur, hauteur } } : {}), defilement };
+  } finally {
+    await evaluate(page, `scrollTo({ left: ${before[0]}, top: ${before[1]}, behavior: "instant" })`).catch(() => {});
+    await inLayer(page, "window.__horama?.montrer()").catch(() => {});
+  }
+}
+
 // A real mouse click at a point of the page, as the agent does (mode --sans-agent only).
 export async function clickAt(page, point) {
   await page.send("Input.dispatchMouseEvent", { type: "mouseMoved", ...point });

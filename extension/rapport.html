@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="fr">
+<head><meta charset="utf-8"><title>Horama : rapport</title><link rel="stylesheet" href="commun.css"><link rel="stylesheet" href="rapport.css"></head>
+<body>
+  <main>
+    <header>
+      <h1>Horama</h1>
+      <p id="adresse" class="second"></p>
+      <p id="etat" role="status"></p>
+    </header>
+    <section id="bilan" hidden>
+      <h2>Bilan</h2>
+      <p id="bilan-texte"></p>
+    </section>
+    <section id="prouves" hidden>
+      <h2>Défauts prouvés</h2>
+      <p class="second">Chacun est mesuré par le code sur la page : la preuve est écrite sous la capture.</p>
+      <div class="cartes"></div>
+    </section>
+    <section id="a-verifier" hidden>
+      <h2>À vérifier</h2>
+      <p class="second">Ce que le regard de Holo, le modèle visuel de H, croit voir. Rien n'est prouvé : un humain regarde.</p>
+      <div class="cartes"></div>
+    </section>
+    <section id="non-verifie" hidden>
+      <h2>Non vérifié</h2>
+      <ul></ul>
+    </section>
+    <section id="pages" hidden>
+      <h2>Pages</h2>
+      <ol></ol>
+    </section>
+  </main>
+  <script src="lib/rough-notation.iife.js"></script>
+  <script src="service.js"></script>
+  <script src="rapport.js"></script>
+</body>
+</html>
