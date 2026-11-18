@@ -67,11 +67,13 @@ function inspectDocument() {
       if (!parent || parent.closest("code,pre,kbd,samp,var,script,style,noscript,template") || !node.textContent?.trim()) continue;
       let block: Element = parent;
       while (block.parentElement && block !== document.body && ["inline", "contents"].includes(getComputedStyle(block).display) && !block.hasAttribute("lang")) block = block.parentElement;
-      if (!visible(block) || !visible(parent)) continue;
+      let boxed: Element = parent;
+      while (boxed.parentElement && getComputedStyle(boxed).display === "contents") boxed = boxed.parentElement;
+      if (!visible(boxed)) continue;
       let clippedText = false;
       for (let ancestor: Element | null = parent; ancestor; ancestor = ancestor.parentElement) {
         const style = getComputedStyle(ancestor);
-        if (style.clip !== "auto" || style.clipPath !== "none") clippedText = true;
+        if (style.clip !== "auto" || style.clipPath !== "none" || style.visibility !== "visible" || Number(style.opacity) === 0 || style.contentVisibility === "hidden") clippedText = true;
       }
       if (clippedText) continue;
       const language = parent.closest("[lang]");
@@ -100,7 +102,9 @@ function inspectDocument() {
         return count ? [`${count} bloc${count > 1 ? "s" : ""} en ${languages[language]}`] : [];
       }).join(", ");
       const measure = `${summary} ; le plus long : ${largest.measure}`;
-      add("texte_non_traduit", measure, measure, largest.block);
+      let element = largest.block;
+      while (element.parentElement && getComputedStyle(element).display === "contents") element = element.parentElement;
+      add("texte_non_traduit", measure, measure, element);
     }
   }
   const clipped = [root, document.body].some(element => ["hidden", "clip"].includes(getComputedStyle(element).overflowX));

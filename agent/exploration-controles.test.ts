@@ -111,6 +111,12 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
   const french = "Les étudiants travaillent avec les entreprises pour apprendre et découvrir le monde.";
   for (const [label, lang, html, count] of [
     ["français", "de-DE", `<p id="foreign">Les <strong>étudiants</strong> travaillent avec les entreprises pour apprendre et découvrir le monde.</p>`, 1],
+    ["display contents", "de", `<p><span style="display:contents">${french}</span></p>`, 1],
+    ["display contents autour du paragraphe", "de", `<span style="display:contents"><p>${french}</p></span>`, 1],
+    ["display contents caché", "de", `<p><span style="display:contents;opacity:0">${french}</span></p>`, 0],
+    ["display contents avec langue", "de", `<p><span style="display:contents" lang="fr">${french}</span></p>`, 0],
+    ["display contents langue de", "de", `<p><span style="display:contents" lang="de">${french}</span></p>`, 1],
+    ["display contents langue erronée", "de", `<p><span style="display:contents" lang="en">${french}</span></p>`, 1],
     ["allemand", "de", "<p>Die Studierenden lernen mit den Unternehmen und entdecken die Welt für ihre Zukunft.</p>", 0],
     ["on a français", "fr", "<p>On a travaillé, on a discuté, on a beaucoup appris ensemble.</p>", 0],
     ["in an allemand", "de", "<p>In Berlin arbeiten Studierende an Projekten, in Hamburg an Prototypen.</p>", 0],
@@ -131,6 +137,7 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
     await client.send("Runtime.evaluate", { expression: `document.documentElement.lang = ${JSON.stringify(lang)}; document.body.innerHTML = ${JSON.stringify(html)}` });
     const defects = (await controlerPage(client, { maxLiens: 0 })).filter(defect => defect.sorte === "texte_non_traduit");
     assert.equal(defects.length, count, label);
+    if (count) assert.ok(defects[0].zone && defects[0].zone.largeur > 0 && defects[0].zone.hauteur > 0, label);
     if (label === "français") {
       assert.equal(defects[0].statut, "VERIFIED_FAIL");
       assert.equal(defects[0].selecteur, "#foreign");

@@ -202,3 +202,49 @@ français « or on a », allemand « in … an ».
 
 `node --test exploration-controles.test.ts` : code 0, `# tests 1`, `# pass 1`,
 `# fail 0`, `# skipped 0`, `# duration_ms 1200.733867`.
+
+## Revue 2 — display: contents
+
+Pour le parent immédiat du texte, le contrôle cherche désormais le premier
+ancêtre possédant une boîte plutôt que d'exiger un rectangle du span
+`display:contents`. Les styles de visibilité/opacité et le découpage de toute
+la chaîne restent vérifiés, y compris sur les éléments sans boîte.
+Tests ajoutés : span sans boîte autour du texte, autour d'un paragraphe,
+span sans boîte masqué et span sans boîte avec `lang=fr` explicite.
+Deux cas supplémentaires vérifient `lang=de` et `lang=en` non conformes au
+texte français. La preuve utilise la première boîte ancêtre si le bloc a
+`display:contents` ; les tests exigent une zone non vide pour tout défaut.
+
+Relevé réel rejoué après les corrections de revue : toujours 5 défauts pour
+45 blocs (9, 7, 16, 1, 12), aucun sur accueil et programmes ; mesures du plus
+long inchangées, aucun faux positif linguistique observé.
+
+Le dernier contrôle récursif a de nouveau rencontré :
+
+```text
+agent check: not ok 161 - Chrome réel découvre une page JS locale sans masquer la scène et ferme ses onglets
+agent check:   error: 'Onglet du relevé introuvable.'
+agent check:     async TestContext.<anonymous> (file:///home/ubuntu/repos/Horama-/agent/exploration-pages.test.ts:172:22)
+```
+
+Il s'agit de la connexion de nettoyage `connecterCdp(chromePort, "about:blank")`
+du test de découverte ; ce test et le corps de connecterCdp n'ont pas été
+modifiés. Le processus restait ouvert après l'échec et a été arrêté. Aucun
+correctif de découverte tenté hors périmètre. L'intermittence est observée
+(un lancement complet vert entre deux échecs), mais non reproduite sur dev.
+La vérification récursive verte de B précède les deux corrections de revue ;
+elle ne doit pas être présentée comme une validation complète de l'état final.
+
+Contrôle ciblé après la dernière modification :
+`node --test exploration-controles.test.ts`, code 0 :
+
+```text
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1251.348003
+```
