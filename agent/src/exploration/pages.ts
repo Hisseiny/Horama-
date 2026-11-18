@@ -1,5 +1,6 @@
 export interface DiscoveryOptions {
   max?: number;
+  sectionMax?: number;
   fetch?: typeof globalThis.fetch;
 }
 
@@ -66,15 +67,22 @@ function robots(text: string): { rules: RobotRule[]; sitemaps: string[] } {
 }
 
 // URLs are candidates, not visual verdicts; network failures stay visible to the caller.
-export async function discoverPages(url: string, { max = 15, fetch: request = globalThis.fetch }: DiscoveryOptions = {}): Promise<PageDiscovery> {
+export async function discoverPages(url: string, { max = 15, sectionMax = 2, fetch: request = globalThis.fetch }: DiscoveryOptions = {}): Promise<PageDiscovery> {
   if (!Number.isSafeInteger(max) || max < 0) throw new Error("max doit être un entier positif ou nul.");
+  if (!Number.isSafeInteger(sectionMax) || sectionMax < 1) throw new Error("sectionMax doit être un entier strictement positif.");
   const start = new URL(url);
   if (!/^https?:$/.test(start.protocol) || start.username || start.password) throw new Error("Adresse HTTP(S) sans identifiants requise.");
   const result: PageDiscovery = { pages: [], excluded: [], errors: [] };
   if (max === 0) return result;
   const site = start.hostname.replace(/^www\./, "");
   const root = new URL("/", start).href;
-  const exclusions = new Set<string>(), seen = new Set<string>(), fetched = new Set<string>();
+  const locale = start.pathname.match(/^\/([a-z]{2}(?:-[a-z]{2})?)(?:\/([a-z]{2}(?:-[a-z]{2})?))?(?=\/|\.html?$|$)/i)?.[0];
+  function sameLocale(address: string): boolean {
+    if (!locale) return true;
+    const path = new URL(address).pathname;
+    return path === locale || path === `${locale}.html` || path === `${locale}.htm` || path.startsWith(`${locale}/`);
+  }
+  const exclusions = new Set<string>(), seen = new Set<string>(), fetched = new Set<string>(), formActions = new Set<string>();
   let rules: RobotRule[] = [];
 
   function exclude(address: string, reason: string) {
@@ -90,6 +98,7 @@ export async function discoverPages(url: string, { max = 15, fetch: request = gl
       parsed.username = ""; parsed.password = "";
       exclude(parsed.href, "credentials"); return;
     }
+    if (/(?:^|\.)(?:hsforms\.com|typeform\.com|forms\.gle|formstack\.com|jotform\.com)$/.test(parsed.hostname)) { exclude(parsed.href, "form"); return; }
     if (parsed.hostname.replace(/^www\./, "") !== site || parsed.port !== start.port) { exclude(parsed.href, "external"); return; }
     parsed.protocol = start.protocol;
     parsed.host = start.host;
@@ -118,10 +127,11 @@ export async function discoverPages(url: string, { max = 15, fetch: request = gl
     let path: string;
     try { path = decodeURIComponent(parsed.pathname).toLowerCase(); } catch { exclude(parsed.href, "invalid-url"); return; }
     const destination = path + parsed.search.toLowerCase();
-    if (/(?:^|[^a-z])(candidatur\w*|brochures?|contacts?|hubspot|hsforms|apply|application|admissions?|postuler|formulaire\w*|forms?)(?:[^a-z]|$)/.test(destination)) { exclude(parsed.href, "form"); return; }
+    if (/(?:^|\/)(?:submit|form-submit|submit-form)(?:\.[a-z]+)?\/?$/.test(path)) { exclude(parsed.href, "form"); return; }
     if (/(?:^|[^a-z])(log-?in|sign-?in|sign-?up|connexion|auth|logout|deconnexion|register|inscription)(?:[^a-z]|$)/.test(destination)) { exclude(parsed.href, "login"); return; }
     if (/\.[a-z\d]{1,10}\/?$/i.test(path) && !/\.(?:html?|php|aspx?)\/?$/i.test(path)) { exclude(parsed.href, "file"); return; }
     parsed.pathname = parsed.pathname.replace(/\/+$/, "") || "/";
+    if (formActions.has(parsed.href)) { exclude(parsed.href, "form"); return; }
     if (!permitted(parsed)) return;
     return parsed.href;
   }
@@ -168,7 +178,57 @@ export async function discoverPages(url: string, { max = 15, fetch: request = gl
     const candidate = pageAddress(address, base);
     if (candidate && !seen.has(candidate)) { seen.add(candidate); queue.push(candidate); }
   }
-  enqueue(root, root);
+  enqueue(start.href, root);
+  const initial = queue[0];
+  if (initial && initial !== root) enqueue(root, root);
+  const homepage = initial ? await read(normalize(start.href, root)!.href, "page") : undefined;
+  const navigationLinks = new Set<string>();
+  function links(document: { body: string; url: string }, priorityOnly = false) {
+    const html = document.body.replace(/<!--[\s\S]*?-->|<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, "");
+    const baseTag = html.match(/<base\b[^>]*>/i)?.[0];
+    const href = baseTag && attribute(baseTag, "href");
+    let base = document.url;
+    if (href) { try { base = new URL(href, base).href; } catch { /* Keep the document URL for an invalid base. */ } }
+    let source = priorityOnly ? [...html.matchAll(/<(nav|header|footer)\b[^>]*>[\s\S]*?<\/\1\s*>/gi)].map((match) => match[0]).join("") : html;
+    if (priorityOnly) {
+      const navigation = [...html.matchAll(/<nav\b[^>]*>[\s\S]*?<\/nav\s*>/gi)].map((match) => match[0]).join("") || source;
+      const groups = [...navigation.matchAll(/<(ul|ol)\b[^>]*>(?:(?!<(?:ul|ol)\b)[\s\S])*?<\/\1\s*>/gi)]
+        .map((match) => [...match[0].matchAll(/<(?:a|area)\b[^>]*>/gi)].map((anchor) => anchor[0]));
+      const balanced: string[] = [];
+      while (groups.some((group) => group.length)) {
+        for (const group of groups) { const first = group.shift(); if (first) balanced.push(first); }
+        for (const group of groups) { const last = group.pop(); if (last) balanced.push(last); }
+      }
+      source = balanced.join("") + navigation + source;
+    }
+    for (const match of html.matchAll(/<form\b[^>]*>/gi)) {
+      const action = attribute(match[0], "action");
+      const parsed = action && normalize(action, base);
+      if (parsed) {
+        parsed.pathname = parsed.pathname.replace(/\/+$/, "") || "/";
+        formActions.add(parsed.href); exclude(parsed.href, "form");
+      }
+    }
+    if (priorityOnly) {
+      for (const navigation of html.matchAll(/<nav\b[^>]*>[\s\S]*?<\/nav\s*>/gi)) {
+        for (const anchor of navigation[0].matchAll(/<(?:a|area)\b[^>]*>/gi)) {
+          if (/\sdownload(?:\s|=|>)/i.test(anchor[0])) continue;
+          const target = attribute(anchor[0], "href");
+          const candidate = target && pageAddress(target, base);
+          if (candidate) navigationLinks.add(candidate);
+        }
+      }
+    }
+    for (const match of source.matchAll(/<(a|area)\b[^>]*>/gi)) {
+      const tag = match[0], target = attribute(tag, "href");
+      if (!target) continue;
+      const parsed = normalize(target, base);
+      if (!parsed) continue;
+      if (/\sdownload(?:\s|=|>)/i.test(tag)) exclude(parsed.href, "file");
+      else enqueue(target, base);
+    }
+  }
+  if (homepage) links(homepage, true);
   const sitemaps = [new URL("sitemap.xml", root).href, ...parsedRobots.sitemaps];
   const seenMaps = new Set<string>();
   async function readSitemap(address: string, base: string): Promise<void> {
@@ -187,31 +247,61 @@ export async function discoverPages(url: string, { max = 15, fetch: request = gl
     }
   }
   for (const sitemap of sitemaps) await readSitemap(sitemap, root);
-  enqueue(start.href, root);
+  if (homepage) links(homepage);
+  const sectionCounts = new Map<string, number>();
+  function sections(address: string): string[] {
+    const parts = new URL(address).pathname.split("/").filter(Boolean);
+    return parts.slice(0, -1).map((_, index) => "/" + parts.slice(0, index + 1).join("/") + "/");
+  }
+  const repeated = new Set<string>();
+  const candidates = new Map<string, number>();
+  for (const address of queue) for (const prefix of sections(address)) candidates.set(prefix, (candidates.get(prefix) ?? 0) + 1);
+  for (const [prefix, count] of candidates) {
+    if ((locale && (prefix === `${locale}/` || locale.startsWith(prefix))) || count > (queue.length - 1) / 2) continue;
+    const children = [...candidates.keys()].filter((child) => child.startsWith(prefix) && child !== prefix);
+    if (count > sectionMax && !children.some((child) => (candidates.get(child) ?? 0) > sectionMax)) repeated.add(prefix);
+  }
+  function sectionOf(address: string): string | undefined {
+    return sections(address).find((prefix) => repeated.has(prefix));
+  }
+  const preferredSections = queue.filter(sameLocale);
   let attempts = 0;
   for (let index = 0; index < queue.length; index++) {
+    const pinned = queue[index] === initial || queue[index] === root;
+    if (!pinned && locale && result.pages.length < max && attempts < max * 3 && !sameLocale(queue[index])) {
+      const offset = queue.slice(index + 1).findIndex(sameLocale);
+      if (offset >= 0) queue.splice(index, 0, queue.splice(index + 1 + offset, 1)[0]);
+    }
+    if (!pinned && result.pages.length < max && attempts < max * 3) {
+      const reserved = new Set<string>();
+      for (const address of preferredSections) {
+        const section = sectionOf(address);
+        if (section && !sectionCounts.has(section) && address !== initial && reserved.size < max - 1) reserved.add(section);
+      }
+      const pending = new Map<string, number>();
+      for (let position = index; position < queue.length; position++) {
+        const section = sectionOf(queue[position]);
+        if (section && reserved.has(section) && !sectionCounts.has(section) && !pending.has(section)) pending.set(section, position);
+      }
+      if (max - result.pages.length <= pending.size && !navigationLinks.has(queue[index])) {
+        const position = pending.values().next().value;
+        if (position !== undefined && position > index) queue.splice(index, 0, queue.splice(position, 1)[0]);
+      }
+    }
     const address = queue[index];
     if (result.pages.includes(address)) continue;
+    if (!pageAddress(address, address)) continue;
+    const section = address === initial ? undefined : sectionOf(address);
+    if (section && (sectionCounts.get(section) ?? 0) >= sectionMax) { exclude(address, "section-limit"); continue; }
     if (result.pages.length >= max) { exclude(address, "limit"); continue; }
     if (++attempts > max * 3) { exclude(address, "request-limit"); continue; }
-    const document = await read(address, "page");
+    const document = address === initial ? homepage : await read(address, "page");
     if (!document) continue;
-    const final = pageAddress(document.url, document.url)!;
+    const final = pageAddress(document.url, document.url);
+    if (!final) continue;
     if (!result.pages.includes(final)) result.pages.push(final);
-    const html = document.body.replace(/<!--[\s\S]*?-->|<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, "");
-    const baseTag = html.match(/<base\b[^>]*>/i)?.[0];
-    const href = baseTag && attribute(baseTag, "href");
-    let base = document.url;
-    if (href) { try { base = new URL(href, base).href; } catch { /* Keep the document URL for an invalid base. */ } }
-    for (const match of html.matchAll(/<(a|area|form)\b[^>]*>/gi)) {
-      const tag = match[0], form = match[1].toLowerCase() === "form";
-      const target = attribute(tag, form ? "action" : "href");
-      if (!target) continue;
-      if (form || /\sdownload(?:\s|=|>)/i.test(tag)) {
-        const parsed = normalize(target, base);
-        if (parsed) exclude(parsed.href, form ? "form" : "file");
-      } else enqueue(target, base);
-    }
+    if (section) sectionCounts.set(section, (sectionCounts.get(section) ?? 0) + 1);
+    links(document);
   }
   return result;
 }
