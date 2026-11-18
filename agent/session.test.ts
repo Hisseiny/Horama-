@@ -8,6 +8,33 @@ const consigne: Consigne = { tests: [], dropped: [], course: [], start: "http://
 const json = (value: unknown) => new Response(JSON.stringify(value));
 const defaults = (): SessionInput => ({ consigne, cle: "dev", onCreated: async () => {}, onStep: async () => {}, onTool: async () => "Continue." });
 
+test("budget transmis à H, valeur par défaut inchangée et queue désactivée", async () => {
+  for (const maxSteps of [undefined, 70, 18]) {
+    let observed = 0;
+    const session = creerSessionH({ key: "test-key", navigateur: async () => ({ channel: "fake", stop() {} }),
+      requete: async (url, init) => {
+        if (String(url).endsWith("/sessions")) {
+          const body = JSON.parse(String(init?.body));
+          assert.equal(body.queue, false);
+          observed = body.max_steps;
+          return json({ id: "budget", status: { status: "completed" } });
+        }
+        if (String(url).endsWith("/share")) return json({ share_url: "/share/budget" });
+        return new Response(null, { status: 204 });
+      },
+    });
+    await (await session({ ...defaults(), maxSteps })).fin;
+    assert.equal(observed, maxSteps ?? 40);
+  }
+});
+
+test("budget invalide refusé avant tout démarrage H", async () => {
+  const session = creerSessionH({ key: "test-key", navigateur: async () => { throw new Error("Ne doit pas démarrer"); } });
+  for (const maxSteps of [0, -1, 1.5, Infinity, NaN]) {
+    await assert.rejects(session({ ...defaults(), maxSteps }), /maxSteps doit être un entier positif/);
+  }
+});
+
 for (const settle_s of [undefined, 0, 1, 1.25]) {
   test(`settle_s transmis à H : ${settle_s ?? "défaut 0,5"}`, async () => {
     let observed: number | undefined;

@@ -10,7 +10,7 @@ import { COURSE_RULES, END_TOOL } from "../consigne.ts";
 import type { Consigne } from "../consigne.ts";
 import { creerCoureur } from "../coureur.ts";
 import type { ReleveCapture } from "../coureur.ts";
-import type { Session } from "../session.ts";
+import type { ResultatSession, Session, SessionEnCours } from "../session.ts";
 import { captureDefect, connecterCdp, prepareCapture } from "./cdp.ts";
 import type { ExplorationCdp } from "./cdp.ts";
 import { controlerPage } from "./controles.ts";
@@ -42,6 +42,8 @@ export interface ExplorerDependencies {
   connecter?: (port: number, address: string) => Promise<ExplorationCdp>;
   log?: (message: string) => void;
 }
+
+export const explorationStepBudget = (pageCount: number) => 4 * pageCount + 10;
 
 export function construireExploration(pages: Array<{ ecran: string; url: string }>, site: string, version: string): Consigne {
   const tests = pages.map(page => ({ id: `exploration--${page.ecran}`, logiciel: site, source: "exploration", releves: [{ ecran: page.ecran, vue: "defaut" }],
@@ -97,7 +99,8 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
       etat: "a_visiter", http: null, debut: null, fin: null, capture: null, reference: reference ? { fichier: join(vault, reference.chemin), version: reference.version } : null, holo: null, statut: null };
   });
   const id = `${new Date().toISOString().slice(0, 16).replace("T", "-").replace(":", "h")}-${randomUUID().slice(0, 4)}`;
-  const agent = { agent: 1, session_id: null as string | null, etat: "en_attente", pages: [] as string[], replay_url: null as string | null, duree_s: null as number | null, cout_usd: null as number | null, raison: null as string | null };
+  const createAgent = (number: number) => ({ agent: number, session_id: null as string | null, etat: "en_attente", pages: [] as string[], replay_url: null as string | null, duree_s: null as number | null, cout_usd: null as number | null, raison: null as string | null });
+  let agent = createAgent(1);
   const report = { format: "horama-exploration-1", etat: "en_cours", passage_id: id, adresse: url, site, version, version_reference: versionReference,
     le: new Date(started).toISOString(), fin: null as string | null, duree_s: null as number | null, cout_usd: null as number | null,
     trouvees: { par: sitemap ? "sitemap" : "liens", plafond: max, nombre: pages.length, exclues: discovery.excluded.map(item => ({ url: item.url, raison: ({ form: "formulaire", file: "pdf", login: "connexion", robots: "robots.txt", external: "autre domaine", limit: "au-delà du plafond" } as Record<string, string>)[item.reason] ?? item.reason })) },
@@ -121,7 +124,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
   const pending = new Map<string, { findings: Finding[]; http: number | null; holo: ExplorationPage["holo"] }>();
   const finding = (page: Pick<ExplorationPage, "ecran">, source: Finding["source"], findings: Finding[], fields: Partial<Finding>): Finding => ({
     id: `${page.ecran}--${source}--${findings.filter(item => item.source === source).length + 1}`, ecran: page.ecran, vue: "defaut", source,
-    sorte: "non-conclu", statut: "INCONCLUSIVE", description: "La vérification n'a pas pu se faire.", textes_a_surligner: [], preuve: {}, capture: `captures/${page.ecran}.png`, agent: 1, page: { largeur: 1280, hauteur: 900 }, ...fields });
+    sorte: "non-conclu", statut: "INCONCLUSIVE", description: "La vérification n'a pas pu se faire.", textes_a_surligner: [], preuve: {}, capture: `captures/${page.ecran}.png`, agent: pages.find(candidate => candidate.ecran === page.ecran)?.agent ?? agent.agent, page: { largeur: 1280, hauteur: 900 }, ...fields });
   const inconclusive = (page: Pick<ExplorationPage, "ecran">, source: Finding["source"], findings: Finding[], raison: string) => findings.push(finding(page, source, findings, { raison, description: raison }));
   const markResult = (page: ExplorationPage, passageId: string, replayUrl?: string): ResultatVerification => {
     const findings = report.constats.filter(item => item.ecran === page.ecran);
@@ -156,13 +159,9 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
     async enregistrerResultat(result) { await base.enregistrerResultat(result); save(); },
     async terminerPassage(result) {
       await base.terminerPassage(result);
-      agent.duree_s = result.passage.duree_s ?? null; agent.cout_usd = result.passage.cout_usd ?? null;
-      agent.replay_url = result.tests.find(test => test.replay_url)?.replay_url ?? null;
-      agent.session_id ??= result.tests[0]?.session_id ?? null;
-      agent.etat = result.passage.etat === "joue" ? "fini" : "tombe";
-      agent.raison = result.tests.find(test => test.raison)?.raison ?? null;
-      const costs = report.pages.flatMap(page => page.holo?.cout_usd == null ? [] : [page.holo.cout_usd]);
-      report.cout_usd = agent.cout_usd === null && costs.length === 0 ? null : (agent.cout_usd ?? 0) + costs.reduce((sum, cost) => sum + cost, 0); save();
+      const costs = [...report.agents.flatMap(item => item.cout_usd === null ? [] : [item.cout_usd]),
+        ...report.pages.flatMap(page => page.holo?.cout_usd == null ? [] : [page.holo.cout_usd])];
+      report.cout_usd = costs.length ? costs.reduce((sum, cost) => sum + cost, 0) : null; save();
     },
   };
   try {
@@ -175,18 +174,87 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
       }
       return report;
     }
-    const trackedSession: Session = input => session({ ...input, async onTool(name, args) {
-      const next = () => pages.find(page => page.etat !== "visitee" && page.etat !== "non_visitee");
-      const remaining = () => {
-        const page = next();
-        return page ? `${pages.filter(page => page.etat === "visitee").length}/${pages.length} pages relevées dans ce passage. Ouvre ${page.url} avec go_to puis appelle relever(ecran="${page.ecran}", vue="defaut"). Ne termine pas avant les relevés restants.` : 'Tous les relevés sont acquis. Appelle terminer(etat="reussi").';
+    let launches = 0;
+    const unfinished = () => pages.filter(page => page.etat !== "visitee" && page.etat !== "non_visitee");
+    const trackedSession: Session = async input => {
+      let active: SessionEnCours | undefined;
+      let stopped = false;
+      let completed = false;
+      let sessionStarted = Date.now();
+      const launch = async (plan: Consigne) => {
+        launches++; completed = false; sessionStarted = Date.now();
+        try {
+          active = await session({ ...input, consigne: plan, maxSteps: explorationStepBudget(plan.course.length),
+            async onCreated(sessionId) {
+              agent.session_id = sessionId; agent.etat = "en_cours"; save();
+              await input.onCreated(sessionId);
+            },
+            async onTool(name, args) {
+              const remaining = () => {
+                const page = unfinished()[0];
+                return page ? `${pages.filter(page => page.etat === "visitee").length}/${pages.length} pages relevées dans ce passage. Ouvre ${page.url} avec go_to puis appelle relever(ecran="${page.ecran}", vue="defaut"). Ne termine pas avant les relevés restants.` : 'Tous les relevés sont acquis. Appelle terminer(etat="reussi").';
+              };
+              if (name === "terminer" && args.etat === "reussi" && unfinished().length) return `Fin refusée : des pages restent à visiter. ${remaining()}`;
+              const skipped = pages.find(page => page.ecran === args.ecran && page.etat === "non_visitee");
+              if (name === "relever" && skipped) return `${skipped.raison}\n${remaining()}`;
+              const response = await input.onTool(name, args);
+              if (name === "terminer") completed = args.etat === "reussi";
+              return name === "relever" ? `${response}\n${remaining()}` : response;
+            },
+          });
+          return active;
+        } catch {
+          agent.etat = "tombe"; agent.raison = "La session n'a pas pu être créée."; save();
+          throw new Error(agent.raison);
+        }
       };
-      if (name === "terminer" && args.etat === "reussi" && next()) return `Fin refusée : des pages restent à visiter. ${remaining()}`;
-      const skipped = pages.find(page => page.ecran === args.ecran && page.etat === "non_visitee");
-      if (name === "relever" && skipped) return `${skipped.raison}\n${remaining()}`;
-      const response = await input.onTool(name, args);
-      return name === "relever" ? `${response}\n${remaining()}` : response;
-    } });
+      const first = await launch(input.consigne);
+      return {
+        id: first.id,
+        async stop() { stopped = true; await active?.stop?.(); },
+        fin: (async () => {
+          let totalCost: number | null = 0, steps = 0;
+          for (;;) {
+            let result: ResultatSession;
+            let closeFailed = false;
+            const running = active;
+            try {
+              if (!running) throw new Error("Session absente.");
+              result = await running.fin;
+            } catch {
+              result = { id: running?.id ?? "", muted: false, cout_usd: null, etapes: 0, erreur: "La session a été interrompue." };
+            } finally {
+              try { await running?.stop?.(); }
+              catch { closeFailed = true; agent.raison = "La fermeture de la session n'a pas pu être confirmée."; }
+            }
+            totalCost = totalCost === null || result.cout_usd === null ? null : totalCost + result.cout_usd;
+            steps += result.etapes;
+            agent.cout_usd = result.cout_usd; agent.duree_s = (Date.now() - sessionStarted) / 1000;
+            agent.replay_url = result.replay_url ?? null;
+            agent.etat = completed && !result.erreur && !result.muted ? "fini" : "tombe";
+            if (agent.etat === "tombe") agent.raison ??= result.erreur ?? (result.muted ? "La session est restée sans réponse." : "Session arrêtée avant la fin des visites (budget d'étapes ou erreur).");
+            save();
+            const remaining = unfinished();
+            if (!remaining.length || signal?.aborted || stopped || closeFailed || launches >= 2) {
+              for (const page of remaining) page.raison ??= signal?.aborted ? "Le passage a été annulé."
+                : closeFailed ? "Page non atteinte : la fermeture de la session précédente n'est pas confirmée."
+                : "Page non atteinte après deux sessions (budget d'étapes ou erreur).";
+              return { ...result, muted: false, cout_usd: totalCost, etapes: steps,
+                ...(closeFailed ? { erreur: "La fermeture de la session n'a pas pu être confirmée." } : {}),
+                ...(result.muted ? { erreur: "La session est restée sans réponse." } : {}) };
+            }
+            agent = createAgent(report.agents.length + 1); report.agents.push(agent);
+            for (const page of remaining) { page.agent = agent.agent; page.etat = "a_visiter"; }
+            log(`Relance unique pour ${remaining.length} pages restantes.`); save();
+            try { await launch(construireExploration(remaining, site, version)); }
+            catch {
+              for (const page of remaining) page.raison ??= "La relance n'a pas pu démarrer ; page non atteinte.";
+              return { ...result, muted: false, erreur: "La relance n'a pas pu démarrer.", cout_usd: totalCost, etapes: steps };
+            }
+          }
+        })(),
+      };
+    };
     const runner = creerCoureur({ vault, base: wrapped, session: trackedSession, signal, consigne, identifiant: () => id, hookTimeoutMs: 550_000,
       async relever(ecran, vue, hookSignal) {
         const page = pages.find(page => page.ecran === ecran);
@@ -312,6 +380,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
           report.constats = report.constats.filter(item => item.ecran !== page.ecran);
           page.capture = null;
           page.etat = "non_visitee"; page.fin = new Date().toISOString();
+          page.raison ??= "Cette page n'a pas été visitée.";
           inconclusive(page, "controle", report.constats, page.raison ?? "Cette page n'a pas été visitée.");
         } else {
           try {
@@ -325,7 +394,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
             }
           } catch { inconclusive(page, "comparaison", report.constats, "La comparaison avec la référence n'a pas pu se faire."); }
         }
-        const result = markResult(page, passageId, replayUrl); save(); return result;
+        const result = markResult(page, passageId, report.agents.find(item => item.agent === page.agent)?.replay_url ?? replayUrl); save(); return result;
       },
     });
     const launched = await runner.lancerPassage({ logiciel: site, version_testee: version, version_reference: versionReference ?? version, tests: consigne.tests.map(test => test.id), cle: "dev" });
@@ -338,7 +407,8 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
     for (const page of pages) {
       if (page.etat !== "visitee" && page.etat !== "non_visitee") {
         page.etat = "non_visitee"; page.fin = new Date().toISOString();
-        inconclusive(page, "controle", report.constats, "Cette page n'a pas été visitée.");
+        page.raison ??= "Cette page n'a pas été visitée.";
+        inconclusive(page, "controle", report.constats, page.raison ?? "Cette page n'a pas été visitée.");
         await base.enregistrerResultat(markResult(page, id));
       }
       if (page.etat === "visitee") {
@@ -346,6 +416,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
           const capture = acquired.get(page.ecran);
           if (!capture) {
             page.etat = "non_visitee"; report.etat = "interrompu";
+            page.raison = "La capture de cette page est indisponible.";
             inconclusive(page, "controle", report.constats, "La capture de cette page est indisponible.");
             await base.enregistrerResultat(markResult(page, id)); continue;
           }

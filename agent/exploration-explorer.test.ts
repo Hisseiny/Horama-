@@ -6,7 +6,7 @@ import { deflateSync } from "node:zlib";
 import { afterEach, beforeEach, test } from "node:test";
 import { ecrireDecision } from "@horama/memoire";
 import { BaseMemoire } from "./src/base.ts";
-import { explorer } from "./src/exploration/explorer.ts";
+import { explorer, explorationStepBudget } from "./src/exploration/explorer.ts";
 import type { ExplorerDependencies } from "./src/exploration/explorer.ts";
 import { lireArguments } from "./src/exploration/cli.ts";
 import type { Session } from "./src/session.ts";
@@ -227,7 +227,7 @@ test("échec de création de session : JSON interrompu et C4 non concluants", as
   const { result, base } = await run({ deps: { session: async () => { throw new Error("Session indisponible"); } } });
   assert.equal(result.etat, "interrompu"); assert.equal(result.totaux.pages_visitees, 0);
   assert.equal(base.resultats.length, 2); assert.ok(base.resultats.every(item => item.statut === "INCONCLUSIVE"));
-  assert.ok(result.pages.every(page => page.etat === "non_visitee"));
+  assert.ok(result.pages.every(page => page.etat === "non_visitee" && page.raison));
 });
 
 test("Holo en échec reste non concluant et sa raison arrive au C4", async () => {
@@ -407,4 +407,120 @@ test("site anglais sans sitemap et pages HTTP 404/500 : visite complète", async
     assert.ok(result.pages.every(page => page.etat === "visitee" && page.http === status));
     assert.ok(result.constats.every(item => item.sorte === "page-erreur"));
   }
+});
+
+async function budgetRun(limits: number[], { failCreation = false, rejectFinal = false, muted = false, abort = false, failClose = false } = {}) {
+  const plans: string[][] = [], budgets: number[] = [], closed: string[] = [];
+  const controller = new AbortController();
+  let address = "https://example.org/", launches = 0;
+  const { result, base } = await run({ deps: {
+    signal: controller.signal,
+    fetch: async input => {
+      const path = new URL(String(input)).pathname;
+      return new Response(path === "/robots.txt" ? "" : path === "/sitemap.xml" ? `<urlset>${Array.from({ length: 14 }, (_, index) => `<url><loc>https://example.org/page-${index + 1}</loc></url>`).join("")}</urlset>` : "<html>Welcome</html>",
+        { headers: { "Content-Type": path.endsWith(".xml") ? "application/xml" : "text/html" } });
+    },
+    runtime: {
+      relever: async () => ({ png: original, texte: "Welcome", url_page: address, largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture" }),
+      navigateur: async () => ({ channel: "fake", stop() {} }), close() {},
+    },
+    session: async input => {
+      const index = launches++, id = `budget-${index + 1}`;
+      if (index) assert.ok(closed.includes(`budget-${index}`), "la session précédente doit être fermée");
+      plans.push(input.consigne.course.map(step => step.ecran));
+      budgets.push(input.maxSteps!);
+      if (failCreation && index === 1) throw new Error("Création impossible");
+      await input.onCreated(id);
+      return { id, stop: async () => { closed.push(id); if (failClose) throw new Error("Fermeture impossible"); }, fin: (async () => {
+        const course = input.consigne.course.slice(0, limits[index] ?? 0);
+        for (const step of course) {
+          address = step.address;
+          await input.onTool("relever", { ecran: step.ecran, vue: "defaut" });
+        }
+        const complete = course.length === input.consigne.course.length;
+        if (complete) assert.match(await input.onTool("terminer", { etat: "reussi" }), /Parcours terminé/);
+        if (abort) controller.abort(new Error("Annulation demandée"));
+        if (rejectFinal && index === 1) throw new Error("Réseau");
+        return { id, muted: muted && !complete, etapes: input.maxSteps!, cout_usd: index ? 0.02 : 0.1,
+          replay_url: `https://replay.example/${id}`, ...(!complete && !muted ? { erreur: "Budget d'étapes épuisé." } : {}) };
+      })() };
+    },
+  } });
+  return { result, base, plans, budgets, closed, launches };
+}
+
+test("15 pages : budget pour navigation, relevé, attente, reprises et début/fin", async () => {
+  const { result, budgets, launches } = await budgetRun([15]);
+  assert.equal(explorationStepBudget(15), 70);
+  assert.equal(budgets[0], 70);
+  assert.ok(budgets[0] >= 15 * 3 + 10);
+  assert.equal(launches, 1);
+  assert.equal(result.etat, "fini");
+});
+
+test("budget épuisé après 13 pages : une seule relance limitée aux 2 restantes", async () => {
+  const { result, base, plans, budgets, closed } = await budgetRun([13, 2]);
+  assert.equal(result.etat, "fini");
+  assert.equal(result.totaux.pages_visitees, 15);
+  assert.equal(result.totaux.sans_conclusion, 0);
+  assert.equal(result.agents.length, 2);
+  assert.deepEqual(plans[1], plans[0].slice(13));
+  assert.deepEqual(budgets, [70, 18]);
+  assert.deepEqual(closed, ["budget-1", "budget-2"]);
+  assert.deepEqual(result.agents.map(agent => [agent.session_id, agent.etat, agent.pages.length, agent.cout_usd]),
+    [["budget-1", "tombe", 13, 0.1], ["budget-2", "fini", 2, 0.02]]);
+  assert.equal(result.agents[0].raison, "Budget d'étapes épuisé.");
+  assert.ok(Math.abs(result.cout_usd! - 0.12) < 1e-10);
+  assert.ok(result.pages.slice(0, 13).every(page => page.agent === 1));
+  assert.ok(result.pages.slice(13).every(page => page.agent === 2));
+  assert.equal(base.resultats[0].replay_url, "https://replay.example/budget-1");
+  assert.equal(base.resultats[14].replay_url, "https://replay.example/budget-2");
+});
+
+test("deux budgets épuisés : pas de troisième session, page restante non visitée avec raison C4", async () => {
+  const { result, base, launches, closed } = await budgetRun([13, 1]);
+  assert.equal(launches, 2);
+  assert.deepEqual(closed, ["budget-1", "budget-2"]);
+  assert.equal(result.etat, "interrompu");
+  assert.equal(result.totaux.pages_visitees, 14);
+  assert.equal(result.pages[14].etat, "non_visitee");
+  assert.equal(result.pages[14].statut, "INCONCLUSIVE");
+  assert.match(result.pages[14].raison!, /après deux sessions.*budget d'étapes/);
+  const finding = result.constats.find(item => item.ecran === result.pages[14].ecran)!;
+  assert.match(finding.raison!, /après deux sessions.*budget d'étapes/);
+  assert.equal(finding.agent, 2);
+  assert.equal(base.resultats[14].raison, finding.raison);
+});
+
+test("deux sessions muettes : aucune relance supplémentaire du coureur", async () => {
+  const { result, launches, closed } = await budgetRun([0, 0], { muted: true });
+  assert.equal(launches, 2);
+  assert.deepEqual(closed, ["budget-1", "budget-2"]);
+  assert.equal(result.etat, "interrompu");
+  assert.ok(result.pages.every(page => page.etat === "non_visitee" && page.statut === "INCONCLUSIVE"));
+});
+
+test("relance rejetée ou impossible à créer : rapport non concluant sans crash", async () => {
+  for (const options of [{ failCreation: true }, { rejectFinal: true }]) {
+    const { result, launches } = await budgetRun([13, 0], options);
+    assert.equal(launches, 2);
+    assert.equal(result.etat, "interrompu");
+    assert.equal(result.totaux.pages_visitees, 13);
+    assert.ok(result.pages.slice(13).every(page => page.etat === "non_visitee" && page.statut === "INCONCLUSIVE"));
+    assert.ok(result.constats.every(item => item.raison));
+  }
+});
+
+test("annulation : aucune relance", async () => {
+  const { result, launches, closed } = await budgetRun([13], { abort: true });
+  assert.equal(launches, 1);
+  assert.ok(closed.includes("budget-1"));
+  assert.equal(result.etat, "interrompu");
+});
+
+test("fermeture non confirmée : aucune relance susceptible de consommer une deuxième place", async () => {
+  const { result, launches } = await budgetRun([13], { failClose: true });
+  assert.equal(launches, 1);
+  assert.equal(result.etat, "interrompu");
+  assert.ok(result.pages.slice(13).every(page => page.etat === "non_visitee" && /fermeture/.test(page.raison!)));
 });
