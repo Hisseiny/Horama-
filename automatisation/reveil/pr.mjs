@@ -5,8 +5,11 @@
 // Several pushes in a row: only the last commit of the PR is played, once its own preview is ready.
 //
 // Usage: node automatisation/reveil/pr.mjs --depot <propriétaire/dépôt> --logiciel <logiciel du vault> [--intervalle 20]
-//          [--une-fois] [--vault vault-horama] [--sortie .orchestrateur/reveil-pr] [--faux-github <fichier.json>]
+//          [--une-fois] [--a-blanc] [--vault vault-horama] [--sortie .orchestrateur/reveil-pr] [--faux-github <fichier.json>]
 //          [-- options de la scène, par exemple --vitrine]
+// --a-blanc: one look at the repository, nothing played (no scene, no H, nothing written): the open PRs, the Preview
+// deployment of their last commit, their files and the tests they would replay, and how many Preview deployments the
+// repository has at all (none: Vercel is not linked to it yet).
 // --faux-github: a JSON file { prs: [...], deploiements: { <sha>: { etat, adresse } }, fichiers: { <numéro>: [...] } }
 // read instead of GitHub, to try the chain without a real PR.
 // Exit: 0 (--une-fois: after the first PR played), 2 on a usage error or a failed impact or scene.
@@ -35,6 +38,7 @@ export function lecteurGithub(depot, read = gh) {
       return status ? { etat: status.state, adresse: status.environment_url || status.target_url || null } : null;
     },
     fichiers: (numero) => read(`repos/${depot}/pulls/${numero}/files?per_page=100`).map((file) => file.filename),
+    deploiementsPreview: () => read(`repos/${depot}/deployments?per_page=100`).filter((candidate) => /^preview/i.test(candidate.environment ?? "")).length,
   };
 }
 
@@ -45,6 +49,7 @@ export function lecteurFaux(fichier) {
     prs: () => data().prs,
     previsualisation: (sha) => data().deploiements?.[sha] ?? null,
     fichiers: (numero) => data().fichiers?.[numero] ?? [],
+    deploiementsPreview: () => Object.keys(data().deploiements ?? {}).length,
   };
 }
 
@@ -65,6 +70,25 @@ export function aJouer(lecteur, faits) {
 export function impactDePr({ pr, fichiers, vault, logiciel, socle = [] }) {
   const resultat = choisirTests({ fichiers, notes: lireNotes(vault, logiciel), fiches: [], tests: lireTestsAcceptes(vault, logiciel), socle });
   return { format: "horama-impact-1", le: new Date().toISOString(), depuis: pr.base, vers: pr.tete, logiciel, fichiers, fiches_retenues: [], socle, pr: pr.adresse, ...resultat };
+}
+
+// The dry run (--a-blanc): what the wake-up would do now, as lines for a human. Reads GitHub, plays nothing.
+export function aBlanc(lecteur, { vault, logiciel, socle = [] }) {
+  const lines = [];
+  const total = lecteur.deploiementsPreview();
+  lines.push(total ? `${total} déploiement(s) Preview sur le dépôt.` : "Aucun déploiement Preview sur le dépôt : Vercel n'y est pas encore relié.");
+  const prs = lecteur.prs();
+  if (!prs.length) lines.push("Aucune PR ouverte.");
+  for (const pr of prs) {
+    const preview = lecteur.previsualisation(pr.tete);
+    const fichiers = lecteur.fichiers(pr.numero);
+    const impact = impactDePr({ pr, fichiers, vault, logiciel, socle });
+    const etat = !preview ? "pas de déploiement Preview pour ce commit" : preview.etat === "success" && preview.adresse ? `prévisualisation prête, ${preview.adresse}` : `prévisualisation « ${preview.etat} », pas encore jouable`;
+    lines.push(`PR #${pr.numero} (${pr.tete.slice(0, 7)}) « ${pr.titre ?? ""} » : ${etat}.`);
+    lines.push(`  ${fichiers.length} fichier(s) : ${fichiers.join(", ") || "aucun"}`);
+    lines.push(`  tests rejoués : ${impact.ids.join(", ") || "aucun"} ; écartés : ${impact.ecartes.map((e) => e.id).join(", ") || "aucun"}`);
+  }
+  return lines;
 }
 
 function runNode(args) {
@@ -115,7 +139,7 @@ async function main() {
   const separator = process.argv.indexOf("--");
   const sceneArgs = separator < 0 ? [] : process.argv.slice(separator + 1);
   const { values } = parseArgs({ args: process.argv.slice(2, separator < 0 ? undefined : separator), options: {
-    depot: { type: "string" }, logiciel: { type: "string" }, intervalle: { type: "string", default: "20" }, "une-fois": { type: "boolean" },
+    depot: { type: "string" }, logiciel: { type: "string" }, intervalle: { type: "string", default: "20" }, "une-fois": { type: "boolean" }, "a-blanc": { type: "boolean" },
     vault: { type: "string", default: "vault-horama" }, sortie: { type: "string", default: ".orchestrateur/reveil-pr" }, "faux-github": { type: "string" },
   } });
   if (!values.logiciel || (!values.depot && !values["faux-github"])) throw new Error("--logiciel et --depot (ou --faux-github) sont requis");
@@ -131,6 +155,11 @@ async function main() {
   const sortie = resolve(ROOT, values.sortie);
   const lecteur = values["faux-github"] ? lecteurFaux(resolve(values["faux-github"])) : lecteurGithub(values.depot);
   const socle = JSON.parse(readFileSync(join(ROOT, "automatisation/impact/socle.json"), "utf8"))[values.logiciel] ?? [];
+  if (values["a-blanc"]) {
+    console.log(`réveil PR, à blanc : ${values.depot ?? values["faux-github"]}, vault ${values.logiciel}, rien n'est joué.`);
+    for (const line of aBlanc(lecteur, { vault, logiciel: values.logiciel, socle })) console.log(line);
+    return;
+  }
   const faits = new Set();
   console.log(`réveil PR : surveillance de ${values.depot ?? values["faux-github"]} toutes les ${interval} s, vault ${values.logiciel}.`);
   for (;;) {

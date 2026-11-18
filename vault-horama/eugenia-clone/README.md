@@ -30,4 +30,4 @@ Ce sont des constats sur le clone, pas des règles. C'est à l'école ou à Ali 
 - Le Bachelor s'appelle « Bachelor IA Applied to Business » sur l'accueil et Programmes, et « Bachelor AI Applied to Business » sur sa page.
 - Le MSc s'appelle « MSc IA Applied to Business » sur l'accueil et Programmes, et « MSc IA Appliquée au Business » sur sa page.
 - Sur la page du MSc, la durée est écrite deux fois de suite dans l'en-tête : « 2 ans » puis « 2 ans · 120 ECTS ».
-- À 1280 × 900, le titre de la page Programmes est coupé au milieu du mot : « Programm » puis « es ».
+- À 1280 × 900, les titres des pages Programmes et Admissions sont coupés au milieu du mot : « Programm » puis « es », « Admission » puis « s ».
