@@ -44,3 +44,11 @@ Couloir Nathan. Premier essai de la chaîne réelle sur le clone (`Hisseiny/euge
 - Les pages intérieures en 200 et l'absence de requête HubSpot sur une prévisualisation.
 - Le cas d'un projet Vercel monorepo à plusieurs projets : le réveil prend le premier projet qui a une `previewUrl`.
 - Aucun passage avec H.
+
+## Ajout : l'adresse dans le contrôle Vercel du commit (PR #14 du clone)
+
+- Constat : la PR #14 du clone (tête `0b4112f`) a un statut « Vercel » `success`, mais aucun commentaire du bot Vercel. Le réveil disait « son adresse est introuvable ».
+- Le contrôle (check-run) `Vercel Preview Comments` de ce commit donne l'adresse dans son résumé : « [Go to feedback](https://vercel.live/open-feedback/eugenia-school-website-git-devin-179501946-e9c30e-ahissein-5983.vercel.app?via=pr-comment-feedback-link) ».
+- Le réveil lit maintenant cette source avant le commentaire du bot (`adresseControleVercel`). Elle est attachée à chaque commit.
+- `node --test automatisation/reveil/pr.test.mjs` : 12 tests sur 12, dont un nouveau sur ce cas.
+- À blanc sur le vrai dépôt : les 3 PR ouvertes du clone ont leur adresse. #14 et #11 sont trouvées par le contrôle, #13 par le commentaire.
