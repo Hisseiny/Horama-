@@ -11,40 +11,27 @@
 // nor the bindings horamaPress and horamaChoix, which only exist in that world.
 // This file is one function expression: installLayer calls it with the id of the course (a new id forgets what an
 // earlier course left), a title ("" in the probe: the cursor alone, shown at the first click, no mascot), the options
-// ({ direct }: the click is not held) and `annotate` of rough-notation.
-(function horamaLayer(PASSAGE, TITLE, OPTIONS, annotate) {
+// ({ direct }: the click is not held), `annotate` of rough-notation and the expressions of the mascot (MASCOT: one SVG
+// per expression, docs/da/mascotte/, read by installLayer).
+(function horamaLayer(PASSAGE, TITLE, OPTIONS, annotate, MASCOT) {
   if (window.top !== window || window.__horama) return;
   // rough-notation would add its keyframes to the head of the page: they are in the Shadow DOM below instead.
   window.__rno_kf_s = true;
 
-  // ---------- The mascot: one block per state, each replaceable by an image (see README) ----------
+  // ---------- The mascot: the eye with wings of Inès (docs/da/mascotte/, PR #116), one drawing per expression ----------
   // Skeleton (issue #69): the colours below are provisional and neutral; the art direction comes after, by /taste.
-  const M = 96; // side of the box of a state, in px
+  const M = 96; // side of the box of an expression, in px: the drawings share its frame, an expression never jumps
   const INK = "#1C1C1C";
   const PAPER = "#FFFFFF";
   const GREY = "#6B6B6B";
-  const IRIS = "#7F77DD"; // iris of the mascot at rest
-  const WING = "#AFA9EC";
+  const IRIS = "#7F77DD"; // iris of the mascot, for the ripple of a click
   // One colour for a proven defect, another for a doubt.
   const COLORS = { conforme: "#2E9E5B", defaut: "#E5484D", doute: "#E8A33D" };
   const STAMPS = { bug: "Bug noté", voulu: "Voulu" };
-  // Two wings and one eye. The pupils (class « pupils ») are moved by the layer towards what the mascot looks at.
-  const wings = `<g fill="${WING}" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round">
-    <path class="wing wing-l" d="M30 46C24 30 10 24 2 28c6 3 7 7 5 10 5 1 7 5 5 8 5 1 8 5 7 9 5-1 9-4 11-9Z"/>
-    <path class="wing wing-r" d="M66 46C72 30 86 24 94 28c-6 3-7 7-5 10-5 1-7 5-5 8-5 1-8 5-7 9-5-1-9-4-11-9Z"/></g>`;
-  const eye = (iris) => `<g class="eyeball"><circle cx="48" cy="48" r="20" fill="#fff" stroke="${INK}" stroke-width="3"/>
-    <g class="pupils"><g class="scan"><circle cx="48" cy="48" r="10.5" fill="${iris}"/><circle cx="48" cy="48" r="4.6" fill="${INK}"/><circle cx="51.6" cy="44.4" r="2.2" fill="#fff"/></g></g></g>`;
-  const badge = (colour, inside) => `<g class="badge"><rect x="66" y="6" width="22" height="22" fill="${colour}" stroke="${INK}" stroke-width="2.5"/>${inside}</g>`;
-  const sign = (text) => `<text x="77" y="23.5" fill="${INK}" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="800" text-anchor="middle">${text}</text>`;
-  const svg = (inside) => `<svg viewBox="0 0 96 96">${wings}${inside}</svg>`;
-  const SPRITES = {
-    repos: svg(eye(IRIS)),
-    // Reading: a frame closes around the eye.
-    verification: svg(`<path d="M22 31v-9h9M65 22h9v9M74 65v9h-9M31 74h-9v-9" fill="none" stroke="${IRIS}" stroke-width="4"/>` + eye(IRIS)),
-    interrogation: svg(eye(IRIS) + badge(COLORS.doute, sign("?"))),
-    defaut: svg(eye(COLORS.defaut) + badge(COLORS.defaut, sign("!"))),
-    conforme: svg(eye(COLORS.conforme) + badge(COLORS.conforme, `<path d="M71 17.5l4 4 7.5-8" fill="none" stroke="${INK}" stroke-width="3"/>`)),
-  };
+  // observe (the course), hesite (just before a click of the agent), trouve (a proven defect ringed), doute (a finding of
+  // Holo), bloquee (the course stops for a reason), fini (the summary opens). The names of the first skeleton still work.
+  const ALIASES = { repos: "observe", verification: "observe", interrogation: "doute", defaut: "trouve", conforme: "fini" };
+  const expression = (name) => (MASCOT[name] ? name : ALIASES[name] ?? "observe");
 
   // ---------- Sizes and times ----------
   const TIP = { x: 7, y: 5 }; // point of the cursor arrow in its 40 px box
@@ -69,20 +56,12 @@
     .dim.on { opacity: 1; }
     .mascot { position: fixed; left: 0; top: 0; width: ${M}px; height: ${M}px; will-change: transform; }
     .body { width: ${M}px; height: ${M}px; transform-origin: 50% 80%; animation: hover 3.6s ease-in-out infinite; }
+    .body.pop { animation: hover 3.6s ease-in-out infinite, pop 350ms cubic-bezier(0.3, 1.6, 0.5, 1); }
+    /* The drawings of Inès move (decision of Nathan, 18/11): the wings flap from the rotation each expression gives them,
+       the eye blinks around its centre; the pupil follows the arrow (look, below). */
+    .wing { transform-box: view-box; transform-origin: 33px 43.5px; animation: flap 480ms ease-in-out infinite alternate; }
+    .lid { transform-box: view-box; transform-origin: 48px 48px; animation: blink 4.2s ease-in-out infinite; }
     .body > * { display: block; width: ${M}px; height: ${M}px; transform-origin: 50% 50%; overflow: visible; }
-    .wing { transform-box: fill-box; animation: flap 520ms ease-in-out infinite alternate; }
-    .wing-l { transform-origin: 100% 60%; }
-    .wing-r { transform-origin: 0 60%; }
-    .verification .wing, .defaut .wing { animation-duration: 220ms; }
-    .eyeball { transform-box: fill-box; transform-origin: 50% 50%; animation: blink 4.8s ease-in-out infinite; }
-    .pupils { transform: translate(var(--look-x, 0px), var(--look-y, 0px)); transition: transform 160ms ease-out; }
-    .verification .scan { animation: read 1.1s ease-in-out infinite; }
-    .interrogation .scan { transform: translate(4px, -3px); transition: transform 300ms ease-out; }
-    .badge { transform-box: fill-box; transform-origin: 50% 50%; animation: thunk 350ms cubic-bezier(0.3, 1.6, 0.5, 1); }
-    .interrogation .body > * { animation: tilt 260ms ease-out forwards; }
-    .defaut .body > * { animation: shake 420ms ease-in-out; }
-    .conforme .body > * { animation: spin 640ms cubic-bezier(0.3, 1.2, 0.5, 1); }
-    .jolt .body { animation: jolt 420ms cubic-bezier(0.3, 1.6, 0.5, 1); }
     .bubble { position: absolute; left: 0; top: 0; width: max-content; max-width: 470px; padding: 16px 22px; background: ${PAPER}; color: ${INK};
       font: 600 24px/1.28 ${FONT}; white-space: normal; opacity: 0; transform: scale(0.96); transition: opacity 180ms ease-out, transform 180ms ease-out; }
     .bubble.on { opacity: 1; transform: none; }
@@ -133,17 +112,11 @@
     .ripple { position: fixed; width: 28px; height: 28px; margin: -14px; border: 3px solid ${IRIS}; border-radius: 50%; animation: ripple 460ms ease-out forwards; }
     @keyframes rough-notation-dash { to { stroke-dashoffset: 0; } }
     @keyframes hover { 50% { transform: translateY(-5px); } }
-    @keyframes flap { from { transform: rotate(0deg); } to { transform: rotate(-16deg) scaleY(0.88); } }
-    .wing-r { animation-name: flap-r; }
-    @keyframes flap-r { from { transform: rotate(0deg); } to { transform: rotate(16deg) scaleY(0.88); } }
-    @keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(0.12); } }
-    @keyframes read { 0%, 100% { transform: translateX(-4px); } 50% { transform: translateX(4px); } }
-    @keyframes tilt { to { transform: rotate(8deg); } }
-    @keyframes shake { 15%, 55% { transform: translateX(-6px); } 35%, 75% { transform: translateX(6px); } }
-    @keyframes spin { from { transform: rotateY(0deg); } to { transform: rotateY(360deg); } }
+    @keyframes pop { from { scale: 0.82; } to { scale: 1; } }
+    @keyframes flap { from { transform: rotate(var(--base)); } to { transform: rotate(calc(var(--base) - 16deg)) scaleY(0.9); } }
+    @keyframes blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
     @keyframes thunk { from { opacity: 0; transform: rotate(-6deg) scale(1.8); } to { opacity: 1; transform: rotate(-6deg) scale(1); } }
     @keyframes ripple { from { transform: scale(0.5); opacity: 1; } to { transform: scale(3); opacity: 0; } }
-    @keyframes jolt { 35% { transform: translateY(-14px) scale(1.06); } 70% { transform: translateY(2px); } }
   </style>
   <div class="zones"></div><div class="dim"></div><div class="panel"></div>
   <div class="mascot" hidden><div class="body"></div><div class="bubble"></div></div>
@@ -159,7 +132,7 @@
       return null;
     }
   };
-  const state = stored() ?? { passage: PASSAGE, cursor: null, travel: null, mascot: null, etat: "repos", bulle: null, zones: {}, revue: false };
+  const state = stored() ?? { passage: PASSAGE, cursor: null, travel: null, mascot: null, etat: "observe", avant_clic: null, bulle: null, zones: {}, revue: false };
   const save = () => {
     try {
       sessionStorage.setItem("horama", JSON.stringify(state));
@@ -204,6 +177,12 @@
   // that it hides nothing.
   const land = () => {
     state.travel = null;
+    // The click is given: the mascot takes back the expression it had before it.
+    if (state.avant_clic) {
+      const before = state.avant_clic;
+      state.avant_clic = null;
+      if (state.etat === "hesite") setEtat(before);
+    }
     save();
     if (TITLE) setTimeout(() => state.revue || stepAside(busy()), PRESS + 350);
     cursor.classList.add("press");
@@ -213,15 +192,6 @@
     ring.style.top = `${cursorAt.y}px`;
     ring.addEventListener("animationend", () => ring.remove(), { once: true });
     shadow.append(ring);
-  };
-  // The eyes look at the cursor while the agent works; straight ahead at the end.
-  const look = () => {
-    const target = state.bulle || state.revue ? null : cursorAt;
-    const dx = target ? target.x - at.x - M / 2 : 0;
-    const dy = target ? target.y - at.y - M / 2 : 0;
-    const reach = (4.2 * Math.min(1, Math.hypot(dx, dy) / 80)) / (Math.hypot(dx, dy) || 1);
-    mascot.style.setProperty("--look-x", `${dx * reach}px`);
-    mascot.style.setProperty("--look-y", `${dy * reach}px`);
   };
   const wake = () => {
     frame ||= requestAnimationFrame(tick);
@@ -257,11 +227,53 @@
   const arrived = async () => {
     for (const until = Date.now() + 900; Date.now() < until && Math.hypot(goal.x - at.x, goal.y - at.y) > 3; ) await wait(30);
   };
+  // The drawing of an expression made to move, without changing it: each wing (halo layer and drawn layer) loses its
+  // rotate() attribute for the same rotation in CSS (--base), so that it can flap from it; the group of the pupil (the
+  // child <g transform="translate(…)"> of the svg) is wrapped in a lid that blinks, and keeps its own position, from
+  // which look() moves it.
+  let pupil = null;
+  const animate = () => {
+    const svg = body.querySelector("svg");
+    for (const wing of svg.querySelectorAll('g[fill="#AFA9EC"] path')) {
+      wing.style.setProperty("--base", `${/rotate\((-?[\d.]+)/.exec(wing.getAttribute("transform") ?? "")?.[1] ?? 0}deg`);
+      wing.removeAttribute("transform");
+      wing.classList.add("wing");
+    }
+    pupil = [...svg.children].find((node) => node.tagName === "g" && /^translate/.test(node.getAttribute("transform") ?? "")) ?? null;
+    if (!pupil) return;
+    const [, x = 0, y = 0] = /translate\((-?[\d.]+)[ ,]+(-?[\d.]+)/.exec(pupil.getAttribute("transform")) ?? [];
+    pupil.dataset.x = x;
+    pupil.dataset.y = y;
+    const lid = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    lid.classList.add("lid");
+    pupil.replaceWith(lid);
+    lid.append(pupil);
+  };
+  // The pupil looks at the arrow of the agent while it works (4 units at most from its place), straight ahead at the end.
+  const look = () => {
+    if (!pupil) return;
+    const target = state.bulle || state.revue ? null : cursorAt;
+    const dx = target ? target.x - at.x - M / 2 : 0;
+    const dy = target ? target.y - at.y - M / 2 : 0;
+    const distance = Math.hypot(dx, dy) || 1;
+    const reach = target ? Math.min(1, distance / 220) * 4 : 0;
+    pupil.setAttribute("transform", `translate(${(Number(pupil.dataset.x) + (dx / distance) * reach).toFixed(2)} ${(Number(pupil.dataset.y) + (dy / distance) * reach).toFixed(2)})`);
+  };
   const setEtat = (name) => {
-    state.etat = name;
+    const shown = expression(name);
+    const changed = shown !== state.etat || !body.firstChild;
+    state.etat = shown;
     save();
-    mascot.className = `mascot ${name}`;
-    body.innerHTML = SPRITES[name];
+    mascot.className = `mascot ${shown}`;
+    body.innerHTML = MASCOT[shown];
+    animate();
+    look();
+    // A small jolt when the expression changes; the mascot keeps floating.
+    if (changed) {
+      body.classList.remove("pop");
+      void body.offsetWidth;
+      body.classList.add("pop");
+    }
   };
 
   // ---------- Where the mascot stands: hiding as little as it can ----------
@@ -357,7 +369,6 @@
     goTo(spot);
     if (live) await arrived();
     if (mine !== turn) return;
-    look();
     bubble.classList.add("on");
     if (live) await wait(200);
   }
@@ -478,10 +489,9 @@
   // ---------- Commands called by the script (CDP Runtime.evaluate; a promise is awaited) ----------
   let examined = null; // id of the finding whose question is asked
   window.__horama = {
-    // repos, verification, interrogation, defaut, conforme. sursaut: the mascot jumps once as it takes this state.
-    etat(name, sursaut) {
+    // observe, hesite, trouve, doute, bloquee, fini (or a name of the first skeleton): a clean change, in place.
+    etat(name) {
       setEtat(name);
-      mascot.classList.toggle("jolt", Boolean(sursaut));
     },
     // One bubble at a time (end only), null to hide it. Resolves once the bubble is shown.
     bulle(texte) {
@@ -589,6 +599,7 @@
     // choice of the tests, development mode); items: { id, genre, texte, image, zones, page } for each defect and doubt.
     async recap({ titre, lignes = [], selection = null, items = [] }) {
       this.revue(true);
+      setEtat(state.etat === "bloquee" ? "bloquee" : "fini");
       await this.bulle(null);
       // Two rows of three at most: the others come one by one after.
       const first = items.slice(0, 6);
@@ -632,7 +643,7 @@
     async correction({ id, file, before, after }) {
       this.revue(true);
       this.panneau();
-      setEtat("interrogation");
+      setEtat("doute");
       state.bulle = { correction: { id, file, before, after }, page: here() };
       save();
       return renderBubble(true);
@@ -649,7 +660,7 @@
     async correctionResult(status) {
       if (!state.bulle?.correction) return;
       state.bulle.correction.status = status;
-      setEtat(status === "acceptee" ? "conforme" : "repos");
+      setEtat(status === "acceptee" ? "fini" : "observe");
       save();
       return renderBubble(true);
     },
@@ -670,7 +681,7 @@
       panel.className = "panel";
       const files = element("ul", "files");
       files.append(...fichiers.map((file) => element("li", "", file.split(/[\\/]/).pop())));
-      setEtat("conforme");
+      setEtat("fini");
       await showPanel([element("h1", "", typo(titre)), element("p", "", typo(compte)), element("h2", "", legende), files]);
     },
     masquer() {
@@ -710,6 +721,11 @@
     const heure = Date.now();
     state.travel = { from, to, at: heure, ms };
     state.cursor = to;
+    // Just before the click of the agent, while the arrow travels to it: the mascot hesitates.
+    if (TITLE && !state.revue && ms > 0 && state.etat !== "hesite") {
+      state.avant_clic = state.etat;
+      setEtat("hesite");
+    }
     save();
     cursor.hidden = false;
     if (TITLE) stepAside([clearance(to)]);

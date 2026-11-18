@@ -87,7 +87,7 @@ const vitrine = flag("vitrine") ? await ouvrirVitrine(page, { chromeBin: CHROME_
 // The page of departure at once, the mascot reading: what the audience sees while the pages are found and the H agent
 // starts (about 20 s measured on 18/11, 11 h 45), instead of a blank page.
 await navigate(page, URL_SITE);
-await mascot("etat", "verification").catch(() => {});
+await mascot("etat", "observe").catch(() => {});
 let witnesses = 0;
 let capturing = false;
 async function witness(label) {
@@ -169,7 +169,7 @@ const read = () => {
   }
 };
 const GENRE = { VERIFIED_FAIL: "defaut", SUSPECTED: "doute" };
-const LOOK = { VERIFIED_FAIL: "defaut", SUSPECTED: "interrogation", INCONCLUSIVE: "repos", PASS: "conforme" };
+const LOOK = { VERIFIED_FAIL: "trouve", SUSPECTED: "doute", INCONCLUSIVE: "observe", PASS: "observe" };
 const shown = new Set(); // pages whose findings were handed to the mascot
 const drawnOn = new Map(); // finding id -> drawn on the live page
 let queue = Promise.resolve();
@@ -198,7 +198,7 @@ async function rectsOf(constat, pageEntry) {
 function showPage(pageEntry, constats) {
   queue = queue.then(async () => {
     const mine = constats.filter((constat) => constat.ecran === pageEntry.ecran && !constat.explique_par);
-    await mascot("etat", "verification");
+    await mascot("etat", "observe");
     const live = await evaluate(page, "location.href").catch(() => "");
     if (live && sameAddress(live, pageEntry.url)) {
       const address = await evaluate(page, "location.pathname + location.search");
@@ -214,9 +214,9 @@ function showPage(pageEntry, constats) {
       }
     }
     const worst = ["VERIFIED_FAIL", "SUSPECTED", "INCONCLUSIVE"].find((statut) => mine.some((constat) => constat.statut === statut)) ?? "PASS";
-    await mascot("etat", LOOK[worst], worst !== "INCONCLUSIVE");
+    await mascot("etat", LOOK[worst]);
     await sleep(1200);
-    await mascot("etat", "repos");
+    await mascot("etat", "observe");
   }).catch((error) => say(`Mascotte : ${error.message}`));
 }
 let watching = true;
@@ -306,6 +306,8 @@ if (report?.format === "horama-exploration-1") {
       ...bilan.nonVisitees.map(({ chemin, raison }) => `Non visitée : ${chemin}${raison ? `, ${raison.charAt(0).toLowerCase()}${raison.slice(1).replace(/\.+$/, "")}` : ""}.`)] },
   };
   say(`Récapitulatif : ${recap.lignes.join(" ")}`);
+  // The course stopped for a reason (site that blocks robots, address not found): the mascot says it, the summary keeps it.
+  if (bilan.aucune) await mascot("etat", "bloquee").catch(() => {});
   try {
     const made = await revoir({ mascot, recap, items: items.filter((item) => review.some((constat) => constat.id === item.id)), choix: CHOICES, presentation: true, witness, say }, () => new Promise((resolve) => (chosen = resolve)));
     const le = new Date().toISOString();
