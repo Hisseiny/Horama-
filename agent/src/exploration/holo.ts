@@ -57,6 +57,24 @@ function parseFindings(content: string, width: number, height: number): HoloFind
   });
 }
 
+export function filterFindings(findings: HoloFinding[], width: number, height: number): HoloFinding[] {
+  const kept: HoloFinding[] = [];
+  for (const finding of findings) {
+    if (finding.status === "INCONCLUSIVE") { kept.push(finding); continue; }
+    const box = finding.zone;
+    if (box.y + box.height >= height * 0.99 || box.x + box.width >= width * 0.99) continue;
+    const duplicate = kept.some(previous => {
+      if (previous.status !== "SUSPECTED" || previous.kind !== finding.kind) return false;
+      const other = previous.zone;
+      const intersection = Math.max(0, Math.min(box.x + box.width, other.x + other.width) - Math.max(box.x, other.x))
+        * Math.max(0, Math.min(box.y + box.height, other.y + other.height) - Math.max(box.y, other.y));
+      return intersection / (box.width * box.height + other.width * other.height - intersection) > 0.5;
+    });
+    if (!duplicate) kept.push(finding);
+  }
+  return kept;
+}
+
 export async function askHolo(png: Buffer, { url, fetch: request = fetch, timeoutMs = 8_000, apiKey = process.env.HAI_API_KEY }: HoloOptions): Promise<HoloResult> {
   const start = Date.now();
   const inconclusive = (model: HoloModel | null, message: string): HoloResult => ({
@@ -98,7 +116,7 @@ export async function askHolo(png: Buffer, { url, fetch: request = fetch, timeou
         const body = await response.json();
         const content = body?.choices?.[0]?.message?.content;
         if (typeof content !== "string") throw new Error("Missing content");
-        return { status: "SUSPECTED" as const, findings: parseFindings(content, width, height), model, durationMs: Date.now() - start };
+        return { status: "SUSPECTED" as const, findings: filterFindings(parseFindings(content, width, height), width, height), model, durationMs: Date.now() - start };
       };
       return await Promise.race([operation(), new Promise<never>((_, reject) => {
         timer = setTimeout(() => { controller.abort(); reject(new Error("Timeout")); }, timeoutMs);
