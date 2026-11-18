@@ -6,7 +6,7 @@ import type { IncomingMessage, Server } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { BlockList, connect, isIP } from "node:net";
 import { join } from "node:path";
-import { Readable } from "node:stream";
+import { Readable, pipeline } from "node:stream";
 import type { Duplex } from "node:stream";
 import { createBrotliDecompress, createGunzip, createInflate } from "node:zlib";
 
@@ -79,7 +79,7 @@ export function createPublicFetch(options: PublicOptions = {}): typeof fetch {
       if (decoder) { responseHeaders.delete("content-encoding"); responseHeaders.delete("content-length"); }
       const empty = method === "HEAD" || [101, 204, 205, 304].includes(status);
       if (empty) response.resume();
-      const body = empty ? null : Readable.toWeb(decoder ? response.pipe(decoder) : response) as ReadableStream;
+      const body = empty ? null : Readable.toWeb(decoder ? pipeline(response, decoder, () => {}) : response) as ReadableStream;
       if (status < 200 || status > 599) { response.destroy(); throw new TypeError(`Statut HTTP inattendu : ${status}`); }
       const result = new Response(body, { status, statusText: response.statusMessage, headers: responseHeaders });
       Object.defineProperty(result, "url", { value: address.href });
@@ -109,7 +109,9 @@ export async function startPublicProxy(options: PublicOptions & { log?: (message
         outgoing.writeHead(response.statusCode ?? 502, response.statusMessage, Object.fromEntries(Object.entries(response.headers).filter(([name]) => !["connection", "keep-alive"].includes(name))));
         response.pipe(outgoing);
       });
+      upstream.on("socket", socket => { sockets.add(socket); socket.on("close", () => sockets.delete(socket)); });
       upstream.on("error", () => { if (!outgoing.headersSent) outgoing.writeHead(502); outgoing.end(); });
+      outgoing.on("close", () => upstream.destroy());
       incoming.pipe(upstream);
     } catch (error) {
       refuse(address.host, error);
@@ -122,9 +124,9 @@ export async function startPublicProxy(options: PublicOptions & { log?: (message
     sockets.add(client); client.on("close", () => sockets.delete(client)); client.on("error", () => {});
     const authority = incoming.url ?? "";
     try {
-      const { hostname, port } = new URL(`http://${authority}`);
+      const { hostname, port } = tunnelTarget(authority);
       const target = await resolvePublic(hostname, publicOptions);
-      const upstream = connect({ host: target.address, family: target.family, port: Number(port || 443) }, () => {
+      const upstream = connect({ host: target.address, family: target.family, port }, () => {
         client.write("HTTP/1.1 200 Connection Established\r\n\r\n");
         if (head.length) upstream.write(head);
         upstream.pipe(client); client.pipe(upstream);
@@ -138,6 +140,11 @@ export async function startPublicProxy(options: PublicOptions & { log?: (message
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(0, "127.0.0.1", () => resolve()); });
   const port = (server.address() as { port: number }).port;
   return { port, close: () => new Promise<void>(resolve => { for (const socket of sockets) socket.destroy(); server.close(() => resolve()); }) };
+}
+
+export function tunnelTarget(authority: string): { hostname: string; port: number } {
+  const { hostname, port } = new URL(`https://${authority}`);
+  return { hostname, port: Number(port || 443) };
 }
 
 export const publicProxyChromeFlags = (port: number) => [`--proxy-server=http://127.0.0.1:${port}`, "--proxy-bypass-list=<-loopback>"];

@@ -99,3 +99,26 @@ Dans l'image Docker (`docker build`, puis `--network none`, 2 GiB) :
   passage H dans le conteneur.
 - `--no-sandbox` reste nécessaire (voir `2026-11-18-a68-conteneur.md`) : le
   filtrage réseau ne remplace pas l'isolation du processus.
+
+## Suivi : trois défauts de robustesse (Devin Review sur #120)
+
+Aucun ne laissait passer une requête vers le réseau privé. Chaque test
+ci-dessous échouait avant la correction et réussit après (mesuré sur la VM).
+
+- **Corps compressé coupé ou annulé** : `fetchPublic` relie la réponse au
+  décompresseur avec `pipeline` ; une coupure après les en-têtes ou une
+  annulation fait échouer la lecture au lieu de la bloquer. Test : gzip
+  tronqué puis connexion coupée, et annulation après les en-têtes ; la
+  lecture rejette en moins de 3 s (avant : rejet par le délai de garde,
+  lecture bloquée).
+- **Connexions amont du proxy** : la requête amont est détruite quand Chrome
+  se déconnecte, et ses sockets sont fermés par `close()`. Test : flux
+  `text/event-stream` sans fin ; la connexion côté site se ferme après la
+  déconnexion du client, puis après l'arrêt du proxy (avant : restée ouverte).
+- **`CONNECT hôte:80`** : le port 80 n'est plus remplacé par 443
+  (`tunnelTarget`). Test : ports 80, 443, 8080 et IPv6 entre crochets
+  (avant : 80 devenait 443).
+
+Suite `exploration-reseau.test.ts` : 8/8 sur la VM ; dans l'image Docker
+`--network none` : 8/8. `pnpm -r --if-present run check`
+vert (agent : 255 réussis, 0 échec).

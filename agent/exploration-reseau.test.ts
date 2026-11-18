@@ -6,12 +6,15 @@ import { createServer } from "node:http";
 import type { Server } from "node:http";
 import { mkdtempSync, rmSync } from "node:fs";
 import { connect } from "node:net";
+import type { Socket } from "node:net";
+import { randomBytes } from "node:crypto";
+import { setTimeout as sleep } from "node:timers/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { connecterCdp } from "./src/exploration/cdp.ts";
 import { lireArguments } from "./src/exploration/cli.ts";
-import { createPublicFetch, fetchPublic, isPrivateAddress, publicProxyChromeFlags, startPublicProxy, writePublicChromePreferences } from "./src/exploration/reseau.ts";
+import { createPublicFetch, fetchPublic, isPrivateAddress, publicProxyChromeFlags, startPublicProxy, tunnelTarget, writePublicChromePreferences } from "./src/exploration/reseau.ts";
 import type { Lookup } from "./src/exploration/reseau.ts";
 
 // Names resolved without any DNS server: a public-looking name that points at loopback, as a rebinding attacker would.
@@ -191,4 +194,62 @@ test("Chrome behind the proxy: a page's requests to loopback, metadata or a name
     assert.match(navigation, /Adresse refusée par Horama|ERR_/, "La navigation vers l'adresse locale affiche le refus.");
     for (const target of [`127.0.0.1:${secret.port}`, "169.254.169.254", `rebind.test:${secret.port}`]) assert.ok(refused.some(line => line.includes(target)), target);
   } finally { await proxy.close(); udp.close(); await close(secret.server); }
+});
+
+const notStuck = <T>(promise: Promise<T>) => Promise.race([promise, sleep(3000, undefined, { ref: false }).then(() => { throw new Error("bloqué"); })]);
+
+test("a compressed body cut after its headers, or aborted, fails instead of hanging", async () => {
+  const body = gzipSync(randomBytes(50_000).toString("hex"));
+  const site = await listen((req, res) => {
+    res.writeHead(200, { "content-type": "text/html", "content-encoding": "gzip" });
+    res.write(body.subarray(0, 1000));
+    if (req.url === "/coupe") setTimeout(() => res.socket?.destroy(), 50);
+  });
+  const publicSite = createPublicFetch({ lookup, blocked: loopbackIsPublic });
+  try {
+    const cut = await publicSite(`http://site-public.test:${site.port}/coupe`);
+    await assert.rejects(notStuck(cut.text()), error => (error as Error).message !== "bloqué");
+    const controller = new AbortController();
+    const slow = await publicSite(`http://site-public.test:${site.port}/lente`, { signal: controller.signal });
+    controller.abort();
+    await assert.rejects(notStuck(slow.text()), error => (error as Error).message !== "bloqué");
+  } finally { await close(site.server); }
+});
+
+test("the proxy closes upstream connections when Chrome disconnects and when it stops", async () => {
+  const closed: string[] = [];
+  const site = await listen((req, res) => {
+    req.socket.on("close", () => closed.push(String(req.url)));
+    res.writeHead(200, { "content-type": "text/event-stream" }).write("data: ouvert\n\n");
+  });
+  const proxy = await startPublicProxy({ lookup, blocked: loopbackIsPublic });
+  let proxyOpen = true;
+  const stream = (path: string) => new Promise<Socket>(resolve => {
+    const socket = connect(proxy.port, "127.0.0.1", () => socket.write(`GET http://site-public.test:${site.port}${path} HTTP/1.1\r\nHost: site-public.test\r\n\r\n`));
+    socket.on("error", () => {});
+    socket.once("data", () => resolve(socket));
+  });
+  const closedSoon = async (path: string) => {
+    for (let attempt = 0; attempt < 40 && !closed.includes(path); attempt++) await sleep(50);
+    assert.ok(closed.includes(path), `connexion amont ${path} fermée`);
+  };
+  try {
+    (await stream("/deconnexion")).destroy();
+    await closedSoon("/deconnexion");
+    const kept = await stream("/arret");
+    await notStuck(proxy.close());
+    proxyOpen = false;
+    await closedSoon("/arret");
+    kept.destroy();
+  } finally {
+    if (proxyOpen) await proxy.close();
+    await close(site.server);
+  }
+});
+
+test("CONNECT keeps the requested port, including 80 for plain WebSocket", () => {
+  assert.deepEqual(tunnelTarget("example.com:80"), { hostname: "example.com", port: 80 });
+  assert.deepEqual(tunnelTarget("example.com:443"), { hostname: "example.com", port: 443 });
+  assert.deepEqual(tunnelTarget("example.com:8080"), { hostname: "example.com", port: 8080 });
+  assert.deepEqual(tunnelTarget("[2606:4700::1111]:80"), { hostname: "[2606:4700::1111]", port: 80 });
 });
