@@ -85,6 +85,17 @@ test("refus des cookies sur de vraies pages Chrome locales", { skip: !available 
     { html: '<main><button>Refuser</button></main>', clicked: false },
     { html: '<main>Welcome</main>', clicked: false },
     { html: '<section id="cookies"><button style="display:none">Refuser</button></section>', clicked: false },
+    { html: '<section><p>Stockage de cookies</p><button aria-label="Fermer"></button><button>Autoriser tous les cookies</button></section>', clicked: true },
+    { html: '<section aria-label="Consentement"><button title="Close banner"></button></section>', clicked: true },
+    { html: '<section><p>Cookies</p><button><span>×</span></button></section>', clicked: true },
+    { html: '<section><p>Cookies</p><a href="#">✕</a></section>', clicked: true },
+    { html: '<main><button aria-label="Fermer">×</button></main>', clicked: false },
+    { html: '<div><nav><button aria-label="Fermer">×</button></nav><main>Page</main><section><p>Cookies</p><button>Autoriser tous les cookies</button></section></div>', clicked: false },
+    { html: '<section><p>Cookies</p><button aria-label="Fermer la bannière de consentement"></button></section>', clicked: true },
+    { html: '<section><p>Cookies</p><button aria-label="Fermer">Autoriser tous les cookies</button></section>', clicked: false },
+    { html: '<section><p>Cookies</p><button title="Accept all cookies">×</button></section>', clicked: false },
+    { html: '<section style="opacity:0"><p>Cookies</p><button>×</button></section>', clicked: false },
+    { html: '<section><p>Cookies</p><form><button aria-label="Fermer">×</button></form></section>', clicked: false },
   ];
   for (const entry of cases) {
     await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = ${JSON.stringify(entry.html)};
@@ -98,7 +109,41 @@ test("refus des cookies sur de vraies pages Chrome locales", { skip: !available 
   }
   t.diagnostic("Chrome : refus FR/EN vérifiés, aucune acceptation ni soumission.");
 
+  await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = '<section><p>Cookies</p><button id="close">×</button><button id="reject">Refuser</button></section>'; window.selected = ''; document.querySelectorAll('button').forEach(button => button.onclick = () => { window.selected = button.id; });` });
+  await client.send("Runtime.evaluate", { expression: `(${refuseCookies.toString()})()` });
+  assert.equal((await client.send("Runtime.evaluate", { expression: "window.selected", returnByValue: true })).result.value, "reject");
+
+  await t.test("fermeture arrêtée par une fenêtre newsletter distincte de la bannière cookies", async () => {
+    for (const [tag, boundary] of [["section", 'style="position:fixed"'], ["section", 'style="position:sticky"'], ["section", 'role="dialog"'], ["section", 'role="alertdialog"'], ["section", 'aria-modal="true"'], ["dialog", "open"]]) {
+      for (const withCookieClose of [true, false]) {
+        const html = `<div><${tag} ${boundary} aria-label="Newsletter"><div><button id="newsletter-close" aria-label="Fermer"><span>×</span></button></div><input type="email"><button>S'inscrire</button></${tag}><section aria-label="Cookies"><p>Stockage de cookies</p>${withCookieClose ? '<div><button id="cookie-close" title="Close">✕</button></div>' : ''}<button>Autoriser tous les cookies</button></section></div>`;
+        await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = ${JSON.stringify(html)}; window.selected = ''; document.querySelectorAll('button').forEach(button => button.onclick = () => { window.selected = button.id || 'other'; });` });
+        const result = await client.send("Runtime.evaluate", { expression: `(${refuseCookies.toString()})()`, returnByValue: true });
+        assert.equal(result.result.value, withCookieClose);
+        assert.equal((await client.send("Runtime.evaluate", { expression: "window.selected", returnByValue: true })).result.value, withCookieClose ? "cookie-close" : "");
+      }
+    }
+  });
+
+  await t.test("croix dans un en-tête Préférences sans texte de consentement", async () => {
+    await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = '<section style="position:fixed"><header><button>Préférences</button><button id="close" aria-label="Fermer">×</button></header><p>Stockage de cookies</p><button>Autoriser tous les cookies</button></section>'; window.selected = ''; document.querySelectorAll('button').forEach(button => button.onclick = () => { window.selected = button.id || 'other'; });` });
+    const result = await client.send("Runtime.evaluate", { expression: `(${refuseCookies.toString()})()`, returnByValue: true });
+    assert.equal(result.result.value, true);
+    assert.equal((await client.send("Runtime.evaluate", { expression: "window.selected", returnByValue: true })).result.value, "close");
+  });
+
   const surface = { ...client, close() {} };
+  await t.test("bannière apparue pendant la stabilisation : fermeture avant la capture", async () => {
+    await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = '<main>Page locale</main>'; window.accepted = 0; setTimeout(() => {
+      document.body.insertAdjacentHTML('beforeend', '<section id="late"><p>Stockage de cookies</p><button aria-label="Fermer">×</button><button id="accept">Autoriser tous les cookies</button></section>');
+      document.querySelector('#late button').onclick = () => document.querySelector('#late').remove();
+      document.querySelector('#accept').onclick = () => { window.accepted++; };
+    }, 200);` });
+    assert.equal(await prepareCapture(surface), "refusee");
+    assert.deepEqual((await client.send("Runtime.evaluate", { expression: "[!!document.querySelector('#late'), window.accepted]", returnByValue: true })).result.value, [false, 0]);
+    const capture = await client.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
+    assert.ok(Buffer.from(capture.data, "base64").length > 100);
+  });
   await t.test("body invisible pendant 3 s : contrôles et capture après apparition", async () => {
     await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = '<main><h1>Contenu prêt</h1><p>Page locale visible après chargement.</p></main>';
       document.body.style.opacity = '0'; setTimeout(() => { document.body.style.opacity = '1'; }, 3000);` });

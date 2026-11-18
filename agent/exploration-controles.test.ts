@@ -109,6 +109,12 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
   t.diagnostic("Chrome connecté ; navigation locale.");
   await navigate("/healthy");
   assert.deepEqual(await controlerPage(client), []);
+  await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = '<main>' + ['code', 'pre', 'kbd', 'samp', 'var'].map(tag => '<' + tag + '>null <span>undefined <span>NULL</span></span></' + tag + '>').join('') + '</main>'` });
+  assert.ok(!(await controlerPage(client, { maxLiens: 0 })).some(defect => defect.sorte === "texte_erreur"));
+  await client.send("Runtime.evaluate", { expression: `document.querySelector('main').insertAdjacentHTML('beforeend', '<p id="error">Erreur : undefined</p>')` });
+  assert.deepEqual((await controlerPage(client, { maxLiens: 0 })).filter(defect => defect.sorte === "texte_erreur").map(defect => [defect.selecteur, defect.valeur]), [["#error", "undefined"]]);
+  await client.send("Runtime.evaluate", { expression: "document.body.innerHTML = ''" });
+  assert.ok(!(await controlerPage(client, { maxLiens: 0 })).some(defect => defect.sorte === "texte_erreur"));
   await navigate("/broken");
   const defects = await controlerPage(client);
   t.diagnostic(`Page défectueuse : ${defects.map(defect => defect.sorte).join(", ")}`);
