@@ -318,6 +318,25 @@ test("une page non visitée reste INCONCLUSIVE en JSON et C4", async () => {
   assert.equal(existsSync(join(root, "vault/example-org/references/faq/defaut--v1.png")), false);
 });
 
+test("références préexistantes sans historique : conservées et comparées dès le premier passage", async () => {
+  for (const page of ["accueil", "faq"]) {
+    const folder = join(root, "vault/example-org/references", page);
+    mkdirSync(folder, { recursive: true });
+    writeFileSync(join(folder, "defaut--v1.png"), original);
+  }
+  for (const version of ["2", "3"]) {
+    const { result } = await run({ png: changed });
+    assert.equal(result.version, version);
+    assert.equal(result.version_reference, "1");
+    assert.equal(result.constats.filter(item => item.source === "comparaison" && item.statut === "SUSPECTED").length, 2);
+    for (const page of result.pages) {
+      const folder = join(root, "vault/example-org/references", page.ecran);
+      assert.deepEqual(readFileSync(join(folder, "defaut--v1.png")), original);
+      assert.equal(existsSync(join(folder, `defaut--v${version}.png`)), false);
+    }
+  }
+});
+
 test("navigateur sur la dernière page : une fin prématurée est refusée et les relevés reprennent", async () => {
   await run();
   const { result, base } = await run({ earlyEnd: true });
@@ -388,6 +407,29 @@ test("contrôle en échec, Holo hors délai et session interrompue", async () =>
   assert.equal(result.etat, "interrompu"); assert.equal(result.agents[0].etat, "tombe");
   assert.equal(result.pages[0].holo?.etat, "hors_delai"); assert.equal(result.totaux.sans_conclusion, 4);
   assert.ok(base.resultats.every(item => item.statut === "INCONCLUSIVE" && item.raison));
+});
+
+test("constats de contrôle regroupés par type, mesure et zone à un pixel près, par page", async () => {
+  const zone = { x: 676, y: 406, largeur: 96, hauteur: 89 };
+  const defect = { statut: "VERIFIED_FAIL", sorte: "debordement", message: "Le texte dépasse.", valeur: "129×89 > 96×89", zone } as const;
+  const { result, base } = await run({ deps: { controler: async () => [
+    { ...defect, selecteur: "#premier" },
+    { ...defect, selecteur: "#deuxieme", zone: { ...zone, y: 405 } },
+    { ...defect, selecteur: "#troisieme", zone: { ...zone, y: 405 } },
+    { ...defect, selecteur: "#ailleurs", zone: { ...zone, x: 678 } },
+    { ...defect, selecteur: "#autre-mesure", valeur: "130×89 > 96×89" },
+    { ...defect, selecteur: "#autre-type", sorte: "texte_rogne" },
+  ] } });
+  assert.equal(result.totaux.defauts, 8);
+  for (const page of result.pages) {
+    const findings = result.constats.filter(item => item.ecran === page.ecran && item.source === "controle");
+    assert.deepEqual(findings.map(item => item.preuve.element), ["#premier", "#ailleurs", "#autre-mesure", "#autre-type"]);
+    assert.match(findings[0].description, /#premier, #deuxieme, #troisieme/);
+    assert.equal(findings[0].capture, page.capture?.fichier);
+    const c4 = base.resultats.find(item => item.test_id === `exploration--${page.ecran}`)!;
+    assert.equal(Object.keys(c4.valeurs).length, 4);
+    assert.match(c4.calcul!, /#premier, #deuxieme, #troisieme/);
+  }
 });
 
 test("erreur H après le dernier relevé : toutes les pages visitées, passage fini", async () => {

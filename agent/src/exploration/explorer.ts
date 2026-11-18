@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFile
 import { join } from "node:path";
 import type { EcartVisuel, ResultatVerification, Statut } from "@horama/contrats";
 import { verifierReleve } from "@horama/jugement";
-import { ecrireRapportPassage, ecrireReference, lireDecisions, lireNotes, lireReferences } from "@horama/memoire";
+import { ecrireRapportPassage, lireDecisions, lireNotes, lireReferences } from "@horama/memoire";
 import type { BasePassages } from "../base.ts";
 import type { BrowserRuntime } from "../browser.ts";
 import { COURSE_RULES, END_TOOL } from "../consigne.ts";
@@ -14,6 +14,7 @@ import type { ResultatSession, Session, SessionEnCours } from "../session.ts";
 import { captureDefect, connecterCdp, dismissCookies, prepareCapture } from "./cdp.ts";
 import type { ExplorationCdp } from "./cdp.ts";
 import { controlerPage } from "./controles.ts";
+import type { Defaut } from "./controles.ts";
 import { askHolo } from "./holo.ts";
 import { discoverPages, normalizePageQuery, renderPage } from "./pages.ts";
 import { fetchPublic } from "./reseau.ts";
@@ -88,6 +89,22 @@ function overlap(a: Zone, b: Zone): boolean {
   const height = Math.max(0, Math.min(a.y + a.hauteur, b.y + b.hauteur) - Math.max(a.y, b.y));
   return 2 * width * height > Math.min(a.largeur * a.hauteur, b.largeur * b.hauteur);
 }
+function sameControlZone(a: Zone | undefined, b: Zone | undefined): boolean {
+  if (!a || !b) return a === b;
+  return Math.abs(a.x - b.x) <= 1 && Math.abs(a.y - b.y) <= 1
+    && Math.abs(a.largeur - b.largeur) <= 1 && Math.abs(a.hauteur - b.hauteur) <= 1;
+}
+function groupControls(defects: Defaut[]) {
+  const groups: { defect: Defaut; measure: string; selectors: Set<string> }[] = [];
+  for (const defect of defects) {
+    const measure = String(defect.valeur ?? defect.message);
+    const group = groups.find(item => item.defect.sorte === defect.sorte && item.measure === measure && sameControlZone(item.defect.zone, defect.zone));
+    if (group) {
+      if (defect.selecteur) group.selectors.add(defect.selecteur);
+    } else groups.push({ defect, measure, selectors: new Set(defect.selecteur ? [defect.selecteur] : []) });
+  }
+  return groups;
+}
 function pageStatus(findings: Finding[]): Statut {
   return (["VERIFIED_FAIL", "SUSPECTED", "INCONCLUSIVE"] as Statut[]).find(status => findings.some(finding => !finding.explique_par && finding.statut === status)) ?? "PASS";
 }
@@ -137,9 +154,16 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
   const site = options.site ?? new URL(url).hostname.replace(/^www\./, "").replaceAll(".", "-");
   if (options.site !== undefined && !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(site)) throw new Error("Site invalide : utiliser lettres, chiffres, tirets ou soulignements.");
   const folder = join(vault, site, "passages");
-  const version = String((existsSync(folder) ? readdirSync(folder).filter(name => name.endsWith(".md")).length : 0) + 1);
-  const references = lireReferences(vault, site).filter(ref => ref.vue === "defaut" && Number(ref.version) < Number(version)).sort((a, b) => Number(b.version) - Number(a.version));
+  const passages = existsSync(folder) ? readdirSync(folder, { withFileTypes: true }).filter(entry => entry.isFile() && entry.name.endsWith(".md")) : [];
+  const referenceEntries = lireReferences(vault, site).filter(ref => ref.vue === "defaut");
+  const references = referenceEntries.filter(ref => /^\d+$/.test(ref.version) && Number.isSafeInteger(Number(ref.version))).sort((a, b) => Number(b.version) - Number(a.version));
   const versionReference = references[0]?.version ?? null;
+  const latestVersion = passages.reduce((latest, entry) => {
+    const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(readFileSync(join(folder, entry.name), "utf8"))?.[1];
+    const recorded = Number(/^version_testee:[ \t]*(?:"(\d+)"|(\d+))[ \t]*\r?$/m.exec(frontmatter ?? "")?.slice(1).find(Boolean));
+    return Number.isSafeInteger(recorded) ? Math.max(latest, recorded) : latest;
+  }, Math.max(passages.length, Number(versionReference)));
+  const version = String(latestVersion + 1);
   const notes = lireNotes(vault, site);
   const decisions = lireDecisions(vault, site);
   let sitemap = false;
@@ -557,9 +581,10 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
           const status = await client.send("Runtime.evaluate", { expression: "performance.getEntriesByType('navigation')[0]?.responseStatus || null", returnByValue: true });
           http = status.result.value;
           const defects = await (deps.controler ?? controlerPage)(client, { fetch: linkFetch });
-          for (const defect of defects) {
-            const item = finding(page, "controle", findings, { sorte: sorts[defect.sorte], statut: "VERIFIED_FAIL", description: defect.message,
-              preuve: { ...(defect.selecteur ? { element: defect.selecteur } : {}), mesure: String(defect.valeur ?? defect.message), attendu: expectedText(defect.sorte),
+          for (const { defect, measure, selectors } of groupControls(defects)) {
+            const description = selectors.size > 1 ? `${defect.message} Éléments : ${[...selectors].join(", ")}.` : defect.message;
+            const item = finding(page, "controle", findings, { sorte: sorts[defect.sorte], statut: "VERIFIED_FAIL", description,
+              preuve: { ...(defect.selecteur ? { element: defect.selecteur } : {}), mesure: measure, attendu: expectedText(defect.sorte),
                 ...(["image_cassee", "lien_casse"].includes(defect.sorte) ? { url: String(defect.valeur).replace(/ : \d+$/, "") } : {}),
                 ...(defect.sorte === "erreur_console" ? { console: String(defect.valeur).slice(0, 300) } : {}) },
               textes_a_surligner: defect.sorte === "texte_erreur" ? [String(defect.valeur)] : [],
@@ -663,7 +688,12 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
             inconclusive(page, "controle", report.constats, "La capture de cette page est indisponible.");
             await base.enregistrerResultat(markResult(page, id)); continue;
           }
-          if (!references.some(ref => ref.ecran === page.ecran)) ecrireReference(vault, site, page.ecran, "defaut", version, capture.png);
+          if (!referenceEntries.some(ref => ref.ecran === page.ecran)) {
+            const folder = join(vault, site, "references", page.ecran);
+            mkdirSync(folder, { recursive: true });
+            try { writeFileSync(join(folder, `defaut--v${version}.png`), capture.png, { flag: "wx" }); }
+            catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
+          }
           if (!notes.some(note => note.entete.ecran === page.ecran)) {
             const product = join(vault, site, "produit"); mkdirSync(product, { recursive: true });
             const file = join(product, `${page.ecran}.md`);
