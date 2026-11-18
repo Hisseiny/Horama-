@@ -5,23 +5,47 @@ export interface ExplorationCdp extends CdpClient { close(): void }
 export function refuseCookies(): boolean {
   const normalize = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase().replace(/\s+/g, " ");
   const refusals = new Set(["tout refuser", "refuser", "refuser tout", "continuer sans accepter", "reject all", "reject", "decline", "deny", "only necessary", "necessary only", "necessaires uniquement", "uniquement les necessaires", "reject all cookies", "refuser tous les cookies"]);
+  const candidates: Array<{ element: HTMLElement; refusal: boolean }> = [];
   for (const element of document.querySelectorAll<HTMLElement>('button, [role="button"], a')) {
     const text = normalize(element.innerText || element.textContent || "");
-    if (!refusals.has(text) || /accept|accepter|autoriser|allow|agree/.test(text.replace("continuer sans accepter", ""))) continue;
+    const labels = [text, normalize(element.getAttribute("aria-label") ?? ""), normalize(element.getAttribute("title") ?? "")];
+    if (labels.some(label => /accept|autoriser|allow|agree/.test(label.replace("continuer sans accepter", "")))) continue;
+    const refusal = labels.some(label => refusals.has(label));
+    const closure = /^(?:fermer|close|×|✕)$/.test(text) || labels.slice(1).some(label => /\b(?:fermer|close)\b/.test(label));
+    if (!refusal && !closure) continue;
     const rect = element.getBoundingClientRect(), style = getComputedStyle(element);
-    if (!rect.width || !rect.height || rect.bottom <= 0 || rect.top >= innerHeight || style.visibility === "hidden" || style.display === "none") continue;
+    if (!rect.width || !rect.height || rect.bottom <= 0 || rect.top >= innerHeight || rect.right <= 0 || rect.left >= innerWidth || style.visibility !== "visible" || style.display === "none") continue;
+    let visible = true;
+    for (let ancestor: Element | null = element; ancestor; ancestor = ancestor.parentElement) {
+      if (Number(getComputedStyle(ancestor).opacity) === 0) visible = false;
+    }
+    if (!visible) continue;
     if (element.matches('[type="submit"]') && "form" in element && element.form) continue;
     if (element instanceof HTMLButtonElement && element.type === "submit" && element.form) continue;
     let parent = element.parentElement;
     while (parent && parent !== document.body && parent !== document.documentElement) {
+      if (!refusal && (parent.matches('main,nav,[role="main"],[role="navigation"]') || parent.querySelector('main,nav,[role="main"],[role="navigation"]'))) break;
       if (/cookie|consent|rgpd|gdpr|privacy|confidentialit/.test(normalize([parent.textContent, parent.id, parent.className, parent.getAttribute("aria-label")].join(" ")))) {
-        element.click();
-        return true;
+        candidates.push({ element, refusal });
+        break;
       }
       parent = parent.parentElement;
     }
   }
-  return false;
+  const candidate = candidates.find(item => item.refusal) ?? candidates[0];
+  candidate?.element.click();
+  return !!candidate;
+}
+
+export async function dismissCookies(client: ExplorationCdp): Promise<boolean> {
+  const result = await client.send("Runtime.evaluate", {
+    expression: `(async () => {
+      const clicked = (${refuseCookies.toString()})();
+      if (clicked) await new Promise(resolve => setTimeout(resolve, 500));
+      return clicked;
+    })()`, awaitPromise: true, returnByValue: true,
+  });
+  return result.result?.value === true;
 }
 
 export async function waitForVisibleStable(): Promise<void> {
@@ -61,9 +85,13 @@ export async function prepareCapture(client: ExplorationCdp): Promise<"refusee" 
     expression: `(async () => {
       const deadline = Date.now() + 15000;
       while (document.readyState !== "complete" && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 100));
-      const clicked = (${refuseCookies.toString()})();
+      let clicked = (${refuseCookies.toString()})();
       if (clicked) await new Promise(resolve => setTimeout(resolve, 500));
       await (${waitForVisibleStable.toString()})();
+      if ((${refuseCookies.toString()})()) {
+        clicked = true;
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
       return clicked;
     })()`, awaitPromise: true, returnByValue: true,
   });

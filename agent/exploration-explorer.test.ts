@@ -418,6 +418,29 @@ test("connexion CDP indisponible : capture conservée et contrôles non conclus"
   assert.equal(result.pages[0].statut, "INCONCLUSIVE");
 });
 
+test("bannière tardive : statut cookies mis à jour juste avant capture, repli en cas d'erreur", async () => {
+  for (const fail of [false, true]) {
+    const { result } = await run({ deps: {
+      connecter: async () => ({ on() {}, close() {}, async send(_method, params) {
+        const expression = String((params as Record<string, unknown> | undefined)?.expression);
+        if (expression.includes("responseStatus")) return { result: { value: 200 } };
+        if (expression.includes("const deadline")) return { result: { value: false } };
+        if (fail) throw new Error("Connexion perdue");
+        return { result: { value: true } };
+      } }),
+      runtime: { relever: async (ecran, _vue, beforeCapture) => {
+        assert.ok(beforeCapture);
+        await beforeCapture();
+        return { png: original, texte: "Page", url_page: ecran === "accueil" ? "https://example.org/" : "https://example.org/faq", largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture" };
+      }, navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
+    } });
+    assert.equal(result.totaux.pages_visitees, 2);
+    assert.ok(result.pages.every(page => page.cookies === (fail ? "aucune" : "refusee")));
+    assert.ok(result.pages.every(page => page.statut === (fail ? "INCONCLUSIVE" : "PASS")));
+    if (fail) assert.ok(result.constats.every(finding => finding.statut === "INCONCLUSIVE" && finding.raison?.includes("consentement")));
+  }
+});
+
 test("onglets multiples : prépare et contrôle l'onglet redirigé avant capture", async () => {
   let controls = 0;
   const connected: string[] = [];

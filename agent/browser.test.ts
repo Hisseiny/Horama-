@@ -36,6 +36,27 @@ test("capture CDP sans navigation et nouveau pont pour chaque tentative", async 
   assert.equal(setup.closed, true);
 });
 
+test("revérification juste avant PNG et texte relu après fermeture", async () => {
+  const setup = fixture();
+  const events: string[] = [];
+  setup.scene.evaluate = async () => {
+    events.push("lecture");
+    return { texte: events.includes("fermeture") ? "Sans bannière" : "Cookies", url_page: "https://example.org/", largeur: 1280, hauteur: 900, densite: 1, defilement: [0, 0] };
+  };
+  const runtime = await ouvrirNavigateur(setup);
+  const result = await runtime.relever("accueil", "defaut", async () => {
+    assert.ok(!setup.calls.some(([method]) => method === "Page.captureScreenshot"));
+    events.push("fermeture");
+  });
+  assert.equal(result.texte, "Sans bannière");
+  assert.deepEqual(events, ["lecture", "fermeture", "lecture"]);
+  assert.equal(setup.calls.at(-1)?.[0], "Page.captureScreenshot");
+  setup.calls.length = 0;
+  await assert.rejects(runtime.relever("accueil", "defaut", async () => { throw new Error("Revérification indisponible"); }), /Revérification indisponible/);
+  assert.ok(!setup.calls.some(([method]) => method === "Page.captureScreenshot"));
+  runtime.close();
+});
+
 test("CLI absente, connexion vide, dimensions et pont invalides échouent sans fuite", async () => {
   const missing = fixture();
   await assert.rejects(ouvrirNavigateur({ ...missing, findHolo: () => null }), /holo introuvable/);

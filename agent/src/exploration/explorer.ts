@@ -11,7 +11,7 @@ import type { Consigne } from "../consigne.ts";
 import { creerCoureur } from "../coureur.ts";
 import type { ReleveCapture } from "../coureur.ts";
 import type { ResultatSession, Session, SessionEnCours } from "../session.ts";
-import { captureDefect, connecterCdp, prepareCapture } from "./cdp.ts";
+import { captureDefect, connecterCdp, dismissCookies, prepareCapture } from "./cdp.ts";
 import type { ExplorationCdp } from "./cdp.ts";
 import { controlerPage } from "./controles.ts";
 import { askHolo } from "./holo.ts";
@@ -301,7 +301,11 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
           page.cookies = await prepareCapture(client);
         } catch { /* Les contrôles signalent une connexion indisponible. */ }
         let capture: ReleveCapture;
-        try { capture = await runtime.relever(ecran, vue); }
+        let consentFailed = false;
+        try { capture = await runtime.relever(ecran, vue, async () => {
+          try { if (client && await dismissCookies(client)) page.cookies = "refusee"; }
+          catch { consentFailed = true; }
+        }); }
         catch (error) { hookSignal?.removeEventListener("abort", close); close(); throw error; }
         hookSignal?.throwIfAborted();
         const matches = (address: string) => {
@@ -338,6 +342,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
         acquired.set(ecran, capture);
         writeFileSync(join(sortie, `captures/${ecran}.png`), capture.png);
         const findings: Finding[] = [];
+        if (consentFailed) inconclusive(page, "controle", findings, "La revérification du consentement avant capture a échoué.");
         const controlZones = new Map<string, Zone>();
         let http: number | null = null;
         const hookFetch: typeof fetch = (address, init) => (deps.fetch ?? fetch)(address, { ...init, ...(hookSignal ? { signal: init?.signal ? AbortSignal.any([hookSignal, init.signal]) : hookSignal } : {}) });

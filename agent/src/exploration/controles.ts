@@ -88,7 +88,7 @@ function inspectDocument() {
   for (const element of [document.body, ...document.body.querySelectorAll("*")]) {
     if (!visible(element) || element.matches("script,style,noscript,template")) continue;
     const text = Array.from(element.childNodes).filter(node => node.nodeType === Node.TEXT_NODE).map(node => node.textContent).join(" ").trim();
-    const match = text.match(pattern);
+    const match = element.closest("code,pre,kbd,samp,var") ? null : text.match(pattern);
     if (match) add("texte_erreur", "Un texte d’erreur est affiché.", match[0], element);
     if (!(element.textContent ?? "").trim()) continue;
     if (element.children.length && !element.matches("button,a")) continue;
