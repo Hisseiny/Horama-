@@ -25,7 +25,8 @@ import { libelleAction } from "../../agent/src/session.ts";
 import { appliquerCorrection, ecrireDecision, ecrireReference, lireDecisions, lireNotes, lireReferences, refuserCorrection } from "../../memoire/index.ts";
 import { findHolo, startBridge, stopIfMissing } from "./agent-h.mjs";
 import { creerEcrivainMemoire, creerEcrivainSupabase } from "./decisions.mjs";
-import { dataUrl, revoir, sizeOf } from "./recapitulatif.mjs";
+import { completerNote } from "./note-passage.mjs";
+import { revoir, sizeOf } from "./recapitulatif.mjs";
 import { HEIGHT, WIDTH, capture, clickAt, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, layer, navigate, openChrome, option, say, sleep, waitFor } from "./scene.mjs";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
@@ -50,6 +51,8 @@ const PAR = option("par", "Nathan");
 const CHECK_FILE = resolve(option("verification", join(HERE, "../../jugement/verification/index.ts")));
 const CORRECTION_FILE = resolve(option("correction", join(HERE, "../../jugement/correction/index.ts")));
 const CORRECTION_CHOICE = option("correction-choix");
+// The PR whose deployment woke the passage (given by the wake-up), written in the report of the passage.
+const PR = option("pr", null);
 // The choice of the tests made from a change (docs/decisions/2026-11-17-format-impact.md): shown before the course,
 // and, without --tests, the tests the scene plays.
 const IMPACT_FILE = option("impact") ? resolve(option("impact")) : null;
@@ -506,7 +509,8 @@ await queue;
 const complete = course.every((step) => taken.has(step.key));
 const final = totals();
 const kept = consolidated.filter((constat) => revealed.has(constat.id) && open(constat));
-const review = flag("sans-fin") ? [] : [...kept.filter((constat) => constat.statut === "VERIFIED_FAIL"), ...kept.filter((constat) => constat.statut === "SUSPECTED")];
+const toDecide = [...kept.filter((constat) => constat.statut === "VERIFIED_FAIL"), ...kept.filter((constat) => constat.statut === "SUSPECTED")];
+const review = flag("sans-fin") ? [] : toDecide;
 const sentences = (parts) => parts.filter(Boolean).map((part) => (part.endsWith(".") ? part : `${part}.`)).join(" ");
 const outcome = [
   [final.problemes && count(final.problemes, "problème", "problèmes"), final.doutes && count(final.doutes, "doute", "doutes")].filter(Boolean).join(" et ") || (complete && !final.sans_conclusion ? "Tout est bon" : ""),
@@ -524,7 +528,7 @@ const itemOf = (constat) => {
   const text = question ?? resultat;
   const { png } = taken.get(`${constat.ecran}--${constat.vue}`);
   const [etat, genre] = KIND[constat.statut];
-  return { id: constat.id, genre, etat, texte: resultat, image: dataUrl(png), zones: marks.get(constat.id)?.rects ?? (constat.zone ? [constat.zone] : []), page: sizeOf(png),
+  return { id: constat.id, genre, etat, texte: resultat, png, zones: marks.get(constat.id)?.rects ?? (constat.zone ? [constat.zone] : []), page: sizeOf(png),
     textes: [annonce, !text.startsWith(resultat) && resultat].filter(Boolean), question: text };
 };
 // The choice of the tests: the change and its reasons (--impact), else the tests played.
@@ -532,11 +536,12 @@ const selection = impact
   ? { titre: `Tests choisis pour ce changement${impact.vers ? ` (${String(impact.vers).slice(0, 7)})` : ""}`,
     lignes: [...impact.retenus.map(({ id, raisons }) => `${id} : rejoué${raisons?.length ? `, ${raisons.join(" ; ")}` : ""}`), ...impact.ecartes.map(({ id, raison }) => `${id} : écarté${raison ? `, ${raison}` : ""}`)] }
   : { titre: "Tests joués", lignes: tests.map((test) => test.id) };
+const items = new Map(toDecide.filter((constat) => taken.has(`${constat.ecran}--${constat.vue}`)).map((constat) => [constat.id, itemOf(constat)]));
 if (page) {
   try {
     const recap = { titre: "Récapitulatif", lignes: [summary, ...(review.length ? [review.length > 1 ? "On les regarde ensemble." : "On le regarde ensemble."] : [])], selection };
     say(`Récapitulatif : ${recap.lignes.join(" ")}`);
-    const choices = (await revoir({ mascot, recap, items: review.map(itemOf), choix: CHOICES, presentation: !SANS_PRESENTATION, witness, say }, () => new Promise((resolve) => (chosen = resolve))))
+    const choices = (await revoir({ mascot, recap, items: review.map((constat) => items.get(constat.id)), choix: CHOICES, presentation: !SANS_PRESENTATION, witness, say }, () => new Promise((resolve) => (chosen = resolve))))
       .map(({ item, choix }) => {
         const constat = review.find((candidate) => candidate.id === item.id);
         return { constat, choix, question: formuler(constat).question };
@@ -613,6 +618,18 @@ if (page) {
     }
   } catch (error) {
     errors.push(`Fin du parcours : ${error.message}`);
+  }
+}
+// The report the runner wrote in the vault, completed with what only the scene knows (issue #71, point 2): the tests
+// replayed and set aside, each defect and doubt with its capture ringed, the decision of the human, the PR.
+if (report) {
+  try {
+    const rejoues = impact ? impact.retenus.map(({ id, raisons }) => `${id}${raisons?.length ? ` (${raisons.join(" ; ")})` : ""}`) : tests.map((test) => test.id);
+    const ecartes = [...(impact?.ecartes ?? []), ...dropped].map(({ id, raison }) => `${id}${raison ? ` (${raison})` : ""}`);
+    const note = completerNote({ vault: VAULT, logiciel: LOGICIEL, passage: ID, tests: { titre: "Tests", lignes: [...rejoues.map((line) => `Rejoué : ${line}`), ...ecartes.map((line) => `Écarté : ${line}`)] }, items: [...items.values()], decisions, pr: PR ? [{ label: "PR qui a déclenché le passage", url: PR }] : [] });
+    say(note ? `Note du passage complétée : ${join(VAULT, note)}.` : `Aucune note du coureur pour ${ID} : rien à compléter.`);
+  } catch (error) {
+    errors.push(`Note du passage : ${error.message}`);
   }
 }
 // The decisions of the human, then the state of the passage, in the base, only when the runner rendered the
