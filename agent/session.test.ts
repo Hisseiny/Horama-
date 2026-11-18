@@ -16,7 +16,7 @@ test("go_to_web et go_to sont des ouvertures de page", () => {
 
 test("suppression refusée : arrêt compatible mais confirmation de fermeture en échec", async () => {
   const session = creerSessionH({
-    key: "test-key", navigateur: async () => ({ channel: "fake", stop() {} }), signaler() {},
+    key: "test-key", navigateur: async () => ({ channel: "fake", stop() {} }), signaler() {}, pause: async () => {},
     requete: async (url, init) => {
       if (String(url).endsWith("/sessions")) return json({ id: "unclosed", status: { status: "running" } });
       if (String(url).endsWith("/share")) return json({ share_url: "/share/unclosed" });
@@ -29,6 +29,83 @@ test("suppression refusée : arrêt compatible mais confirmation de fermeture en
   await running.stop?.();
   await assert.rejects(async () => { await running.confirmStopped?.(); }, /arrêt H non confirmé/);
 });
+
+for (const remote of ["erreur", "illisible", "running"]) {
+  test(`état terminal connu par les événements, confirmation distante : ${remote}`, async () => {
+    const messages: string[] = [];
+    let reads = 0, deletes = 0, polls = 0;
+    const session = creerSessionH({
+      key: "test-key", navigateur: async () => ({ channel: "fake", stop() {} }),
+      pause: async () => {}, signaler: message => messages.push(message),
+      requete: async (url, init) => {
+        const path = new URL(String(url)).pathname;
+        if (path.endsWith("/sessions")) return json({ id: "finished", status: { status: "running" } });
+        if (path.endsWith("/share")) return json({ share_url: "/share/finished" });
+        if (path.endsWith("/changes")) {
+          polls++;
+          return json({ status: "completed", new_events: [] });
+        }
+        if (init?.method === "DELETE") { deletes++; return new Response(null, { status: 204 }); }
+        reads++;
+        if (remote === "erreur") throw new Error("GET indisponible");
+        return json(remote === "illisible" ? {} : { status: { status: "running" } });
+      },
+    });
+    const running = await session(defaults());
+    await running.fin;
+    assert.ok(polls > 0);
+    if (remote === "running") {
+      await assert.rejects(async () => running.confirmStopped?.(), /arrêt H non confirmé/);
+      assert.equal(deletes, 3);
+    } else {
+      await running.confirmStopped?.();
+      assert.match(messages.at(-1)!, /lectures distantes indisponibles ; état terminal déjà connu : completed/);
+    }
+    assert.equal(reads, 4);
+  });
+}
+
+for (const outcome of ["completed", "idle", "running", "illisible", "erreur"]) {
+  test(`confirmation distante après abandon : ${outcome}`, async () => {
+    let deletes = 0, reads = 0;
+    const pauses: number[] = [], messages: string[] = [];
+    const session = creerSessionH({
+      key: "test-key", navigateur: async () => ({ channel: "fake", stop() {} }),
+      pause: async ms => { pauses.push(ms); }, signaler: message => messages.push(message),
+      requete: async (url, init) => {
+        const path = new URL(String(url)).pathname;
+        if (path.endsWith("/sessions")) return json({ id: "abandoned", status: { status: "running" } });
+        if (path.endsWith("/share")) return json({ share_url: "/share/abandoned" });
+        if (init?.method === "DELETE") { deletes++; return new Response(null, { status: 204 }); }
+        if (path.endsWith("/changes")) throw new Error("Observation interrompue");
+        reads++;
+        if (outcome === "erreur") throw new Error("GET indisponible");
+        if (outcome === "illisible") return json({});
+        return json({ status: { status: reads === 1 ? "running" : outcome } });
+      },
+    });
+    const running = await session(defaults());
+    await running.fin;
+    await running.stop?.();
+    assert.equal(deletes, 1);
+    if (outcome === "completed" || outcome === "idle") {
+      await running.confirmStopped?.();
+      assert.equal(reads, 2);
+      assert.equal(deletes, 2);
+      assert.deepEqual(pauses, [1000]);
+      assert.deepEqual(messages, []);
+    } else {
+      await assert.rejects(async () => running.confirmStopped?.(), /arrêt H non confirmé/);
+      assert.equal(reads, 4);
+      assert.deepEqual(pauses, [1000, 1000, 1000]);
+      assert.match(messages.at(-1)!, /arrêt H non confirmé ; état distant/);
+      if (outcome === "running") {
+        assert.equal(deletes, 4);
+        assert.match(messages.at(-1)!, /running/);
+      }
+    }
+  });
+}
 
 test("budget transmis à H, valeur par défaut inchangée et queue désactivée", async () => {
   for (const maxSteps of [undefined, 70, 18]) {

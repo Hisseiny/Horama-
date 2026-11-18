@@ -83,6 +83,40 @@ async function run({ png = original, skip = "", refuse = false, failure = false,
   return { result, base, responses };
 }
 
+for (const context of ["plusieurs", "vide", "indisponible"]) {
+  test(`exception de relevé journalisée sans changer la réponse à H : CDP ${context}`, async () => {
+    const messages: string[] = [];
+    const { responses } = await run({ actual: address => address, deps: {
+      log: message => messages.push(message),
+      onglets: async () => {
+        if (context === "indisponible") throw new Error("CDP déconnecté");
+        return context === "vide" ? [] : [
+          { type: "page", url: "https://example.org/faq/" },
+          { type: "page", url: "https://example.org/" },
+          { type: "service_worker", url: "https://example.org/worker.js" },
+        ];
+      },
+      runtime: {
+        relever: async () => { throw new Error("Capture CDP originale"); },
+        navigateur: async () => ({ channel: "fake", stop() {} }), close() {},
+      },
+    } });
+    assert.ok(responses.some(response => response.split("\n")[0] === "Relevé impossible : la capture a échoué. Réessaie ou appelle terminer en échec."));
+    const diagnostic = messages.find(message => message.startsWith("Relevé accueil :"))!;
+    assert.match(diagnostic, /Error: Capture CDP originale/);
+    assert.match(diagnostic, /exploration-explorer.test.ts/);
+    if (context === "plusieurs") {
+      assert.match(diagnostic, /2 onglet\(s\) page CDP/);
+      assert.match(diagnostic, /https:\/\/example.org\/faq\//);
+      assert.doesNotMatch(diagnostic, /worker.js/);
+    } else if (context === "vide") {
+      assert.match(diagnostic, /0 onglet\(s\) page CDP ; URL : \[\]/);
+    } else {
+      assert.match(diagnostic, /URL et nombre d'onglets page CDP indisponibles/);
+    }
+  });
+}
+
 test("préparation attendue avant capture et contrôles dans explorer", async () => {
   const events: string[] = [];
   await run({ deps: {
