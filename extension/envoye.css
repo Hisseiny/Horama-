@@ -1,0 +1,99 @@
+/* Horama, direction « L'envoyé » (planche du 18/11)
+   Fiction : Horama est l'envoyé ailé qu'on envoie voir un site. Il part au soleil, survole la page,
+   entoure ce qu'il peut prouver et revient avec la preuve.
+   Règle de dessin : ce qui est prouvé est tracé d'un trait plein ; ce qui est seulement vu reste en pointillé.
+   Palette : relevée sur la mascotte d'Inès (encre, lilas des ailes, iris), plus le soleil et l'engobe
+   des vases à fond blanc. Les couleurs d'état sont celles de mascotte.js. */
+@import url("https://fonts.googleapis.com/css2?family=Tilt+Warp:XROT,YROT@-45..45,-45..45&family=Funnel+Sans:wght@300..800&family=Spline+Sans+Mono:wght@400;500;600&display=swap");
+
+:root {
+  --engobe: #FBF5E6;      /* le fond : l'engobe clair des lécythes à fond blanc */
+  --engobe-2: #F3EAD2;    /* surface posée sur le fond */
+  --filet: #E2D6B8;       /* filets, teintés vers le soleil */
+  --papier: #FFFDF6;      /* feuilles, plis, champs */
+  --encre: #1C1C1C;       /* le trait de la mascotte */
+  --encre-2: #5C5546;     /* texte secondaire, 6,9:1 sur engobe */
+  --soleil: #FFC93C;      /* le soleil : ce qui est mis en lumière */
+  --soleil-2: #FFE39A;    /* soleil clair */
+  --aile: #AFA9EC;        /* lilas des ailes (mascotte) */
+  --aile-2: #E3E0F9;      /* lilas clair */
+  --iris: #7F77DD;        /* iris (mascotte) */
+  --nuit: #2A2647;        /* la nuit des déploiements */
+  --miltos: #B8321F;      /* ocre rouge : défaut prouvé (mascotte, trait.js) */
+  --ocre: #C48A1E;        /* ocre jaune : doute (mascotte, trait.js) */
+  --olivier: #2E7D55;     /* conforme (mascotte) */
+
+  --affiche: "Tilt Warp", "Arial Black", sans-serif;
+  --texte: "Funnel Sans", system-ui, sans-serif;
+  --mesure: "Spline Sans Mono", ui-monospace, monospace;
+  --sortie: cubic-bezier(0.16, 1, 0.3, 1);
+  --geste: cubic-bezier(0.33, 1, 0.68, 1);
+  --trait: 3px;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: 24px; }
+body { margin: 0; background: var(--engobe); color: var(--encre); font: 400 18px/1.55 var(--texte); overflow-x: clip; }
+a { color: inherit; text-underline-offset: 3px; text-decoration-thickness: 1.5px; }
+img, svg { display: block; }
+.wrap { width: min(1344px, 100% - 96px); margin: 0 auto; }
+h1, h2, h3 { font-family: var(--affiche); font-weight: 400; letter-spacing: -.012em; margin: 0; text-wrap: balance; }
+.mesure { font-family: var(--mesure); font-variant-numeric: tabular-nums; }
+
+/* le mot de marque : une seule fonte partout, l'œil à la place du o */
+.mot { font: 400 30px/1 var(--affiche); letter-spacing: -.01em; display: inline-flex; align-items: baseline; color: var(--encre); text-decoration: none; white-space: nowrap; }
+.mot .o { width: .7em; height: .7em; margin: 0 .03em 0 .025em; align-self: flex-end; position: relative; top: -.035em; flex: none; }
+
+/* le bouton ailé : une touche d'encre avec les ailes de la mascotte, qui battent au survol */
+.bouton { position: relative; isolation: isolate; display: inline-flex; align-items: center; justify-content: center; height: 58px; padding: 0 30px; border: 0; border-radius: 999px; background: var(--encre); color: var(--engobe); font: 600 17px/1 var(--texte); text-decoration: none; cursor: pointer; white-space: nowrap; transition: transform .2s var(--geste); }
+.bouton .aile { position: absolute; z-index: -1; top: 50%; width: 32px; height: 35px; margin-top: -24px; overflow: visible; transition: transform .35s var(--sortie); fill: var(--aile); stroke: var(--encre); stroke-width: 2.6; stroke-linejoin: round; }
+.bouton .aile.g { left: -19px; transform-origin: 100% 75%; transform: rotate(6deg); }
+.bouton .aile.d { right: -19px; transform-origin: 0% 75%; transform: rotate(-6deg); }
+.bouton:hover { transform: translateY(-3px); }
+.bouton:hover .aile.g { animation: bat-g .42s ease-in-out infinite; }
+.bouton:hover .aile.d { animation: bat-d .42s ease-in-out infinite; }
+.bouton:active { transform: translateY(0); }
+.bouton:focus-visible, .champ input:focus-visible { outline: 3px solid var(--iris); outline-offset: 3px; }
+.bouton.petit { height: 46px; padding: 0 22px; font-size: 15px; }
+.bouton.petit .aile { width: 25px; height: 28px; margin-top: -19px; }
+.bouton.petit .aile.g { left: -15px; } .bouton.petit .aile.d { right: -15px; }
+@keyframes bat-g { 0%, 100% { transform: rotate(6deg); } 50% { transform: rotate(-22deg); } }
+@keyframes bat-d { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(22deg); } }
+
+/* le champ d'adresse */
+.champ { display: flex; align-items: center; gap: 6px; background: var(--papier); border: var(--trait) solid var(--encre); border-radius: 999px; padding: 5px 22px 5px 24px; max-width: 520px; }
+.champ input { flex: 1; min-width: 0; height: 52px; border: 0; background: transparent; font: 500 16px var(--mesure); color: var(--encre); }
+.champ input::placeholder { color: #8C8472; }
+.champ input:focus { outline: none; }
+.champ:focus-within { box-shadow: 0 0 0 4px var(--aile-2); }
+.champ .bouton { height: 50px; padding: 0 24px; margin-right: -3px; }
+
+/* la feuille : une vraie page, posée dans le monde dessiné */
+.feuille { background: var(--papier); border: var(--trait) solid var(--encre); border-radius: 14px; overflow: hidden; }
+.feuille .barre { height: 40px; display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: var(--trait) solid var(--encre); background: var(--engobe-2); font: 500 13px/1 var(--mesure); color: var(--encre); white-space: nowrap; overflow: hidden; }
+.feuille .barre i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--encre); background: var(--soleil); flex: none; }
+.feuille .barre span { overflow: hidden; text-overflow: ellipsis; }
+.feuille .vue { position: relative; background-repeat: no-repeat; }
+.feuille .vue svg.marques { position: absolute; left: 0; top: 0; overflow: visible; }
+
+/* le pli : ce que l'envoyé rapporte, la mesure en grand */
+.pli { background: var(--papier); border: var(--trait) solid var(--encre); border-radius: 10px; padding: 14px 18px 15px; width: 272px; }
+.pli .tete { display: flex; align-items: center; gap: 9px; font: 700 15px/1 var(--texte); }
+.pli .tete i { width: 20px; height: 20px; background: var(--miltos); border: 2.2px solid var(--encre); color: #fff; font: 800 14px/15.6px var(--texte); text-align: center; font-style: normal; flex: none; }
+.pli b.gros { display: block; font: 400 66px/.9 var(--affiche); color: var(--miltos); margin: 2px 0 7px -2px; letter-spacing: -.01em; }
+.pli .mesure { font-size: 12.5px; line-height: 1.4; color: var(--encre); white-space: nowrap; }
+.pli .mesure.m1 { margin-top: 12px; color: var(--encre-2); }
+
+/* pointillé : ce qui est seulement vu */
+.pointille { background-image: radial-gradient(circle, var(--ocre) 2.2px, transparent 2.6px); background-size: 9px 7px; background-repeat: repeat-x; background-position: 0 100%; padding-bottom: 8px; }
+
+@media (max-width: 700px) {
+  body { font-size: 17px; }
+  .wrap { width: calc(100% - 40px); }
+  .champ { padding: 5px 8px 5px 18px; }
+  .champ .bouton { padding: 0 18px; font-size: 15.5px; margin-right: 0; }
+  .champ input { font-size: 15px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bouton:hover .aile.g, .bouton:hover .aile.d { animation: none; }
+}

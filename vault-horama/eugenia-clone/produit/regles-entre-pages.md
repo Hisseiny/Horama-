@@ -4,7 +4,7 @@ logiciel: eugenia-clone
 
 # Règles entre plusieurs pages
 
-Ces règles relient deux pages du clone : une même durée, affichée sur chacune, doit être la même. Valeurs relevées le 18/11 sur le clone servi en local (commit `4e7dd32`).
+Ces règles relient deux pages du clone : une même durée, affichée sur chacune, doit être la même. Valeurs relevées le 18/11 sur le clone servi en local (commit `4e7dd32`), identiques sur la production de `main` (`3725b94`).
 
 ## Règles
 - La durée du Bachelor sur l'[[accueil]] (« 3 ans », écrit juste au-dessus de « Bachelor IA Applied to Business ») est celle de la ligne « Durée » de la page [[programmes]] (« 3 ans »).

@@ -18,11 +18,12 @@ import { fileURLToPath } from "node:url";
 import { BaseMemoire, creerBaseSupabase, creerSessionH } from "../../agent/index.ts";
 import { explorer, exclusionLabel } from "../../agent/src/exploration/explorer.ts";
 import { libelleAction } from "../../agent/src/session.ts";
-import { ecrireDecision } from "../../memoire/index.ts";
+import { ecrireDecision, lireDecisions } from "../../memoire/index.ts";
 import { findHolo, startBridge, stopIfMissing } from "./agent-h.mjs";
 import { creerEcrivainMemoire, creerEcrivainSupabase } from "./decisions.mjs";
 import { completerNote } from "./note-passage.mjs";
-import { bilanExploration, revoir, sizeOf } from "./recapitulatif.mjs";
+import { bilanExploration, dejaVoulu, revoir, sizeOf } from "./recapitulatif.mjs";
+import { ecrireSectionExploration, publierCommentaire } from "../pr-doc/commentaire.mjs";
 import { ouvrirVitrine } from "./vitrine.mjs";
 import { HEIGHT, WIDTH, capture, captureZone, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, layer, navigate, openChrome, option, say, sleep } from "./scene.mjs";
 
@@ -86,7 +87,7 @@ const vitrine = flag("vitrine") ? await ouvrirVitrine(page, { chromeBin: CHROME_
 // The page of departure at once, the mascot reading: what the audience sees while the pages are found and the H agent
 // starts (about 20 s measured on 18/11, 11 h 45), instead of a blank page.
 await navigate(page, URL_SITE);
-await mascot("etat", "verification").catch(() => {});
+await mascot("etat", "observe").catch(() => {});
 let witnesses = 0;
 let capturing = false;
 async function witness(label) {
@@ -168,7 +169,7 @@ const read = () => {
   }
 };
 const GENRE = { VERIFIED_FAIL: "defaut", SUSPECTED: "doute" };
-const LOOK = { VERIFIED_FAIL: "defaut", SUSPECTED: "interrogation", INCONCLUSIVE: "repos", PASS: "conforme" };
+const LOOK = { VERIFIED_FAIL: "trouve", SUSPECTED: "doute", INCONCLUSIVE: "observe", PASS: "observe" };
 const shown = new Set(); // pages whose findings were handed to the mascot
 const drawnOn = new Map(); // finding id -> drawn on the live page
 let queue = Promise.resolve();
@@ -197,7 +198,7 @@ async function rectsOf(constat, pageEntry) {
 function showPage(pageEntry, constats) {
   queue = queue.then(async () => {
     const mine = constats.filter((constat) => constat.ecran === pageEntry.ecran && !constat.explique_par);
-    await mascot("etat", "verification");
+    await mascot("etat", "observe");
     const live = await evaluate(page, "location.href").catch(() => "");
     if (live && sameAddress(live, pageEntry.url)) {
       const address = await evaluate(page, "location.pathname + location.search");
@@ -213,9 +214,9 @@ function showPage(pageEntry, constats) {
       }
     }
     const worst = ["VERIFIED_FAIL", "SUSPECTED", "INCONCLUSIVE"].find((statut) => mine.some((constat) => constat.statut === statut)) ?? "PASS";
-    await mascot("etat", LOOK[worst], worst !== "INCONCLUSIVE");
+    await mascot("etat", LOOK[worst]);
     await sleep(1200);
-    await mascot("etat", "repos");
+    await mascot("etat", "observe");
   }).catch((error) => say(`Mascotte : ${error.message}`));
 }
 let watching = true;
@@ -253,9 +254,23 @@ await queue;
 // ---------- The end: the summary, then bug or voulu for each defect and doubt ----------
 const count = (number, one, many) => `${number} ${number > 1 ? many : one}`;
 const decisions = [];
+// The PR that woke the exploration (réveil par PR, #122): its part of the answer is written in scene.json, and posted
+// with --commenter (the wake-up posts one answer for both scenes instead).
+const PR = option("pr", null);
+let commentaire = null;
 if (report?.format === "horama-exploration-1") {
   const { totaux, trouvees, constats } = report;
-  const toDecide = [...constats.filter((constat) => constat.statut === "VERIFIED_FAIL"), ...constats.filter((constat) => constat.statut === "SUSPECTED" && !constat.explique_par)];
+  // What a human already said « voulu » for, on an earlier course of this site, is not asked again.
+  let past = [];
+  try {
+    past = lireDecisions(VAULT, report.site);
+  } catch (error) {
+    errors.push(`Décisions passées : ${error.message}`);
+  }
+  const accepted = [];
+  const toDecide = [...constats.filter((constat) => constat.statut === "VERIFIED_FAIL"), ...constats.filter((constat) => constat.statut === "SUSPECTED" && !constat.explique_par)]
+    .filter((constat) => (dejaVoulu(constat, past) ? (accepted.push(constat), false) : true));
+  if (accepted.length) say(`Déjà déclarés voulus, non redemandés : ${accepted.map((constat) => constat.id).join(", ")}.`);
   const review = flag("sans-fin") ? [] : toDecide;
   const pathOf = (ecran) => {
     const entry = report.pages.find((candidate) => candidate.ecran === ecran);
@@ -267,29 +282,45 @@ if (report?.format === "horama-exploration-1") {
   const arrivals = report.pages.filter((entry) => ARRIVAL[entry.arrivee]);
   const byClick = arrivals.filter((entry) => entry.arrivee === "clic").length;
   const byAddress = arrivals.filter((entry) => entry.arrivee === "adresse").length;
+  const fromStart = arrivals.filter((entry) => entry.arrivee === "depart").length;
   const proof = (constat) => (constat.source === "controle"
     ? `Prouvé par le code. Mesuré : ${constat.preuve.mesure}. Attendu : ${constat.preuve.attendu}`
     : constat.source === "holo" ? "Doute du regard de Holo, le modèle visuel de H : rien n'est prouvé." : "Écart d'image avec la capture du passage précédent.");
   const items = toDecide.map((constat) => {
     const png = readFileSync(join(OUT, constat.capture));
     return { id: constat.id, genre: GENRE[constat.statut], etat: LOOK[constat.statut], texte: `${pathOf(constat.ecran)} : ${constat.description}`, png, zones: constat.zone ? [constat.zone] : [], page: constat.page ?? sizeOf(png),
+      mesure: constat.source === "controle" && constat.preuve?.mesure ? `mesuré : ${constat.preuve.mesure}` : null,
       textes: [`Page ${pathOf(constat.ecran)}${arrivalOf(constat.ecran) ? ` (${arrivalOf(constat.ecran)})` : ""} : ${constat.description}`, proof(constat)], question: "C'est un bug, ou c'est voulu ?" };
   });
   const excluded = Object.entries(trouvees.exclues.reduce((all, { raison }) => ({ ...all, [raison]: (all[raison] ?? 0) + 1 }), {})).map(([raison, n]) => `${exclusionLabel(raison)} (${n})`);
   const bilan = bilanExploration(report);
   // No page visited (site that blocks robots, address not found, login asked): the reason, no empty list, no « 0 défaut ».
-  const recap = bilan.aucune ? { titre: "Récapitulatif", lignes: [report.adresse, bilan.phrase] } : {
-    titre: "Récapitulatif",
+  // The card of the charter: « J'ai fini. », the address in mono, three figures (proven, to decide, visited), one line per
+  // finding; the details of the pages in small at the end.
+  const proven = toDecide.filter((constat) => constat.statut === "VERIFIED_FAIL").length;
+  const toSettle = toDecide.filter((constat) => constat.statut === "SUSPECTED").length;
+  const recap = bilan.aucune ? { titre: "Je n'ai pas pu entrer.", site: report.adresse, lignes: [bilan.phrase] } : {
+    titre: "J'ai fini.",
+    site: report.adresse,
+    chiffres: [
+      { valeur: proven, libelle: proven > 1 ? "défauts prouvés" : "défaut prouvé", genre: "defaut" },
+      { valeur: toSettle, libelle: "à trancher", genre: "doute" },
+      { valeur: totaux.pages_visitees, libelle: `${totaux.pages_visitees > 1 ? "pages visitées" : "page visitée"} sur ${totaux.pages_trouvees}` },
+    ],
     lignes: [
-      `${report.adresse} : ${count(totaux.pages_visitees, "page visitée", "pages visitées")} sur ${count(totaux.pages_trouvees, "trouvée", "trouvées")}${report.etat === "fini" ? "" : ", passage interrompu"}.`,
-      `${count(totaux.defauts, "défaut prouvé", "défauts prouvés")}, ${count(totaux.doutes, "doute", "doutes")}${totaux.sans_conclusion ? `, ${count(totaux.sans_conclusion, "point non vérifié", "points non vérifiés")}` : ""}.`,
+      ...(report.etat === "fini" ? [] : ["Passage interrompu : les pages non visitées sont listées plus bas."]),
+      ...(totaux.sans_conclusion ? [`${count(totaux.sans_conclusion, "point non vérifié", "points non vérifiés")}.`] : []),
     ],
     selection: { titre: "Pages", lignes: [`Trouvées par ${trouvees.par === "sitemap" ? "le plan du site" : "les liens"}, ${trouvees.plafond} au plus.`,
-      ...(arrivals.length ? [`${count(byClick, "page atteinte par un clic de l'agent", "pages atteintes par un clic de l'agent")}, ${count(byAddress, "ouverte par son adresse", "ouvertes par leur adresse")}.`] : []),
+      // Every visited page counted once, the page of departure too, so that the sum is the figure of the pages visited.
+      ...(arrivals.length ? [`${count(fromStart, "page de départ", "pages de départ")}, ${count(byClick, "page atteinte par un clic de l'agent", "pages atteintes par un clic de l'agent")}, ${count(byAddress, "ouverte par son adresse", "ouvertes par leur adresse")}.`] : []),
       ...(excluded.length ? [`Écartées : ${excluded.join(", ")}.`] : []),
+      ...(accepted.length ? [`${count(accepted.length, "constat déjà déclaré voulu, non redemandé", "constats déjà déclarés voulus, non redemandés")}.`] : []),
       ...bilan.nonVisitees.map(({ chemin, raison }) => `Non visitée : ${chemin}${raison ? `, ${raison.charAt(0).toLowerCase()}${raison.slice(1).replace(/\.+$/, "")}` : ""}.`)] },
   };
-  say(`Récapitulatif : ${recap.lignes.join(" ")}`);
+  say(`Récapitulatif : ${[recap.titre, ...(recap.chiffres ?? []).map(({ valeur, libelle }) => `${valeur} ${libelle}`), ...recap.lignes].join(" ")}`);
+  // The course stopped for a reason (site that blocks robots, address not found): the mascot says it, the summary keeps it.
+  if (bilan.aucune) await mascot("etat", "bloquee").catch(() => {});
   try {
     const made = await revoir({ mascot, recap, items: items.filter((item) => review.some((constat) => constat.id === item.id)), choix: CHOICES, presentation: true, witness, say }, () => new Promise((resolve) => (chosen = resolve)));
     const le = new Date().toISOString();
@@ -311,14 +342,34 @@ if (report?.format === "horama-exploration-1") {
     errors.push(`Fin du parcours : ${error.message}`);
   }
   // The report the runner wrote in the memory of the site, completed after the choices (issue #71, point 2).
+  let notePath = null;
   try {
     const visited = report.pages.filter((entry) => entry.etat === "visitee").map((entry) => `${new URL(entry.url).pathname}${ARRIVAL[entry.arrivee] ? ` (${ARRIVAL[entry.arrivee]})` : ""}`);
     const reasonOf = (ecran) => constats.find((constat) => constat.ecran === ecran && constat.raison)?.raison;
     const notVisited = report.pages.filter((entry) => entry.etat !== "visitee").map((entry) => `${new URL(entry.url).pathname}${reasonOf(entry.ecran) ? ` : ${reasonOf(entry.ecran)}` : ""}`);
-    const note = completerNote({ vault: VAULT, logiciel: report.site, passage: report.passage_id, tests: { titre: "Pages", lignes: [...visited.map((path) => `Visitée : ${path}`), ...notVisited.map((line) => `Non visitée : ${line}`), ...(excluded.length ? [`Écartées à la découverte : ${excluded.join(", ")}`] : [])] }, items, decisions });
-    say(note ? `Note du passage complétée : ${join(VAULT, note)}.` : `Aucune note du passage ${report.passage_id} : rien à compléter.`);
+    notePath = completerNote({ vault: VAULT, logiciel: report.site, passage: report.passage_id, tests: { titre: "Pages", lignes: [...visited.map((path) => `Visitée : ${path}`), ...notVisited.map((line) => `Non visitée : ${line}`), ...(excluded.length ? [`Écartées à la découverte : ${excluded.join(", ")}`] : [])] }, items, decisions });
+    say(notePath ? `Note du passage complétée : ${join(VAULT, notePath)}.` : `Aucune note du passage ${report.passage_id} : rien à compléter.`);
   } catch (error) {
     errors.push(`Note du passage : ${error.message}`);
+  }
+  // The part of the answer on the PR (text only: page, zone, proof; the captures ringed stay in the note).
+  if (PR) {
+    const entry = (constat) => ({ id: constat.id, chemin: pathOf(constat.ecran), texte: constat.description, zone: constat.zone ?? null, capture: constat.capture ?? null,
+      preuve: constat.source === "controle" && constat.preuve?.mesure ? `Mesuré : ${String(constat.preuve.mesure).replace(/\.+$/, "")}. Attendu : ${String(constat.preuve.attendu).replace(/\.+$/, "")}.` : null });
+    const corps = ecrireSectionExploration({ adresse: report.adresse, bilan: bilanExploration(report), totaux, decisions: decisions.map(({ decision }) => decision),
+      prouves: toDecide.filter((constat) => constat.statut === "VERIFIED_FAIL").map(entry), doutes: toDecide.filter((constat) => constat.statut === "SUSPECTED").map(entry),
+      dejaVoulus: accepted.map(entry), note: `vault-horama/${notePath ?? `${report.site}/passages/${report.passage_id}.md`}` });
+    // The elements too, with the capture ringed of each finding (written by completerNote), for the wake-up: it can put
+    // them on a branch of the target repository and write the part again with the images (--captures-sur-branche).
+    const ringedOf = (item) => ({ ...item, anneau: notePath && existsSync(join(VAULT, report.site, "passages", report.passage_id, `${item.id}.png`)) ? `${report.site}/passages/${report.passage_id}/${item.id}.png` : null });
+    const elements = { adresse: report.adresse, bilan: bilanExploration(report), totaux, decisions: decisions.map(({ decision }) => decision),
+      prouves: toDecide.filter((constat) => constat.statut === "VERIFIED_FAIL").map(entry).map(ringedOf), doutes: toDecide.filter((constat) => constat.statut === "SUSPECTED").map(entry).map(ringedOf),
+      dejaVoulus: accepted.map(entry), note: `vault-horama/${notePath ?? `${report.site}/passages/${report.passage_id}.md`}` };
+    commentaire = { corps, elements, publication: null };
+    if (flag("commenter")) {
+      commentaire.publication = await publierCommentaire(PR, corps);
+      say(commentaire.publication.status === "publie" ? `Commentaire publié sur la PR : ${commentaire.publication.url}` : `Commentaire non publié sur la PR : ${commentaire.publication.reason}`);
+    }
   }
   // The decisions in the base, then the passage « verifie », as in the development mode.
   try {
@@ -332,7 +383,7 @@ if (report?.format === "horama-exploration-1") {
 const showcase = vitrine?.mesures() ?? null;
 if (showcase) say(`Vitrine : ${showcase.images_recues} images reçues, ${showcase.images_affichees} affichées, ${showcase.images_par_seconde} par seconde ; délai de l'image dessinée à l'image affichée : médiane ${showcase.delai_total_ms.mediane} ms, p95 ${showcase.delai_total_ms.p95} ms.`);
 await vitrine?.stop({ fermer: flag("fermer-chrome") });
-writeFileSync(join(OUT, "scene.json"), `${JSON.stringify({ id: ID, passage_id: report?.passage_id ?? null, adresse: URL_SITE, mode: SANS_AGENT ? "sans agent" : "agent H", holo: !flag("sans-holo"), traits: Object.fromEntries(drawnOn), decisions, vitrine: showcase, erreurs: errors }, null, 2)}\n`);
+writeFileSync(join(OUT, "scene.json"), `${JSON.stringify({ id: ID, passage_id: report?.passage_id ?? null, adresse: URL_SITE, mode: SANS_AGENT ? "sans agent" : "agent H", holo: !flag("sans-holo"), traits: Object.fromEntries(drawnOn), decisions, pr: PR, commentaire, vitrine: showcase, erreurs: errors }, null, 2)}\n`);
 for (const line of errors) say(`Erreur : ${line}`);
 runtime.close();
 page.close();

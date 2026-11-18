@@ -21,7 +21,7 @@ Recadrés le 18/11 ([décision](docs/decisions/2026-11-18-recadrage-grand-public
 | Ce qui est prouvé | Règles calculées (égalité, somme, filtre, format, présence, état) et comparaison d'images avec les références | Contrôles mécaniques (page en erreur, image cassée, texte qui déborde, lien mort, texte d'erreur affiché) |
 | Ce qui reste un doute | Un écart d'image | Ce que Holo voit sur la capture, un écart d'image au passage suivant |
 | Ce qui est gardé | Décisions bug ou voulu dans le vault, correction de note proposée par un modèle, PR de documentation | Captures de référence et décisions, pour comparer au passage suivant |
-| État au 17/11 au soir | Construit, joué en réel sur le site d'Eugenia (voir « Chiffres mesurés ») | À construire (issue [#57](https://github.com/Hisseiny/Horama-/issues/57)) ; format de sortie fixé ; rien de mesuré |
+| État au 18/11 au soir | Construit, joué en réel sur le site d'Eugenia (voir « Chiffres mesurés ») ; vault du clone d'Ali et réveil par une PR du clone essayés à blanc (#71) | Construit et joué en réel avec l'agent H sur eugeniaschool.com : 8 pages sur 8, dont 4 atteintes par un vrai clic, et le lien « portes ouvertes » en 404 prouvé ([rapport](docs/tests/2026-11-18-a91-visite.md)) ; sites construits en JavaScript lus après rendu ([rapport](docs/tests/2026-11-18-a67-sites-js.md)) ; un site protégé par un anti-robot finit proprement avec sa raison, sans session H ([rapport](docs/tests/2026-11-18-a67-anti-robot.md)) |
 
 Le mode grand public fait entrer un visiteur sans rien lui demander ; à la fin, Horama lui propose le mode développeur pour aller plus loin.
 
@@ -68,6 +68,7 @@ flowchart LR
 | `automatisation/impact/`, `automatisation/reveil/` | Choisir les tests à rejouer depuis un diff ; réveiller la scène à chaque commit | Nathan, Ali |
 | `automatisation/pr-doc/` | Ouvrir une PR de documentation pour une correction de note acceptée | Ali |
 | `automatisation/demo/` | Répétition de la démo de bout en bout (`repetition.sh`) | Nathan |
+| `accueil/` | La landing « L'envoyé » (issue #70) : HTML statique et modules ES, sans bundler ; formulaire encore en maquette | Nathan |
 | `interface/` | L'application web Horama (Next.js) : les 8 étapes de la boucle, encore sur données factices | Axil |
 | `faux-saas/` | Facturo, le faux SaaS du banc d'essai (abandonné pour la démo) | Nathan |
 | `contrats/` | Formats échangés entre les briques, gelés (`contrats-v1`, puis `contrats-v2` pour la règle `etat`) | Ali (gardien) |
@@ -147,10 +148,38 @@ flowchart LR
 Option A, décidée par Nathan : **un service sur notre serveur, dans un conteneur Docker hébergé sur Railway**. Le jury n'installe que l'extension Chrome ; elle appelle le service, qui fait tourner Chrome, le pont `holo` et le moteur `explorer`. Railway parce qu'il garde un processus qui tourne en continu, accepte une image Docker et déploie depuis une branche GitHub ; Render est écarté (son offre gratuite met le service en veille). Étapes, par Ali :
 
 1. Un `Dockerfile` (Node, Chrome, `holo`, le moteur) et un passage réel sur eugeniaschool.com dans ce conteneur, avant tout déploiement.
-2. Le service : `POST /explorations`, `GET /explorations/:id` (format `horama-exploration-1`), les captures par lien ; une file d'attente au-delà de 3 sessions H simultanées, avec un message clair.
+2. Le service HTTP et sa file d'attente, décrits ci-dessous.
 3. Le déploiement sur Railway, après deux conditions de sécurité : une clé H dédiée au service (supprimée après la démo de vendredi, jamais la clé de l'équipe) et Chrome sous un autre compte du conteneur que le moteur (ni la clé H ni les données du moteur ne lui sont visibles), prouvées par une commande dans le rapport.
 
 L'extension (couloir Nathan) vient après la direction artistique.
+
+#### Lancer le service en local
+
+Depuis la racine, avec une clé H dédiée déjà dans l'environnement :
+
+```sh
+docker build -t horama-explorations .
+docker run --rm --memory 1g -p 127.0.0.1:8787:8787 \
+  -e HAI_API_KEY -e HORAMA_MAX_PAGES=3 horama-explorations
+curl -fsS http://127.0.0.1:8787/sante
+curl -sS http://127.0.0.1:8787/explorations -H 'Content-Type: application/json' \
+  --data '{"url":"https://eugenia-school-website.vercel.app"}'
+```
+
+- `GET /sante` : état du serveur HTTP.
+- `POST /explorations` avec `{"url":"…"}` : `202 {id, place}` (`0` si le travail démarre). Chaque demande acceptée a un nouvel identifiant. `400` pour une adresse refusée, `429` au-delà du quota et `503` si la file est pleine ou le service indisponible ; les erreurs contiennent `erreur`.
+- `GET /explorations/:id` : `{id, etat: "en_file", place}` en attente, puis le rapport `horama-exploration-1` dès son écriture. `404` si l'identifiant est inconnu, `503` si le moteur s'arrête sans rapport final. Récupérer un PNG à `/explorations/:id/<capture>` (par exemple `captures/accueil.png`, chemin indiqué dans le rapport). CORS autorise `GET`, `POST` et `OPTIONS`.
+- Un passage à la fois : chaque passage utilise le même port CDP local (`9333`), mais un profil Chrome neuf. Cinq passages peuvent attendre. Quotas proposés : 12 admissions par heure au total, 4 par IP de connexion. Derrière un proxy, cette IP peut être partagée ; le service ne fait pas confiance aux en-têtes d'IP fournis par le client.
+- `HORAMA_MAX_PAGES` (1–8, défaut 8) et `HORAMA_MAX_SECONDS` (1–240, défaut 240, puis jusqu'à 5 s pour arrêter le moteur) fixent les plafonds, non modifiables par la requête. Le proxy Chrome et les fetchs du moteur refusent les destinations privées après résolution. Le parcours H ne demande pas de clic de navigation ni d'envoi de formulaire.
+- Le mode CLI est conservé : `docker run --rm horama-explorations --help`.
+
+#### Préparer Railway (pas encore déployé)
+
+Dans Railway, relier le dépôt **Hisseiny/Horama-** après fusion sur `main`, conserver la commande par défaut du Dockerfile, indiquer `/sante` comme chemin de santé, et ajouter `HAI_API_KEY` comme variable secrète propre au service. Le serveur écoute sur `0.0.0.0:$PORT` (8787 sans variable `PORT`) ; ne pas publier le port CDP. Utiliser une seule réplique : la file et les quotas sont en mémoire.
+
+Les sorties sont sous `/data` et expirent une heure après la fin (nettoyage lors des demandes). Les identifiants ne survivent pas au redémarrage, même avec un volume ; un volume est nécessaire pour conserver les fichiers bruts au-delà de la vie du conteneur, et il faut alors gérer le nettoyage après arrêt brutal.
+
+L'image exécute Chromium sous `horama-chrome` et le moteur sous `node`. Le compte Chrome n'a accès ni à l'environnement du moteur ni à `/data`. Si un volume est monté, conserver `/data` accessible en écriture uniquement par `node` (mode `0700`). Avant de publier le domaine, vérifier ces conditions et la mémoire dans Railway ; voir [le rapport de test du service](docs/tests/2026-11-18-service-explorations.md) pour l'essai Docker local. Pas de passage sur une offre payante sans accord de Nathan.
 
 ## Chiffres mesurés
 
@@ -175,7 +204,7 @@ Ce qui n'est pas mesuré : le taux de faux constats d'un vrai défaut sur le sit
 - **Mode grand public** : moteur à un agent fusionné (#64) ; marche sur n'importe quel site à prouver (#67) ; extension Chrome et service que le jury essaie seul (#68).
 - **Direction artistique** de la scène (le squelette épuré est fait, #69), page d'accueil (#70).
 - **Mode dev de bout en bout** : réveil par un vrai déploiement Vercel, rapport dans Obsidian, commentaire sur la PR GitHub (#71).
-- **Fork du site d'Eugenia** : en attente de l'accord de l'école ; tant qu'il n'est pas là, le changement du site est simulé dans une copie du vault.
+- **Clone du site d'Eugenia** : le clone d'Ali (`Hisseiny/eugenia-school-website`) remplace le fork attendu de l'école. Il a son vault (`vault-horama/eugenia-clone/`), ses références prises sur sa production Vercel, et le réveil lit ses PR (#71). Reste à jouer un passage réel avec l'agent H sur une PR du clone.
 - **Interface web** (`interface/`) : sur données factices ; la démo se joue dans la scène.
 - **n8n** (C7, notification « cas à relire ») : non construit.
 - **Limites connues** : le mode scripté (sans agent H) ne sait pas cliquer un lien hors de l'écran ni ouvrir le menu burger ; un clic humain dans la fenêtre de la scène passe avant les réponses automatiques ; la correction de note varie d'un appel à l'autre.
@@ -187,6 +216,33 @@ Après le hackathon, dans cet ordre de dépendance :
 - **Plusieurs agents H en parallèle** (décision de Nathan, 18/11) : le moteur et le format `horama-exploration-1` sont prévus pour 1 à 3 agents qui se partagent les pages, mais la démo de vendredi tourne avec un seul agent. Pourquoi attendre : le plan gratuit de H plafonne à 3 sessions simultanées par organisation, et le mode à un agent doit d'abord être stable sur le banc de sites (#67).
 - **Des consignes de Holo spécialisées**, une par sorte de doute (texte coupé, chevauchement, élément décalé, image déformée, contraste) au lieu d'une consigne générale, quand la base sera stable : aujourd'hui, la plupart des faux constats viennent de Holo (6 sur 8 sur eugeniaschool.com le 17/11), et une consigne ne s'affine qu'en mesurant ses faux constats sur un banc qui ne bouge plus.
 - Le reste de la feuille de route (entrée « message d'un client », correction du code par Devin, autres sources de documentation et autres sorties que GitHub, accessibilité mesurée, notification par n8n) : [`docs/feuille-de-route.md`](docs/feuille-de-route.md).
+
+## Essayer Horama
+
+Pour le jury, sans rien installer côté serveur : le mode grand public, sur le site de votre choix. Les adresses marquées « à compléter » le seront quand le service sera en ligne (#68, #133).
+
+**Par la page d'accueil.** Ouvrez `adresse de la page d'accueil, à compléter` (#136), collez l'adresse d'un site public dans le champ et cliquez « Envoyer Horama ».
+
+**Par l'extension Chrome.**
+1. Téléchargez `horama-extension.zip` (`lien de la release, à compléter`), puis dézippez-le.
+2. Dans Chrome, ouvrez `chrome://extensions`, activez le « Mode développeur » et cliquez « Charger l'extension non empaquetée ». Choisissez le dossier dézippé.
+3. Ouvrez le site à vérifier, cliquez sur l'icône Horama : l'adresse de l'onglet est déjà remplie. Cliquez « Envoyer Horama ».
+
+Le rapport s'ouvre dans un onglet et se remplit page par page. Il montre :
+- les défauts **prouvés par le code**, chacun avec sa capture marquée d'un trait rouge et sa mesure (« mesuré : … », « attendu : … ») ;
+- à part, les doutes du regard de Holo, « à trancher » ;
+- les pages visitées.
+
+Le service visite 8 pages au plus. Sur le site d'Eugenia, 8 pages ont pris 212 s ([rapport](docs/tests/2026-11-18-a91-visite.md)). Un site qui bloque les robots, une page introuvable ou une connexion demandée finissent proprement, avec la raison.
+
+Limites du service (`agent/scripts/exploration-service.mjs`, #143) :
+- une exploration à la fois, 5 en file d'attente au plus ;
+- 4 demandes par heure et par adresse IP, 12 par heure en tout ;
+- seulement les adresses publiques en `http` ou `https`, sans identifiants.
+
+L'agent ne remplit aucun formulaire.
+
+**Pour l'équipe : régler l'adresse du service.** Une seule ligne, la constante `DEFAULT_SERVICE` de `extension/service.js` (aujourd'hui `http://127.0.0.1:8787`, le faux service). Une fois l'adresse réglée, `sh extension/empaqueter.sh` produit `extension/dist/horama-extension.zip` et rappelle l'adresse qu'il contient. Chaque utilisateur peut aussi la changer dans les options de l'extension. La publication du `.zip` en release GitHub attend le go de Nathan.
 
 ## Comment lancer
 
@@ -208,6 +264,12 @@ bash automatisation/demo/repetition.sh
 
 Avec le vrai agent H, ajouter `--agent` (quelques centimes par parcours). Mode d'emploi, ce qu'on voit à chaque seconde et pièges : [répétition](docs/demo/2026-11-17-repetition.md). Tour complet du site en réel : commande dans le [rapport du tour](docs/tests/2026-11-17-tour-du-site-reel.md).
 
+Voir la landing en local (les modules ES ne se chargent pas en `file://`), puis ouvrir http://127.0.0.1:4190/ :
+
+```sh
+cd accueil && python3 -m http.server 4190
+```
+
 Lancer l'interface en données factices (http://localhost:3000) et Facturo (http://localhost:3100) :
 
 ```sh
@@ -221,3 +283,4 @@ Le coureur seul, en ligne de commande (couloir Ali) : `pnpm --filter @horama/age
 - [Règles communes aux IA de l'équipe](AGENTS.md), [plan de travail](docs/plan-de-travail.md), [avancement](docs/checklist.md), [missions](docs/missions/).
 - [Feuille de route](docs/feuille-de-route.md) ; [décisions](docs/decisions/), une par fichier daté ; [rapports de test](docs/tests/), un par mesure.
 - [Retours sur l'API de H](docs/retours-api-h.md).
+- [Charte graphique](docs/da/charte-graphique.md) de la direction « L'envoyé » (marque, couleurs, polices, mascotte, signes de preuve).

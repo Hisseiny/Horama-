@@ -13,6 +13,8 @@ export const HELP = `Usage : pnpm --filter @horama/agent explorer -- --url adres
   --vault chemin      Vault (vault-horama du dépôt par défaut)
   --sans-base         Base en mémoire, aucune écriture Supabase
   --chrome-port 9333  Chrome dédié déjà lancé, 1280 × 900, DPR 1
+  --reseau-public     Refuse robots, sitemaps, pages et liens vers une adresse privée,
+                      même après résolution DNS (activé par le conteneur)
   --help              Cette aide, sans session
 Variables : HAI_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, HOLO_BIN.
 Les captures et notes sont conservées dans le vault, même avec --sans-base.`;
@@ -23,8 +25,8 @@ export function lireArguments(args: string[]): (ExplorerOptions & { sansBase: bo
   const values = new Map<string, string>();
   for (let index = 0; index < args.length; index++) {
     const name = args[index];
-    if (!["--url", "--max", "--pages-cliquees", "--sortie", "--vault", "--sans-base", "--chrome-port"].includes(name) || values.has(name)) throw new Error("Option inconnue ou répétée ; utiliser --help.");
-    if (name === "--sans-base") { values.set(name, "true"); continue; }
+    if (!["--url", "--max", "--pages-cliquees", "--sortie", "--vault", "--sans-base", "--chrome-port", "--reseau-public"].includes(name) || values.has(name)) throw new Error("Option inconnue ou répétée ; utiliser --help.");
+    if (name === "--sans-base" || name === "--reseau-public") { values.set(name, "true"); continue; }
     const value = args[++index];
     if (!value || value.startsWith("--")) throw new Error(`Valeur requise pour ${name}.`);
     values.set(name, value);
@@ -39,7 +41,7 @@ export function lireArguments(args: string[]): (ExplorerOptions & { sansBase: bo
   if (!Number.isSafeInteger(pagesCliquees) || pagesCliquees < 0) throw new Error("--pages-cliquees attend un entier positif ou nul.");
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("Port Chrome invalide.");
   return { url: address, max, port, pagesCliquees, sortie: values.get("--sortie") ?? fileURLToPath(new URL("../../../.orchestrateur/exploration", import.meta.url)),
-    vault: values.get("--vault") ?? fileURLToPath(new URL("../../../vault-horama", import.meta.url)), sansBase: values.has("--sans-base") };
+    vault: values.get("--vault") ?? fileURLToPath(new URL("../../../vault-horama", import.meta.url)), sansBase: values.has("--sans-base"), reseauPublic: values.has("--reseau-public") };
 }
 
 export async function lancerExploration(options: ExplorerOptions & { sansBase: boolean }) {

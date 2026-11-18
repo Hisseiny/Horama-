@@ -558,8 +558,16 @@ const selection = impact
 const items = new Map(toDecide.filter((constat) => taken.has(`${constat.ecran}--${constat.vue}`)).map((constat) => [constat.id, itemOf(constat)]));
 if (page) {
   try {
-    const recap = { titre: "Récapitulatif", lignes: [summary, ...(review.length ? [review.length > 1 ? "On les regarde ensemble." : "On le regarde ensemble."] : [])], selection };
-    say(`Récapitulatif : ${recap.lignes.join(" ")}`);
+    // The card of the charter: the title, the address in mono, three figures (proven, to decide, tests played), the
+    // choice of the tests in small at the end.
+    const recap = { titre: complete ? "J'ai fini." : "Je n'ai pas pu finir le parcours.", site: BASE,
+      chiffres: [
+        { valeur: final.problemes ?? 0, libelle: (final.problemes ?? 0) > 1 ? "défauts prouvés" : "défaut prouvé", genre: "defaut" },
+        { valeur: final.doutes ?? 0, libelle: "à trancher", genre: "doute" },
+        { valeur: tests.length, libelle: tests.length > 1 ? "tests rejoués" : "test rejoué" },
+      ],
+      lignes: final.sans_conclusion ? [`${count(final.sans_conclusion, "point", "points")} que je n'ai pas pu vérifier.`] : [], selection };
+    say(`Récapitulatif : ${summary}`);
     const choices = (await revoir({ mascot, recap, items: review.map((constat) => items.get(constat.id)), choix: CHOICES, presentation: !SANS_PRESENTATION, witness, say }, () => new Promise((resolve) => (chosen = resolve))))
       .map(({ item, choix }) => {
         const constat = review.find((candidate) => candidate.id === item.id);
@@ -672,16 +680,20 @@ if (report) {
     errors.push(`Note du passage : ${error.message}`);
   }
 }
-// The answer on the PR that woke the passage (--commenter, with --pr): posted with gh. A failure is said, the scene
-// goes on and its exit does not change.
+// The answer on the PR that woke the passage (with --pr): written in passage.json (commentaire_corps, the wake-up puts
+// it in one answer with the exploration of the site), posted with gh only with --commenter. A failure is said, the
+// scene goes on and its exit does not change.
 let commentaire = null;
-if (PR && flag("commenter") && report) {
+let commentaireCorps = null;
+if (PR && report) {
   const entry = (constat) => ({ id: constat.id, ecran: constat.ecran, texte: formuler(constat).resultat });
-  const corps = ecrireCommentaire({ passage: ID, rejoues, ecartes, prouves: toDecide.filter((constat) => constat.statut === "VERIFIED_FAIL").map(entry),
+  commentaireCorps = ecrireCommentaire({ passage: ID, rejoues, ecartes, prouves: toDecide.filter((constat) => constat.statut === "VERIFIED_FAIL").map(entry),
     doutes: toDecide.filter((constat) => constat.statut === "SUSPECTED").map(entry), decisions: decisions.map(({ decision }) => decision),
     note: `vault-horama/${notePath ?? `${LOGICIEL}/passages/${ID}.md`}`, complet: complete });
-  commentaire = await publierCommentaire(PR, corps);
-  say(commentaire.status === "publie" ? `Commentaire publié sur la PR : ${commentaire.url}` : `Commentaire non publié sur la PR : ${commentaire.reason}`);
+  if (flag("commenter")) {
+    commentaire = await publierCommentaire(PR, commentaireCorps);
+    say(commentaire.status === "publie" ? `Commentaire publié sur la PR : ${commentaire.url}` : `Commentaire non publié sur la PR : ${commentaire.reason}`);
+  }
 }
 // The decisions of the human, then the state of the passage, in the base, only when the runner rendered the
 // passage as played. A refused write is said (its message only gives the HTTP code), the next ones are still
@@ -745,6 +757,7 @@ writeFileSync(join(OUT, "passage.json"), `${JSON.stringify({
   film: FILM ? { dossier: FILM, images, duree_s: filmedMs / 1000 } : null,
   vitrine: showcase,
   commentaire,
+  commentaire_corps: commentaireCorps,
   debut: started.toISOString(),
   fin: new Date().toISOString(),
   duree_s: dureeS,

@@ -1,17 +1,18 @@
 <!doctype html>
 <html lang="fr">
-<head><meta charset="utf-8"><title>Horama</title><link rel="stylesheet" href="commun.css"><link rel="stylesheet" href="popup.css"></head>
+<head><meta charset="utf-8"><title>Horama</title><link rel="stylesheet" href="envoye.css"><link rel="stylesheet" href="commun.css"><link rel="stylesheet" href="popup.css"></head>
 <body>
-  <h1>Horama</h1>
-  <p class="second">Horama parcourt le site et ne montre que ce qu'il peut prouver.</p>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="oeil" viewBox="26 26 44 44"><circle cx="48" cy="48" r="20" fill="#fff" stroke="#1C1C1C" stroke-width="3.6"/><circle cx="48" cy="48" r="10.5" fill="#7F77DD"/><circle cx="48" cy="48" r="4.6" fill="#1C1C1C"/><circle cx="51.6" cy="44.4" r="2.2" fill="#fff"/></symbol><symbol id="aile-g" viewBox="0 22 32 35"><path d="M30 46C24 30 10 24 2 28c6 3 7 7 5 10 5 1 7 5 5 8 5 1 8 5 7 9 5-1 9-4 11-9Z"/></symbol><symbol id="aile-d" viewBox="64 22 32 35"><path d="M66 46C72 30 86 24 94 28c-6 3-7 7-5 10-5 1-7 5-5 8-5 1-8 5-7 9-5-1-9-4-11-9Z"/></symbol></svg>
+  <div class="haut"><div class="astre"></div><span class="mot">H<svg class="o" aria-hidden="true"><use href="#oeil"/></svg>rama</span><div class="m" id="mascotte" aria-hidden="true"></div></div>
   <form>
-    <label for="adresse">Adresse du site</label>
-    <input id="adresse" type="url" required placeholder="https://…">
-    <button type="submit">Lancer</button>
+    <label for="adresse">Le site de cet onglet</label>
+    <input id="adresse" class="adresse" type="url" required placeholder="https://…">
+    <button class="bouton" type="submit"><svg class="aile g" aria-hidden="true"><use href="#aile-g"/></svg><svg class="aile d" aria-hidden="true"><use href="#aile-d"/></svg>Envoyer Horama</button>
+    <p id="message" role="status"></p>
+    <p class="pied"><a href="options.html" target="_blank">Adresse du service</a></p>
   </form>
-  <p id="message" role="status"></p>
-  <p class="pied"><a href="options.html" target="_blank">Adresse du service</a></p>
   <script src="service.js"></script>
+  <script src="mascotte.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

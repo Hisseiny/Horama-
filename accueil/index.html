@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horama · envoyez-le voir votre site</title>
+<meta name="description" content="Donnez l'adresse d'un site : Horama le visite comme un visiteur et ne revient qu'avec les défauts qu'il peut prouver.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="envoye.css?v=3">
+<style>
+  /* ---------- nav ---------- */
+  .nav { display: flex; align-items: center; gap: 34px; height: 92px; position: relative; z-index: 4; }
+  .nav .liens { display: flex; gap: 30px; margin-left: 22px; font-size: 16.5px; font-weight: 500; }
+  .nav .liens a { text-decoration: none; }
+  .nav .liens a:hover { text-decoration: underline; }
+  .nav .contour { margin-left: auto; display: inline-flex; align-items: center; height: 46px; padding: 0 20px; border: 2.5px solid var(--encre); border-radius: 999px; font: 600 15.5px/1 var(--texte); text-decoration: none; background: var(--papier); transition: transform .2s var(--geste); }
+  .nav .contour:hover { transform: translateY(-2px); }
+
+  /* ---------- 1. hero : le titre porte un défaut voulu, l'envoyé le repère ----------
+     « s. » passe sous le soleil (défaut de mise en page), l'œil passe en « défaut trouvé »,
+     le trait rouge l'entoure et le pli rapporte la mesure. Le titre reste lisible dès la première image. */
+  .hero { position: relative; min-height: max(820px, var(--vh, 100svh)); overflow: clip; background:
+      radial-gradient(900px 640px at calc(50% + 300px) 480px, rgba(255, 214, 102, .55), rgba(255, 214, 102, 0) 70%); }
+  .hero .wrap { position: relative; }
+  .hero h1 { font-size: 108px; line-height: .95; margin-top: 12px; position: relative; }
+  /* le défaut voulu : tout le titre passe devant le soleil, sauf « s. » qui passe dessous.
+     Aucun z-index sur .hero, .wrap ni h1 : le titre et le soleil partagent la même pile. */
+  .hero h1 .devant { position: relative; z-index: 3; }
+  .hero h1 .sous { position: relative; z-index: 1; }
+  .envoi { position: relative; z-index: 3; margin-top: 46px; width: 440px; }
+  .envoi .sous { font-size: 21px; line-height: 1.42; margin: 0 0 26px; }
+  .envoi .sous b { font-weight: 700; }
+  .envoi .ou { margin: 16px 0 0 6px; font-size: 15.5px; color: var(--encre-2); }
+  .retour { margin: 10px 0 0 6px; font-size: 14px; color: var(--encre-2); min-height: 1.5em; position: relative; z-index: 2; }
+
+  .soleil { position: absolute; left: 300px; top: -122px; width: 560px; height: 560px; overflow: visible; }
+  .soleil .rayons { transform-origin: 0 0; animation: tourne 160s linear infinite; }
+  .soleil .rayons line { stroke: var(--encre); stroke-width: 3.6; stroke-linecap: round; stroke-dasharray: 0 13; opacity: .55; }
+  @keyframes tourne { to { transform: rotate(360deg); } }
+  .nuage { position: absolute; overflow: visible; }
+  .nuage path { fill: var(--papier); stroke: var(--encre); stroke-width: 3; stroke-linejoin: round; }
+  .nuage.n1 { left: 792px; top: -6px; width: 150px; animation: derive 26s ease-in-out infinite alternate; }
+  .nuage.n2 { left: 196px; top: -214px; width: 104px; animation: derive 34s ease-in-out infinite alternate-reverse; }
+  @keyframes derive { from { transform: translateX(-14px); } to { transform: translateX(18px); } }
+  /* soleil, nuage et escale de l'envoyé : placés par envoye.js à partir de la position de « s. ».
+     Invisibles tant qu'ils ne sont pas placés : sans taille, le soleil couvrirait tout l'écran. */
+  .hero .soleil { z-index: 2; margin: 0; }
+  .hero .nuage.n1 { z-index: 2; }
+  .hero .soleil, .hero .nuage.n1 { opacity: 0; transition: opacity .35s; }
+  .hero.pret .soleil, .hero.pret .nuage.n1 { opacity: 1; }
+  .hero .marques { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 4; }
+  .rapport { position: absolute; left: 500px; top: 390px; z-index: 3; }
+  .rapport .pli { transform: rotate(-2deg); transition: opacity .3s, transform .7s var(--sortie); }
+  .rapport .pli b.gros { font-size: 60px; margin-top: 6px; }
+  .rapport .pli.cache { opacity: 0; transform: translateY(18px) rotate(-7deg) scale(.94); }
+  .escale { position: absolute; width: 0; height: 0; pointer-events: none; }
+
+  /* ---------- le vol : la mascotte et son pointillé traversent la page ---------- */
+  #vol { position: absolute; left: 0; top: 0; width: 100%; height: 0; pointer-events: none; z-index: 6; }
+  #vol svg { position: absolute; left: 0; top: 0; overflow: visible; }
+  #vol .pts circle { fill: var(--encre); opacity: 0; transition: opacity .25s; }
+  #vol .pts circle.vu { opacity: .78; }
+  #envoye { position: absolute; left: 0; top: 0; will-change: transform; transition: opacity .35s; }
+  body:not(.vol-pret) #envoye { opacity: 0; }   /* pas d'envoyé au coin de l'écran avant son premier placement */
+  .arrivee { position: absolute !important; left: -56px; top: -56px; display: none !important; }
+  body.fige .arrivee { display: block !important; }
+  #envoye .butin { position: absolute; left: 50%; top: 78%; width: 0; display: flex; justify-content: center; gap: 5px; }
+  #envoye .butin i { display: block; width: 22px; padding-top: 16px; position: relative; opacity: 0; transform: translateY(-8px) scale(.6); transform-origin: 50% 0; transition: opacity .3s, transform .5s var(--sortie); flex: none; }
+  #envoye .butin i::before { content: ""; position: absolute; left: 50%; top: 0; width: 2px; height: 16px; margin-left: -1px; background: var(--encre); }
+  #envoye .butin i::after { content: attr(data-t); display: block; height: 24px; border: 2.2px solid var(--encre); background: var(--miltos); color: #fff; font: 800 13px/19px var(--texte); text-align: center; font-style: normal; }
+  #envoye .butin i.d::after { background: var(--ocre); }
+  #envoye .butin i.on { opacity: 1; transform: none; animation: balance 2.6s ease-in-out infinite; }
+  @keyframes balance { 0%, 100% { rotate: -7deg; } 50% { rotate: 7deg; } }
+
+  /* ---------- 2. comment ça marche : quatre escales le long du vol ---------- */
+  .comment { position: relative; padding: 150px 0 160px; background: var(--aile-2); }
+  /* les coutures : un banc de nuages d'engobe déborde sur le ciel, en haut et en bas */
+  .hero::after, .comment::before, .comment::after { content: ""; position: absolute; left: 0; right: 0; height: 72px; z-index: 3; pointer-events: none;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='72'%3E%3Cpath d='M0 0V30a40 34 0 0 0 80 0a26 22 0 0 0 52 0a48 38 0 0 0 96 0a30 24 0 0 0 60 0a44 36 0 0 0 88 0a24 20 0 0 0 48 0a28 24 0 0 0 56 0V0Z' fill='%23FBF5E6'/%3E%3Cpath d='M0 30a40 34 0 0 0 80 0a26 22 0 0 0 52 0a48 38 0 0 0 96 0a30 24 0 0 0 60 0a44 36 0 0 0 88 0a24 20 0 0 0 48 0a28 24 0 0 0 56 0' fill='none' stroke='%231C1C1C' stroke-width='3' stroke-linejoin='round'/%3E%3C/svg%3E") repeat-x 0 0 / 480px 72px; }
+  .hero::after { bottom: -1px; transform: scaleY(-1); background-position-x: -210px; }
+  .comment::before { top: -1px; }
+  .comment::after { bottom: -1px; transform: scale(-1, -1); }
+  .comment .wrap, .preuve .wrap { position: relative; }
+  .comment .v1 { right: 5%; top: 230px; }
+  .preuve .v2 { left: 60%; top: 30px; }
+  .comment .nuage { animation: derive 30s ease-in-out infinite alternate; }
+  .comment .nuage.c1 { right: 6%; top: 150px; width: 170px; }
+  .comment .nuage.c2 { left: 47%; top: 58%; width: 100px; animation-duration: 38s; animation-direction: alternate-reverse; }
+  .comment .nuage.c3 { right: 3%; bottom: 170px; width: 130px; animation-duration: 44s; }
+  .entete h2 { font-size: 68px; line-height: .98; max-width: 15ch; }
+  .entete p { font-size: 20px; max-width: 46ch; margin: 22px 0 0; }
+  .temps { display: grid; grid-template-columns: repeat(12, 1fr); column-gap: 24px; align-items: center; margin-top: 96px; position: relative; }
+  .temps .art { grid-column: 7 / 13; position: relative; }
+  .temps .dit { grid-column: 1 / 6; }
+  .temps.g .art { grid-column: 1 / 7; grid-row: 1; }
+  .temps.g .dit { grid-column: 8 / 13; }
+  .temps h3 { font-size: 46px; line-height: 1; max-width: 12ch; }
+  .temps p { margin: 18px 0 0; max-width: 38ch; font-size: 19px; }
+  .temps .art svg { width: 100%; height: auto; overflow: visible; }
+  .art .trait { fill: none; stroke: var(--encre); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+  .art .plein { stroke: var(--encre); stroke-width: 3; stroke-linejoin: round; }
+  .art .pt { fill: none; stroke: var(--encre); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 0 10; }
+  .art text { font-family: var(--mesure); font-weight: 500; fill: var(--encre); }
+  .art text.t { font-family: var(--texte); font-weight: 600; }
+  .art text.a { font-family: var(--affiche); font-weight: 400; }
+  .art .sol { fill: url(#trame); }
+  .temps .a1 { left: -4%; top: 34%; } .temps .a2 { left: 103%; top: 30%; } .temps .a3 { left: -7%; top: 30%; } .temps .a4 { left: 104%; top: 36%; }
+  /* petits jeux liés à l'arrivée de l'envoyé (--p : 0 avant, 1 quand il est là) */
+  .art .p-fade { opacity: calc(var(--p, 1)); }
+  .art .p-curseur { transform: translate(calc(var(--p, 1) * 150px), calc(var(--p, 1) * 128px)); }
+  .art .p-defile { transform: translateY(calc(var(--p, 1) * 54px)); }
+  .art .p-tour { stroke-dasharray: 1 1; stroke-dashoffset: calc(1 - var(--p, 1)); }
+  .art .p-suite { opacity: clamp(0, calc(var(--p, 1) * 3 - 1.4), 1); }
+
+  /* ---------- 3. la preuve : un bloc de soleil, la vraie page, la mesure en très grand ---------- */
+  .preuve { margin: 130px 24px 0; padding: 96px 0 100px; background: var(--soleil); border-radius: 40px; position: relative; }
+  .preuve .wrap { display: grid; grid-template-columns: repeat(12, 1fr); column-gap: 24px; align-items: start; }
+  .preuve .titre { grid-column: 1 / 9; margin-bottom: 64px; }
+  .preuve h2 { font-size: 68px; line-height: .98; max-width: 15ch; }
+  .preuve .piece { grid-column: 1 / 8; position: relative; --k: .59; }
+  .preuve .piece .feuille { transform: rotate(1.6deg); width: calc(1280px * var(--k)); max-width: none; }
+  .preuve .vue { height: calc(640px * var(--k)); background-image: url(img/eugenia-blog-404.jpg); background-size: calc(1280px * var(--k)) auto; }
+  .preuve .marques { width: calc(1280px * var(--k)); height: calc(640px * var(--k)); }
+  .preuve .a5 { left: 88%; top: 66%; }
+  .releve { grid-column: 9 / 13; padding-top: 6px; }
+  .releve .lbl { font: 600 17px/1 var(--texte); }
+  .releve .quatre { font: 400 208px/.86 var(--affiche); letter-spacing: -.02em; margin: 4px 0 6px -8px; font-variation-settings: "XROT" var(--xr, 0), "YROT" var(--yr, 0); }
+  .releve .mesure { font-size: 14.5px; line-height: 1.6; margin: 0; }
+  .releve dl { margin: 22px 0 0; font-size: 15.5px; line-height: 1.45; display: grid; gap: 12px; }
+  .releve dt { font-weight: 700; } .releve dd { margin: 0; } .releve dd.mesure { font-size: 13px; word-break: break-word; }
+  .releve .accord2 { margin: 22px 0 0; font-size: 14px; line-height: 1.45; padding-top: 14px; border-top: 2.5px solid var(--encre); }
+  .preuve .recit { grid-column: 9 / 13; align-self: end; margin: 0 0 70px; font-size: 19px; }
+
+  .doute { padding: 130px 0 0; }
+  .doute .wrap { display: grid; grid-template-columns: repeat(12, 1fr); column-gap: 24px; align-items: center; }
+  .doute .dit { grid-column: 1 / 6; }
+  .doute h2 { font-size: 56px; line-height: 1; max-width: 13ch; }
+  .doute .dit p { margin: 20px 0 0; max-width: 40ch; color: var(--encre-2); font-size: 19px; }
+  .cas { grid-column: 7 / 13; position: relative; background: var(--papier); border: var(--trait) solid var(--encre); border-radius: 14px; }
+  .cas .barre { height: 40px; display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: var(--trait) solid var(--encre); background: var(--aile-2); font: 500 13px/1 var(--mesure); border-radius: 11px 11px 0 0; }
+  .cas .barre i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--encre); background: var(--aile); }
+  .cas .barre span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .cas .barre em { margin-left: auto; font: 500 13px var(--texte); color: var(--encre-2); font-style: normal; white-space: nowrap; }
+  .cas .deux { display: grid; grid-template-columns: 1fr 1fr; }
+  .cas .deux > div { padding: 22px 24px 26px; }
+  .cas .deux > div + div { border-left: 2.5px dashed var(--filet); }
+  .cas small { font: 500 13px var(--mesure); color: var(--encre-2); }
+  .cas .obj { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
+  .cas .obj > svg { width: 92px; flex: none; overflow: visible; }
+  .cas .obj b { font: 600 17px/1.2 var(--texte); display: block; }
+  .cas .prix { font: 400 34px/1 var(--affiche); display: inline-block; margin-top: 6px; position: relative; }
+  .cas .prix.vu { background-image: radial-gradient(circle, var(--ocre) 2.6px, transparent 3px); background-size: 10px 8px; background-repeat: repeat-x; background-position: 2px 100%; padding-bottom: 10px; }
+  .cas .question { border-top: var(--trait) solid var(--encre); padding: 20px 24px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 14px 18px; }
+  .cas .question p { margin: 0; font-weight: 600; font-size: 18px; line-height: 1.3; flex: 1 1 250px; }
+  .cas .choix { display: flex; gap: 10px; }
+  .cas button { height: 48px; padding: 0 20px; border-radius: 999px; font: 600 16px var(--texte); cursor: pointer; border: 2.5px solid var(--encre); background: var(--papier); color: var(--encre); transition: transform .2s var(--geste), background-color .2s; }
+  .cas button.bug { background: var(--miltos); color: #fff; }
+  .cas button:hover { transform: translateY(-2px); }
+  .cas button:focus-visible { outline: 3px solid var(--iris); outline-offset: 3px; }
+  .cas .suite { display: none; margin: 0; padding: 0 24px 22px; font-size: 15.5px; color: var(--encre-2); }
+  .cas .suite a { color: var(--encre); font-weight: 600; cursor: pointer; }
+  .cas[data-rep] .suite { display: block; }
+  .cas[data-rep] .prix.vu { background-image: none; }
+  .cas .marques-cas { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  .cas .coche { display: none; position: absolute; left: calc(100% + 12px); top: 3px; width: 26px; height: 26px; }
+  .cas[data-rep="voulu"] .coche { display: block; }
+  .doute .a6 { left: -13%; top: 30%; }
+
+  /* ---------- 4. deux modes : deux blocs francs, le jour et la nuit ---------- */
+  .modes { padding: 140px 0 0; position: relative; }
+  .modes h2 { font-size: 68px; line-height: .98; }
+  .blocs { display: grid; grid-template-columns: 5fr 7fr; gap: 24px; margin-top: 56px; position: relative; }
+  .bloc { border-radius: 32px; padding: 44px 44px 48px; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+  .bloc .pour { font-weight: 600; font-size: 16px; }
+  .bloc h3 { font-size: 42px; line-height: 1.02; margin: 12px 0 16px; max-width: 15ch; }
+  .bloc p { margin: 0; max-width: 42ch; }
+  .bloc.jour { background: var(--soleil-2); }
+  .bloc.nuit { background: var(--nuit); color: #F3EEFF; }
+  .bloc.nuit h3 { max-width: 16ch; }
+  .bloc.nuit .pour { color: var(--aile); }
+  .bloc .dessin { margin-top: auto; padding-top: 34px; }
+  .jetons { display: flex; flex-wrap: wrap; gap: 10px; }
+  .jeton { display: inline-flex; align-items: center; gap: 9px; height: 44px; padding: 0 16px 0 10px; border-radius: 999px; background: var(--papier); border: 2.5px solid var(--encre); font: 600 15.5px var(--texte); }
+  .jeton svg { width: 26px; height: 26px; overflow: visible; }
+  .note { background: var(--papier); color: var(--encre); border: var(--trait) solid var(--encre); border-radius: 12px; max-width: 560px; transform: rotate(-1.2deg); }
+  .note .barre { height: 38px; display: flex; align-items: center; padding: 0 16px; border-bottom: var(--trait) solid var(--encre); font: 500 13px var(--mesure); background: var(--engobe-2); border-radius: 9px 9px 0 0; }
+  .note ul { list-style: none; margin: 0; padding: 8px 16px 12px; }
+  .note li { display: flex; align-items: center; gap: 12px; padding: 9px 0; font-size: 16px; line-height: 1.3; }
+  .note li + li { border-top: 2px dashed var(--filet); }
+  .note li span { flex: 1; }
+  .note li b { font: 600 12.5px var(--mesure); padding: 5px 9px; border: 2.2px solid var(--encre); white-space: nowrap; }
+  .note li svg { width: 26px; height: 26px; flex: none; overflow: visible; }
+  .note.rapport { transform: rotate(1.2deg); max-width: 430px; }
+  .note.rapport li span { font-weight: 600; }
+  .note li b.ok { background: var(--olivier); color: #fff; }
+  .note li b.ko { background: var(--miltos); color: #fff; }
+  .chaine { margin-top: 22px; font: 500 13.5px/1.9 var(--mesure); color: var(--aile); display: flex; flex-wrap: wrap; gap: 0 10px; }
+  .chaine span { white-space: nowrap; } .chaine span + span::before { content: "→ "; color: #8E88C9; }
+  .bloc.jour .astre { position: absolute; right: -70px; top: -70px; width: 230px; height: 230px; border-radius: 50%; background: var(--soleil); border: var(--trait) solid var(--encre); }
+  .bloc.nuit .astre { position: absolute; right: 44px; top: 40px; width: 74px; height: 74px; border-radius: 50%; background: var(--soleil-2); border: var(--trait) solid var(--encre); box-shadow: inset -20px -6px 0 0 #E9C766; }
+  .modes .a7 { right: 80px; top: 190px; }
+
+  /* ---------- 5. appel final : le soleil revient, l'envoyé aussi ---------- */
+  .final { position: relative; margin-top: 150px; padding: 40px 0 0; overflow: clip; }
+  .final .wrap { position: relative; min-height: 560px; }
+  .final h2 { font-size: 108px; line-height: .95; max-width: 11ch; position: relative; z-index: 2; text-wrap: wrap; }
+  .final p.sous { font-size: 21px; margin: 26px 0 28px; max-width: 30ch; position: relative; z-index: 2; }
+  .final .champ { position: relative; z-index: 2; }
+  .final .soleil { left: auto; right: -40px; top: 150px; width: 680px; height: 680px; }
+  .final .a8 { right: 300px; top: 250px; }
+  footer { position: relative; z-index: 2; background: var(--encre); color: var(--engobe); padding: 30px 0 34px; font-size: 15px; }
+  footer .wrap { display: flex; justify-content: space-between; align-items: baseline; gap: 14px 40px; flex-wrap: wrap; }
+  footer .etym { font-size: 17px; } footer .etym b { font: 400 22px var(--affiche); margin-right: 4px; }
+  footer .mot { font-size: 24px; color: var(--engobe); }
+  footer a { color: var(--engobe); }
+  footer .droite { color: #B9B2A2; }
+
+  /* ---------- largeurs intermédiaires ---------- */
+  @media (max-width: 1400px) {
+    .soleil { left: 250px; }
+    .nuage.n1 { left: 700px; }
+  }
+  @media (max-width: 1240px) {
+    .hero h1 { font-size: 92px; }
+    .rapport { left: 470px; top: 360px; }
+    .soleil { left: 170px; top: -120px; width: 500px; height: 500px; }
+    .nuage.n1 { left: 600px; } .nuage.n2 { display: none; }
+    .entete h2, .preuve h2, .modes h2 { font-size: 58px; }
+    .releve .quatre { font-size: 168px; }
+    .preuve .piece { --k: .5; }
+    .final h2 { font-size: 92px; }
+  }
+
+  /* ---------- téléphone et tablette : tout s'empile, la scène reste ---------- */
+  @media (max-width: 1099px) {
+    .nav { height: 72px; gap: 12px; } .nav .liens { display: none; } .nav .contour { height: 42px; padding: 0 16px; font-size: 14.5px; }
+    .hero { min-height: 0; padding-bottom: 110px; background: radial-gradient(420px 380px at 80% 360px, rgba(255, 214, 102, .6), rgba(255, 214, 102, 0) 70%); }
+    .hero h1 { font-size: clamp(47px, 12.4vw, 84px); margin-top: 10px; }
+    .hero h1 br { display: none; }
+    .envoi { width: auto; max-width: 520px; margin-top: 34px; }
+    .envoi .sous { font-size: 18px; margin-bottom: 20px; }
+    .envoi .ou { max-width: 270px; }
+    /* le pli passe sous le titre, à gauche du soleil : la démonstration tient dans le premier écran */
+    .rapport { position: relative; left: auto; top: auto; margin-top: 26px; max-width: 215px; }
+    .rapport .pli { width: auto; padding: 12px 14px 13px; }
+    .rapport .pli b.gros { font-size: 44px; }
+    .rapport .pli .mesure { font-size: 11.5px; white-space: normal; }
+    .hero .nuage.n1 { display: none; }
+    .soleil { left: 50%; margin-left: -150px; top: -10px; width: 360px; height: 360px; }
+    .nuage.n1 { left: auto; right: -30px; top: 30px; width: 110px; } .nuage.n2 { left: -10px; top: 70px; width: 80px; }
+
+    .comment { padding-top: 110px; }
+    .comment .nuage.c1 { top: -66px; right: -10px; width: 104px; } .comment .nuage.c3 { display: none; }
+    .entete h2, .preuve h2, .modes h2 { font-size: clamp(40px, 10.2vw, 58px); }
+    .entete p { font-size: 18px; }
+    .temps, .temps.g { display: block; margin-top: 72px; }
+    .temps .dit { margin-top: 18px; }
+    .temps h3 { font-size: 32px; }
+    .temps .a1 { left: 80%; top: -4%; } .temps .a2 { left: 88%; top: 4%; } .temps .a3 { left: 80%; top: -12%; } .temps .a4 { left: 52%; top: -4%; }
+
+    .preuve { margin: 90px 10px 0; padding: 56px 0 60px; border-radius: 28px; }
+    .preuve .wrap { display: block; }
+    .preuve .titre { margin-bottom: 36px; }
+    .preuve .piece { --k: .6; margin: 0 -20px; overflow: hidden; padding: 10px 0 14px; }
+    .preuve .piece .feuille { margin-left: -96px; transform: rotate(1.2deg); }
+    .preuve .a5 { left: 78%; top: 76%; }
+    .comment .v1 { right: 8%; top: 40px; } .preuve .v2 { left: 84%; top: -26px; }
+    .releve { margin-top: 26px; }
+    .releve .quatre { font-size: clamp(120px, 34vw, 190px); margin-left: -5px; }
+    .preuve .recit { font-size: 18px; margin: -14px 0 30px; }
+
+    .doute { padding-top: 90px; } .doute .wrap { display: block; }
+    .doute h2 { font-size: clamp(36px, 9.4vw, 52px); }
+    .cas { margin-top: 44px; }
+    .cas .deux > div { padding: 18px 16px 20px; }
+    .cas .obj { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .cas .question { padding: 18px 16px 20px; } .cas .suite { padding: 0 16px 20px; }
+    .doute .a6 { left: 86%; top: -9%; }
+
+    .modes { padding-top: 96px; }
+    .blocs { grid-template-columns: 1fr; gap: 14px; margin-top: 36px; }
+    .bloc { padding: 32px 22px 30px; border-radius: 24px; min-height: 0; }
+    .bloc h3 { font-size: 33px; max-width: 12ch; }
+    .bloc.jour .astre { width: 150px; height: 150px; right: -50px; top: -50px; }
+    .bloc.nuit .astre { width: 50px; height: 50px; right: 22px; top: 24px; box-shadow: inset -13px -4px 0 0 #E9C766; }
+    .note li { font-size: 15px; gap: 8px; } .note li b { font-size: 11.5px; padding: 4px 6px; }
+    .modes .a7 { right: 46px; top: 120px; }
+
+    .final { margin-top: 96px; }
+    .final .wrap { min-height: 0; padding-bottom: 300px; }
+    .final h2 { font-size: clamp(50px, 13.2vw, 92px); }
+    .final p.sous { font-size: 18px; }
+    .final .soleil { right: 50%; margin-right: -230px; top: auto; bottom: -250px; width: 460px; height: 460px; }
+    .final .a8 { right: 50%; top: auto; bottom: 150px; }
+    footer .wrap { display: block; } footer .wrap > * { display: block; margin-top: 8px; }
+  }
+  @media (max-width: 480px) {
+    .preuve .piece { --k: .56; } .preuve .piece .feuille { margin-left: -146px; }
+    .cas .choix { width: 100%; } .cas button { flex: 1; padding: 0 10px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .soleil .rayons, .nuage, #envoye .butin i.on { animation: none; }
+    .rapport .pli { transition: none; }
+    #vol .pts circle { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="aile-g" viewBox="0 22 32 35"><path d="M30 46C24 30 10 24 2 28c6 3 7 7 5 10 5 1 7 5 5 8 5 1 8 5 7 9 5-1 9-4 11-9Z"/></symbol>
+    <symbol id="aile-d" viewBox="64 22 32 35"><path d="M66 46C72 30 86 24 94 28c-6 3-7 7-5 10-5 1-7 5-5 8-5 1-8 5-7 9-5-1-9-4-11-9Z"/></symbol>
+    <symbol id="oeil" viewBox="26 26 44 44"><circle cx="48" cy="48" r="20" fill="#fff" stroke="#1C1C1C" stroke-width="3.6"/><circle cx="48" cy="48" r="10.5" fill="#7F77DD"/><circle cx="48" cy="48" r="4.6" fill="#1C1C1C"/><circle cx="51.6" cy="44.4" r="2.2" fill="#fff"/></symbol>
+    <symbol id="fleche" viewBox="0 0 26 34"><path d="M3 3v24.5l6.6-6 4.7 10.6 4.4-1.9-4.7-10.3h8.6Z"/></symbol>
+    <pattern id="trame" width="9" height="9" patternUnits="userSpaceOnUse"><circle cx="2.5" cy="2.5" r="1.7" fill="#1C1C1C" opacity=".5"/></pattern>
+  </defs>
+</svg>
+
+<!-- le vol : couche qui porte le pointillé et l'envoyé d'un bout à l'autre de la page -->
+<div id="vol" aria-hidden="true"><svg><g class="pts"></g></svg><div id="envoye"><div class="butin"><i data-t="!"></i><i class="d" data-t="?"></i></div></div></div>
+
+<section class="hero" id="haut">
+  <!-- le défaut voulu : « s. » passe sous le soleil, l'envoyé le repère. Soleil, nuage et escale sont placés par envoye.js. -->
+  <svg class="soleil" id="soleil-hero" viewBox="-280 -280 560 560" aria-hidden="true"><g class="rayons"></g><circle r="196" fill="var(--soleil)" stroke="var(--encre)" stroke-width="3"/></svg>
+  <svg class="nuage n1" id="nuage-hero" viewBox="0 0 150 62" aria-hidden="true"><path d="M22 58C8 58 2 50 3 42c1-8 8-13 16-12 0-12 10-20 22-18 5-9 18-12 28-7 8 4 12 11 12 18 9-5 22-2 27 6 12-2 22 5 22 16 1 8-6 13-14 13Z"/></svg>
+  <svg class="marques" id="marques-hero" aria-hidden="true"></svg>
+  <i class="escale a0" id="escale-hero" data-nom="hero" data-etat="hero"></i>
+  <div class="wrap">
+    <header class="nav">
+      <a class="mot" href="#haut" aria-label="Horama">H<svg class="o"><use href="#oeil"/></svg>rama</a>
+      <nav class="liens" aria-label="Sections"><a href="#comment">Comment ça marche</a><a href="#preuve">La preuve</a><a href="#modes">Les deux modes</a><a href="marque.html">La marque</a></nav>
+      <a class="contour" href="marque.html#extension">Extension Chrome</a>
+    </header>
+
+    <h1><span class="devant">Votre documentation<br> devient vos test</span><span class="sous" id="cache">s.</span></h1>
+
+    <div class="rapport">
+      <div class="pli cache" id="pli-hero">
+        <div class="tete"><i>!</i>Défaut prouvé</div>
+        <div class="mesure m1">fin du titre : « s. »</div>
+        <b class="gros">caché</b>
+        <div class="mesure">passe derrière le soleil</div>
+        <div class="mesure">attendu : au premier plan</div>
+      </div>
+    </div>
+
+    <div class="envoi">
+      <p class="sous"><b>Sans documentation, Horama regarde quand même.</b> Donnez une adresse : il visite le site comme un visiteur et ne revient qu'avec les défauts qu'il peut prouver.</p>
+      <form class="champ" data-envoi>
+        <input type="url" inputmode="url" placeholder="https://votre-site.fr" aria-label="Adresse du site à visiter">
+        <button class="bouton" type="submit"><svg class="aile g"><use href="#aile-g"/></svg><svg class="aile d"><use href="#aile-d"/></svg>Envoyer Horama</button>
+      </form>
+      <p class="ou">Ou gardez-le sous la main avec <a href="marque.html#extension">l'extension Chrome</a>.</p>
+      <p class="retour" aria-live="polite"></p>
+    </div>
+  </div>
+</section>
+
+<section class="comment" id="comment">
+  <div class="wrap">
+    <svg class="nuage c1" viewBox="0 0 150 62" aria-hidden="true"><path d="M22 58C8 58 2 50 3 42c1-8 8-13 16-12 0-12 10-20 22-18 5-9 18-12 28-7 8 4 12 11 12 18 9-5 22-2 27 6 12-2 22 5 22 16 1 8-6 13-14 13Z"/></svg>
+    <svg class="nuage c3" viewBox="0 0 150 62" aria-hidden="true"><path d="M22 58C8 58 2 50 3 42c1-8 8-13 16-12 0-12 10-20 22-18 5-9 18-12 28-7 8 4 12 11 12 18 9-5 22-2 27 6 12-2 22 5 22 16 1 8-6 13-14 13Z"/></svg>
+    <i class="escale v1" data-via data-etat="regarde" data-c1="340,30" data-c2="250,-440"></i>
+    <div class="entete">
+      <h2>Il y va à votre place, et vous le regardez faire.</h2>
+      <p>Derrière Horama, l'agent computer use de H Company : un vrai navigateur, un vrai curseur, rien de codé pour votre site.</p>
+    </div>
+
+    <div class="temps" data-scene>
+      <div class="dit"><h3>Vous donnez une adresse.</h3><p>Rien à installer, rien à régler. Horama lit le plan du site et s'envole vers la première page.</p></div>
+      <div class="art"><i class="escale a1" data-etat="regarde"></i>
+        <svg viewBox="0 0 560 330" role="img" aria-label="Une adresse, puis le plan du site déplié en quatre pages">
+          <ellipse class="sol" cx="286" cy="318" rx="250" ry="12"/>
+          <rect class="plein" x="96" y="14" width="356" height="62" rx="31" fill="var(--papier)"/>
+          <text x="126" y="52" font-size="20">votre-site.fr</text>
+          <circle class="plein" cx="418" cy="45" r="22" fill="var(--encre)"/>
+          <path d="M408 45h19m-7-7 7 7-7 7" fill="none" stroke="var(--engobe)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          <g class="p-fade">
+            <path class="pt" d="M274 78C240 110 120 120 82 166"/><path class="pt" d="M274 78C262 112 226 150 212 184"/><path class="pt" d="M274 78C292 112 340 138 350 166"/><path class="pt" d="M274 78C320 104 450 130 482 184"/>
+          </g>
+          <g><rect class="plein" x="38" y="170" width="92" height="118" rx="7" fill="var(--papier)"/><path class="plein" d="M38 177a7 7 0 0 1 7-7h78a7 7 0 0 1 7 7v19H38Z" fill="var(--soleil)"/><path class="trait" d="M52 214h62M52 230h44M52 246h56M52 262h30" opacity=".45"/></g>
+          <g><rect class="plein" x="166" y="188" width="92" height="118" rx="7" fill="var(--papier)" transform="rotate(-3 212 247)"/><g transform="rotate(-3 212 247)"><rect class="plein" x="178" y="200" width="68" height="40" fill="var(--aile)"/><path class="trait" d="M178 256h68M178 272h50M178 288h60" opacity=".45"/></g></g>
+          <g><rect class="plein" x="304" y="170" width="92" height="118" rx="7" fill="var(--papier)"/><path class="trait" d="M318 190h40" stroke-width="5"/><path class="trait" d="M318 210h64M318 226h64M318 242h44M318 258h58M318 274h32" opacity=".45"/></g>
+          <g><rect class="plein" x="436" y="188" width="92" height="118" rx="7" fill="var(--papier)" transform="rotate(3 482 247)"/><g transform="rotate(3 482 247)"><rect class="plein" x="448" y="202" width="68" height="20" rx="3" fill="var(--engobe-2)"/><rect class="plein" x="448" y="232" width="68" height="20" rx="3" fill="var(--engobe-2)"/><rect class="plein" x="448" y="264" width="42" height="22" rx="11" fill="var(--encre)"/></g></g>
+        </svg>
+      </div>
+    </div>
+
+    <div class="temps g" data-scene>
+      <div class="art"><i class="escale a2" data-etat="regarde" data-boucle="1"></i>
+        <svg viewBox="0 0 560 360" role="img" aria-label="Une page que le curseur de l'agent parcourt">
+          <ellipse class="sol" cx="270" cy="344" rx="230" ry="14"/>
+          <g transform="rotate(-2 270 180)">
+            <rect class="plein" x="70" y="12" width="400" height="320" rx="12" fill="var(--papier)"/>
+            <clipPath id="c2"><rect x="72" y="52" width="396" height="278"/></clipPath>
+            <path class="plein" d="M70 24a12 12 0 0 1 12-12h376a12 12 0 0 1 12 12v26H70Z" fill="var(--engobe-2)"/>
+            <circle class="plein" cx="92" cy="31" r="6" fill="var(--aile)" stroke-width="2.4"/><path class="trait" d="M330 31h26M372 31h26M414 31h26" stroke-width="2.6" opacity=".6"/>
+            <g clip-path="url(#c2)"><g class="p-defile" style="transform: translateY(calc((1 - var(--p, 1)) * 46px))">
+              <path class="trait" d="M98 86h190M98 110h130" stroke-width="9"/>
+              <path class="trait" d="M98 142h170M98 160h150M98 178h164" opacity=".45"/>
+              <rect class="plein" x="98" y="204" width="118" height="38" rx="19" fill="var(--encre)"/>
+              <rect class="plein" x="314" y="76" width="130" height="150" rx="6" fill="var(--aile-2)"/>
+              <circle class="plein" cx="408" cy="114" r="17" fill="var(--soleil)"/><path class="plein" d="M314 220l42-56 34 40 22-22 32 34v10H314Z" fill="var(--aile)"/>
+              <path class="trait" d="M98 276h346M98 296h300M98 316h330" opacity=".45"/>
+            </g></g>
+            <rect x="456" y="56" width="6" height="268" rx="3" fill="var(--filet)"/><rect class="p-defile" x="456" y="60" width="6" height="70" rx="3" fill="var(--encre)"/>
+            <path class="pt" d="M248 62C300 80 300 150 262 176S190 190 168 216"/>
+            <svg x="150" y="212" width="26" height="34" overflow="visible" style="transform: translate(calc((1 - var(--p, 1)) * 98px), calc((1 - var(--p, 1)) * -150px))"><use href="#fleche" style="fill: var(--encre); stroke: #fff; stroke-width: 2.2; stroke-linejoin: round"/></svg>
+          </g>
+        </svg>
+      </div>
+      <div class="dit"><h3>Il visite comme un visiteur.</h3><p>Il fait défiler, clique, lit les textes, regarde les images. Son curseur bouge sous vos yeux, page après page.</p></div>
+    </div>
+
+    <div class="temps" data-scene>
+      <div class="dit"><h3>Le code vérifie ce qu'il croit voir.</h3><p>Un lien a l'air mort ? Horama interroge le serveur. Un texte a l'air coupé ? Il mesure la boîte. Seul ce qui est mesuré devient un défaut.</p></div>
+      <div class="art"><i class="escale a3" data-etat="doute"></i>
+        <svg viewBox="0 0 560 310" role="img" aria-label="Un doute, plus une mesure, devient une preuve">
+          <ellipse class="sol" cx="280" cy="296" rx="240" ry="12"/>
+          <text x="2" y="19" font-size="16">vu par l'IA</text>
+          <rect class="plein" x="2" y="32" width="216" height="92" rx="10" fill="var(--papier)"/>
+          <text class="t" x="24" y="76" font-size="20">portes ouvertes</text><path d="M24 85h150" stroke="var(--encre)" stroke-width="2"/>
+          <path d="M27 104h150" stroke="var(--ocre)" stroke-width="6.6" stroke-linecap="round" stroke-dasharray="0 11.4"/>
+          <text class="a" x="248" y="96" font-size="46" text-anchor="middle">+</text>
+          <g class="p-suite">
+            <text x="280" y="19" font-size="16">mesuré par le code</text>
+            <path class="plein" d="M280 32h176v22a11 11 0 0 0 0 22v20a11 11 0 0 0 0 22v6H280v-6a11 11 0 0 0 0-22V76a11 11 0 0 0 0-22Z" fill="var(--soleil)"/>
+            <text x="368" y="62" text-anchor="middle" font-size="13.5">le serveur répond</text>
+            <text class="a" x="368" y="108" text-anchor="middle" font-size="44">404</text>
+          </g>
+          <text class="a" x="496" y="96" font-size="46" text-anchor="middle">=</text>
+          <path class="pt" d="M498 122c8 44-18 66-66 78"/>
+          <rect class="plein" x="150" y="170" width="264" height="104" rx="10" fill="var(--papier)"/>
+          <text class="t" x="196" y="228" font-size="22">portes ouvertes</text><path d="M196 238h166" stroke="var(--encre)" stroke-width="2"/>
+          <path class="p-tour" pathLength="1" d="M182 226c-10-22 36-36 98-36s112 10 108 36-56 36-112 35-106-12-100-40c2-9 12-16 28-20" fill="none" stroke="var(--miltos)" stroke-width="5" stroke-linecap="round"/>
+          <text x="6" y="228" font-size="16">défaut prouvé</text><path class="trait" d="M136 223h8" stroke-width="2.4"/>
+        </svg>
+      </div>
+    </div>
+
+    <div class="temps g" data-scene>
+      <div class="art"><i class="escale a4" data-etat="fini" data-boucle="1"></i>
+        <svg viewBox="0 0 560 320" role="img" aria-label="Deux piles : les défauts prouvés et les doutes à trancher">
+          <ellipse class="sol" cx="280" cy="304" rx="250" ry="13"/>
+          <g transform="rotate(-4 150 170)">
+            <rect class="plein" x="44" y="54" width="212" height="230" rx="9" fill="var(--engobe-2)" transform="rotate(5 150 170)"/>
+            <rect class="plein" x="44" y="54" width="212" height="230" rx="9" fill="var(--papier)"/>
+            <rect class="plein" x="62" y="72" width="22" height="22" fill="var(--miltos)" stroke-width="2.4"/><text x="73" y="89.5" text-anchor="middle" style="font: 800 15px var(--texte); fill: #fff">!</text>
+            <text class="t" x="94" y="90" font-size="19">Prouvés</text>
+            <rect x="62" y="112" width="176" height="74" rx="4" fill="var(--engobe-2)"/><path class="trait" d="M76 132h120M76 150h64" opacity=".4"/><path class="trait" d="M150 150h70" stroke-width="2.4"/>
+            <path d="M142 148c-2-12 22-16 44-16s46 4 44 18-24 17-46 17-44-5-42-19" fill="none" stroke="var(--miltos)" stroke-width="4" stroke-linecap="round"/>
+            <text x="62" y="220" font-size="15">mesuré : 404</text><text x="62" y="246" font-size="15" opacity=".65">attendu : sous 400</text>
+          </g>
+          <g transform="rotate(3 410 170)">
+            <rect class="plein" x="304" y="54" width="212" height="230" rx="9" fill="var(--engobe-2)" transform="rotate(-5 410 170)"/>
+            <rect class="plein" x="304" y="54" width="212" height="230" rx="9" fill="var(--papier)"/>
+            <rect class="plein" x="322" y="72" width="22" height="22" fill="var(--ocre)" stroke-width="2.4"/><text x="333" y="89.5" text-anchor="middle" style="font: 800 15px var(--texte); fill: #fff">?</text>
+            <text class="t" x="354" y="90" font-size="19">À trancher</text>
+            <rect x="322" y="112" width="176" height="74" rx="4" fill="var(--engobe-2)"/><path class="trait" d="M336 132h120M336 150h64" opacity=".4"/><path class="trait" d="M410 150h70" stroke-width="2.4"/>
+            <path d="M410 164h72" stroke="var(--ocre)" stroke-width="6" stroke-linecap="round" stroke-dasharray="0 10.2"/>
+            <rect class="plein" x="322" y="206" width="82" height="36" rx="18" fill="var(--miltos)" stroke-width="2.4"/><text x="363" y="229.5" text-anchor="middle" style="font: 600 14.5px var(--texte); fill: #fff">Bug</text>
+            <rect class="plein" x="414" y="206" width="84" height="36" rx="18" fill="var(--papier)" stroke-width="2.4"/><text x="456" y="229.5" text-anchor="middle" style="font: 600 14.5px var(--texte)">Voulu</text>
+          </g>
+        </svg>
+      </div>
+      <div class="dit"><h3>Il revient avec deux piles.</h3><p>Les défauts prouvés, entourés d'un trait rouge, avec leur mesure. Et les doutes, soulignés de points : ceux-là, c'est vous qui les tranchez.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="preuve" id="preuve" data-scene>
+  <div class="wrap">
+    <i class="escale v2" data-via data-etat="regarde" data-boucle="1"></i>
+    <div class="titre"><h2>Sur le site de notre école, un lien ne menait nulle part.</h2></div>
+    <p class="recit">Dans un article du blog, le lien vers la journée portes ouvertes mène à une page introuvable. Horama l'a testé, le serveur a répondu 404. Il l'a entouré, sans s'arrêter.</p>
+    <div class="piece">
+      <div class="feuille">
+        <div class="barre"><i></i><span>eugeniaschool.com/blog/fin-de-parcoursup-ce-qui-change-premiere-terminale</span></div>
+        <div class="vue"><svg class="marques" viewBox="0 0 1280 640" id="marques-preuve"></svg></div>
+      </div>
+      <i class="escale a5" data-nom="preuve" data-etat="trouve"></i>
+    </div>
+    <div class="releve">
+      <div class="lbl">mesuré</div>
+      <div class="quatre" id="quatre">404</div>
+      <p class="mesure">attendu : une réponse sous 400</p>
+      <dl>
+        <div><dt>L'élément</dt><dd>Le lien « journée portes ouvertes d'Eugenia School le 12 décembre »</dd></div>
+        <div><dt>La page</dt><dd class="mesure">eugeniaschool.com/blog/fin-de-parcoursup-ce-qui-change-premiere-terminale</dd></div>
+      </dl>
+      <p class="accord2">Trouvé le 17/11. Montré avec l'accord de l'école.</p>
+    </div>
+  </div>
+</section>
+
+<section class="doute" data-scene>
+  <div class="wrap">
+    <div class="dit">
+      <h2>Quand il n'est pas sûr, il vous demande.</h2>
+      <p>Ce que l'IA croit seulement voir ne devient jamais un défaut tout seul. Horama le souligne de points et vous tranchez. Votre réponse est écrite dans la documentation : il s'en souvient au passage suivant.</p>
+    </div>
+    <div class="cas" id="cas">
+      <i class="escale a6" data-nom="doute" data-etat="doute"></i>
+      <div class="barre"><i></i><span>talaria.exemple/sandales-ailees</span><em>site de démonstration</em></div>
+      <div class="deux">
+        <div><small>sur la fiche</small>
+          <div class="obj"><svg viewBox="0 0 96 66"><svg x="4" y="0" width="34" height="37" overflow="visible" style="fill: var(--aile); stroke: var(--encre); stroke-width: 2.6; stroke-linejoin: round"><use href="#aile-g"/></svg><path d="M12 56c-3-12 1-24 12-27 7-2 12 1 16 6l8 10c4 5 11 7 20 8 12 1 20 4 20 9v3H12Z" fill="var(--soleil)" stroke="var(--encre)" stroke-width="3" stroke-linejoin="round"/><path d="M26 31c3 6 9 12 18 14M36 30c0 7 3 12 9 16M12 57h76" fill="none" stroke="var(--encre)" stroke-width="2.6" stroke-linecap="round"/></svg>
+            <div><b>Sandales ailées</b><span class="prix">49 €</span></div></div>
+        </div>
+        <div><small>dans le panier</small>
+          <div class="obj"><svg viewBox="0 0 64 48" style="width: 64px"><path d="M6 12h8l7 24h30l6-18H18" fill="none" stroke="var(--encre)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><circle cx="25" cy="43" r="3.4" fill="var(--encre)"/><circle cx="48" cy="43" r="3.4" fill="var(--encre)"/></svg>
+            <div><b>Sandales ailées</b><span class="prix vu">54 €<svg class="coche" viewBox="0 0 26 26"><rect x="1.5" y="1.5" width="23" height="23" fill="var(--olivier)" stroke="var(--encre)" stroke-width="2.4"/><path d="M7 13.5l4 4 8-9" fill="none" stroke="#fff" stroke-width="3"/></svg></span></div></div>
+        </div>
+      </div>
+      <div class="question">
+        <p>Le prix n'est pas le même sur la fiche et dans le panier.</p>
+        <div class="choix"><button class="bug" type="button" data-rep="bug">C'est un bug</button><button type="button" data-rep="voulu">C'est voulu</button></div>
+      </div>
+      <p class="suite" aria-live="polite"></p>
+      <svg class="marques-cas" aria-hidden="true"></svg>
+    </div>
+  </div>
+</section>
+
+<section class="modes" id="modes">
+  <div class="wrap">
+    <h2>Deux façons de l'envoyer.</h2>
+    <div class="blocs">
+      <div class="bloc jour">
+        <span class="astre"></span>
+        <span class="pour">Pour n'importe quel site</span>
+        <h3>Sans documentation, une adresse suffit.</h3>
+        <p>Depuis cette page ou depuis l'extension Chrome. Horama visite chaque page et vous rend un rapport où chaque défaut a sa preuve.</p>
+        <div class="dessin">
+          <div class="note rapport">
+            <div class="barre">rapport de visite</div>
+            <ul>
+              <li><svg viewBox="0 0 26 26"><path d="M11 8 8.5 5.5a4.2 4.2 0 0 0-6 6L5 14m10 4 2.5 2.5a4.2 4.2 0 0 0 6-6L21 12" fill="none" stroke="var(--encre)" stroke-width="2.6" stroke-linecap="round"/><path d="M16 3.5l-1 3m5.5 0-2 2M4 19l2-1.500m.5 5 1-3" stroke="var(--miltos)" stroke-width="2.4" stroke-linecap="round"/></svg><span>Lien mort</span><b>code de réponse</b></li>
+              <li><svg viewBox="0 0 26 26"><rect x="3" y="5" width="15" height="16" rx="2" fill="none" stroke="var(--encre)" stroke-width="2.6"/><path d="M7 10h16M7 15h11" stroke="var(--miltos)" stroke-width="2.6" stroke-linecap="round"/></svg><span>Texte coupé</span><b>boîte mesurée</b></li>
+              <li><svg viewBox="0 0 26 26"><path d="M3 5h9l-2 6 4 3-2 7H3Z M16 5h7v16h-8l2-6-4-3Z" fill="var(--aile)" stroke="var(--encre)" stroke-width="2.4" stroke-linejoin="round"/></svg><span>Image cassée</span><b>chargement vérifié</b></li>
+              <li><svg viewBox="0 0 26 26"><rect x="3.5" y="3.5" width="19" height="19" rx="3" fill="var(--soleil)" stroke="var(--encre)" stroke-width="2.6"/><path d="M13 8v6" stroke="var(--encre)" stroke-width="2.8" stroke-linecap="round"/><circle cx="13" cy="18" r="1.7" fill="var(--encre)"/></svg><span>Page en erreur</span><b>code de réponse</b></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="bloc nuit">
+        <i class="escale a7" data-etat="regarde" data-c1="-10,330" data-c2="0,-170"></i>
+        <span class="astre"></span>
+        <span class="pour">Pour votre équipe produit</span>
+        <h3>À chaque déploiement, il relit vos notes.</h3>
+        <p>Vos notes Obsidian disent ce que le site doit faire. Horama en tire les tests, les joue à chaque mise en ligne, écrit les écarts dans la documentation et ouvre la PR.</p>
+        <div class="dessin">
+          <div class="note">
+            <div class="barre">documentation / panier.md</div>
+            <ul>
+              <li><span>Le bouton « Commander » mène au paiement.</span><b class="ok">tenu</b></li>
+              <li><span>Le prix du panier est celui de la fiche.</span><b class="ko">écart</b></li>
+              <li><span>Le panier vide propose de revenir à la boutique.</span><b class="ok">tenu</b></li>
+            </ul>
+          </div>
+          <div class="chaine"><span>déploiement</span><span>notes relues</span><span>tests joués</span><span>écarts écrits</span><span>PR ouverte</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="final" id="envoyer">
+  <div class="wrap">
+    <h2>Envoyez-le voir votre site.</h2>
+    <p class="sous">Il ne reviendra qu'avec ce qu'il peut prouver.</p>
+    <form class="champ" data-envoi>
+      <input type="url" inputmode="url" placeholder="https://votre-site.fr" aria-label="Adresse du site à visiter">
+      <button class="bouton" type="submit"><svg class="aile g"><use href="#aile-g"/></svg><svg class="aile d"><use href="#aile-d"/></svg>Envoyer Horama</button>
+    </form>
+    <p class="retour" aria-live="polite"></p>
+    <svg class="soleil" viewBox="-280 -280 560 560" aria-hidden="true"><g class="rayons"></g><circle r="196" fill="var(--soleil)" stroke="var(--encre)" stroke-width="2.6"/></svg>
+    <i class="escale a8" data-nom="fin" data-etat="fini" data-boucle="1"></i>
+  </div>
+</section>
+<footer>
+  <div class="wrap">
+    <span class="etym"><b>Horama</b> du grec ὅραμα : ce qui est vu.</span>
+    <span class="droite">Équipe 11 · hackathon Build The Future, Eugenia School et H Company, novembre 2026</span>
+    <span><a href="#">Code sur GitHub</a> · <a href="marque.html#extension">Installer l'extension</a> · <a href="marque.html">La marque</a></span>
+  </div>
+</footer>
+
+<script type="module" src="envoye.js?v=3"></script>
+</body>
+</html>

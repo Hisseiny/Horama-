@@ -2,29 +2,47 @@
 // every 20 s or so, no public server. For each open PR whose last commit has a successful Vercel preview (a GitHub
 // deployment, or the Vercel status of the commit and the address in the comment of the Vercel bot) that opens without
 // a Vercel login, once: the files the PR changes (GitHub), the tests they touch (choisirTests of impact.mjs, on the vault of this
-// repository: notes whose `code:` field lists a changed file, plus the baseline), then the scene on the preview address.
+// repository: notes whose `code:` field lists a changed file, plus the baseline) played by the scene on the preview
+// address, then the exploration of the whole site of the preview (public mode, issue #122).
 // Several pushes in a row: only the last commit of the PR is played, once its own preview is ready.
 //
 // Usage: node automatisation/reveil/pr.mjs --depot <propriétaire/dépôt> --logiciel <logiciel du vault> [--intervalle 20]
 //          [--une-fois] [--a-blanc] [--vault vault-horama] [--sortie .orchestrateur/reveil-pr] [--faux-github <fichier.json>]
-//          [-- options de la scène, par exemple --vitrine]
+//          [--max 8] [--pages-cliquees 4] [--sans-exploration] [--commenter] [--captures-sur-branche horama/captures]
+//          [-- options des deux scènes, par exemple --vitrine]
+// --commenter: one answer on the PR, once both scenes are done (the part of each scene).
+// --captures-sur-branche <branche>: with --commenter, the captures ringed of the exploration are put on this branch of
+// the target repository (created if needed, never merged) and shown in the answer.
+// --max, --pages-cliquees: the exploration of the preview (pages at most, pages the agent reaches by a click);
+// --sans-exploration: the vault tests only.
 // --a-blanc: one look at the repository, nothing played (no scene, no H, nothing written): the open PRs, the preview of
 // their last commit (where it was found, whether it opens without a Vercel login), their files and the tests they would
 // replay.
 // --faux-github: a JSON file { prs: [...], deploiements: { <sha>: { etat, adresse } }, fichiers: { <numéro>: [...] } }
 // read instead of GitHub, to try the chain without a real PR.
-// Exit: 0 (--une-fois: after the first PR played), 2 on a usage error or a failed impact or scene.
+// Exit: 0 (--une-fois: after the first PR played, whatever its scenes gave: see reveil.json), 2 on a usage error or a
+// failed impact.
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { lireNotes, lireTestsAcceptes } from "../../memoire/index.ts";
 import { choisirTests } from "../impact/impact.mjs";
+import { ecrireSectionExploration, publierCommentaire } from "../pr-doc/commentaire.mjs";
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const gh = (path) => JSON.parse(execFileSync("gh", ["api", "--paginate", "--slurp", path], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })).flat();
+
+// The preview address in the summary of the check « Vercel Preview Comments » of a commit: its link to the feedback of
+// the preview, « vercel.live/open-feedback/<host> ». One check per commit, even when the bot writes no comment on the PR
+// (seen on the PR #14 of the clone, 18/11).
+export function adresseControleVercel(summary) {
+  const host = /vercel\.live\/open-feedback\/([a-z0-9.-]+\.vercel\.app)/i.exec(summary ?? "")?.[1];
+  return host ? `https://${host}` : null;
+}
 
 // The preview address in the comment of the Vercel bot on a PR: the JSON of its hidden line « [vc]: #<id>:<base64> »
 // (projects[].previewUrl, the alias of the branch, which follows its last commit), else its « [Preview](<url>) » link.
@@ -42,8 +60,8 @@ export function adresseCommentaireVercel(body) {
 // What GitHub says of a repository: its open PRs, the preview of a commit, the files of a PR. Two ways for Vercel to
 // give a preview: a GitHub deployment with an environment named « Preview » (sometimes « Preview – <projet> ») whose
 // status « success » carries environment_url; or, as on the clone of Eugenia (18/11), no deployment at all, only a commit
-// status whose context names Vercel (its target_url is the Vercel dashboard, not the site) and a comment of the
-// vercel[bot] on the PR that gives the address.
+// status whose context names Vercel (its target_url is the Vercel dashboard, not the site); the address is then read in
+// the check « Vercel Preview Comments » of the commit, else in the comment of the vercel[bot] on the PR.
 export function lecteurGithub(depot, read = gh) {
   return {
     prs: () => read(`repos/${depot}/pulls?state=open&per_page=100`).map((pr) => ({ numero: pr.number, adresse: pr.html_url, titre: pr.title, base: pr.base.sha, tete: pr.head.sha })),
@@ -55,7 +73,11 @@ export function lecteurGithub(depot, read = gh) {
       }
       const status = (read(`repos/${depot}/commits/${sha}/status`)[0]?.statuses ?? []).find((candidate) => /vercel/i.test(candidate.context ?? ""));
       if (!status) return null;
-      const comment = status.state === "success" && numero !== undefined
+      if (status.state !== "success") return { etat: status.state, adresse: null, source: "statut de Vercel" };
+      const checks = read(`repos/${depot}/commits/${sha}/check-runs?per_page=100`).flatMap((page) => page.check_runs ?? [page]);
+      const fromCheck = checks.filter((run) => run.app?.slug === "vercel").map((run) => adresseControleVercel(run.output?.summary)).find(Boolean);
+      if (fromCheck) return { etat: status.state, adresse: fromCheck, source: "statut et contrôle de Vercel" };
+      const comment = numero !== undefined
         ? read(`repos/${depot}/issues/${numero}/comments?per_page=100`).filter((candidate) => candidate.user?.login === "vercel[bot]").at(-1)
         : undefined;
       return { etat: status.state, adresse: adresseCommentaireVercel(comment?.body), source: "statut et commentaire de Vercel" };
@@ -108,28 +130,128 @@ export function impactDePr({ pr, fichiers, vault, logiciel, socle = [] }) {
   return { format: "horama-impact-1", le: new Date().toISOString(), depuis: pr.base, vers: pr.tete, logiciel, fichiers, fiches_retenues: [], socle, pr: pr.adresse, ...resultat };
 }
 
+// The language a page declares (`<html lang>`), its first subtag in lower case (« fr-FR » gives « fr »); null when the
+// page does not say it or does not answer: then nothing is set aside on that ground.
+export async function langueDePage(adresse, request = fetch) {
+  try {
+    const response = await request(adresse, { signal: AbortSignal.timeout(15_000) });
+    const lang = /<html\b[^>]*\slang\s*=\s*["']?([A-Za-z]{2,3})/i.exec(await response.text())?.[1];
+    return lang ? lang.toLowerCase() : null;
+  } catch {
+    return null;
+  }
+}
+
+// The vault tests are written in the language of the documented site: a page of the preview in another language (a
+// translation, issue #122) would fail them on every text, so they are set aside, and only the exploration of the site
+// runs. Generic: a note declares the language of its page in its header (`langue: fr`); the page of the preview at the
+// same address is asked its `<html lang>`. A test is set aside when one of its screens differs; a note without `langue`,
+// or a page that does not say its language, sets nothing aside.
+export async function ecarterLangue(impact, { vault, logiciel, base, langue = langueDePage }) {
+  const notes = new Map(lireNotes(vault, logiciel).filter((note) => note.entete?.ecran).map((note) => [note.entete.ecran, note.entete]));
+  const tests = new Map(lireTestsAcceptes(vault, logiciel).map((test) => [test.id, test]));
+  const asked = new Map();
+  const changed = async (ecran) => {
+    const note = notes.get(ecran);
+    if (typeof note?.langue !== "string" || typeof note.url !== "string") return null;
+    if (!asked.has(ecran)) asked.set(ecran, langue(new URL(note.url, base).href));
+    const shown = await asked.get(ecran);
+    const wanted = note.langue.toLowerCase().split("-")[0];
+    return shown && shown !== wanted ? `${wanted} → ${shown}` : null;
+  };
+  const retenus = [];
+  const ecartes = [...impact.ecartes];
+  for (const kept of impact.retenus) {
+    let change = null;
+    for (const { ecran } of tests.get(kept.id)?.releves ?? []) change ??= await changed(ecran);
+    if (change) ecartes.push({ id: kept.id, raison: `langue du site changée (${change}) : tests de la documentation non joués` });
+    else retenus.push(kept);
+  }
+  return { ...impact, ids: retenus.map((kept) => kept.id), retenus, ecartes };
+}
+
 // The dry run (--a-blanc): what the wake-up would do now, as lines for a human. Reads GitHub and asks the preview
 // whether it opens without a login; plays nothing.
-export async function aBlanc(lecteur, { vault, logiciel, socle = [], ouverte = ouverteSansConnexion }) {
+export async function aBlanc(lecteur, { vault, logiciel, socle = [], ouverte = ouverteSansConnexion, langue = langueDePage }) {
   const lines = [];
   const prs = lecteur.prs();
   if (!prs.length) lines.push("Aucune PR ouverte.");
   for (const pr of prs) {
     const preview = lecteur.previsualisation(pr.tete, pr.numero);
     const fichiers = lecteur.fichiers(pr.numero);
-    const impact = impactDePr({ pr, fichiers, vault, logiciel, socle });
+    let impact = impactDePr({ pr, fichiers, vault, logiciel, socle });
     let etat = "pas de prévisualisation pour ce commit (ni déploiement GitHub, ni statut Vercel)";
     if (preview && preview.etat !== "success") etat = `prévisualisation « ${preview.etat} », pas encore jouable`;
     else if (preview && !preview.adresse) etat = `prévisualisation prête (${preview.source}), mais son adresse est introuvable`;
     else if (preview) {
       const access = await ouverte(preview.adresse);
       etat = `prévisualisation prête (${preview.source}), ${preview.adresse}, ${access.ouverte ? `répond sans connexion (code ${access.code})` : `pas jouable : ${access.raison}`}`;
+      if (access.ouverte) impact = await ecarterLangue(impact, { vault, logiciel, base: preview.adresse, langue });
     }
     lines.push(`PR #${pr.numero} (${pr.tete.slice(0, 7)}) « ${pr.titre ?? ""} » : ${etat}.`);
     lines.push(`  ${fichiers.length} fichier(s) : ${fichiers.join(", ") || "aucun"}`);
     lines.push(`  tests rejoués : ${impact.ids.join(", ") || "aucun"} ; écartés : ${impact.ecartes.map((e) => e.id).join(", ") || "aucun"}`);
+    const language = impact.ecartes.find((e) => e.raison.startsWith("langue du site changée"));
+    if (language) lines.push(`  ${language.raison} (${impact.ecartes.filter((e) => e.raison === language.raison).map((e) => e.id).join(", ")})`);
   }
   return lines;
+}
+
+// The answer on the PR: the part of the vault tests (passage.json of the scene, commentaire_corps), then the part of the
+// exploration (scene.json, commentaire.corps). Without the first, a heading says why the vault tests did not run.
+export function reponseSurPr({ pr, impact, report, folder, images = null }) {
+  const read = (file) => {
+    try {
+      return JSON.parse(readFileSync(join(folder, file), "utf8"));
+    } catch {
+      return null;
+    }
+  };
+  const tests = read("scene/passage.json")?.commentaire_corps ?? null;
+  const part = read("exploration/scene.json")?.commentaire ?? null;
+  // With images: the part of the exploration written again from its elements, each finding with its capture.
+  const withImage = (item) => ({ ...item, image: images?.[item.id] ?? null });
+  const site = images && part?.elements
+    ? ecrireSectionExploration({ ...part.elements, prouves: part.elements.prouves.map(withImage), doutes: part.elements.doutes.map(withImage) })
+    : part?.corps ?? null;
+  if (!tests && !site) return null;
+  const heading = tests ? [] : [`## Horama : PR #${pr.numero} (${pr.tete.slice(0, 7)})`, "",
+    report.langue ? `${report.langue.charAt(0).toUpperCase()}${report.langue.slice(1)}.` : impact.retenus.length ? "Tests de la documentation : non rendus." : "Tests de la documentation : aucun touché par cette PR.", ""];
+  return [...heading, ...(tests ? [tests] : []), ...(site ? [site] : [])].join("\n");
+}
+
+// Puts one capture on a branch of the target repository with the API of GitHub (no clone), and returns the address of
+// the image at the commit made, which stays valid whatever the branch becomes. The branch is created from the default
+// branch when it does not exist; it is never merged. Never throws: { url } or { raison }.
+export async function televerserCapture({ depot, branche, chemin, fichier, message }, api = ghApi) {
+  try {
+    const ref = `heads/${branche}`;
+    if (!(await api(["GET", `repos/${depot}/git/ref/${ref}`]).catch(() => null))) {
+      const { default_branch: main } = await api(["GET", `repos/${depot}`]);
+      const { object } = await api(["GET", `repos/${depot}/git/ref/heads/${main}`]);
+      await api(["POST", `repos/${depot}/git/refs`], { ref: `refs/${ref}`, sha: object.sha });
+    }
+    const existing = await api(["GET", `repos/${depot}/contents/${chemin}?ref=${encodeURIComponent(branche)}`]).catch(() => null);
+    const done = await api(["PUT", `repos/${depot}/contents/${chemin}`], { message, branch: branche, content: readFileSync(fichier).toString("base64"), ...(existing?.sha ? { sha: existing.sha } : {}) });
+    return { url: `https://raw.githubusercontent.com/${depot}/${done.commit.sha}/${chemin}` };
+  } catch (error) {
+    return { raison: String(error.message).trim().split("\n").at(-1) };
+  }
+}
+
+// gh api with a JSON body given through a file (a capture in base64 is too long for the command line).
+async function ghApi([method, path], body) {
+  const folder = body ? mkdtempSync(join(tmpdir(), "horama-gh-")) : null;
+  try {
+    const args = ["api", "--method", method, path];
+    if (body) {
+      writeFileSync(join(folder, "corps.json"), JSON.stringify(body));
+      args.push("--input", join(folder, "corps.json"));
+    }
+    return JSON.parse(execFileSync("gh", args, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] }) || "null");
+  } finally {
+    if (folder) rmSync(folder, { recursive: true, force: true });
+  }
 }
 
 function runNode(args) {
@@ -141,30 +263,79 @@ function runNode(args) {
 }
 
 // One PR played: impact, then the scene on the preview. Everything in <sortie>/pr-<numéro>-<sha court>/.
-export async function jouerPr({ pr, fichiers, vault, logiciel, socle, sortie, sceneArgs = [] }, run = runNode) {
+// One PR played: impact, then the scene of the vault tests the PR touches (parcours.mjs, development mode), then the
+// exploration of the whole site of the preview (exploration.mjs, public mode: mechanical checks and Holo), unless
+// `exploration` is null. Everything in <sortie>/pr-<numéro>-<sha court>/. A scene that fails is written in the report,
+// never thrown: the other one still runs, and the wake-up goes on with the next PR.
+export async function jouerPr({ pr, fichiers, vault, logiciel, socle, sortie, sceneArgs = [], exploration = { max: 8, pagesCliquees: 4 }, langue = langueDePage, commenter = false, publier = publierCommentaire,
+  captures = null, televerser = televerserCapture }, run = runNode) {
   const started = performance.now();
   const folder = join(sortie, `pr-${pr.numero}-${pr.tete.slice(0, 7)}`);
   mkdirSync(folder, { recursive: true });
-  const report = { pr: pr.adresse, tete: pr.tete, previsualisation: pr.previsualisation, recu_le: new Date().toISOString(), etat: "impact" };
+  const report = { pr: pr.adresse, tete: pr.tete, previsualisation: pr.previsualisation, recu_le: new Date().toISOString(), etat: "impact", parcours: null, exploration: null };
   const save = () => writeFileSync(join(folder, "reveil.json"), `${JSON.stringify(report, null, 2)}\n`);
   save();
+  const step = async (name, args) => {
+    report.etat = name;
+    report[name] = { etat: "lance", lance_ms: performance.now() - started };
+    save();
+    try {
+      await run(args);
+      report[name].etat = "termine";
+    } catch (error) {
+      report[name] = { ...report[name], etat: "echec", erreur: error.message };
+      console.log(`réveil PR : ${name} en échec, ${error.message}`);
+    }
+  };
   try {
-    const impact = impactDePr({ pr, fichiers, vault, logiciel, socle });
+    const impact = await ecarterLangue(impactDePr({ pr, fichiers, vault, logiciel, socle }), { vault, logiciel, base: pr.previsualisation, langue });
     const impactFile = join(folder, "impact.json");
     writeFileSync(impactFile, `${JSON.stringify(impact, null, 2)}\n`);
     report.impact_ms = performance.now() - started;
     console.log(`réveil PR : #${pr.numero} (${pr.tete.slice(0, 7)}), ${fichiers.length} fichier(s) modifié(s), ${impact.retenus.length} test(s) retenu(s), ${impact.ecartes.length} écarté(s).`);
-    if (!impact.retenus.length) {
-      report.etat = "aucun-test";
-      console.log("réveil PR : aucun test touché par cette PR, scène non lancée.");
-      return report;
+    const language = impact.ecartes.find((e) => e.raison.startsWith("langue du site changée"));
+    if (language) {
+      report.langue = language.raison;
+      console.log(`réveil PR : ${language.raison}.`);
     }
-    report.etat = "scene";
-    report.scene_lancee_ms = performance.now() - started;
-    save();
-    await run(["automatisation/scene/parcours.mjs", "--impact", impactFile, "--base-url", pr.previsualisation, "--logiciel", logiciel, "--vault", vault,
-      "--pr", pr.adresse, "--sortie", join(folder, "scene"), ...sceneArgs]);
-    report.etat = "termine";
+    if (impact.retenus.length) {
+      await step("parcours", ["automatisation/scene/parcours.mjs", "--impact", impactFile, "--base-url", pr.previsualisation, "--logiciel", logiciel, "--vault", vault,
+        "--pr", pr.adresse, "--sortie", join(folder, "scene"), ...sceneArgs]);
+    } else {
+      report.parcours = { etat: "aucun-test" };
+      console.log("réveil PR : aucun test du vault touché par cette PR.");
+    }
+    if (exploration) {
+      await step("exploration", ["automatisation/scene/exploration.mjs", "--url", pr.previsualisation, "--max", String(exploration.max), "--pages-cliquees", String(exploration.pagesCliquees),
+        "--vault", vault, "--sortie", join(folder, "exploration"), "--pr", pr.adresse, ...sceneArgs]);
+    }
+    // One answer on the PR for both scenes (--commenter): what each wrote, put together.
+    if (commenter) {
+      // Option a (--captures-sur-branche): the captures ringed of the exploration put on a branch of the target
+      // repository, shown in the answer. A capture that cannot be put there leaves its finding in text.
+      let images = null;
+      if (captures) {
+        images = {};
+        const elements = (() => {
+          try {
+            return JSON.parse(readFileSync(join(folder, "exploration", "scene.json"), "utf8")).commentaire?.elements ?? null;
+          } catch {
+            return null;
+          }
+        })();
+        for (const item of [...(elements?.prouves ?? []), ...(elements?.doutes ?? [])].filter((entry) => entry.anneau)) {
+          const sent = await televerser({ ...captures, chemin: `pr-${pr.numero}/${pr.tete.slice(0, 7)}/${item.id}.png`, fichier: join(vault, item.anneau), message: `Horama : capture ${item.id} de la PR #${pr.numero} (${pr.tete.slice(0, 7)})` });
+          if (sent.url) images[item.id] = sent.url;
+          else console.log(`réveil PR : capture ${item.id} non poussée, ${sent.raison}`);
+        }
+        report.captures = { branche: captures.branche, poussees: Object.keys(images).length };
+      }
+      const corps = reponseSurPr({ pr, impact, report, folder, images });
+      report.commentaire = corps ? await publier(pr.adresse, corps) : { status: "INCONCLUSIVE", reason: "aucune scène n'a écrit sa partie" };
+      console.log(report.commentaire.status === "publie" ? `réveil PR : réponse publiée, ${report.commentaire.url}` : `réveil PR : réponse non publiée, ${report.commentaire.reason}`);
+    }
+    const ran = [report.parcours, report.exploration].filter((item) => item && item.etat !== "aucun-test");
+    report.etat = !ran.length ? "aucun-test" : ran.some((item) => item.etat === "echec") ? "echec" : "termine";
     report.total_ms = performance.now() - started;
     return report;
   } catch (error) {
@@ -182,14 +353,21 @@ async function main() {
   const { values } = parseArgs({ args: process.argv.slice(2, separator < 0 ? undefined : separator), options: {
     depot: { type: "string" }, logiciel: { type: "string" }, intervalle: { type: "string", default: "20" }, "une-fois": { type: "boolean" }, "a-blanc": { type: "boolean" },
     vault: { type: "string", default: "vault-horama" }, sortie: { type: "string", default: ".orchestrateur/reveil-pr" }, "faux-github": { type: "string" },
+    max: { type: "string", default: "8" }, "pages-cliquees": { type: "string", default: "4" }, "sans-exploration": { type: "boolean" }, commenter: { type: "boolean" }, "captures-sur-branche": { type: "string" },
   } });
   if (!values.logiciel || (!values.depot && !values["faux-github"])) throw new Error("--logiciel et --depot (ou --faux-github) sont requis");
   if (values.depot && !/^[\w.-]+\/[\w.-]+$/.test(values.depot)) throw new Error("--depot attend propriétaire/dépôt");
   const interval = Number(values.intervalle);
   if (!(interval >= 1)) throw new Error("--intervalle attend un nombre de secondes, 1 au moins");
+  if (values["captures-sur-branche"] && (!values.depot || !values.commenter)) throw new Error("--captures-sur-branche demande --depot et --commenter");
+  if (values["captures-sur-branche"] && !/^[\w./-]+$/.test(values["captures-sur-branche"])) throw new Error("--captures-sur-branche attend un nom de branche");
+  const exploration = values["sans-exploration"] ? null : { max: Number(values.max), pagesCliquees: Number(values["pages-cliquees"]) };
+  if (exploration && !(Number.isInteger(exploration.max) && exploration.max >= 1 && Number.isInteger(exploration.pagesCliquees) && exploration.pagesCliquees >= 0)) {
+    throw new Error("--max attend un entier, 1 au moins, et --pages-cliquees un entier, 0 au moins");
+  }
   // Selection, target, vault and output belong to the wake-up, not to the forwarded scene options.
   for (const arg of sceneArgs) {
-    if (["tests", "impact", "base-url", "logiciel", "vault", "sortie", "pr"].includes(arg.replace(/^--/, "").split("=")[0])) throw new Error(`option de scène réservée au réveil : ${arg}`);
+    if (["tests", "impact", "base-url", "logiciel", "vault", "sortie", "pr", "url", "max", "pages-cliquees", "commenter"].includes(arg.replace(/^--/, "").split("=")[0])) throw new Error(`option de scène réservée au réveil : ${arg}`);
   }
   const vault = resolve(ROOT, values.vault);
   if (!existsSync(join(vault, values.logiciel))) throw new Error(`pas de dossier ${values.logiciel} dans le vault ${vault}`);
@@ -214,7 +392,8 @@ async function main() {
         continue;
       }
       faits.add(`${pr.numero}@${pr.tete}`);
-      await jouerPr({ pr, fichiers: lecteur.fichiers(pr.numero), vault, logiciel: values.logiciel, socle, sortie, sceneArgs });
+      await jouerPr({ pr, fichiers: lecteur.fichiers(pr.numero), vault, logiciel: values.logiciel, socle, sortie, sceneArgs, exploration, commenter: Boolean(values.commenter),
+        captures: values["captures-sur-branche"] ? { depot: values.depot, branche: values["captures-sur-branche"] } : null });
       if (values["une-fois"]) return;
     }
     await sleep(interval * 1000);

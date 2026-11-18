@@ -1,42 +1,54 @@
-// The report of one exploration, in a tab of the extension: the file horama-exploration-1 read every 500 ms
-// (docs/decisions/2026-11-17-format-exploration.md), the pages one by one, then what is proven, with its capture
-// ringed by a line drawn as with a felt pen, and apart what is only a doubt. Nothing here is particular to a site.
+// The report of one exploration, in a tab of the extension, in the charter « L'envoyé »: the file horama-exploration-1
+// read every 500 ms (docs/decisions/2026-11-17-format-exploration.md), the pages one by one with the square of their
+// state, then what is proven, on its sheet with the stroke of miltos of the charter (trait.js), and apart what is only a
+// doubt, with its ochre dots. Nothing here is particular to a site.
+import { poserDoute, tracerDefaut } from "./lib/trait.js";
+
 const id = new URLSearchParams(location.search).get("id");
 const $ = (selector) => document.querySelector(selector);
 const element = (tag, className, text) => Object.assign(document.createElement(tag), { className: className ?? "", textContent: text ?? "" });
 const count = (n, one, many) => `${n} ${n > 1 ? many : one}`;
-const COLOR = { defaut: "#e5484d", doute: "#e8a33d" };
-const STATE = { a_visiter: "à visiter", en_cours: "visite en cours", visitee: "visitée", non_visitee: "non visitée" };
+const STATE = { a_visiter: "à visiter", en_cours: "en visite", visitee: "visitée", non_visitee: "non visitée" };
 // How the H agent reached the page, when the service says it (optional field arrivee of horama-exploration-1, #91).
 const ARRIVAL = { depart: "page de départ", clic: "atteinte par un clic de l'agent", adresse: "ouverte par son adresse" };
 const shown = new Set(); // ids of the findings already on the page
+const mascot = (etat) => poserMascotte($("#mascotte"), etat);
 
-// A capture cropped around its zone (pixels of the capture), the zone ringed; without a zone, the whole capture.
-function capture(src, zone, size, genre, w, h) {
+// A capture on its sheet: the whole width of the page, a band of its height centred on the zone, the sign of the charter
+// on the zone (a stroke of miltos for a proven defect, ochre dots for a doubt). Laid out once the card is in the page,
+// at the width it gets there.
+function capture(src, zone, size, genre) {
   const box = element("div", "capture");
-  box.style.cssText = `width:${w}px;height:${h}px`;
-  const scale = zone ? Math.min(1, w / (zone.largeur + 200), h / (zone.hauteur + 150)) : Math.min(w / size.largeur, h / size.hauteur);
-  const [rw, rh] = [w / scale, h / scale];
-  const from = (centre, length, full) => (length >= full ? (full - length) / 2 : Math.max(0, Math.min(centre - length / 2, full - length)));
-  const rx = zone ? from(zone.x + zone.largeur / 2, rw, size.largeur) : (size.largeur - rw) / 2;
-  const ry = zone ? from(zone.y + zone.hauteur / 2, rh, size.hauteur) : (size.hauteur - rh) / 2;
-  const img = Object.assign(document.createElement("img"), { src, alt: "" });
-  img.style.cssText = `width:${size.largeur * scale}px;height:${size.hauteur * scale}px;left:${-rx * scale}px;top:${-ry * scale}px`;
-  box.append(img);
-  let mark = null;
-  if (zone) {
-    mark = element("div", "zone");
-    mark.style.cssText = `left:${(zone.x - rx) * scale}px;top:${(zone.y - ry) * scale}px;width:${zone.largeur * scale}px;height:${zone.hauteur * scale}px`;
-    box.append(mark);
-  }
-  // Drawn once the card is in the page (rough-notation measures the element).
-  const ring = () => mark && RoughNotation.annotate(mark, { type: genre === "defaut" ? "circle" : "box", color: COLOR[genre], strokeWidth: genre === "defaut" ? 4 : 3, padding: genre === "defaut" ? 12 : 8, iterations: genre === "defaut" ? 1 : 2, animationDuration: 800 }).show();
-  return { box, ring };
+  // A margin of the sheet above and below the image: the stroke of the charter goes round the zone, beyond its box.
+  const PAD = 30;
+  const lay = () => {
+    const scale = box.clientWidth / size.largeur;
+    const band = Math.min(size.hauteur, 420);
+    const top = zone ? Math.max(0, Math.min(zone.y + zone.hauteur / 2 - band / 2, size.hauteur - band)) : 0;
+    const height = Math.round(band * scale) + 2 * PAD;
+    box.style.height = `${height}px`;
+    const view = element("div", "vue");
+    view.style.cssText = `top:${PAD}px;height:${Math.round(band * scale)}px`;
+    const img = Object.assign(document.createElement("img"), { src, alt: "" });
+    img.style.cssText = `width:${size.largeur * scale}px;height:${size.hauteur * scale}px;top:${-top * scale}px`;
+    view.append(img);
+    box.replaceChildren(view);
+    if (!zone) return;
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("class", "marques");
+    svg.setAttribute("width", box.clientWidth);
+    svg.setAttribute("height", height);
+    box.append(svg);
+    const rect = { x: zone.x * scale, y: (zone.y - top) * scale + PAD, w: zone.largeur * scale, h: zone.hauteur * scale };
+    if (genre === "defaut") tracerDefaut(svg, rect);
+    else poserDoute(svg, rect);
+  };
+  return { box, ring: lay };
 }
 
 function proofOf(constat) {
   const proof = constat.preuve ?? {};
-  if (constat.source === "controle") return [`Mesuré : ${proof.mesure}`, `Attendu : ${proof.attendu}`, ...(proof.url ? [`Adresse : ${proof.url}`] : [])];
+  if (constat.source === "controle") return [`mesuré : ${proof.mesure}`, `attendu : ${proof.attendu}`, ...(proof.url ? [`adresse : ${proof.url}`] : [])];
   if (constat.source === "holo") return ["Doute de Holo : rien n'est prouvé."];
   if (constat.source === "comparaison") return ["Écart d'image avec la capture du passage précédent."];
   return [];
@@ -46,14 +58,27 @@ function card(service, report, constat, genre) {
   const page = report.pages.find((candidate) => candidate.ecran === constat.ecran);
   const path = page ? new URL(page.url).pathname : constat.ecran;
   const size = constat.page ?? (page?.capture ? { largeur: page.capture.largeur, hauteur: page.capture.hauteur } : { largeur: 1280, hauteur: 900 });
-  const item = element("article", "carte");
-  const title = element("h3", "", constat.description);
-  const where = element("p", "second");
+  const item = element("article", "carte feuille");
+  const bar = element("div", "barre");
+  bar.append(element("i"), element("span", "", page?.url ?? path));
+  const where = element("p", "ou second");
   where.append("Page ", Object.assign(element("a", "", path), { href: page?.url ?? "#", target: "_blank", rel: "noopener" }));
-  const shot = capture(`${service}/explorations/${encodeURIComponent(id)}/${constat.capture}`, constat.zone, size, genre, 900, 300);
-  item.append(title, where, shot.box, ...proofOf(constat).map((line) => element("p", "preuve", line)));
-  if (!constat.zone) item.append(element("p", "second", "Emplacement non mesuré sur la capture."));
+  const shot = capture(`${service}/explorations/${encodeURIComponent(id)}/${constat.capture}`, constat.zone, size, genre);
+  item.append(bar, shot.box, element("h3", "", constat.description), where, ...proofOf(constat).map((line) => element("p", "preuve", line)));
+  if (!constat.zone) item.append(element("p", "ou second", "Emplacement non mesuré sur la capture."));
   return { item, ring: shot.ring };
+}
+
+// The square of the state of a page: tick olivier (nothing proven), « ! » miltos (a proven defect), « ? » ocre (a doubt
+// to decide), lilac circle that beats (in visit), dashed (to visit), ink (not visited).
+function square(report, page) {
+  const of = (statut) => report.constats.some((constat) => constat.ecran === page.ecran && constat.statut === statut && !constat.explique_par);
+  if (page.etat === "en_cours") return element("i", "etat v");
+  if (page.etat === "a_visiter") return element("i", "etat a");
+  if (page.etat === "non_visitee") return element("i", "etat n", "-");
+  if (of("VERIFIED_FAIL")) return element("i", "etat t", "!");
+  if (of("SUSPECTED") && report.etat !== "en_cours") return element("i", "etat d", "?");
+  return element("i", "etat c", "✓");
 }
 
 // The reason of a page not visited (pages[].raison since PR #117, else its INCONCLUSIVE finding), without its final dot.
@@ -64,11 +89,16 @@ function render(service, report) {
   $("#adresse").textContent = report.adresse;
   const { totaux, trouvees } = report;
   const done = report.etat !== "en_cours";
+  const proven = report.constats.some((constat) => constat.statut === "VERIFIED_FAIL");
+  $("#titre").textContent = !done ? "Il visite le site." : report.etat === "fini" ? "J'ai fini." : "Je n'ai pas pu finir.";
+  mascot(done ? "fini" : proven ? "trouve" : "observe");
   // No page visited (site that blocks robots, address not found, login asked): the reason only, no empty list and no
   // « 0 défaut ».
   if (done && totaux.pages_visitees === 0) {
     const raison = (report.agents?.find((agent) => agent.raison)?.raison ?? "").trim().replace(/\.+$/, "")
       || report.pages.map((page) => reasonOf(report, page)).find(Boolean) || "";
+    $("#titre").textContent = "Je n'ai pas pu entrer.";
+    mascot("bloquee");
     $("#etat").textContent = raison ? `Horama n'a pas pu visiter ce site : ${lowerFirst(raison)}.` : "Horama n'a pas pu visiter ce site.";
     for (const section of ["#pages", "#bilan", "#non-verifie", "#prouves", "#a-verifier"]) $(section).hidden = true;
     return;
@@ -80,13 +110,14 @@ function render(service, report) {
   $("#pages").hidden = false;
   const list = $("#pages ol");
   list.replaceChildren(...[...report.pages].sort((a, b) => a.ordre - b.ordre).map((page) => {
-    const proven = report.constats.filter((constat) => constat.ecran === page.ecran && constat.statut === "VERIFIED_FAIL").length;
-    const line = element("li", `${page.etat}${proven ? " defaut" : ""}`);
-    const path = element("span", "chemin");
-    path.append(element("span", "marque"), new URL(page.url).pathname);
+    const provenHere = report.constats.filter((constat) => constat.ecran === page.ecran && constat.statut === "VERIFIED_FAIL").length;
+    const line = element("li", `${page.etat}${provenHere ? " defaut" : ""}`);
+    const path = element("code", "", new URL(page.url).pathname);
     const state = page.etat === "non_visitee" && reasonOf(report, page) ? `${STATE.non_visitee} : ${lowerFirst(reasonOf(report, page))}` : STATE[page.etat];
-    const note = [page.etat === "visitee" ? (proven ? count(proven, "défaut prouvé", "défauts prouvés") : "rien de prouvé") : state, ARRIVAL[page.arrivee]].filter(Boolean).join(" · ");
-    line.append(path, element("span", "second", note));
+    const doubts = done ? report.constats.filter((constat) => constat.ecran === page.ecran && constat.statut === "SUSPECTED" && !constat.explique_par).length : 0;
+    const found = [provenHere && count(provenHere, "défaut prouvé", "défauts prouvés"), doubts && `${doubts} à trancher`].filter(Boolean).join(", ");
+    const note = [page.etat === "visitee" ? found || "rien de prouvé" : state, ARRIVAL[page.arrivee]].filter(Boolean).join(" · ");
+    line.append(square(report, page), path, element("span", "second", note));
     return line;
   }));
   // Proven defects as soon as their page is checked; doubts and what could not be checked at the end.
@@ -106,7 +137,17 @@ function render(service, report) {
     $("#non-verifie ul").replaceChildren(...unchecked.map((constat) => element("li", "", `${constat.ecran} : ${constat.raison ?? constat.description}`)));
     $("#non-verifie").hidden = false;
   }
-  $("#bilan-texte").textContent = `${count(totaux.defauts, "défaut prouvé", "défauts prouvés")}, ${count(totaux.doutes, "point", "points")} à vérifier${totaux.sans_conclusion ? `, ${count(totaux.sans_conclusion, "point non vérifié", "points non vérifiés")}` : ""}, sur ${count(totaux.pages_visitees, "page visitée", "pages visitées")}.`;
+  // Three figures, as in the summary of the charter: proven in miltos, to decide in ochre with its dots, pages visited.
+  const figure = (value, label, kind) => {
+    const cell = element("div", kind);
+    const big = element("b");
+    big.append(element("span", "", String(value)));
+    cell.append(big, label);
+    return cell;
+  };
+  $("#chiffres").replaceChildren(figure(totaux.defauts, totaux.defauts > 1 ? "défauts prouvés" : "défaut prouvé", "t"), figure(totaux.doutes, "à trancher", "d"),
+    figure(totaux.pages_visitees, `${totaux.pages_visitees > 1 ? "pages visitées" : "page visitée"} sur ${trouvees.nombre}`, ""));
+  $("#bilan-texte").textContent = totaux.sans_conclusion ? `${count(totaux.sans_conclusion, "point non vérifié", "points non vérifiés")}, listés plus bas.` : "";
   $("#bilan").hidden = false;
 }
 

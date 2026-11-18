@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { aBlanc, aJouer, adresseCommentaireVercel, impactDePr, jouerPr, lecteurGithub, ouverteSansConnexion } from "./pr.mjs";
+import { aBlanc, aJouer, adresseCommentaireVercel, adresseControleVercel, ecarterLangue, impactDePr, jouerPr, langueDePage, lecteurGithub, ouverteSansConnexion, televerserCapture } from "./pr.mjs";
 
 // A vault of trial: two screens of a site whose code we have, one test per screen.
 function vaultEssai(t) {
@@ -57,7 +57,7 @@ test("les fichiers de la PR choisissent les tests par le champ code des notes", 
   assert.deepEqual(impact.ecartes, [{ id: "voir-programmes", raison: "page non touchée" }]);
 });
 
-test("une PR jouée : impact écrit, puis la scène sur la prévisualisation avec la PR et les options transmises", async (t) => {
+test("une PR jouée : impact, tests du vault sur la prévisualisation, puis exploration de tout le site", async (t) => {
   const vault = vaultEssai(t);
   const sortie = mkdtempSync(join(tmpdir(), "horama-pr-sortie-"));
   t.after(() => rmSync(sortie, { recursive: true, force: true }));
@@ -65,13 +65,28 @@ test("une PR jouée : impact écrit, puis la scène sur la prévisualisation ave
   const pr = { numero: 7, adresse: "https://github.com/o/d/pull/7", base: "b1", tete: "h1234567890", previsualisation: "https://p.vercel.app" };
   const report = await jouerPr({ pr, fichiers: ["src/data/programmes.ts"], vault, logiciel: "site-essai", sortie, sceneArgs: ["--vitrine"] }, async (args) => calls.push(args));
   assert.equal(report.etat, "termine");
+  assert.deepEqual([report.parcours.etat, report.exploration.etat], ["termine", "termine"]);
   const folder = join(sortie, "pr-7-h123456");
   assert.deepEqual(JSON.parse(readFileSync(join(folder, "impact.json"), "utf8")).ids, ["voir-programmes"]);
-  assert.deepEqual(calls, [["automatisation/scene/parcours.mjs", "--impact", join(folder, "impact.json"), "--base-url", "https://p.vercel.app", "--logiciel", "site-essai", "--vault", vault,
-    "--pr", "https://github.com/o/d/pull/7", "--sortie", join(folder, "scene"), "--vitrine"]]);
-  // A PR that touches no screen: said, the scene is not started.
-  const none = await jouerPr({ pr: { ...pr, tete: "autre000000" }, fichiers: ["README.md"], vault, logiciel: "site-essai", sortie }, async () => assert.fail("scène lancée"));
-  assert.equal(none.etat, "aucun-test");
+  assert.deepEqual(calls, [
+    ["automatisation/scene/parcours.mjs", "--impact", join(folder, "impact.json"), "--base-url", "https://p.vercel.app", "--logiciel", "site-essai", "--vault", vault,
+      "--pr", "https://github.com/o/d/pull/7", "--sortie", join(folder, "scene"), "--vitrine"],
+    ["automatisation/scene/exploration.mjs", "--url", "https://p.vercel.app", "--max", "8", "--pages-cliquees", "4", "--vault", vault, "--sortie", join(folder, "exploration"),
+      "--pr", "https://github.com/o/d/pull/7", "--vitrine"],
+  ]);
+  // A PR that touches no screen of the vault: the exploration of the site still runs.
+  const explored = [];
+  const none = await jouerPr({ pr: { ...pr, tete: "autre000000" }, fichiers: ["README.md"], vault, logiciel: "site-essai", sortie, exploration: { max: 3, pagesCliquees: 1 } }, async (args) => explored.push(args[0]));
+  assert.deepEqual([none.etat, none.parcours.etat, explored], ["termine", "aucun-test", ["automatisation/scene/exploration.mjs"]]);
+  // Without the exploration and without a test: nothing runs.
+  const nothing = await jouerPr({ pr: { ...pr, tete: "rien0000000" }, fichiers: ["README.md"], vault, logiciel: "site-essai", sortie, exploration: null }, async () => assert.fail("scène lancée"));
+  assert.equal(nothing.etat, "aucun-test");
+  // A scene that fails is written down, the other one still runs, nothing is thrown.
+  const failing = await jouerPr({ pr: { ...pr, tete: "echec000000" }, fichiers: ["src/data/programmes.ts"], vault, logiciel: "site-essai", sortie }, async (args) => {
+    if (args[0].endsWith("parcours.mjs")) throw new Error("automatisation/scene/parcours.mjs : sortie 1");
+  });
+  assert.deepEqual([failing.etat, failing.parcours.etat, failing.parcours.erreur, failing.exploration.etat], ["echec", "echec", "automatisation/scene/parcours.mjs : sortie 1", "termine"]);
+  assert.equal(JSON.parse(readFileSync(join(sortie, "pr-7-echec00", "reveil.json"), "utf8")).etat, "echec");
 });
 
 test("à blanc : PR, prévisualisation (source, accès sans connexion), fichiers et tests rejoués, sans rien jouer", async (t) => {
@@ -122,7 +137,7 @@ test("GitHub sans déploiement : statut Vercel du commit, puis l'adresse dans le
   };
   const lecteur = lecteurGithub("o/d", (path) => answers[path] ?? []);
   assert.deepEqual(lecteur.previsualisation("h1", 11), { etat: "success", adresse: "https://site-git-branche-o.vercel.app", source: "statut et commentaire de Vercel" });
-  assert.deepEqual(lecteur.previsualisation("h2", 11), { etat: "pending", adresse: null, source: "statut et commentaire de Vercel" });
+  assert.deepEqual(lecteur.previsualisation("h2", 11), { etat: "pending", adresse: null, source: "statut de Vercel" });
   assert.equal(lecteur.previsualisation("h3", 11), null);
   // Ready but nothing played without an address.
   assert.deepEqual(aJouer({ prs: () => [{ numero: 11, adresse: "u", base: "b", tete: "h1" }], previsualisation: lecteur.previsualisation }, new Set()).map((pr) => pr.previsualisation), ["https://site-git-branche-o.vercel.app"]);
@@ -136,4 +151,155 @@ test("prévisualisation protégée par Vercel, ouverte, ou muette", async () => 
   assert.deepEqual(await ouverteSansConnexion("https://p.vercel.app", answer(308, "/admissions")), { ouverte: true, code: 308 });
   const muette = await ouverteSansConnexion("https://p.vercel.app", async () => { throw new Error("fetch failed"); });
   assert.deepEqual(muette, { ouverte: false, raison: "la prévisualisation ne répond pas (fetch failed)" });
+});
+
+// The same vault, its notes declaring the language of their page.
+function vaultEnFrancais(t) {
+  const vault = vaultEssai(t);
+  for (const ecran of ["accueil", "programmes"]) {
+    const file = join(vault, "site-essai", "produit", `${ecran}.md`);
+    writeFileSync(file, readFileSync(file, "utf8").replace("vues: []", "vues: []\nlangue: fr"));
+  }
+  return vault;
+}
+
+test("langue d'une page : la première partie de <html lang>, en minuscules, ou null", async () => {
+  const page = (html) => async () => ({ text: async () => html });
+  assert.equal(await langueDePage("https://p", page('<!doctype html><html lang="de-DE"><body>')), "de");
+  assert.equal(await langueDePage("https://p", page("<html class='x' lang=FR>")), "fr");
+  assert.equal(await langueDePage("https://p", page("<html><body>")), null);
+  assert.equal(await langueDePage("https://p", async () => { throw new Error("fetch failed"); }), null);
+});
+
+test("langue changée sur la prévisualisation : tests de la documentation écartés, l'exploration seule tourne", async (t) => {
+  const vault = vaultEnFrancais(t);
+  const asked = [];
+  const german = async (url) => (asked.push(url), "de");
+  const impact = impactDePr({ pr: { base: "b", tete: "h", adresse: "u" }, fichiers: ["src/data/home.ts", "src/data/programmes.ts"], vault, logiciel: "site-essai" });
+  const filtered = await ecarterLangue(impact, { vault, logiciel: "site-essai", base: "https://p.vercel.app", langue: german });
+  assert.deepEqual(filtered.ids, []);
+  assert.deepEqual(filtered.ecartes.map((e) => [e.id, e.raison]), [
+    ["voir-accueil", "langue du site changée (fr → de) : tests de la documentation non joués"],
+    ["voir-programmes", "langue du site changée (fr → de) : tests de la documentation non joués"],
+  ]);
+  assert.deepEqual(asked.sort(), ["https://p.vercel.app/", "https://p.vercel.app/programmes"]);
+  // Same language, or a page that does not say it: kept.
+  assert.deepEqual((await ecarterLangue(impact, { vault, logiciel: "site-essai", base: "https://p", langue: async () => "fr" })).ids, ["voir-accueil", "voir-programmes"]);
+  assert.deepEqual((await ecarterLangue(impact, { vault, logiciel: "site-essai", base: "https://p", langue: async () => null })).ids, ["voir-accueil", "voir-programmes"]);
+  // In jouerPr: the vault tests are not played, the exploration is, and reveil.json says why.
+  const sortie = mkdtempSync(join(tmpdir(), "horama-pr-sortie-"));
+  t.after(() => rmSync(sortie, { recursive: true, force: true }));
+  const calls = [];
+  const report = await jouerPr({ pr: { numero: 9, adresse: "u", base: "b", tete: "allemand000", previsualisation: "https://p.vercel.app" }, fichiers: ["src/data/home.ts"], vault, logiciel: "site-essai", sortie, langue: german }, async (args) => calls.push(args[0]));
+  assert.deepEqual(calls, ["automatisation/scene/exploration.mjs"]);
+  assert.deepEqual([report.etat, report.parcours.etat, report.langue], ["termine", "aucun-test", "langue du site changée (fr → de) : tests de la documentation non joués"]);
+  // The dry run says it too.
+  const lecteur = { prs: () => [{ numero: 9, adresse: "u", titre: "Deutsch", base: "b", tete: "allemand000" }], previsualisation: () => ({ etat: "success", adresse: "https://p.vercel.app", source: "faux" }), fichiers: () => ["src/data/home.ts"] };
+  const lines = await aBlanc(lecteur, { vault, logiciel: "site-essai", ouverte: async () => ({ ouverte: true, code: 200 }), langue: german });
+  assert.deepEqual(lines.slice(2), ["  tests rejoués : aucun ; écartés : voir-programmes, voir-accueil", "  langue du site changée (fr → de) : tests de la documentation non joués (voir-accueil)"]);
+});
+
+test("--commenter : une seule réponse sur la PR, la partie des tests du vault puis celle de l'exploration", async (t) => {
+  const vault = vaultEssai(t);
+  const sortie = mkdtempSync(join(tmpdir(), "horama-pr-sortie-"));
+  t.after(() => rmSync(sortie, { recursive: true, force: true }));
+  const pr = { numero: 7, adresse: "https://github.com/o/d/pull/7", base: "b1", tete: "aaaaaaa0000", previsualisation: "https://p.vercel.app" };
+  // The scenes write their part where they write it for real.
+  const scenes = async (args) => {
+    const out = args[args.indexOf("--sortie") + 1];
+    mkdirSync(out, { recursive: true });
+    if (args[0].endsWith("parcours.mjs")) writeFileSync(join(out, "passage.json"), JSON.stringify({ commentaire_corps: "## Horama : passage P1\n\nTests." }));
+    else writeFileSync(join(out, "scene.json"), JSON.stringify({ commentaire: { corps: "### Exploration de tout le site de la prévisualisation\n\nSite." } }));
+  };
+  const posted = [];
+  const publier = async (adresse, corps) => (posted.push([adresse, corps]), { status: "publie", url: `${adresse}#issuecomment-1` });
+  const report = await jouerPr({ pr, fichiers: ["src/data/programmes.ts"], vault, logiciel: "site-essai", sortie, commenter: true, publier }, scenes);
+  assert.deepEqual(posted, [["https://github.com/o/d/pull/7", "## Horama : passage P1\n\nTests.\n### Exploration de tout le site de la prévisualisation\n\nSite."]]);
+  assert.deepEqual(report.commentaire, { status: "publie", url: "https://github.com/o/d/pull/7#issuecomment-1" });
+  // No vault test touched: a heading says it, then the exploration.
+  posted.length = 0;
+  await jouerPr({ pr: { ...pr, tete: "bbbbbbb0001" }, fichiers: ["README.md"], vault, logiciel: "site-essai", sortie, commenter: true, publier }, scenes);
+  assert.equal(posted[0][1], "## Horama : PR #7 (bbbbbbb)\n\nTests de la documentation : aucun touché par cette PR.\n\n### Exploration de tout le site de la prévisualisation\n\nSite.");
+  // Nothing written by the scenes: nothing posted, said.
+  posted.length = 0;
+  const silent = await jouerPr({ pr: { ...pr, tete: "ccccccc0002" }, fichiers: ["README.md"], vault, logiciel: "site-essai", sortie, commenter: true, publier }, async () => {});
+  assert.deepEqual([posted.length, silent.commentaire.status], [0, "INCONCLUSIVE"]);
+  // Without --commenter, nothing is posted.
+  await jouerPr({ pr: { ...pr, tete: "ddddddd0003" }, fichiers: ["src/data/programmes.ts"], vault, logiciel: "site-essai", sortie, publier }, scenes);
+  assert.equal(posted.length, 0);
+});
+
+test("contrôle « Vercel Preview Comments » du commit : l'adresse de la prévisualisation, même sans commentaire du bot", () => {
+  // Its summary on the PR #14 of the clone (18/11), the address changed.
+  const summary = "💬 0 unresolved, 0 resolved. [Go to feedback](https://vercel.live/open-feedback/site-git-branche-e9c30e-o.vercel.app?via=pr-comment-feedback-link)";
+  assert.equal(adresseControleVercel(summary), "https://site-git-branche-e9c30e-o.vercel.app");
+  assert.equal(adresseControleVercel("✅ No unresolved feedback"), null);
+  const answers = {
+    "repos/o/d/deployments?sha=h4&per_page=100": [],
+    "repos/o/d/commits/h4/status": [{ statuses: [{ context: "Vercel", state: "success" }] }],
+    "repos/o/d/commits/h4/check-runs?per_page=100": [{ total_count: 2, check_runs: [{ app: { slug: "github-actions" }, output: { summary: null } }, { app: { slug: "vercel" }, name: "Vercel Preview Comments", output: { summary } }] }],
+    "repos/o/d/issues/14/comments?per_page=100": [],
+  };
+  const lecteur = lecteurGithub("o/d", (path) => answers[path] ?? []);
+  assert.deepEqual(lecteur.previsualisation("h4", 14), { etat: "success", adresse: "https://site-git-branche-e9c30e-o.vercel.app", source: "statut et contrôle de Vercel" });
+});
+
+test("capture poussée sur une branche du dépôt cible : branche créée au besoin, adresse de l'image au commit, échec rendu", async (t) => {
+  const folder = mkdtempSync(join(tmpdir(), "horama-capture-"));
+  t.after(() => rmSync(folder, { recursive: true, force: true }));
+  const fichier = join(folder, "c1.png");
+  writeFileSync(fichier, Buffer.from([137, 80, 78, 71]));
+  const calls = [];
+  const fake = (files = {}) => async ([method, path], body) => {
+    calls.push([method, path, body && (body.content ? { ...body, content: Buffer.from(body.content, "base64").length } : body)]);
+    if (method === "GET" && path === "repos/o/clone/git/ref/heads/horama/captures") { if (!files.branche) throw new Error("HTTP 404"); return { object: { sha: "b0" } }; }
+    if (method === "GET" && path === "repos/o/clone") return { default_branch: "main" };
+    if (method === "GET" && path === "repos/o/clone/git/ref/heads/main") return { object: { sha: "m0" } };
+    if (method === "POST") return {};
+    if (method === "GET" && path.startsWith("repos/o/clone/contents/")) { if (!files.existe) throw new Error("HTTP 404"); return { sha: "f0" }; }
+    if (method === "PUT") return { commit: { sha: "c0mmit" } };
+    throw new Error(`inattendu ${method} ${path}`);
+  };
+  const args = { depot: "o/clone", branche: "horama/captures", chemin: "pr-14/0b4112f/c1.png", fichier, message: "Horama : capture c1" };
+  assert.deepEqual(await televerserCapture(args, fake()), { url: "https://raw.githubusercontent.com/o/clone/c0mmit/pr-14/0b4112f/c1.png" });
+  assert.deepEqual(calls.map(([method, path]) => `${method} ${path}`), [
+    "GET repos/o/clone/git/ref/heads/horama/captures", "GET repos/o/clone", "GET repos/o/clone/git/ref/heads/main", "POST repos/o/clone/git/refs",
+    "GET repos/o/clone/contents/pr-14/0b4112f/c1.png?ref=horama%2Fcaptures", "PUT repos/o/clone/contents/pr-14/0b4112f/c1.png",
+  ]);
+  assert.deepEqual(calls[3][2], { ref: "refs/heads/horama/captures", sha: "m0" });
+  assert.deepEqual(calls[5][2], { message: "Horama : capture c1", branch: "horama/captures", content: 4 });
+  // Branch already there, file already there (same commit played again): its sha is given, no branch created.
+  calls.length = 0;
+  await televerserCapture(args, fake({ branche: true, existe: true }));
+  assert.deepEqual([calls.length, calls.at(-1)[2].sha], [3, "f0"]);
+  // A refusal is returned, never thrown.
+  assert.deepEqual(await televerserCapture(args, async () => { throw new Error("gh: Resource not accessible\nHTTP 403"); }), { raison: "HTTP 403" });
+});
+
+test("--captures-sur-branche : les captures entourées de l'exploration poussées, puis montrées dans la réponse", async (t) => {
+  const vault = vaultEssai(t);
+  const sortie = mkdtempSync(join(tmpdir(), "horama-pr-sortie-"));
+  t.after(() => rmSync(sortie, { recursive: true, force: true }));
+  const anneau = "site-pr/passages/P9/accueil--controle--1.png";
+  mkdirSync(join(vault, "site-pr/passages/P9"), { recursive: true });
+  writeFileSync(join(vault, anneau), Buffer.from([137, 80, 78, 71]));
+  const item = (id, extra) => ({ id, chemin: "/", texte: "Le texte dépasse la boîte de son conteneur.", preuve: "Mesuré : 245×44 > 184×44. Attendu : le contenu tient dans sa boîte.", zone: { x: 40, y: 209, largeur: 184, hauteur: 44 }, capture: null, ...extra });
+  const elements = { adresse: "https://p.vercel.app", bilan: { aucune: false, nonVisitees: [] }, totaux: { pages_visitees: 2, pages_trouvees: 2 }, decisions: [{ ecart_id: "accueil--controle--1", decision: "bug" }],
+    prouves: [item("accueil--controle--1", { anneau }), item("programme--controle--1", { anneau: null })], doutes: [], dejaVoulus: [], note: "vault-horama/site-pr/passages/P9.md" };
+  const scenes = async (args) => {
+    const out = args[args.indexOf("--sortie") + 1];
+    mkdirSync(out, { recursive: true });
+    if (args[0].endsWith("exploration.mjs")) writeFileSync(join(out, "scene.json"), JSON.stringify({ commentaire: { corps: "texte seul", elements } }));
+  };
+  const sent = [];
+  const televerser = async (args) => (sent.push(args), { url: `https://raw.githubusercontent.com/o/clone/c0mmit/${args.chemin}` });
+  const posted = [];
+  const report = await jouerPr({ pr: { numero: 14, adresse: "https://github.com/o/clone/pull/14", base: "b", tete: "0b4112f0000", previsualisation: "https://p.vercel.app" }, fichiers: ["README.md"], vault, logiciel: "site-essai", sortie,
+    commenter: true, publier: async (adresse, corps) => (posted.push(corps), { status: "publie", url: "u" }), captures: { depot: "o/clone", branche: "horama/captures" }, televerser }, scenes);
+  assert.deepEqual(sent.map(({ depot, branche, chemin, fichier }) => [depot, branche, chemin, fichier]), [["o/clone", "horama/captures", "pr-14/0b4112f/accueil--controle--1.png", join(vault, anneau)]]);
+  assert.deepEqual(report.captures, { branche: "horama/captures", poussees: 1 });
+  assert.match(posted[0], /- \/ : Le texte dépasse la boîte de son conteneur\. .*décision : bug\)\n\n  !\[\/ : Le texte dépasse la boîte de son conteneur\.\]\(https:\/\/raw\.githubusercontent\.com\/o\/clone\/c0mmit\/pr-14\/0b4112f\/accueil--controle--1\.png\)/);
+  // The finding without a capture ringed stays in text.
+  assert.equal((posted[0].match(/!\[/g) ?? []).length, 1);
+  assert.doesNotMatch(posted[0], /texte seul/);
 });

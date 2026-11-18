@@ -4,13 +4,15 @@ url: /programme/master-ia-business-alternance
 # La page, ses données, et le gabarit qu'elle partage avec la page du Bachelor.
 code: ["src/pages/programme/master-ia-business-alternance.astro", "src/data/pages/programme-master-ia-business-alternance.ts", "src/components/LivePage.astro"]
 vues: []
-# Deux lectures du 18/11 à 1280 × 900 : 0 pixel d'écart sur le premier écran, aucune zone à ignorer.
+# Langue de la page (<html lang>) : une prévisualisation dans une autre langue écarte les tests de cette page (réveil par PR, #122).
+langue: fr
+# Production de main (3725b94), 18/11, 1280 × 900 : deux lectures sans zone d'écart pour le moteur (photos à 3/255 au plus), aucune zone à ignorer.
 zones_ignorees: []
 ---
 
 # MSc IA Appliquée au Business
 
-Relevé le 18/11 sur le clone servi en local (commit `4e7dd32`), texte de la page tel qu'affiché.
+Relevé le 18/11 sur le clone servi en local (commit `4e7dd32`), texte de la page tel qu'affiché ; texte identique sur la production de `main` (`3725b94`, après les PR #11 et #14 du clone), relevée le même jour.
 
 Fil d'Ariane « Accueil / Programmes / MSc IA Appliquée au Business », surtitre « Master of Science · Bac+5 · Rentrée 2027 », titre « MSc IA Appliquée au Business ». L'accueil et la page Programmes l'appellent « MSc IA Applied to Business ».
 

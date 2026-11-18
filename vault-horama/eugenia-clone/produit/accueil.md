@@ -4,13 +4,15 @@ url: /
 # La page, et le fichier de données qui porte ses textes (blocs « Trouver le programme… » et « Ce que tu vas apprendre »).
 code: ["src/pages/index.astro", "src/data/home.ts"]
 vues: []
-# Deux lectures du 18/11 à 1280 × 900 : 0 pixel d'écart sur le premier écran, aucune zone à ignorer.
+# Langue de la page (<html lang>) : une prévisualisation dans une autre langue écarte les tests de cette page (réveil par PR, #122).
+langue: fr
+# Production de main (3725b94), 18/11, 1280 × 900 : deux lectures sans zone d'écart pour le moteur (photos à 3/255 au plus), aucune zone à ignorer.
 zones_ignorees: []
 ---
 
 # Accueil
 
-Relevé le 18/11 sur le clone servi en local (commit `4e7dd32`), texte de la page tel qu'affiché.
+Relevé le 18/11 sur le clone servi en local (commit `4e7dd32`), texte de la page tel qu'affiché ; texte identique sur la production de `main` (`3725b94`, après les PR #11 et #14 du clone), relevée le même jour.
 
 En haut de page : « 18 rue de Paradis, Paris 10e », le titre « Eugenia School », puis « L'école de l'IA appliquée au business. Bachelor et Master en alternance, hors Parcoursup. » et deux boutons, « Candidater » et « Voir les programmes ». La photo de deux étudiants occupe la moitié droite.
 

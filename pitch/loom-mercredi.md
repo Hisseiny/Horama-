@@ -1,55 +1,64 @@
-# Loom de 2 minutes, rendu du mercredi 18/11 à 17 h
+# Loom de 2 minutes, rendu du mercredi 18/11
 
-Tâche 4.3 de la checklist, issue [#73](https://github.com/Hisseiny/Horama-/issues/73). Noé parle. Contenu demandé par #73 : l'accroche, l'agent qui parcourt un vrai site, un vrai défaut trouvé, la décision de l'humain. Déroulé du mode grand public décidé par Nathan le 18/11 (commentaire de #73) : on part de l'onglet ouvert sur un article du blog d'Eugenia.
+Tâche 4.3 de la checklist, issue [#73](https://github.com/Hisseiny/Horama-/issues/73). Noé parle. Contenu demandé par #73 : l'accroche, l'agent qui parcourt un vrai site, un vrai défaut trouvé, la décision de l'humain. Mis à jour le 18/11 à 17 h 30 avec les réponses de Nathan (commentaire de #73, midi) et ce qui est fusionné sur `dev`.
 
-257 mots lus, soit 1 min 43 à 150 mots par minute ; il reste environ 15 secondes pour les silences et les transitions. À chronométrer à voix haute avant d'enregistrer. Chaque chiffre dit à voix haute a sa source en bas de page.
+Chaque chiffre dit à voix haute a sa source en bas de page. 239 mots, soit 1 min 36 à 150 mots par minute, environ 25 s pour les silences et les transitions. À chronométrer à voix haute avant d'enregistrer.
 
-## À confirmer avec Nathan avant d'enregistrer
+## Ce qui est décidé
 
-1. **Où et sous quelle forme on dépose le rendu** (le Loom seul, un PDF qui rassemble les quatre éléments, un formulaire).
-2. **Montrer les deux défauts du site d'Eugenia.** La feuille de route demande de prévenir l'école avant de les montrer au jury, et le Loom repose dessus. Sans accord, remplacer le plan 3 par le tour du site en mode développeur (7 pages, règles tenues) et couper la phrase sur le 404.
-3. **Ce qu'on filme.** La scène épurée (curseur, mascotte, trait à la main) n'est pas finie (#69) et le récapitulatif du mode grand public n'a jamais été affiché dans la scène (rapport du 18/11 : « rendu dans la scène non vérifié »). Options, de la plus vraie à la plus sûre :
-   - un passage en direct avec l'agent H (clé H et Chrome de démo : Ali ou Nathan) ;
-   - le replay H du 17/11 (liens en bas de page) et les captures du passage, avec le trait ajouté au montage ;
-   - pour la décision humaine, la répétition du mode développeur (`bash automatisation/demo/repetition.sh`, gratuite, sans agent H), où l'humain tranche bien « bug ou voulu » dans la scène.
+- **Dépôt** : Nathan s'en occupe.
+- **Le défaut d'Eugenia** : on le montre (le lien « portes ouvertes » en 404). L'accord de l'école est donné.
+- **Quoi filmer** : la décision de Nathan prévue à 16 h n'est pas écrite dans le dépôt. Ce script suit la commande de démo actuelle, ci-dessous. Si Nathan a choisi autre chose, ajuster les plans 3 à 5.
+
+## Ce qu'on filme
+
+Un passage réel, lancé par Nathan ou Ali (il faut la clé H et le Chrome de démo) :
+
+```
+bash automatisation/demo/passage-reel.sh
+```
+
+- Départ de l'onglet ouvert sur l'article « Fin de Parcoursup : ce qui change en Première et en Terminale ».
+- 8 pages, dont 4 atteintes par un vrai clic de l'agent H ; la scène agrandie en plein écran (vitrine).
+- À l'écran, pendant le parcours : le curseur, la mascotte, le trait à la main. Tout le texte arrive au récapitulatif, où l'humain tranche.
+- Coût d'un passage : environ 0,10 $. Durée : environ 3 min 30, à couper au montage.
+
+**Plan de secours** si le passage échoue ou n'est pas lancé : les captures de la répétition réelle du 18/11 à 11 h 45 (`docs/tests/captures/2026-11-18-repetition-reelle/` : le 404 entouré, le récapitulatif, la question « bug ou voulu ») et son replay H. Ce passage-là a visité 15 pages par adresse, sans clic : dans ce cas, dire « quinze pages » au plan 4.
 
 ## Le script
 
 | Temps | À l'écran | Voix |
 |---|---|---|
-| 0:00–0:12 | Titre « Horama », puis l'accroche en grand | « Votre documentation devient vos tests. Sans documentation, Horama regarde quand même. Je suis Noé, de l'équipe 11, et voici Horama. » |
-| 0:12–0:32 | Le site d'Eugenia School, page d'accueil | « Sur un site, personne ne relit toutes les pages après chaque mise en ligne. Les défauts restent en ligne jusqu'à ce qu'un visiteur tombe dessus. H Company a publié une démo de QA : un agent qui joue un test écrit à la main. On la prolonge : Horama trouve lui-même quoi tester. » |
-| 0:32–0:50 | Onglet ouvert sur l'article « Fin de Parcoursup : ce qui change en Première et en Terminale ». Clic sur Horama | « Premier mode, pour tout le monde : on est sur une page, on lance Horama. Pas de documentation, pas d'accès au code. Un agent H prend la main dans Chrome et visite la page, comme un visiteur. » |
-| 0:50–1:10 | Le curseur de l'agent ; le lien « journée portes ouvertes d'Eugenia School le 12 décembre » est entouré d'un trait | « Ce lien annonce les portes ouvertes du 12 décembre. Horama l'a suivi : la page répond 404, elle n'existe pas. Ce n'est pas l'agent qui le dit, c'est le code qui l'a vérifié. Ce défaut est en ligne aujourd'hui. » |
-| 1:10–1:25 | L'agent passe sur d'autres pages du site | « Puis Horama explore le reste du site : quinze pages, en trois à quatre minutes, pour sept centimes. Quinze, parce qu'on est sur le plan gratuit de H et pour garder l'attente courte. En production, Horama parcourt tout le site. » |
-| 1:25–1:42 | Le récapitulatif : chaque constat avec sa capture ; l'humain clique « bug » ou « voulu » | « À la fin, tout arrive au récapitulatif. Ce que le code prouve est un défaut. Ce que l'IA croit voir reste un doute. Et c'est un humain qui tranche : bug ou voulu. Horama garde sa décision pour le passage suivant. » |
-| 1:42–2:00 | Le vault Obsidian (une note par page), puis une PR GitHub | « Second mode, pour les équipes produit : la documentation dans Obsidian devient des tests. À chaque mise en ligne, Horama rejoue ceux qui sont touchés, puis répond sur GitHub. Votre documentation devient vos tests. » |
+| 0:00–0:10 | Titre « Horama », puis l'accroche en grand | « Votre documentation devient vos tests. Sans documentation, Horama regarde quand même. Je suis Noé, de l'équipe 11. » |
+| 0:10–0:30 | Le site d'Eugenia School | « La personne qui s'occupe d'un site n'a pas le temps de tout relire après chaque modification. Le CTO d'un SaaS n'a pas le temps d'écrire des tests de non-régression. Les défauts restent en ligne jusqu'à ce qu'un visiteur tombe dessus. » |
+| 0:30–0:45 | L'onglet ouvert sur l'article. On lance Horama | « Premier mode, pour tout le monde : on est sur une page, on lance Horama. Pas de documentation, pas d'accès au code. Un agent de H Company prend la main dans Chrome, comme un visiteur. » |
+| 0:45–1:05 | L'agent fait défiler l'article ; le lien « journée portes ouvertes d'Eugenia School le 12 décembre » est entouré | « Il lit l'article et le fait défiler. Ce lien annonce les portes ouvertes du 12 décembre. Horama l'a suivi : la page n'existe pas, erreur 404. Ce n'est pas l'IA qui le dit, c'est le code qui l'a vérifié. Ce défaut est en ligne aujourd'hui. » |
+| 1:05–1:20 | Le curseur clique un lien, une autre page s'ouvre (accéléré au montage) | « Puis il continue : il clique, il défile, comme vous. Huit pages, pour une dizaine de centimes. Huit, parce qu'on est sur le plan gratuit de H. En production, tout le site. » |
+| 1:20–1:40 | Le récapitulatif, puis « C'est un bug, ou c'est voulu ? » ; clic sur « C'est un bug » | « À la fin, tout arrive au récapitulatif. Ce que le code prouve est un défaut. Ce que l'IA croit voir reste un doute. C'est un humain qui tranche : bug ou voulu. Horama garde sa décision pour la prochaine fois. » |
+| 1:40–2:00 | Le vault Obsidian (une note par page) | « Second mode, pour les équipes produit : leur documentation devient des tests. À chaque mise en ligne, Horama rejoue ceux que le changement touche, et l'équipe tranche avant ses clients. Votre documentation devient vos tests. » |
 
 ## Ce que le script ne dit pas, exprès
 
-- **« Trois agents en parallèle »** : pas construit (un seul agent aujourd'hui, #57 étape 3).
-- **« Marche sur n'importe quel site »** : à prouver (#67) ; le passage mesuré est sur eugeniaschool.com.
-- **Le mode développeur de bout en bout** (réveil par Vercel, commentaire sur la PR) : pas construit (#71). La voix dit ce que fait le produit, l'image ne doit pas montrer un commentaire de PR qui n'existe pas : montrer une PR de documentation réelle ou s'arrêter sur le vault.
-- **Le taux de faux constats** : 6 constats sur 8 étaient faux au premier passage (tous venus de Holo). On ne le cache pas si on nous le demande, mais il n'a pas sa place en 2 minutes. C'est la raison de la phrase « ce que l'IA croit voir reste un doute ».
+- **Le test du site traduit en allemand** : la version allemande du clone n'existe pas encore ; rien de mesuré.
+- **Le mode développeur de bout en bout** : le réveil par une PR sur le clone et le commentaire sur la PR sont codés, mais pas encore joués sur une vraie prévisualisation Vercel (protégée par une connexion, `docs/tests/2026-11-18-reveil-vercel-clone.md`) ni sur un vrai dépôt (`docs/tests/2026-11-18-commentaire-pr.md`). L'image s'arrête sur le vault, pas sur un commentaire de PR.
+- **« Trois agents en parallèle »** : pas construit (évolution prévue, README).
+- **« Marche sur n'importe quel site »** : en cours de preuve (#67) ; sur Albert School, le passage avec clics a été interrompu deux fois (`docs/tests/2026-11-18-a91-visite.md`).
+- **Les faux constats** : à la répétition de 11 h 45, 1 constat vrai sur 3, les 2 faux venus de Holo et restés des doutes. À garder pour les questions du jury ; c'est la raison de la phrase « ce que l'IA croit voir reste un doute ».
 
 ## Sources
 
 | Ce qui est dit | Source |
 |---|---|
-| Lien « portes ouvertes » en 404 | `docs/tests/2026-11-18-mode-visuel.md` ; revérifié le 18/11 à 11 h 30 : `https://www.eugeniaschool.com/evenements/journee-portes-ouvertes-14-nov` répond 404, et l'article « Fin de Parcoursup » pointe toujours vers lui avec le texte « journée portes ouvertes d’Eugenia School le 12 décembre » |
-| 15 pages, 174 à 237 s, environ 0,07 $ par passage | `docs/tests/2026-11-18-mode-visuel.md`, passages 1 et 2b (0,0745 $ et 0,0712 $) |
-| 2 vrais défauts sur 8 constats | Même rapport, revue humaine du passage 1. Le second (chapô coupé « …dans la cha » de l'article sur les métiers de la data) est lui aussi encore en ligne le 18/11 à 11 h 30 |
-| Plan gratuit de H, 15 pages | Commentaire de Nathan sur #73 |
-| La démo QA de H | README, `hcompai/agents-api-demos`, `examples/software_qa` (MIT) ; `docs/cadrage.md`, section 3 |
-| Bug ou voulu, décision gardée | `docs/decisions/2026-11-18-recadrage-grand-public-et-dev.md` ; répétition du mode développeur, `docs/demo/2026-11-17-repetition.md` |
+| La personne du site, le CTO d'un SaaS | `pitch/persona-responsable-site-eugenia.md`, `pitch/persona-cto-troov.md` |
+| Lien « portes ouvertes » en 404 | `docs/tests/2026-11-18-mode-visuel.md`, `docs/tests/2026-11-18-repetition-reelle.md` ; revérifié le 18/11 à 16 h 12 : `https://www.eugeniaschool.com/evenements/journee-portes-ouvertes-14-nov` répond 404 |
+| Il lit, défile, clique ; 8 pages ; une dizaine de centimes | `docs/tests/2026-11-18-a91-visite.md`, passage Eugenia après 14 h 30 : 8 pages sur 8, 4 par clic, 3 défilements sur l'article, 211,6 s, 0,1030 $ ; commande `automatisation/demo/passage-reel.sh` (`--max 8 --pages-cliquees 4`) |
+| Plan gratuit de H | Commentaire de Nathan sur #73 |
+| Récapitulatif, « bug ou voulu », décision gardée | `docs/tests/2026-11-18-repetition-reelle.md` (3 décisions écrites dans la mémoire du site) |
+| Un agent de H Company | README ; Horama prolonge la démo QA de H (`hcompai/agents-api-demos`, MIT) |
 
-Replays H du 17/11 (JSON public, HTTP 200 le 18/11) :
-- passage 1 : https://agp.eu.hcompany.ai/share/api/v1/trajectories/14d93d7d-654a-4377-945a-c6f4285b1174
-- passage 2b : https://agp.eu.hcompany.ai/share/api/v1/trajectories/65afc19e-0202-4d02-bab3-f699717d203d
-
-Captures du passage 1 (lien cassé, chapô coupé) : copiées hors dépôt dans `~/essais/pr/` sur la machine qui a fait le passage, à demander à Ali.
+Replay H de la répétition du 18/11 à 11 h 45 (HTTP 200 le 18/11 à 17 h 20) : https://agp.eu.hcompany.ai/share/api/v1/trajectories/49596382-066a-4d9c-baa4-ac0714ca638c
 
 ## Après l'enregistrement
 
 - Ouvrir le lien du Loom en fenêtre privée (mission, tâche 4.3).
-- Ajouter le lien dans l'issue #73 et passer les lignes 4.3, 4.4 et 4.5 de `docs/checklist.md` à « fait » avec la preuve.
+- Ajouter le lien dans l'issue #73 et passer la ligne 4.3 de `docs/checklist.md` à « fait » avec la preuve.

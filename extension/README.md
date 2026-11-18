@@ -1,10 +1,14 @@
-# Extension Chrome Horama (squelette)
+# Extension Chrome Horama
 
-L'entrée du mode grand public (issue #68, étape 3). On ouvre un site, on clique sur le bouton Horama : l'adresse de l'onglet est déjà remplie, on peut la changer, on clique « Lancer ». Le service Horama explore le site avec l'agent H. L'extension montre la progression page par page, puis le récapitulatif : le bilan, chaque **défaut prouvé** avec sa capture entourée et sa preuve en clair (« Mesuré : … Attendu : … »), et, à part sous « À vérifier », les doutes de Holo, qui ne prouvent rien.
+L'entrée du mode grand public (issue #68, étape 3). On ouvre un site, on clique sur le bouton Horama : l'adresse de l'onglet est déjà remplie, on peut la changer, on clique « Envoyer Horama ». Le service Horama explore le site avec l'agent H. L'extension montre la progression page par page, puis le récapitulatif : trois chiffres, chaque **défaut prouvé** avec sa capture marquée du trait de la charte et sa mesure en clair (« mesuré : … », « attendu : … »), et, à part sous « À trancher », les doutes de Holo, qui ne prouvent rien.
 
 L'extension ne navigue pas à la place de l'utilisateur : c'est le service qui explore. Ce qu'elle montre, ce sont des défauts prouvés par le code, avec leur preuve.
 
-Squelette : couleurs provisoires et neutres, aucun thème. La direction artistique viendra ensuite, par la même méthode que la scène.
+Dans la charte « L'envoyé » (`docs/da/charte-graphique.md`) :
+- la fenêtre de 360 px : bandeau ciel avec le soleil, le mot de marque et la mascotte, adresse en mono, bouton ailé « Envoyer Horama » ;
+- le rapport : la carte du récapitulatif, trois chiffres, chaque défaut sur sa feuille avec le trait miltos, les doutes avec leurs points ocre, les pages avec le carré de leur état.
+
+La mascotte est celle de la charte (`mascotte/`, copie de `docs/da/mascotte/`), animée comme dans la scène.
 
 ## Installer (mode développeur)
 
@@ -26,7 +30,7 @@ Il écrit `extension/dist/horama-extension.zip` (ignoré par Git), qui ne contie
 
 - `activeTab` : l'adresse de l'onglet ouvert, seulement au clic sur le bouton. Aucune permission sur les sites en général.
 - `storage` : l'adresse du service, dans les options.
-- Aucune clé, aucun code distant : `rough-notation` (licence MIT, `lib/`) est copié dans l'extension pour le trait tracé à la main.
+- Aucune clé, aucun code distant : les signes de preuve (`lib/trait.js`), la feuille de style (`envoye.css`) et la mascotte (`mascotte/`) sont copiés de la charte dans l'extension. Seules les polices de la charte viennent de Google Fonts, avec des polices de repli.
 
 ## Le contrat avec le service
 
@@ -54,11 +58,13 @@ Options : `--port 8787`, `--dossier <sortie d'une exploration>` (un autre rappor
 ## Fichiers
 
 - `manifest.json` : Manifest V3.
-- `popup.*` : la fenêtre du bouton, avec l'adresse et « Lancer ». Le rapport s'ouvre dans un onglet de l'extension, qui reste ouvert pendant toute l'exploration (une fenêtre de bouton se ferme dès qu'elle perd le focus).
+- `popup.*` : la fenêtre du bouton, avec l’adresse et « Envoyer Horama ». Le rapport s'ouvre dans un onglet de l'extension, qui reste ouvert pendant toute l'exploration (une fenêtre de bouton se ferme dès qu'elle perd le focus).
 - `rapport.*` : la progression, puis le récapitulatif.
 - `options.*` : l'adresse du service.
 - `service.js` : les appels au service, partagés.
-- `commun.css` : les couleurs provisoires.
-- `lib/` : `rough-notation`.
+- `envoye.css` : la feuille de style de la charte, copiée telle quelle (variables, polices, bouton ailé, feuille).
+- `commun.css` : ce qui est propre à l'extension (bandeau, mascotte animée, carrés d'état).
+- `mascotte.js` et `mascotte/` : la mascotte de la charte, mise en ligne dans la page pour bouger.
+- `lib/trait.js` : les deux signes de preuve de la charte (`tracerDefaut`, `poserDoute`), copiés de `docs/da/trait.js`.
 - `faux-service/` : le faux service et le rapport qu'il rejoue (hors du .zip).
 - `empaqueter.sh` : le .zip.
