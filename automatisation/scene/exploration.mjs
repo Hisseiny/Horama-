@@ -22,7 +22,7 @@ import { ecrireDecision } from "../../memoire/index.ts";
 import { findHolo, startBridge, stopIfMissing } from "./agent-h.mjs";
 import { creerEcrivainMemoire, creerEcrivainSupabase } from "./decisions.mjs";
 import { completerNote } from "./note-passage.mjs";
-import { revoir, sizeOf } from "./recapitulatif.mjs";
+import { bilanExploration, revoir, sizeOf } from "./recapitulatif.mjs";
 import { ouvrirVitrine } from "./vitrine.mjs";
 import { HEIGHT, WIDTH, capture, captureZone, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, layer, navigate, openChrome, option, say, sleep } from "./scene.mjs";
 
@@ -276,7 +276,9 @@ if (report?.format === "horama-exploration-1") {
       textes: [`Page ${pathOf(constat.ecran)}${arrivalOf(constat.ecran) ? ` (${arrivalOf(constat.ecran)})` : ""} : ${constat.description}`, proof(constat)], question: "C'est un bug, ou c'est voulu ?" };
   });
   const excluded = Object.entries(trouvees.exclues.reduce((all, { raison }) => ({ ...all, [raison]: (all[raison] ?? 0) + 1 }), {})).map(([raison, n]) => `${exclusionLabel(raison)} (${n})`);
-  const recap = {
+  const bilan = bilanExploration(report);
+  // No page visited (site that blocks robots, address not found, login asked): the reason, no empty list, no « 0 défaut ».
+  const recap = bilan.aucune ? { titre: "Récapitulatif", lignes: [report.adresse, bilan.phrase] } : {
     titre: "Récapitulatif",
     lignes: [
       `${report.adresse} : ${count(totaux.pages_visitees, "page visitée", "pages visitées")} sur ${count(totaux.pages_trouvees, "trouvée", "trouvées")}${report.etat === "fini" ? "" : ", passage interrompu"}.`,
@@ -284,7 +286,8 @@ if (report?.format === "horama-exploration-1") {
     ],
     selection: { titre: "Pages", lignes: [`Trouvées par ${trouvees.par === "sitemap" ? "le plan du site" : "les liens"}, ${trouvees.plafond} au plus.`,
       ...(arrivals.length ? [`${count(byClick, "page atteinte par un clic de l'agent", "pages atteintes par un clic de l'agent")}, ${count(byAddress, "ouverte par son adresse", "ouvertes par leur adresse")}.`] : []),
-      ...(excluded.length ? [`Écartées : ${excluded.join(", ")}.`] : [])] },
+      ...(excluded.length ? [`Écartées : ${excluded.join(", ")}.`] : []),
+      ...bilan.nonVisitees.map(({ chemin, raison }) => `Non visitée : ${chemin}${raison ? `, ${raison.charAt(0).toLowerCase()}${raison.slice(1).replace(/\.+$/, "")}` : ""}.`)] },
   };
   say(`Récapitulatif : ${recap.lignes.join(" ")}`);
   try {

@@ -8,6 +8,26 @@ export const dataUrl = (png) => `data:image/png;base64,${Buffer.from(png).toStri
 // Width and height of a PNG, read in its header.
 export const sizeOf = (png) => ({ largeur: Buffer.from(png).readUInt32BE(16), hauteur: Buffer.from(png).readUInt32BE(20) });
 
+// What an exploration (horama-exploration-1) could not do, for the summary: with no page visited (a site that blocks
+// robots, an address not found, a login asked: PR #117), the reason of the run, said instead of an empty list and
+// « 0 défaut »; otherwise each page not visited with its reason (pages[].raison, else the INCONCLUSIVE finding of the
+// page). Returns { aucune, phrase, nonVisitees: [{ chemin, raison }] }; phrase only when aucune.
+export function bilanExploration(report) {
+  const pathOf = (url) => {
+    try {
+      return new URL(url).pathname;
+    } catch {
+      return url;
+    }
+  };
+  const reasonOf = (page) => page.raison ?? report.constats?.find((constat) => constat.ecran === page.ecran && constat.raison)?.raison ?? null;
+  const nonVisitees = report.pages.filter((page) => page.etat === "non_visitee").map((page) => ({ chemin: pathOf(page.url), raison: reasonOf(page) }));
+  if (report.etat === "en_cours" || report.totaux.pages_visitees > 0) return { aucune: false, nonVisitees };
+  const raison = (report.agents?.find((agent) => agent.raison)?.raison ?? nonVisitees.find((page) => page.raison)?.raison ?? "").trim().replace(/\.+$/, "");
+  const phrase = raison ? `Horama n'a pas pu visiter ce site : ${raison.charAt(0).toLowerCase()}${raison.slice(1)}.` : "Horama n'a pas pu visiter ce site.";
+  return { aucune: true, phrase, nonVisitees };
+}
+
 // mascot: (command, ...args) => layer call. recap: { titre, lignes, selection }. items: { id, genre ("defaut" or
 // "doute"), etat (of the mascot), texte (one line in the summary), png (the capture), zones, page, textes, question }. choix: the
 // answers of --choix, in order. answer(): a promise of the next { id, choix } the layer reports. Returns, per item, the

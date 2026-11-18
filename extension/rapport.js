@@ -56,10 +56,23 @@ function card(service, report, constat, genre) {
   return { item, ring: shot.ring };
 }
 
+// The reason of a page not visited (pages[].raison since PR #117, else its INCONCLUSIVE finding), without its final dot.
+const reasonOf = (report, page) => (page.raison ?? report.constats.find((constat) => constat.ecran === page.ecran && constat.raison)?.raison ?? "").trim().replace(/\.+$/, "");
+const lowerFirst = (text) => text.charAt(0).toLowerCase() + text.slice(1);
+
 function render(service, report) {
   $("#adresse").textContent = report.adresse;
   const { totaux, trouvees } = report;
   const done = report.etat !== "en_cours";
+  // No page visited (site that blocks robots, address not found, login asked): the reason only, no empty list and no
+  // « 0 défaut ».
+  if (done && totaux.pages_visitees === 0) {
+    const raison = (report.agents?.find((agent) => agent.raison)?.raison ?? "").trim().replace(/\.+$/, "")
+      || report.pages.map((page) => reasonOf(report, page)).find(Boolean) || "";
+    $("#etat").textContent = raison ? `Horama n'a pas pu visiter ce site : ${lowerFirst(raison)}.` : "Horama n'a pas pu visiter ce site.";
+    for (const section of ["#pages", "#bilan", "#non-verifie", "#prouves", "#a-verifier"]) $(section).hidden = true;
+    return;
+  }
   $("#etat").textContent = done
     ? report.etat === "fini" ? "Exploration terminée." : "Exploration interrompue : les pages non visitées sont listées."
     : `${count(totaux.pages_visitees, "page visitée", "pages visitées")} sur ${trouvees.nombre}, trouvées par ${trouvees.par === "sitemap" ? "le plan du site" : "les liens"}.`;
@@ -71,7 +84,8 @@ function render(service, report) {
     const line = element("li", `${page.etat}${proven ? " defaut" : ""}`);
     const path = element("span", "chemin");
     path.append(element("span", "marque"), new URL(page.url).pathname);
-    const note = [page.etat === "visitee" ? (proven ? count(proven, "défaut prouvé", "défauts prouvés") : "rien de prouvé") : STATE[page.etat], ARRIVAL[page.arrivee]].filter(Boolean).join(" · ");
+    const state = page.etat === "non_visitee" && reasonOf(report, page) ? `${STATE.non_visitee} : ${lowerFirst(reasonOf(report, page))}` : STATE[page.etat];
+    const note = [page.etat === "visitee" ? (proven ? count(proven, "défaut prouvé", "défauts prouvés") : "rien de prouvé") : state, ARRIVAL[page.arrivee]].filter(Boolean).join(" · ");
     line.append(path, element("span", "second", note));
     return line;
   }));
