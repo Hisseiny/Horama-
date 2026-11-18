@@ -785,8 +785,12 @@ toucherait plusieurs sites et demande une décision. Voir « Ce qui reste » plu
 
 ### Vérifications
 
-- `pnpm -r --if-present run check` : voir la PR (lancé après les corrections et
-  après la récupération de `dev`).
+- `pnpm -r --if-present run check` après récupération de `dev` : **vert**
+  (agent 261 réussis, 0 échec ; jugement 79 ; memoire 34 ; faux-saas 10 ;
+  interface 8). Un premier lancement, fait pendant qu'un autre Chrome tournait,
+  a échoué sur le test réel « Chrome réel découvre une page JS locale »
+  (« Onglet du relevé introuvable. »). Le fichier relancé seul passe, puis le
+  check complet passe : ce test semble instable sous charge.
 - `grep -riE "eugenia|albertschool|kpmg|skema|grantthornton" agent/src` : aucune
   correspondance.
 - Les sorties (`exploration.json`, captures, journaux, `meta.json`) restent hors
