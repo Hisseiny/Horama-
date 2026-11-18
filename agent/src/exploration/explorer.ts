@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFile
 import { join } from "node:path";
 import type { EcartVisuel, ResultatVerification, Statut } from "@horama/contrats";
 import { verifierReleve } from "@horama/jugement";
-import { ecrireReference, lireDecisions, lireNotes, lireReferences } from "@horama/memoire";
+import { ecrireRapportPassage, ecrireReference, lireDecisions, lireNotes, lireReferences } from "@horama/memoire";
 import type { BasePassages } from "../base.ts";
 import type { BrowserRuntime } from "../browser.ts";
 import { COURSE_RULES, END_TOOL } from "../consigne.ts";
@@ -256,6 +256,18 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
       };
     };
     const runner = creerCoureur({ vault, base: wrapped, session: trackedSession, signal, consigne, identifiant: () => id, hookTimeoutMs: 550_000,
+      writeReport(target, passage, results) {
+        for (const test of passage.tests) {
+          const page = pages.find(page => test.test_id === `exploration--${page.ecran}`);
+          const owner = report.agents.find(item => item.agent === page?.agent);
+          if (owner) {
+            test.session_id = owner.session_id ?? "";
+            delete test.replay_url;
+            if (owner.replay_url) test.replay_url = owner.replay_url;
+          }
+        }
+        return ecrireRapportPassage(target, passage, results);
+      },
       async relever(ecran, vue, hookSignal) {
         const page = pages.find(page => page.ecran === ecran);
         if (!page) {

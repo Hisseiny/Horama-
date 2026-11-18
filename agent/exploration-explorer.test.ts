@@ -502,6 +502,11 @@ test("budget épuisé après 13 pages : une seule relance limitée aux 2 restant
   assert.ok(result.pages.slice(13).every(page => page.agent === 2));
   assert.equal(base.resultats[0].replay_url, "https://replay.example/budget-1");
   assert.equal(base.resultats[14].replay_url, "https://replay.example/budget-2");
+  const persisted = base.rapports.get(result.passage_id)!;
+  assert.equal(persisted.tests[0].session_id, "budget-1");
+  assert.equal(persisted.tests[0].replay_url, "https://replay.example/budget-1");
+  assert.equal(persisted.tests[14].session_id, "budget-2");
+  assert.equal(persisted.tests[14].replay_url, "https://replay.example/budget-2");
 });
 
 test("deux budgets épuisés : pas de troisième session, page restante non visitée avec raison C4", async () => {
