@@ -34,10 +34,26 @@ Sur la base de cette PR, `site-eugenia/` est absent et les notes Eugenia portent
 
 Le repli local est utilisable sans compte ni clé. Après accord de l'école, une source Vercel devra fournir **le SHA du déploiement READY, celui du déploiement précédent et l'adresse de prévisualisation** à la même suite `wakeCommit({ before, after, baseUrl, output })` ; le vault sera lu au SHA déployé. Il faudra l'identifiant du projet (et de l'équipe si applicable), l'accès en lecture aux déploiements et une authentification autorisée pour un projet privé, ainsi qu'une adresse accessible à Chrome (protection de prévisualisation à traiter par l'équipe). Rien n'est publié ici, aucune API Vercel n'est appelée, aucun secret n'est nécessaire pour le local.
 
+## Réveil par une PR du site cible (`pr.mjs`, issue #71)
+
+Pour un site dont on a le code (le clone du site d'Eugenia d'Ali, `Hisseiny/eugenia-school-website`) : le Mac interroge GitHub, sans aucun serveur public, toutes les 20 s par défaut.
+
+```sh
+node automatisation/reveil/pr.mjs --depot <propriétaire/dépôt> --logiciel <logiciel du vault> -- --vitrine
+```
+
+- **Quand** : une PR ouverte dont le **dernier commit** a un déploiement Vercel d'environnement Preview à l'état `success`. L'adresse de prévisualisation est lue dans `environment_url` du statut de ce déploiement. Une PR dont la prévisualisation n'est pas prête est attendue. Plusieurs poussées rapprochées : seul le dernier commit de la PR est joué, une fois.
+- **Quoi** : les fichiers modifiés par la PR (`pulls/<n>/files`) choisissent les tests par `choisirTests` d'`impact.mjs`, sur le vault de ce dépôt : les écrans dont la note déclare un fichier modifié dans son champ `code:`, plus le socle d'`impact/socle.json`. Le fichier `impact.json` (format `horama-impact-1`, avec `depuis` = base de la PR, `vers` = son dernier commit, `fichiers`, et l'adresse de la PR dans `pr`) part à la scène.
+- **La scène** : `parcours.mjs --impact <fichier> --base-url <prévisualisation> --logiciel <logiciel> --vault <vault> --pr <adresse de la PR> --sortie <dossier>`, plus les options données après `--` (par exemple `--vitrine`, ou `--sans-agent` pour un essai). La sélection, la cible, le vault, la sortie et la PR sont réservés au réveil.
+- **Le vault** : `--vault vault-horama` par défaut. Les décisions, la note du passage et les corrections de note s'y écrivent : c'est la mémoire du mode dev. Pour un essai, donner une copie.
+- **Sorties** : `<sortie>/pr-<numéro>-<commit court>/` (`.orchestrateur/reveil-pr/` par défaut) : `impact.json`, `reveil.json` (heures, état, `impact_ms`, `scene_lancee_ms`, `total_ms`), `scene/`.
+- **Essai sans vraie PR** : `--faux-github <fichier.json>` lit `{ prs: [{ numero, adresse, titre, base, tete }], deploiements: { <sha>: { etat, adresse } }, fichiers: { <numéro>: [...] } }` à la place de GitHub.
+- **Ce qu'il faut côté cible** (Ali, #78) : le dépôt relié à Vercel avec une prévisualisation par PR, la protection des prévisualisations coupée (sinon l'agent tombe sur la connexion Vercel), les formulaires désactivés sur la démo. `gh` doit être connecté avec un compte qui lit le dépôt.
+
 ## Vérifier
 
 ```sh
-node --test automatisation/reveil/*.test.mjs
+node --test automatisation/reveil/*.test.mjs   # wake.test.mjs et pr.test.mjs
 pnpm install && pnpm -r --if-present run check
 ```
 
