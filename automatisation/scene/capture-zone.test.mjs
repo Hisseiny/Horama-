@@ -1,5 +1,5 @@
 // captureZone (scene.mjs), called as the explorer calls the hook capturerZone (PR #85): a real Chrome, a local page that
-// scrolls smoothly (« scroll-behavior: smooth », as eugeniaschool.com) with a red block far below the first screen, the
+// declares a smooth scroll (« scroll-behavior: smooth », as eugeniaschool.com) with a red block far below the first screen, the
 // Horama layer and its mascot shown. Needs Chrome (CHROME_BIN), no network, no H.
 // Run from this folder: node --test capture-zone.test.mjs
 import assert from "node:assert/strict";
@@ -22,7 +22,7 @@ const whiteIn = (image, { left, top, right, bottom }) => {
   return true;
 };
 
-test("captureZone : zone au milieu de l'image, couche masquée, défilement d'avant rendu", async () => {
+test("captureZone : un seul défilement doux jusqu'à la zone, zone au milieu de l'image, couche masquée, la page reste là", async () => {
   const server = createServer((request, response) => response.end(PAGE)).listen(0, "127.0.0.1");
   await new Promise((done) => server.once("listening", done));
   const profile = mkdtempSync(join(tmpdir(), "horama-capture-zone-"));
@@ -40,18 +40,24 @@ test("captureZone : zone au milieu de l'image, couche masquée, défilement d'av
     assert.equal(whiteIn(shown, MASCOT), false, "la mascotte devrait être visible avant la capture");
 
     const zone = await evaluate(page, `(() => { const r = document.getElementById("cible").getBoundingClientRect(); return { x: r.x + scrollX, y: r.y + scrollY, largeur: r.width, hauteur: r.height }; })()`);
+    // The scroll positions while captureZone runs, read every 50 ms: smooth means several positions between start and end.
+    await evaluate(page, `window.__positions = []; window.__suivi = setInterval(() => window.__positions.push(scrollY), 50)`);
     const result = await captureZone(page, zone);
+    const positions = await evaluate(page, `(clearInterval(window.__suivi), window.__positions)`);
     const image = PNG.sync.read(result.png);
 
     assert.deepEqual([image.width, image.height], [1280, 900]);
     assert.ok(result.zone, "zone dans l'image");
-    // Centred: the middle of the zone at the middle of the screen, without waiting for a smooth scroll.
+    // Centred: the middle of the zone at the middle of the screen, once the smooth scroll has ended.
     assert.ok(Math.abs(result.zone.y + result.zone.hauteur / 2 - 450) <= 1, `zone centrée (y = ${result.zone.y})`);
     assert.deepEqual(result.defilement, [0, 3020 - 450]);
     assert.deepEqual(pixel(image, result.zone.x + 10, result.zone.y + 10), [255, 0, 0], "le bloc rouge est dans la zone");
     assert.ok(whiteIn(image, MASCOT), "ni mascotte ni curseur sur la capture");
-    // Afterwards: the scroll of before, the layer shown again.
-    assert.deepEqual(await evaluate(page, "[scrollX, scrollY]"), [0, 500]);
+    // One smooth scroll, down only: intermediate positions, never back up to where it started.
+    assert.ok(positions.some((y) => y > 500 && y < 2570), `défilement doux (positions : ${positions.join(", ")})`);
+    assert.ok(positions.every((y, index) => index === 0 || y >= positions[index - 1]), "aucun aller-retour");
+    // Afterwards: the page stays on the zone, the layer is shown again.
+    assert.deepEqual(await evaluate(page, "[scrollX, scrollY]"), [0, 2570]);
     const after = PNG.sync.read(Buffer.from((await page.send("Page.captureScreenshot", { format: "png" })).data, "base64"));
     assert.equal(whiteIn(after, MASCOT), false, "la couche est remontrée après la capture");
   } finally {
