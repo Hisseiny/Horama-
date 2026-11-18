@@ -1,6 +1,12 @@
 # Qui fait quoi
 
-État du mercredi 18 novembre 2026, fin de matinée, après le recadrage de Nathan ([décision](../decisions/2026-11-18-recadrage-grand-public-et-dev.md), [feuille de route](../feuille-de-route.md)). Chaque tâche a son issue : c'est là que se suivent l'avancement et les preuves. L'historique du 16/11 est dans `docs/journal-nathan.md` et dans l'historique Git de ce fichier.
+État du mercredi 18 novembre 2026, après-midi (répartition décidée par Nathan et Ali après le passage au jury ; avant : fin de matinée), après le recadrage de Nathan ([décision](../decisions/2026-11-18-recadrage-grand-public-et-dev.md), [feuille de route](../feuille-de-route.md)). Chaque tâche a son issue : c'est là que se suivent l'avancement et les preuves. L'historique du 16/11 est dans `docs/journal-nathan.md` et dans l'historique Git de ce fichier.
+
+## Répartition du 18/11 après-midi (fait foi)
+
+- **Ali : le mode grand public.** Quelle que soit l'adresse, Horama va au bout (#67 : sites en JavaScript, anti-robots, banc de 15 sites en local et en conteneur), le champ `arrivee` (#91), le service Railway (#68), puis les 4 notes du vault (#72). Il donne aussi les accès du mode dev (#78, point 1).
+- **Couloir Nathan : le mode dev sur le clone d'Ali** (`Hisseiny/eugenia-school-website`, #71) : vault du clone, réveil par la PR et Vercel, réponse sur la PR, commits de démo. Plus la direction artistique appliquée à la scène, à l'extension et à la page d'accueil. `automatisation/reveil/` et `automatisation/pr-doc/` passent au couloir Nathan.
+- Les tableaux ci-dessous datent du matin : en cas d'écart, cette section fait foi.
 
 ## Règle de partage
 
@@ -47,8 +53,8 @@ Le thème « Musée grec » d'Inès (PR #65) n'est pas branché : Nathan refait 
 | Dossier | À qui |
 |---|---|
 | `agent/` | Ali |
-| `automatisation/reveil/`, `automatisation/pr-doc/` | Ali |
-| `automatisation/scene/`, `automatisation/impact/` | Couloir Nathan |
+| `automatisation/reveil/`, `automatisation/pr-doc/` | Couloir Nathan (depuis le 18/11 après-midi) |
+| `automatisation/scene/`, `automatisation/impact/`, `extension/` | Couloir Nathan |
 | `jugement/` | Couloir Nathan, sauf #76 (Ali) |
 | `vault-horama/` | Axil, Noé, Leslie |
 | `docs/decisions/`, `docs/feuille-de-route.md` | Nathan |
