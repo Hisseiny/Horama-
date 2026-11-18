@@ -7,7 +7,8 @@ import type { ExplorerOptions } from "./explorer.ts";
 
 export const HELP = `Usage : pnpm --filter @horama/agent explorer -- --url adresse [options]
   --url adresse       Adresse HTTP(S) requise, visite sans connexion ni formulaire
-  --max 15            Plafond de pages
+  --max 15            Plafond de pages ; avec --max 8, le passage vise 2 à 3 min
+  --pages-cliquees 4  Pages à atteindre par clic (entier ≥ 0)
   --sortie chemin     Sortie (.orchestrateur/exploration du dépôt par défaut)
   --vault chemin      Vault (vault-horama du dépôt par défaut)
   --sans-base         Base en mémoire, aucune écriture Supabase
@@ -22,7 +23,7 @@ export function lireArguments(args: string[]): (ExplorerOptions & { sansBase: bo
   const values = new Map<string, string>();
   for (let index = 0; index < args.length; index++) {
     const name = args[index];
-    if (!["--url", "--max", "--sortie", "--vault", "--sans-base", "--chrome-port"].includes(name) || values.has(name)) throw new Error("Option inconnue ou répétée ; utiliser --help.");
+    if (!["--url", "--max", "--pages-cliquees", "--sortie", "--vault", "--sans-base", "--chrome-port"].includes(name) || values.has(name)) throw new Error("Option inconnue ou répétée ; utiliser --help.");
     if (name === "--sans-base") { values.set(name, "true"); continue; }
     const value = args[++index];
     if (!value || value.startsWith("--")) throw new Error(`Valeur requise pour ${name}.`);
@@ -34,8 +35,10 @@ export function lireArguments(args: string[]): (ExplorerOptions & { sansBase: bo
   if (!/^https?:$/.test(url.protocol) || url.username || url.password) throw new Error("Adresse HTTP(S) sans identifiants requise.");
   const max = Number(values.get("--max") ?? 15), port = Number(values.get("--chrome-port") ?? 9333);
   if (!Number.isSafeInteger(max) || max < 0) throw new Error("--max attend un entier positif ou nul.");
+  const pagesCliquees = Number(values.get("--pages-cliquees") ?? 4);
+  if (!Number.isSafeInteger(pagesCliquees) || pagesCliquees < 0) throw new Error("--pages-cliquees attend un entier positif ou nul.");
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("Port Chrome invalide.");
-  return { url: address, max, port, sortie: values.get("--sortie") ?? fileURLToPath(new URL("../../../.orchestrateur/exploration", import.meta.url)),
+  return { url: address, max, port, pagesCliquees, sortie: values.get("--sortie") ?? fileURLToPath(new URL("../../../.orchestrateur/exploration", import.meta.url)),
     vault: values.get("--vault") ?? fileURLToPath(new URL("../../../vault-horama", import.meta.url)), sansBase: values.has("--sans-base") };
 }
 

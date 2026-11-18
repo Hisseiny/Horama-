@@ -47,7 +47,7 @@ const TERMINAL = ["completed", "failed", "timed_out", "interrupted"];
 const API = "https://agp.eu.hcompany.ai/api/v2";
 
 export function libelleAction(names: string[]): string {
-  const labels: Record<string, string> = { go_to: "Ouvre une page", click: "Clique", click_web: "Clique", wait_web: "Attend la page", scroll_web: "Défile", relever: "Relève l'écran", terminer: "Termine le parcours" };
+  const labels: Record<string, string> = { go_to: "Ouvre une page", go_to_web: "Ouvre une page", click: "Clique", click_web: "Clique", wait_web: "Attend la page", scroll_web: "Défile", relever: "Relève l'écran", terminer: "Termine le parcours" };
   return (names.length ? names.map((name) => labels[name] ?? "Agit dans le navigateur").join(", ") : "Agit dans le navigateur").slice(0, 100);
 }
 

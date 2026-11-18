@@ -59,3 +59,9 @@ Le test `capture-zone.test.mjs` passe. Il échoue bien si le défilement redevie
 ![](captures/2026-11-18-repetition-reelle/apres-correction-trait-defaut.jpg)
 
 La partie « computer use » (des défilements et des clics faits par H) relève de la consigne du moteur : issue #91 (Ali).
+
+## Branchement de la PR #93 d'Ali (#91) dans la scène (essai scripté, 0 $)
+
+- `exploration.mjs --pages-cliquees N` est passé au moteur ; `automatisation/demo/passage-reel.sh` lance désormais `--max 8 --pages-cliquees 4 --vitrine`.
+- Worktree jetable : `dev` (3683b45), `a-91-visite` (6c7bfc1) et la branche de la scène. Depuis l'article, `--max 8 --pages-cliquees 4 --sans-agent --sans-holo` : code 0, 8 pages sur 8, le 404 entouré. Journal du moteur : « 0 pages par clic, 7 par adresse ; 0 clics, 0 défilements, 8 go_to » (normal : en scripté, le script ouvre les pages par leur adresse).
+- Le champ `arrivee` n'est pas encore écrit dans `exploration.json` par la PR #93 : le récapitulatif ne l'affiche donc pas. Essai d'affichage avec une modification **locale, non commitée** du moteur, qui recopie dans la page le mode qu'il note déjà dans son journal (4 pages) : la question du 404 se lit « Page /blog/… (page de départ) : Le lien interne renvoie HTTP 404. », et la note du passage « Visitée : / (ouverte par son adresse) ».
