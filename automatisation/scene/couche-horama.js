@@ -284,7 +284,7 @@
     else Object.assign(at, goal, { vx: 0, vy: 0 });
     mascot.style.transform = `translate(${at.x}px, ${at.y}px)`;
     look();
-    if (moving) wake();
+    if (moving || state.prepare) wake();
   }
   const goTo = (spot) => {
     goal = { x: spot.x, y: spot.y };
@@ -304,7 +304,8 @@
   // The pupil looks where the arrow of the agent is going (its target while it travels) while it works (4 units at most from its place), straight ahead at the end.
   const look = () => {
     if (!pupil) return;
-    const target = state.bulle || state.revue ? null : state.travel?.to ?? cursorAt;
+    const sweep = state.prepare ? { x: at.x + M / 2 + Math.sin(performance.now() / 900) * 240, y: at.y + M / 2 + Math.cos(performance.now() / 1300) * 60 } : null;
+    const target = state.bulle || state.revue ? null : sweep ?? state.travel?.to ?? cursorAt;
     const dx = target ? target.x - at.x - M / 2 : 0;
     const dy = target ? target.y - at.y - M / 2 : 0;
     const distance = Math.hypot(dx, dy) || 1;
@@ -595,7 +596,8 @@
   dim.classList.toggle("on", state.revue);
   setEtat(state.etat);
   mascot.hidden = !TITLE;
-  cursor.hidden = !state.cursor || state.revue;
+  // The arrow shows from the first gesture of the mouse of H, where it happens; before, there is nothing to show.
+  cursor.hidden = !state.cursor || !state.geste || state.revue;
   if (state.cursor) putCursor(state.travel ? state.travel.from : state.cursor);
   mascot.style.transform = `translate(${at.x}px, ${at.y}px)`;
   wake();
@@ -604,6 +606,15 @@
   // ---------- Commands called by the script (CDP Runtime.evaluate; a promise is awaited) ----------
   let examined = null; // id of the finding whose question is asked
   window.__horama = {
+    // While the agent starts (the pages are found, the session of H opens: about 30 s): the mascot gets ready in the
+    // middle of the page, its eye looking over the page from side to side, until the first gesture of the mouse of H
+    // (or preparer(false)). The arrow does not move: it has done nothing yet.
+    preparer(on = true) {
+      state.prepare = Boolean(on);
+      save();
+      if (on) goTo(nearSpot({ x: innerWidth / 2, y: innerHeight * 0.42 }, busy()));
+      wake();
+    },
     // observe, trouve, doute, bloquee, fini (or a name of the first skeleton): a change in place, with a small jolt.
     etat(name) {
       setEtat(name);
@@ -710,7 +721,7 @@
     revue(on) {
       state.revue = on;
       save();
-      cursor.hidden = on || !state.cursor;
+      cursor.hidden = on || !state.cursor || !state.geste;
       dim.classList.toggle("on", on);
       if (!on) mascot.classList.remove("away");
     },
@@ -857,12 +868,16 @@
   };
   const press = (event) => {
     attach();
+    state.prepare = false;
     if (held) replay();
     clearTimeout(moving);
     const to = { x: event.clientX, y: event.clientY };
-    // From where the arrow is now (it may be on its way after a move of the mouse of H).
-    const way = course(cursorAt ?? to, to);
-    const ms = cursorAt ? way.ms : 0;
+    // From where the arrow is now (it may be on its way after a move of the mouse of H); the first gesture of H shows it
+    // where it happens.
+    const first = !state.geste;
+    state.geste = true;
+    const way = course(first ? to : cursorAt ?? to, to);
+    const ms = first || !cursorAt ? 0 : way.ms;
     const heure = Date.now();
     state.travel = { ...way, ms, at: heure };
     state.cursor = to;
@@ -895,10 +910,13 @@
   // in the direction of the scroll. Nothing moves while the agent thinks: then it is the mascot that lives.
   let moving = 0;
   const goWithoutPress = (to) => {
-    if (state.revue || (cursorAt && Math.hypot(to.x - (state.cursor?.x ?? cursorAt.x), to.y - (state.cursor?.y ?? cursorAt.y)) < 2)) return;
+    state.prepare = false;
+    if (state.revue || (state.geste && cursorAt && Math.hypot(to.x - (state.cursor?.x ?? cursorAt.x), to.y - (state.cursor?.y ?? cursorAt.y)) < 2)) return;
     attach();
-    const way = course(cursorAt ?? to, to);
-    state.travel = { ...way, ms: cursorAt ? way.ms : 0, at: Date.now(), clic: false };
+    const first = !state.geste;
+    state.geste = true;
+    const way = course(first ? to : cursorAt ?? to, to);
+    state.travel = { ...way, ms: first || !cursorAt ? 0 : way.ms, at: Date.now(), clic: false };
     state.cursor = to;
     save();
     cursor.hidden = false;
@@ -912,6 +930,17 @@
     const to = { x: event.clientX, y: event.clientY };
     moving = setTimeout(() => goWithoutPress(to), 60);
   }, true);
+  // The scroll of a turn of the wheel, the same distance, shown as a hand scrolls: smooth instead of a jump. The element
+  // that scrolls is the one the wheel would have scrolled (the nearest one under the mouse that can still go that way,
+  // else the page); the bridge of H waits for its « scrollend », so the agent sees the page once it has arrived.
+  const scroller = (from, dy) => {
+    for (let node = from instanceof Element ? from : null; node && node !== document.body && node !== document.documentElement; node = node.parentElement) {
+      const { overflowY } = getComputedStyle(node);
+      if (!/(auto|scroll|overlay)/.test(overflowY) || node.scrollHeight <= node.clientHeight + 1) continue;
+      if (dy > 0 ? node.scrollTop + node.clientHeight < node.scrollHeight - 1 : node.scrollTop > 0) return node;
+    }
+    return document.scrollingElement ?? document.documentElement;
+  };
   window.addEventListener("wheel", (event) => {
     if (!event.isTrusted || event.target === host || state.revue) return;
     clearTimeout(moving);
@@ -920,7 +949,10 @@
     cursor.classList.remove("wheel");
     void cursor.offsetWidth;
     cursor.classList.add("wheel");
-  }, { capture: true, passive: true });
+    if (event.ctrlKey || event.deltaMode !== 0 || Math.abs(event.deltaY) < 1 || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
+    event.preventDefault();
+    scroller(event.target, event.deltaY).scrollBy({ top: event.deltaY, behavior: "smooth" });
+  }, { capture: true, passive: false });
   for (const type of ["pointerdown", "mousedown", "pointerup", "mouseup", "click"]) {
     window.addEventListener(type, (event) => {
       if (!event.isTrusted || event.button !== 0 || event.target === host) return;
