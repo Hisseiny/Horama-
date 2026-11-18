@@ -2,11 +2,67 @@ import type { CdpClient } from "./controles.ts";
 
 export interface ExplorationCdp extends CdpClient { close(): void }
 
+export function refuseCookies(): boolean {
+  const normalize = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase().replace(/\s+/g, " ");
+  const refusals = new Set(["tout refuser", "refuser", "refuser tout", "continuer sans accepter", "reject all", "reject", "decline", "deny", "only necessary", "necessary only", "necessaires uniquement", "uniquement les necessaires", "reject all cookies", "refuser tous les cookies"]);
+  for (const element of document.querySelectorAll<HTMLElement>('button, [role="button"], a')) {
+    const text = normalize(element.innerText || element.textContent || "");
+    if (!refusals.has(text) || /accept|accepter|autoriser|allow|agree/.test(text.replace("continuer sans accepter", ""))) continue;
+    const rect = element.getBoundingClientRect(), style = getComputedStyle(element);
+    if (!rect.width || !rect.height || rect.bottom <= 0 || rect.top >= innerHeight || style.visibility === "hidden" || style.display === "none") continue;
+    if (element.matches('[type="submit"]') && "form" in element && element.form) continue;
+    if (element instanceof HTMLButtonElement && element.type === "submit" && element.form) continue;
+    let parent = element.parentElement;
+    while (parent && parent !== document.body && parent !== document.documentElement) {
+      if (/cookie|consent|rgpd|gdpr|privacy|confidentialit/.test(normalize([parent.textContent, parent.id, parent.className, parent.getAttribute("aria-label")].join(" ")))) {
+        element.click();
+        return true;
+      }
+      parent = parent.parentElement;
+    }
+  }
+  return false;
+}
+
+export async function prepareCapture(client: ExplorationCdp): Promise<"refusee" | "aucune"> {
+  const result = await client.send("Runtime.evaluate", {
+    expression: `(async () => {
+      const deadline = Date.now() + 15000;
+      while (document.readyState !== "complete" && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 100));
+      const clicked = (${refuseCookies.toString()})();
+      if (clicked) await new Promise(resolve => setTimeout(resolve, 500));
+      return clicked;
+    })()`, awaitPromise: true, returnByValue: true,
+  });
+  return result.result?.value === true ? "refusee" : "aucune";
+}
+
+export async function captureDefect(client: ExplorationCdp, zone: { x: number; y: number; largeur: number; hauteur: number }, scroll: [number, number]) {
+  const evaluate = async (expression: string) => (await client.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true })).result?.value;
+  try {
+    await evaluate(`(async () => {
+      window.scrollTo(0, Math.max(0, Math.min(${JSON.stringify(zone.y + zone.hauteur / 2 - 450)}, document.documentElement.scrollHeight - 900)));
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      await new Promise(resolve => setTimeout(resolve, 300));
+    })()`);
+    const actual = await evaluate("[window.scrollX, window.scrollY]");
+    if (!Array.isArray(actual) || actual.length !== 2 || !actual.every(Number.isFinite)) throw new Error("Position de capture inconnue.");
+    const image = await client.send("Page.captureScreenshot", { format: "png", fromSurface: true, captureBeyondViewport: false });
+    const x = Math.max(0, zone.x - actual[0]), y = Math.max(0, zone.y - actual[1]);
+    const largeur = Math.min(1280, zone.x - actual[0] + zone.largeur) - x;
+    const hauteur = Math.min(900, zone.y - actual[1] + zone.hauteur) - y;
+    return { png: Buffer.from(image.data, "base64"), zone: largeur > 0 && hauteur > 0 ? { x, y, largeur, hauteur } : undefined };
+  } finally {
+    await evaluate(`window.scrollTo(${JSON.stringify(scroll[0])}, ${JSON.stringify(scroll[1])})`);
+  }
+}
+
 export async function connecterCdp(port: number, address: string): Promise<ExplorationCdp> {
   const response = await fetch(`http://127.0.0.1:${port}/json`, { signal: AbortSignal.timeout(5000) });
   if (!response.ok) throw new Error("Liste des onglets CDP inaccessible.");
   const tabs = await response.json() as Array<{ type: string; url: string; webSocketDebuggerUrl: string }>;
-  const tab = tabs.find(tab => tab.type === "page" && tab.url === address);
+  const tab = tabs.find(tab => tab.type === "page" && tab.url === address)
+    ?? (tabs.filter(tab => tab.type === "page").length === 1 ? tabs.find(tab => tab.type === "page") : undefined);
   if (!tab) throw new Error("Onglet du relevé introuvable.");
   const socket = new WebSocket(tab.webSocketDebuggerUrl);
   const pending = new Map<number, { resolve(value: any): void; reject(error: Error): void; timer: ReturnType<typeof setTimeout> }>();
@@ -33,7 +89,7 @@ export async function connecterCdp(port: number, address: string): Promise<Explo
     send(method, params = {}) {
       return new Promise((resolve, reject) => {
         const key = ++id;
-        const timer = setTimeout(() => { pending.delete(key); reject(new Error(`CDP hors délai : ${method}`)); }, 15_000);
+        const timer = setTimeout(() => { pending.delete(key); reject(new Error(`CDP hors délai : ${method}`)); }, 20_000);
         pending.set(key, { resolve, reject, timer });
         socket.send(JSON.stringify({ id: key, method, params }));
       });

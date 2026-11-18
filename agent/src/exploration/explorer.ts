@@ -11,7 +11,7 @@ import type { Consigne } from "../consigne.ts";
 import { creerCoureur } from "../coureur.ts";
 import type { ReleveCapture } from "../coureur.ts";
 import type { Session } from "../session.ts";
-import { connecterCdp } from "./cdp.ts";
+import { captureDefect, connecterCdp, prepareCapture } from "./cdp.ts";
 import type { ExplorationCdp } from "./cdp.ts";
 import { controlerPage } from "./controles.ts";
 import { askHolo } from "./holo.ts";
@@ -33,6 +33,7 @@ interface ExplorationPage {
   reference: { fichier: string; version: string } | null;
   holo: { etat: string; modele: string | null; duree_ms: number; ecartes_sans_zone: number; jetons: { entree: number; sortie: number } | null; cout_usd: number | null } | null;
   statut: Statut | null;
+  cookies?: "refusee" | "aucune"; url_finale?: string; raison?: string;
 }
 export interface ExplorerOptions { url: string; max: number; sortie: string; vault: string; port: number }
 export interface ExplorerDependencies {
@@ -48,7 +49,7 @@ export function construireExploration(pages: Array<{ ecran: string; url: string 
   const course = pages.map((page, index) => ({ ecran: page.ecran, vue: "defaut", key: `${page.ecran}--defaut`, part: index + 1,
     test_id: tests[index].id, address: page.url, here: `location.href === ${JSON.stringify(page.url)}` }));
   return { tests, course, dropped: [], start: pages[0].url,
-    instructions: [...COURSE_RULES, "Simple visiteur : ne remplis et ne soumets aucun formulaire, ne te connecte jamais. N'ouvre aucun onglet ni fenêtre."].join("\n"),
+    instructions: [...COURSE_RULES, "Si une bannière de cookies apparaît, refuse-la (Refuser / Tout refuser / Continuer sans accepter / Reject all), ne l’accepte jamais.", "Simple visiteur : ne remplis et ne soumets aucun formulaire, ne te connecte jamais. N'ouvre aucun onglet ni fenêtre."].join("\n"),
     task: ["Nouveau passage : aucune page n'a encore été relevée dans cette session. La page déjà ouverte ne prouve aucun avancement. Commence à la partie 1, même si le navigateur affiche une partie ultérieure.", ...pages.map((page, index) => `Partie ${index + 1} : ouvre ${page.url} avec go_to dans l'onglet courant, attends le chargement puis appelle relever(ecran="${page.ecran}", vue="defaut").`),
       'Après toutes les pages, appelle terminer(etat="reussi"). Si une page est inaccessible, continue les autres.'].join("\n"),
     tools: [{ name: "relever", description: "Enregistre la page chargée.", input_schema: { type: "object", properties: { ecran: { type: "string", enum: pages.map(page => page.ecran) }, vue: { type: "string", enum: ["defaut"] } }, required: ["ecran", "vue"] } }, END_TOOL] };
@@ -114,12 +115,14 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
   save();
   log(`${pages.length} pages trouvées.`);
   const consigne = pages.length ? construireExploration(pages, site, version) : null;
+  const attempts = new Map<string, number>();
+  const finalUrls = new Map<string, string | null>();
   const acquired = new Map<string, ReleveCapture>();
   const pending = new Map<string, { findings: Finding[]; http: number | null; holo: ExplorationPage["holo"] }>();
-  const finding = (page: ExplorationPage, source: Finding["source"], findings: Finding[], fields: Partial<Finding>): Finding => ({
+  const finding = (page: Pick<ExplorationPage, "ecran">, source: Finding["source"], findings: Finding[], fields: Partial<Finding>): Finding => ({
     id: `${page.ecran}--${source}--${findings.filter(item => item.source === source).length + 1}`, ecran: page.ecran, vue: "defaut", source,
     sorte: "non-conclu", statut: "INCONCLUSIVE", description: "La vérification n'a pas pu se faire.", textes_a_surligner: [], preuve: {}, capture: `captures/${page.ecran}.png`, agent: 1, page: { largeur: 1280, hauteur: 900 }, ...fields });
-  const inconclusive = (page: ExplorationPage, source: Finding["source"], findings: Finding[], raison: string) => findings.push(finding(page, source, findings, { raison, description: raison }));
+  const inconclusive = (page: Pick<ExplorationPage, "ecran">, source: Finding["source"], findings: Finding[], raison: string) => findings.push(finding(page, source, findings, { raison, description: raison }));
   const markResult = (page: ExplorationPage, passageId: string, replayUrl?: string): ResultatVerification => {
     const findings = report.constats.filter(item => item.ecran === page.ecran);
     page.statut = pageStatus(findings);
@@ -137,8 +140,13 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
     deposerPng: (path, png) => base.deposerPng(path, png),
     async enregistrerCapture(capture) {
       await base.enregistrerCapture(capture);
-      const page = pages.find(page => page.ecran === capture.ecran)!;
-      const data = pending.get(page.ecran)!;
+      const page = pages.find(page => page.ecran === capture.ecran);
+      if (!page) return;
+      const data = pending.get(page.ecran);
+      if (!data) {
+        page.etat = "non_visitee"; page.raison = "La capture n'a pas pu être vérifiée.";
+        inconclusive(page, "controle", report.constats, page.raison); save(); return;
+      }
       agent.session_id = capture.session_id;
       Object.assign(page, { etat: "visitee", fin: capture.prise_le, http: data.http, holo: data.holo,
         capture: { fichier: `captures/${page.ecran}.png`, url: capture.url, largeur: capture.largeur, hauteur: capture.hauteur, defilement: capture.defilement } });
@@ -168,38 +176,85 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
       return report;
     }
     const trackedSession: Session = input => session({ ...input, async onTool(name, args) {
-      const next = () => pages.find(page => page.etat !== "visitee");
+      const next = () => pages.find(page => page.etat !== "visitee" && page.etat !== "non_visitee");
       const remaining = () => {
         const page = next();
         return page ? `${pages.filter(page => page.etat === "visitee").length}/${pages.length} pages relevées dans ce passage. Ouvre ${page.url} avec go_to puis appelle relever(ecran="${page.ecran}", vue="defaut"). Ne termine pas avant les relevés restants.` : 'Tous les relevés sont acquis. Appelle terminer(etat="reussi").';
       };
       if (name === "terminer" && args.etat === "reussi" && next()) return `Fin refusée : des pages restent à visiter. ${remaining()}`;
+      const skipped = pages.find(page => page.ecran === args.ecran && page.etat === "non_visitee");
+      if (name === "relever" && skipped) return `${skipped.raison}\n${remaining()}`;
       const response = await input.onTool(name, args);
       return name === "relever" ? `${response}\n${remaining()}` : response;
     } });
     const runner = creerCoureur({ vault, base: wrapped, session: trackedSession, signal, consigne, identifiant: () => id, hookTimeoutMs: 550_000,
       async relever(ecran, vue, hookSignal) {
-        const page = pages.find(page => page.ecran === ecran)!;
+        const page = pages.find(page => page.ecran === ecran);
+        if (!page) {
+          inconclusive({ ecran }, "controle", report.constats, "Page inconnue dans le parcours.");
+          save();
+          return runtime.relever(ecran, vue);
+        }
         page.etat = "en_cours"; page.debut = new Date().toISOString(); agent.etat = "en_cours";
         if (!agent.pages.includes(ecran)) agent.pages.push(ecran);
         save();
-        const capture = await runtime.relever(ecran, vue);
+        let client: ExplorationCdp | undefined;
+        const close = () => client?.close();
+        hookSignal?.addEventListener("abort", close, { once: true });
+        page.cookies = "aucune";
+        try {
+          client = await (deps.connecter ?? connecterCdp)(port, page.url);
+          page.cookies = await prepareCapture(client);
+        } catch { /* Les contrôles signalent une connexion indisponible. */ }
+        let capture: ReleveCapture;
+        try { capture = await runtime.relever(ecran, vue); }
+        catch (error) { hookSignal?.removeEventListener("abort", close); close(); throw error; }
         hookSignal?.throwIfAborted();
-        const actual = new URL(capture.url_page), expected = new URL(page.url);
-        if (actual.origin !== expected.origin || actual.pathname.replace(/\/+$/, "") !== expected.pathname.replace(/\/+$/, "")) return capture;
-        if (![...expected.searchParams].every(([key, value]) => actual.searchParams.get(key) === value)
-          || actual.searchParams.get("filtre") !== expected.searchParams.get("filtre")) return capture;
-        consigne.course.find(step => step.ecran === ecran)!.address = capture.url_page;
+        const matches = (address: string) => {
+          try {
+            const actual = new URL(capture.url_page), expected = new URL(address);
+            return actual.origin === expected.origin && actual.pathname.replace(/\/+$/, "") === expected.pathname.replace(/\/+$/, "")
+              && [...expected.searchParams].every(([key, value]) => actual.searchParams.get(key) === value)
+              && actual.searchParams.get("filtre") === expected.searchParams.get("filtre");
+          } catch { return false; }
+        };
+        let accepted = matches(page.url);
+        let reason: string | undefined;
+        try {
+          const actual = new URL(capture.url_page);
+          if (!/^https?:$/.test(actual.protocol)) reason = "La page n'a pas pu être chargée.";
+          else if (actual.origin !== new URL(page.url).origin) reason = `La page redirige vers un autre site : ${capture.url_page}`;
+        } catch { reason = "La page n'a pas pu être chargée."; }
+        if (!accepted && !reason) {
+          if (!finalUrls.has(page.url)) {
+            try {
+              const response = await (deps.fetch ?? fetch)(page.url, { redirect: "follow", signal: hookSignal });
+              finalUrls.set(page.url, response.url && new URL(response.url).origin === new URL(page.url).origin ? response.url : null);
+            } catch { finalUrls.set(page.url, null); }
+          }
+          const final = finalUrls.get(page.url);
+          if (final && matches(final)) { accepted = true; page.url_finale = final; }
+        }
+        if (!accepted || reason) {
+          hookSignal?.removeEventListener("abort", close); close();
+          const count = (attempts.get(ecran) ?? 0) + 1; attempts.set(ecran, count);
+          if (reason || count >= 2) {
+            page.etat = "non_visitee"; page.fin = new Date().toISOString();
+            page.raison = reason ?? `Page non atteinte après 2 essais : ${page.url}`;
+            save();
+          }
+          return capture;
+        }
+        const step = consigne.course.find(step => step.ecran === ecran);
+        if (step) step.address = capture.url_page;
         acquired.set(ecran, capture);
         writeFileSync(join(sortie, `captures/${ecran}.png`), capture.png);
         const findings: Finding[] = [];
         const controlZones = new Map<string, Zone>();
-        let client: ExplorationCdp | undefined, http: number | null = null;
-        const close = () => client?.close();
-        hookSignal?.addEventListener("abort", close, { once: true });
-        const hookFetch: typeof fetch = (address, init) => fetch(address, { ...init, ...(hookSignal ? { signal: init?.signal ? AbortSignal.any([hookSignal, init.signal]) : hookSignal } : {}) });
+        let http: number | null = null;
+        const hookFetch: typeof fetch = (address, init) => (deps.fetch ?? fetch)(address, { ...init, ...(hookSignal ? { signal: init?.signal ? AbortSignal.any([hookSignal, init.signal]) : hookSignal } : {}) });
         try {
-          client = await (deps.connecter ?? connecterCdp)(port, capture.url_page);
+          if (!client) throw new Error("Connexion CDP indisponible.");
           hookSignal?.throwIfAborted();
           const status = await client.send("Runtime.evaluate", { expression: "performance.getEntriesByType('navigation')[0]?.responseStatus || null", returnByValue: true });
           http = status.result.value;
@@ -211,15 +266,20 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
                 ...(defect.sorte === "erreur_console" ? { console: String(defect.valeur).slice(0, 300) } : {}) },
               textes_a_surligner: defect.sorte === "texte_erreur" ? [String(defect.valeur)] : [],
               ...(!["page_en_erreur", "erreur_console", "defilement_horizontal"].includes(defect.sorte) && defect.zone ? { zone: defect.zone } : {}) });
-            if (item.zone) controlZones.set(item.id, item.zone);
-            if (item.zone && (item.zone.x < 0 || item.zone.y < 0 || item.zone.x + item.zone.largeur > 1280 || item.zone.y + item.zone.hauteur > 900)) {
-              const zone = item.zone;
-              const clip = { x: Math.max(0, zone.x), y: Math.max(0, zone.y), width: Math.ceil(zone.largeur), height: Math.ceil(zone.hauteur), scale: 1 };
-              const image = await client.send("Page.captureScreenshot", { format: "png", fromSurface: true, captureBeyondViewport: true, clip });
-              item.capture = `captures/${item.id}.png`;
-              item.zone = { x: Math.max(0, zone.x - clip.x), y: Math.max(0, zone.y - clip.y), largeur: zone.largeur, hauteur: zone.hauteur };
-              item.page = { largeur: clip.width, hauteur: clip.height };
-              writeFileSync(join(sortie, item.capture), Buffer.from(image.data, "base64"));
+            if (item.zone) {
+              const documentZone = item.zone;
+              const zone = { ...documentZone, x: documentZone.x - capture.defilement[0], y: documentZone.y - capture.defilement[1] };
+              controlZones.set(item.id, zone);
+              item.zone = zone;
+              if (zone.x < 0 || zone.y < 0 || zone.x + zone.largeur > 1280 || zone.y + zone.hauteur > 900) {
+                delete item.zone;
+                try {
+                  const extra = await captureDefect(client, documentZone, capture.defilement);
+                  const file = `captures/${item.id}.png`;
+                  writeFileSync(join(sortie, file), extra.png);
+                  item.capture = file; item.zone = extra.zone;
+                } catch { /* Le constat reste prouvé sans zone hors image. */ }
+              }
             }
             findings.push(item);
           }
@@ -235,7 +295,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
           for (const visual of result.findings) {
             if (!visual.zone) { holo.ecartes_sans_zone++; continue; }
             const zone = visual.zone;
-            const explained = findings.find(item => item.source === "controle" && item.statut === "VERIFIED_FAIL" && controlZones.has(item.id) && overlap(zone, controlZones.get(item.id)!));
+            const explained = findings.find(item => item.source === "controle" && item.statut === "VERIFIED_FAIL" && controlZones.has(item.id) && overlap(zone, controlZones.get(item.id) ?? zone));
             findings.push(finding(page, "holo", findings, { sorte: kinds[visual.kind], statut: "SUSPECTED", description: descriptions[visual.kind], zone,
               preuve: { modele: result.model, phrase: visual.sentence }, ...(explained ? { explique_par: explained.id } : {}) }));
           }
@@ -244,13 +304,15 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
         return capture;
       },
       verifier({ test, acquired: captures, passageId, replayUrl }) {
-        const page = pages.find(page => `exploration--${page.ecran}` === test.id)!;
+        const page = pages.find(page => `exploration--${page.ecran}` === test.id);
+        if (!page) return { passage_id: passageId, test_id: test.id, version_testee: version, version_reference: versionReference ?? version,
+          statut: "INCONCLUSIVE", ecrans: [], valeurs: {}, niveau_de_preuve: "aucun", ecarts_visuels: [], captures: [], raison: "Page inconnue dans le parcours." };
         const entry = captures.find(item => item.capture.ecran === page.ecran);
         if (!entry) {
           report.constats = report.constats.filter(item => item.ecran !== page.ecran);
           page.capture = null;
           page.etat = "non_visitee"; page.fin = new Date().toISOString();
-          inconclusive(page, "controle", report.constats, "Cette page n'a pas été visitée.");
+          inconclusive(page, "controle", report.constats, page.raison ?? "Cette page n'a pas été visitée.");
         } else {
           try {
             const reference = references.find(ref => ref.ecran === page.ecran);
@@ -259,7 +321,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
               const compared = verifierReleve({ releve, releves: [releve], regles: [], decisions,
                 reference: readFileSync(join(vault, reference.chemin)), version_reference: reference.version,
                 zones_ignorees: (notes.find(note => note.entete.ecran === page.ecran)?.entete.zones_ignorees ?? []) as Zone[] });
-              for (const item of compared) report.constats.push(finding(page, "comparaison", report.constats, { ...item, id: `${page.ecran}--comparaison--${compared.indexOf(item) + 1}`, sorte: item.statut === "INCONCLUSIVE" ? "non-conclu" : item.nature ?? "changement", preuve: { reference: page.reference!.fichier } }));
+              for (const item of compared) report.constats.push(finding(page, "comparaison", report.constats, { ...item, id: `${page.ecran}--comparaison--${compared.indexOf(item) + 1}`, sorte: item.statut === "INCONCLUSIVE" ? "non-conclu" : item.nature ?? "changement", preuve: { reference: page.reference?.fichier ?? join(vault, reference.chemin) } }));
             }
           } catch { inconclusive(page, "comparaison", report.constats, "La comparaison avec la référence n'a pas pu se faire."); }
         }
@@ -281,7 +343,12 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
       }
       if (page.etat === "visitee") {
         try {
-          const capture = acquired.get(page.ecran)!;
+          const capture = acquired.get(page.ecran);
+          if (!capture) {
+            page.etat = "non_visitee"; report.etat = "interrompu";
+            inconclusive(page, "controle", report.constats, "La capture de cette page est indisponible.");
+            await base.enregistrerResultat(markResult(page, id)); continue;
+          }
           if (!references.some(ref => ref.ecran === page.ecran)) ecrireReference(vault, site, page.ecran, "defaut", version, capture.png);
           if (!notes.some(note => note.entete.ecran === page.ecran)) {
             const product = join(vault, site, "produit"); mkdirSync(product, { recursive: true });

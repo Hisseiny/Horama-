@@ -33,9 +33,10 @@ let root: string;
 beforeEach(() => { root = mkdtempSync(join(tmpdir(), "horama-explorer-")); });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-async function run({ png = original, skip = "", refuse = false, failure = false, earlyEnd = false, query = "", deps = {} }: { png?: Buffer; skip?: string; refuse?: boolean; failure?: boolean; earlyEnd?: boolean; query?: string; deps?: Partial<ExplorerDependencies> } = {}) {
+async function run({ png = original, skip = "", refuse = false, failure = false, earlyEnd = false, query = "", actual, retries = 1, defilement = [0, 0], deps = {} }: { actual?: (url: string) => string; retries?: number; defilement?: [number, number]; png?: Buffer; skip?: string; refuse?: boolean; failure?: boolean; earlyEnd?: boolean; query?: string; deps?: Partial<ExplorerDependencies> } = {}) {
   let address = "https://example.org/";
   const base = new BaseMemoire();
+  const responses: string[] = [];
   const session: Session = async input => {
     await input.onCreated("session-1");
     const fin = (async () => {
@@ -54,18 +55,22 @@ async function run({ png = original, skip = "", refuse = false, failure = false,
         if (step.ecran === skip) continue;
         address = step.address + (new URL(step.address).pathname !== "/" ? "/" : "");
         address += query;
+        if (actual) address = actual(address);
         if (refuse) address = "https://example.org/wrong";
         await input.onStep({ etape: step.part, horodatage: new Date().toISOString(), action: "Ouvre une page", etat_session: "en_cours" });
-        const response = await input.onTool("relever", { ecran: step.ecran, vue: "defaut" });
-        assert.match(response, refuse ? /refusé/ : /Capture/);
+        for (let attempt = 0; attempt < retries; attempt++) {
+          const response = await input.onTool("relever", { ecran: step.ecran, vue: "defaut" });
+          responses.push(response);
+          if (!actual) assert.match(response, refuse ? /refusé/ : /Capture/);
+        }
       }
-      await input.onTool("terminer", { etat: failure ? "echec" : "reussi", raison: "Arrêt demandé." });
+      responses.push(await input.onTool("terminer", { etat: failure ? "echec" : "reussi", raison: "Arrêt demandé." }));
       return { id: "session-1", muted: false, cout_usd: 0.12, etapes: input.consigne.course.length, replay_url: "https://replay.example/1" };
     })();
     return { id: "session-1", fin };
   };
   const result = await explorer({ url: "https://example.org", max: 15, vault: join(root, "vault"), sortie: join(root, "out"), port: 9333 }, {
-    base, session, runtime: { relever: async () => ({ png, texte: "Page", url_page: address, largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture enregistrée." }),
+    base, session, runtime: { relever: async () => ({ png, texte: "Page", url_page: address, largeur: 1280, hauteur: 900, defilement, phrase: "Capture enregistrée." }),
       navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
     fetch: async input => {
       const path = new URL(String(input)).pathname;
@@ -74,7 +79,7 @@ async function run({ png = original, skip = "", refuse = false, failure = false,
     connecter: async () => ({ send: async () => ({ result: { value: 200 } }), on() {}, close() {} }),
     controler: async () => [], holo: async () => ({ status: "SUSPECTED", model: "holo4-27b", durationMs: 3, usage: null, cost_usd: null, findings: [] }), log() {}, ...deps,
   });
-  return { result, base };
+  return { result, base, responses };
 }
 
 test("paramètre de suivi ajouté : capture préparée et persistée normalement", async () => {
@@ -167,7 +172,7 @@ test("comparaison neutralisée par une décision voulu de la version", async () 
 
 test("contrôle prouvé explique Holo, hors capture et sans zone comptés honnêtement", async () => {
   const { result, base } = await run({ deps: {
-    connecter: async () => ({ send: async method => method === "Page.captureScreenshot" ? { data: original.toString("base64") } : { result: { value: 200 } }, on() {}, close() {} }),
+    connecter: async () => ({ send: async (method, params) => method === "Page.captureScreenshot" ? { data: original.toString("base64") } : { result: { value: (params as Record<string, unknown> | undefined)?.expression === "[window.scrollX, window.scrollY]" ? [0, 900] : 200 } }, on() {}, close() {} }),
     controler: async () => [{ statut: "VERIFIED_FAIL", sorte: "debordement", message: "Le texte dépasse.", selecteur: "button", valeur: "200 > 100", zone: { x: 10, y: 10, largeur: 100, hauteur: 30 } },
       { statut: "VERIFIED_FAIL", sorte: "texte_erreur", message: "Un texte d'erreur est affiché.", valeur: "undefined", zone: { x: 20, y: 1200, largeur: 80, hauteur: 20 } }],
     holo: async () => ({ status: "SUSPECTED", model: "holo4-27b", durationMs: 2, usage: null, cost_usd: null, findings: [
@@ -181,7 +186,7 @@ test("contrôle prouvé explique Holo, hors capture et sans zone comptés honnê
   assert.deepEqual(visual.preuve, { modele: "holo4-27b", phrase: "Clipped." });
   assert.equal(result.pages[0].holo?.ecartes_sans_zone, 1);
   const outside = result.constats.find(item => item.id === "accueil--controle--2")!;
-  assert.equal(outside.capture, "captures/accueil--controle--2.png"); assert.equal(outside.zone?.y, 0);
+  assert.equal(outside.capture, "captures/accueil--controle--2.png"); assert.equal(outside.zone?.y, 300);
   assert.ok(existsSync(join(root, "out", outside.capture)));
   const c4 = base.resultats[0]; assert.equal(c4.statut, "VERIFIED_FAIL"); assert.equal(c4.niveau_de_preuve, "releve");
   assert.deepEqual(c4.valeurs, { "accueil.debordement 1": "200 > 100", "accueil.texte-erreur 2": "undefined" });
@@ -270,4 +275,136 @@ test("le coût total inclut Holo sans modifier le coût de la session H", async 
   assert.equal(result.cout_usd, 0.122);
   assert.deepEqual(result.pages[0].holo?.jetons, { entree: 1000, sortie: 200 });
   assert.equal(result.pages[0].holo?.cout_usd, 0.001);
+});
+
+test("défaut à 4583 : capture viewport dédiée et zone dans l’image ; défaut visible conservé", async () => {
+  const { result } = await run({ deps: {
+    connecter: async () => ({ on() {}, close() {}, async send(method, params) {
+      if (method === "Page.captureScreenshot") {
+        assert.equal((params as Record<string, unknown> | undefined)?.captureBeyondViewport, false);
+        return { data: original.toString("base64") };
+      }
+      return { result: { value: (params as Record<string, unknown> | undefined)?.expression === "[window.scrollX, window.scrollY]" ? [0, 4200] : 200 } };
+    } }),
+    controler: async () => [
+      { statut: "VERIFIED_FAIL", sorte: "debordement", message: "Texte coupé.", zone: { x: 10, y: 4583, largeur: 100, hauteur: 40 } },
+      { statut: "VERIFIED_FAIL", sorte: "debordement", message: "Texte visible.", zone: { x: 20, y: 30, largeur: 100, hauteur: 40 } },
+    ],
+  } });
+  const [outside, inside] = result.constats;
+  assert.equal(outside.capture, "captures/accueil--controle--1.png");
+  assert.ok(existsSync(join(root, "out", outside.capture)));
+  assert.deepEqual(outside.zone, { x: 10, y: 383, largeur: 100, hauteur: 40 });
+  assert.deepEqual(outside.page, { largeur: 1280, hauteur: 900 });
+  assert.equal(inside.capture, "captures/accueil.png");
+  assert.deepEqual(inside.zone, { x: 20, y: 30, largeur: 100, hauteur: 40 });
+});
+
+test("défilement initial soustrait aux zones des contrôles", async () => {
+  const { result } = await run({ defilement: [20, 400], deps: { controler: async () => [
+    { statut: "VERIFIED_FAIL", sorte: "debordement", message: "Texte coupé.", zone: { x: 50, y: 500, largeur: 100, hauteur: 40 } },
+  ] } });
+  assert.deepEqual(result.constats[0].zone, { x: 30, y: 100, largeur: 100, hauteur: 40 });
+  assert.equal(result.constats[0].capture, "captures/accueil.png");
+});
+
+test("capture supplémentaire en échec : défaut conservé sans zone hors image", async () => {
+  const { result } = await run({ deps: {
+    connecter: async () => ({ on() {}, close() {}, async send(method) {
+      if (method === "Page.captureScreenshot") throw new Error("Capture");
+      return { result: { value: [0, 4200] } };
+    } }),
+    controler: async () => [{ statut: "VERIFIED_FAIL", sorte: "debordement", message: "Texte coupé.", zone: { x: 10, y: 4583, largeur: 100, hauteur: 40 } }],
+  } });
+  assert.equal(result.etat, "fini");
+  assert.equal(result.constats[0].statut, "VERIFIED_FAIL");
+  assert.equal(result.constats[0].zone, undefined);
+  assert.equal(result.constats[0].capture, "captures/accueil.png");
+});
+
+test("cookies préparés avant capture, client partagé puis fermé", async () => {
+  const calls: string[] = [];
+  const { result } = await run({ deps: {
+    connecter: async () => { calls.push("connect"); return { on() {}, close() { calls.push("close"); }, async send(_method, params) {
+      if (String((params as Record<string, unknown> | undefined)?.expression).includes("const deadline")) { calls.push("cookies"); return { result: { value: true } }; }
+      return { result: { value: 200 } };
+    } }; },
+    controler: async () => { calls.push("controls"); return []; },
+    runtime: { relever: async () => {
+      calls.push("capture");
+      return { png: original, texte: "Welcome", url_page: "https://example.org/", largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture" };
+    }, navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
+  } });
+  assert.deepEqual(calls.slice(0, 5), ["connect", "cookies", "capture", "controls", "close"]);
+  assert.equal(result.pages[0].cookies, "refusee");
+});
+
+test("connexion CDP indisponible : capture conservée et contrôles non conclus", async () => {
+  const { result } = await run({ deps: { connecter: async () => { throw new Error("CDP"); } } });
+  assert.equal(result.totaux.pages_visitees, 2);
+  assert.equal(result.pages[0].cookies, "aucune");
+  assert.equal(result.pages[0].statut, "INCONCLUSIVE");
+});
+
+test("redirection de même origine acceptée après une seule résolution", async () => {
+  let resolves = 0;
+  const { result, responses } = await run({ actual: url => url.includes("/faq") ? "https://example.org/help" : url, deps: {
+    fetch: async (input, init) => {
+      if (init?.redirect === "follow") {
+        resolves++;
+        const response = new Response("Welcome");
+        Object.defineProperty(response, "url", { value: "https://example.org/help" });
+        return response;
+      }
+      const path = new URL(String(input)).pathname;
+      return new Response(path === "/robots.txt" ? "" : path === "/sitemap.xml" ? "<urlset><url><loc>https://example.org/faq</loc></url></urlset>" : "Welcome", { headers: { "Content-Type": path.endsWith(".xml") ? "application/xml" : "text/html" } });
+    },
+  } });
+  assert.equal(result.etat, "fini");
+  assert.equal(result.pages[1].url_finale, "https://example.org/help");
+  assert.equal(resolves, 1);
+  assert.match(responses.at(-1)!, /Parcours terminé/);
+});
+
+for (const [actual, reason] of [
+  ["https://other.example/", "La page redirige vers un autre site"],
+  ["chrome-error://chromewebdata/", "La page n'a pas pu être chargée."],
+  ["about:blank", "La page n'a pas pu être chargée."],
+  ["https://example.org/wrong", "Page non atteinte après 2 essais"],
+]) {
+  test(`page ignorée sans boucle : ${actual}`, async () => {
+    let resolves = 0;
+    const { result, base, responses } = await run({ actual: url => new URL(url).pathname === "/" ? actual : url, retries: 2, deps: {
+      fetch: async (input, init) => {
+        if (init?.redirect === "follow") resolves++;
+        const path = new URL(String(input)).pathname;
+        return new Response(path === "/robots.txt" ? "" : path === "/sitemap.xml" ? "<urlset><url><loc>https://example.org/faq</loc></url></urlset>" : "Welcome", { headers: { "Content-Type": path.endsWith(".xml") ? "application/xml" : "text/html" } });
+      },
+    } });
+    assert.equal(result.etat, "interrompu");
+    assert.equal(result.pages[0].etat, "non_visitee");
+    assert.equal(result.pages[1].etat, "visitee");
+    assert.ok(result.constats.some(item => item.ecran === "accueil" && item.statut === "INCONCLUSIVE" && item.raison?.startsWith(reason)));
+    assert.ok(base.resultats.find(item => item.test_id === "exploration--accueil")?.raison?.startsWith(reason));
+    assert.match(responses.at(-1)!, /Parcours terminé/);
+    assert.ok(resolves <= 1);
+  });
+}
+
+test("site anglais sans sitemap et pages HTTP 404/500 : visite complète", async () => {
+  for (const status of [404, 500]) {
+    const { result } = await run({ deps: {
+      fetch: async input => {
+        const path = new URL(String(input)).pathname;
+        return new Response(path === "/robots.txt" ? "" : path.endsWith(".xml") ? "Not found" : '<html lang="en"><a href="/faq">Help</a><p>Welcome</p></html>',
+          { status: path.endsWith(".xml") ? 404 : 200, headers: { "Content-Type": "text/html" } });
+      },
+      connecter: async () => ({ on() {}, close() {}, send: async () => ({ result: { value: status } }) }),
+      controler: async () => [{ statut: "VERIFIED_FAIL", sorte: "page_en_erreur", message: "La page est en erreur.", valeur: status }],
+    } });
+    assert.equal(result.trouvees.par, "liens");
+    assert.equal(result.etat, "fini");
+    assert.ok(result.pages.every(page => page.etat === "visitee" && page.http === status));
+    assert.ok(result.constats.every(item => item.sorte === "page-erreur"));
+  }
 });
