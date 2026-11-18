@@ -21,7 +21,8 @@ import { libelleAction } from "../../agent/src/session.ts";
 import { ecrireDecision } from "../../memoire/index.ts";
 import { findHolo, startBridge, stopIfMissing } from "./agent-h.mjs";
 import { creerEcrivainMemoire, creerEcrivainSupabase } from "./decisions.mjs";
-import { dataUrl, revoir, sizeOf } from "./recapitulatif.mjs";
+import { completerNote } from "./note-passage.mjs";
+import { revoir, sizeOf } from "./recapitulatif.mjs";
 import { HEIGHT, WIDTH, capture, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, layer, navigate, openChrome, option, say, sleep } from "./scene.mjs";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
@@ -232,7 +233,8 @@ const count = (number, one, many) => `${number} ${number > 1 ? many : one}`;
 const decisions = [];
 if (report?.format === "horama-exploration-1") {
   const { totaux, trouvees, constats } = report;
-  const review = flag("sans-fin") ? [] : [...constats.filter((constat) => constat.statut === "VERIFIED_FAIL"), ...constats.filter((constat) => constat.statut === "SUSPECTED" && !constat.explique_par)];
+  const toDecide = [...constats.filter((constat) => constat.statut === "VERIFIED_FAIL"), ...constats.filter((constat) => constat.statut === "SUSPECTED" && !constat.explique_par)];
+  const review = flag("sans-fin") ? [] : toDecide;
   const pathOf = (ecran) => {
     const entry = report.pages.find((candidate) => candidate.ecran === ecran);
     return entry ? new URL(entry.url).pathname : ecran;
@@ -240,9 +242,9 @@ if (report?.format === "horama-exploration-1") {
   const proof = (constat) => (constat.source === "controle"
     ? `Prouvé par le code. Mesuré : ${constat.preuve.mesure}. Attendu : ${constat.preuve.attendu}`
     : constat.source === "holo" ? "Doute du regard de Holo, le modèle visuel de H : rien n'est prouvé." : "Écart d'image avec la capture du passage précédent.");
-  const items = review.map((constat) => {
+  const items = toDecide.map((constat) => {
     const png = readFileSync(join(OUT, constat.capture));
-    return { id: constat.id, genre: GENRE[constat.statut], etat: LOOK[constat.statut], texte: `${pathOf(constat.ecran)} : ${constat.description}`, image: dataUrl(png), zones: constat.zone ? [constat.zone] : [], page: constat.page ?? sizeOf(png),
+    return { id: constat.id, genre: GENRE[constat.statut], etat: LOOK[constat.statut], texte: `${pathOf(constat.ecran)} : ${constat.description}`, png, zones: constat.zone ? [constat.zone] : [], page: constat.page ?? sizeOf(png),
       textes: [`Page ${pathOf(constat.ecran)} : ${constat.description}`, proof(constat)], question: "C'est un bug, ou c'est voulu ?" };
   });
   const excluded = Object.entries(trouvees.exclues.reduce((all, { raison }) => ({ ...all, [raison]: (all[raison] ?? 0) + 1 }), {})).map(([raison, n]) => `${raison} (${n})`);
@@ -256,7 +258,7 @@ if (report?.format === "horama-exploration-1") {
   };
   say(`Récapitulatif : ${recap.lignes.join(" ")}`);
   try {
-    const made = await revoir({ mascot, recap, items, choix: CHOICES, presentation: true, witness, say }, () => new Promise((resolve) => (chosen = resolve)));
+    const made = await revoir({ mascot, recap, items: items.filter((item) => review.some((constat) => constat.id === item.id)), choix: CHOICES, presentation: true, witness, say }, () => new Promise((resolve) => (chosen = resolve)));
     const le = new Date().toISOString();
     for (const { item, choix } of made) {
       const constat = review.find((candidate) => candidate.id === item.id);
@@ -274,6 +276,16 @@ if (report?.format === "horama-exploration-1") {
     }
   } catch (error) {
     errors.push(`Fin du parcours : ${error.message}`);
+  }
+  // The report the runner wrote in the memory of the site, completed after the choices (issue #71, point 2).
+  try {
+    const visited = report.pages.filter((entry) => entry.etat === "visitee").map((entry) => new URL(entry.url).pathname);
+    const reasonOf = (ecran) => constats.find((constat) => constat.ecran === ecran && constat.raison)?.raison;
+    const notVisited = report.pages.filter((entry) => entry.etat !== "visitee").map((entry) => `${new URL(entry.url).pathname}${reasonOf(entry.ecran) ? ` : ${reasonOf(entry.ecran)}` : ""}`);
+    const note = completerNote({ vault: VAULT, logiciel: report.site, passage: report.passage_id, tests: { titre: "Pages", lignes: [...visited.map((path) => `Visitée : ${path}`), ...notVisited.map((line) => `Non visitée : ${line}`), ...(excluded.length ? [`Écartées à la découverte : ${excluded.join(", ")}`] : [])] }, items, decisions });
+    say(note ? `Note du passage complétée : ${join(VAULT, note)}.` : `Aucune note du passage ${report.passage_id} : rien à compléter.`);
+  } catch (error) {
+    errors.push(`Note du passage : ${error.message}`);
   }
   // The decisions in the base, then the passage « verifie », as in the development mode.
   try {

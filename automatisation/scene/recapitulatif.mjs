@@ -9,11 +9,11 @@ export const dataUrl = (png) => `data:image/png;base64,${Buffer.from(png).toStri
 export const sizeOf = (png) => ({ largeur: Buffer.from(png).readUInt32BE(16), hauteur: Buffer.from(png).readUInt32BE(20) });
 
 // mascot: (command, ...args) => layer call. recap: { titre, lignes, selection }. items: { id, genre ("defaut" or
-// "doute"), etat (of the mascot), texte (one line in the summary), image, zones, page, textes, question }. choix: the
+// "doute"), etat (of the mascot), texte (one line in the summary), png (the capture), zones, page, textes, question }. choix: the
 // answers of --choix, in order. answer(): a promise of the next { id, choix } the layer reports. Returns, per item, the
 // choice made.
 export async function revoir({ mascot, recap, items, choix = [], presentation, witness, say }, answer) {
-  await mascot("recap", { ...recap, items: items.map(({ id, genre, texte, image, zones, page }) => ({ id, genre, texte, image, zones, page })) });
+  await mascot("recap", { ...recap, items: items.map(({ id, genre, texte, png, zones, page }) => ({ id, genre, texte, image: dataUrl(png), zones, page })) });
   await witness("recapitulatif");
   const made = [];
   if (!items.length) return made;
@@ -22,7 +22,7 @@ export async function revoir({ mascot, recap, items, choix = [], presentation, w
   for (const [index, item] of items.entries()) {
     const rang = `${index + 1} sur ${items.length}`;
     const response = answer();
-    await mascot("examen", { id: item.id, rang, genre: item.genre, etat: item.etat, image: item.image, zones: item.zones, page: item.page, textes: item.textes, question: item.question });
+    await mascot("examen", { id: item.id, rang, genre: item.genre, etat: item.etat, image: dataUrl(item.png), zones: item.zones, page: item.page, textes: item.textes, question: item.question });
     await witness(`examen-${index + 1}`);
     // --choix answers by itself, after the time it takes to read: 2,5 s plus 50 ms per character.
     const words = [...item.textes, item.question].join(" ");
