@@ -3,14 +3,18 @@
 // page, whatever address is posted: the address it replays is the recorded one, said in the terminal.
 //
 // Usage: node extension/faux-service/serveur.mjs [--port 8787] [--dossier <sortie d'une exploration>] [--rythme 2]
-//          [--file 1] [--plafond 20] [--refuser 429|503]
+//          [--file 1] [--plafond 20] [--refuser 429|503] [--direct <dossier d'images> | --sans-direct]
+//   --direct: the images of the direct (issue #164), <ordre>-<n>.jpg, made by enregistrer-direct.mjs; by default
+//   direct-enregistre/ beside this file when it exists. Without images (or --sans-direct): no direct, /direct answers 404.
 //   --rythme: seconds per page; --file: places in the queue before the start (one --rythme each); --plafond: demands
 //   per hour and per address IP, then 429; --refuser: every POST answers that code (to try the window of the extension).
 // Contract (points 1 to 6 of #68, to confirm by the real service): CORS « * » on every route, OPTIONS included;
 // POST /explorations { url } → 202 { id, place }, 400 / 429 / 503 { erreur }; GET /explorations/:id → { id, etat:
 // "en_file", place } then horama-exploration-1, 404 { erreur }; GET /explorations/:id/<capture> → the image.
+// Direct (#164): GET /explorations/:id/direct → 200 image/jpeg, the last image of the page in visit (404 before the
+// first, 410 once the exploration is over); `direct: true` in GET /explorations/:id while images come.
 import { randomUUID } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -22,6 +26,13 @@ const PACE = Number(option("rythme", 2)) * 1000;
 const QUEUE = Number(option("file", 1));
 const CAP = Number(option("plafond", 20));
 const REFUSE = option("refuser", null);
+const DIRECT = process.argv.includes("--sans-direct") ? null : resolve(option("direct", fileURLToPath(new URL("direct-enregistre", import.meta.url))));
+// The images of each page of the direct, by its order: ordre -> [image 0, image 1, ...].
+const FRAMES = new Map();
+for (const name of DIRECT && existsSync(DIRECT) ? readdirSync(DIRECT).sort((a, b) => a.localeCompare(b, "en", { numeric: true })) : []) {
+  const found = /^(\d+)-(\d+)\.jpg$/.exec(name);
+  if (found) (FRAMES.get(Number(found[1])) ?? FRAMES.set(Number(found[1]), []).get(Number(found[1])))[Number(found[2])] = join(DIRECT, name);
+}
 const RECORD = JSON.parse(readFileSync(join(FOLDER, "exploration.json"), "utf8"));
 if (RECORD.format !== "horama-exploration-1") throw new Error(`${FOLDER}/exploration.json n'est pas un fichier horama-exploration-1`);
 
@@ -80,15 +91,25 @@ createServer(async (request, response) => {
   const match = /^\/explorations\/([\w-]+)(?:\/(.+))?$/.exec(pathname);
   if (request.method === "GET" && match && explorations.has(match[1])) {
     const elapsed = Date.now() - explorations.get(match[1]);
+    const waiting = QUEUE - Math.floor(elapsed / PACE);
+    const visited = Math.floor((elapsed - QUEUE * PACE) / PACE);
+    if (match[2] === "direct") {
+      // The last image of the page in visit, as the screencast of the real service keeps it.
+      if (visited >= RECORD.pages.length) return send(response, 410, { erreur: "Exploration finie : plus de direct." });
+      const frames = waiting > 0 ? null : FRAMES.get([...RECORD.pages].sort((a, b) => a.ordre - b.ordre)[visited].ordre)?.filter(Boolean);
+      if (!frames?.length) return send(response, 404, { erreur: "Pas encore d'image." });
+      const within = (elapsed - QUEUE * PACE - visited * PACE) / PACE;
+      return send(response, 200, readFileSync(frames[Math.min(frames.length - 1, Math.floor(within * frames.length))]), "image/jpeg");
+    }
     if (match[2]) {
       // A capture, by the path the file gives it (captures/…), never outside the recorded folder.
       const file = normalize(join(FOLDER, decodeURIComponent(match[2])));
       if (!file.startsWith(FOLDER + sep) || !existsSync(file)) return send(response, 404, { erreur: "Capture introuvable." });
       return send(response, 200, readFileSync(file), "image/png");
     }
-    const waiting = QUEUE - Math.floor(elapsed / PACE);
     if (waiting > 0) return send(response, 200, { id: match[1], etat: "en_file", place: waiting });
-    return send(response, 200, replay(Math.floor((elapsed - QUEUE * PACE) / PACE)));
+    const report = replay(visited);
+    return send(response, 200, report.etat === "en_cours" && FRAMES.size ? { ...report, direct: true } : report);
   }
   return send(response, 404, { erreur: "Exploration inconnue." });
-}).listen(PORT, "127.0.0.1", () => console.log(`Faux service Horama sur http://127.0.0.1:${PORT} : ${RECORD.pages.length} pages de ${RECORD.adresse}, ${PACE / 1000} s par page.`));
+}).listen(PORT, "127.0.0.1", () => console.log(`Faux service Horama sur http://127.0.0.1:${PORT} : ${RECORD.pages.length} pages de ${RECORD.adresse}, ${PACE / 1000} s par page, ${FRAMES.size ? `direct : ${FRAMES.size} pages d'images (${DIRECT})` : "sans direct"}.`));
