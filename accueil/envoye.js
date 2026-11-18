@@ -3,6 +3,7 @@
 // La mascotte et le trait viennent des fichiers de l'équipe, importés tels quels.
 import { creerMascotte } from "./mascotte.js";
 import { tracerDefaut } from "./trait.js";
+import { RAPPORT_URL, SERVICE } from "./service.js";
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -216,11 +217,56 @@ cas.addEventListener("click", e => {
 });
 cas.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.closest(".suite a")) repondre(null); });
 
-// ---------- les champs : c'est une maquette, on le dit ----------
-for (const f of $$("form[data-envoi]")) f.addEventListener("submit", e => {
+// ---------- les champs : l'adresse part au service (#68) ----------
+// Provisoire : sans page de rapport (RAPPORT_URL vide), le suivi est dit en texte sous le champ : la place dans la file,
+// la visite, puis la phrase de bilan. Avec RAPPORT_URL, le visiteur y est envoyé dès que le service accepte l'adresse.
+const compte = (n, un, plusieurs) => `${n} ${n > 1 ? plusieurs : un}`;
+const pause = (ms) => new Promise(r => setTimeout(r, ms));
+async function suivre(id, dire) {
+  for (;;) {
+    const r = await fetch(`${SERVICE}/explorations/${encodeURIComponent(id)}`);
+    const corps = await r.json().catch(() => ({}));
+    if (r.status !== 200) { dire(corps.erreur || `Le service a répondu ${r.status}.`); return "fini"; }
+    if (corps.etat === "en_file") dire(corps.place > 0 ? `En attente : ${compte(corps.place, "visite passe", "visites passent")} avant la vôtre.` : "Il part…");
+    else if (corps.format === "horama-exploration-1") {
+      const { totaux } = corps;
+      if (corps.etat === "en_cours") dire(`Il visite le site : ${compte(totaux.pages_visitees, "page visitée", "pages visitées")} sur ${totaux.pages_trouvees}.`);
+      else if (!totaux.pages_visitees) {
+        const raison = (corps.agents?.find(a => a.raison)?.raison ?? corps.pages?.find(p => p.raison)?.raison ?? "").trim().replace(/\.+$/, "");
+        dire(raison ? `Horama n'a pas pu visiter ce site : ${raison.charAt(0).toLowerCase()}${raison.slice(1)}.` : "Horama n'a pas pu visiter ce site.");
+        return "fini";
+      } else {
+        dire(`J'ai fini : ${compte(totaux.defauts, "défaut prouvé", "défauts prouvés")}, ${totaux.doutes} à trancher, sur ${compte(totaux.pages_visitees, "page visitée", "pages visitées")}.`);
+        return totaux.defauts ? "trouve" : "fini";
+      }
+    }
+    await pause(1000);
+  }
+}
+for (const f of $$("form[data-envoi]")) f.noValidate = true; // « monsite.fr » accepté : https:// est ajouté plus bas
+for (const f of $$("form[data-envoi]")) f.addEventListener("submit", async e => {
   e.preventDefault();
-  const n = f.parentElement.querySelector(".retour"); if (n) n.textContent = "Maquette de direction artistique : l'envoi sera branché sur le service.";
-  forcer("fini", 1800);
+  const n = f.parentElement.querySelector(".retour");
+  const dire = (texte) => { if (n) n.textContent = texte; };
+  const bouton = f.querySelector("button"), champ = f.querySelector("input");
+  let adresse = champ.value.trim();
+  if (!adresse) { dire("Donnez l'adresse d'un site."); return; }
+  if (!/^https?:\/\//i.test(adresse)) adresse = `https://${adresse}`;
+  bouton.disabled = true;
+  dire("Il part…");
+  forcer("regarde", 600000);
+  let fin = "fini";
+  try {
+    const r = await fetch(`${SERVICE}/explorations`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: adresse }) });
+    const corps = await r.json().catch(() => ({}));
+    if (r.status !== 202 || !corps.id) dire(corps.erreur || `Le service a répondu ${r.status}.`);
+    else if (RAPPORT_URL) { location.href = `${RAPPORT_URL}?id=${encodeURIComponent(corps.id)}&service=${encodeURIComponent(SERVICE)}`; return; }
+    else fin = await suivre(corps.id, dire);
+  } catch {
+    dire("Le service ne répond pas : réessayez dans un instant.");
+  }
+  bouton.disabled = false;
+  forcer(fin, 2600);
 });
 
 // ---------- départ ----------
