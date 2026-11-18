@@ -48,6 +48,12 @@ node automatisation/reveil/pr.mjs --depot <propriétaire/dépôt> --logiciel <lo
 - **Le vault** : `--vault vault-horama` par défaut. Les décisions, la note du passage et les corrections de note s'y écrivent : c'est la mémoire du mode dev. Pour un essai, donner une copie.
 - **Sorties** : `<sortie>/pr-<numéro>-<commit court>/` (`.orchestrateur/reveil-pr/` par défaut) : `impact.json`, `reveil.json` (heures, état, `impact_ms`, `scene_lancee_ms`, `total_ms`), `scene/`.
 - **Essai sans vraie PR** : `--faux-github <fichier.json>` lit `{ prs: [{ numero, adresse, titre, base, tete }], deploiements: { <sha>: { etat, adresse } }, fichiers: { <numéro>: [...] } }` à la place de GitHub.
+- **À blanc** : `--a-blanc` regarde GitHub une fois et ne joue rien : ni scène, ni H, ni écriture. Il affiche :
+  - le nombre de déploiements Preview du dépôt (« aucun » veut dire que Vercel n'y est pas encore relié) ;
+  - chaque PR ouverte, avec l'état de la prévisualisation de son dernier commit et ses fichiers ;
+  - les tests que la PR ferait rejouer, et ceux écartés.
+
+  Pour le clone : `node automatisation/reveil/pr.mjs --depot Hisseiny/eugenia-school-website --logiciel eugenia-clone --a-blanc`. Le dépôt est public, la lecture ne demande aucun accès.
 - **Ce qu'il faut côté cible** (Ali, #78) : le dépôt relié à Vercel avec une prévisualisation par PR, la protection des prévisualisations coupée (sinon l'agent tombe sur la connexion Vercel), les formulaires désactivés sur la démo. `gh` doit être connecté avec un compte qui lit le dépôt.
 
 ## Vérifier

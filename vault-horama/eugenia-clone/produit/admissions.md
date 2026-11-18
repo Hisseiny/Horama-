@@ -12,7 +12,7 @@ zones_ignorees: []
 
 Relevé le 18/11 sur le clone servi en local (commit `4e7dd32`), texte de la page tel qu'affiché.
 
-Fil d'Ariane « Accueil / Admissions », titre « Admissions », puis « Quatre étapes, hors Parcoursup. La candidature est gratuite pour les résidents de l'Union européenne. »
+Fil d'Ariane « Accueil / Admissions », titre « Admissions » (à 1280 × 900, coupé en « Admission » et « s » sur deux lignes), puis « Quatre étapes, hors Parcoursup. La candidature est gratuite pour les résidents de l'Union européenne. »
 
 « Comment se passe ta candidature. » décrit quatre étapes :
 1. « Candidature en ligne » : « Ton dossier, en ligne. Gratuit pour les résidents UE. »
