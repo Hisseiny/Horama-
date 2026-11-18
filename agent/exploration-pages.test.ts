@@ -31,6 +31,44 @@ const sitemap = (...urls: string[]) => `<urlset>${urls.map((url) => `<url><loc>$
 const link = (...urls: string[]) => urls.map((url) => `<a href="${url}">Page</a>`).join("");
 const redirect = (location: string) => () => new Response(null, { status: 302, headers: { location } });
 
+test("réserve une place par section malgré un menu plein, ordre de découverte dans chaque section", async () => {
+  const menu = Array.from({ length: 8 }, (_, index) => `/menu-${index}`);
+  const articles = ["/journal/z", "/journal/a", "/journal/m"];
+  const events = ["/agenda/three", "/agenda/one", "/agenda/two"];
+  const routes: Record<string, Reply> = {
+    "/": `<nav>${link(...menu)}</nav>`,
+    "/sitemap.xml": sitemap(...articles, ...events),
+    ...Object.fromEntries([...menu, ...articles, ...events].map((path) => [path, ""])),
+  };
+  const setup = fixture(routes);
+  const result = await discoverPages(origin, { ...setup, max: 5 });
+  assert.deepEqual(result.pages, ["/", ...menu.slice(0, 2), articles[0], events[0]].map((path) => origin + path));
+  assert.deepEqual(result.errors, []);
+  const roomy = fixture(routes);
+  const full = await discoverPages(origin, { ...roomy, max: 15 });
+  assert.deepEqual(full.pages.filter((url) => url.includes("/journal/")), articles.slice(0, 2).map((path) => origin + path));
+  assert.deepEqual(full.pages.filter((url) => url.includes("/agenda/")), events.slice(0, 2).map((path) => origin + path));
+  assert.equal(full.excluded.filter((item) => item.reason === "section-limit").length, 2);
+});
+
+test("réservation bornée par max, remplace une erreur par le candidat suivant", async () => {
+  const paths = ["/news/z", "/news/a", "/news/b", "/events/z", "/events/a", "/events/b"];
+  const routes: Record<string, Reply> = {
+    "/": `<nav>${link("/about", "/help")}</nav>`, "/about": "", "/help": "",
+    "/sitemap.xml": sitemap(...paths),
+    ...Object.fromEntries(paths.map((path) => [path, ""])),
+    "/news/z": () => new Response("Erreur", { status: 503 }),
+  };
+  const setup = fixture(routes);
+  const result = await discoverPages(origin, { ...setup, max: 3 });
+  assert.deepEqual(result.pages, ["/", "/news/a", "/events/z"].map((path) => origin + path));
+  assert.deepEqual(result.errors.map((error) => error.message), ["HTTP 503"]);
+  const tiny = fixture(routes);
+  assert.deepEqual((await discoverPages(origin, { ...tiny, max: 2 })).pages, [origin + "/", origin + "/news/a"]);
+  const empty = fixture({ "/": "" });
+  assert.deepEqual((await discoverPages(origin, { ...empty, max: 1 })).pages, [origin + "/"]);
+});
+
 test("préfère les pages de la locale initiale, même aux liens de menu internationaux", async () => {
   for (const locale of ["/fr/fr", "/fr", "/en", "/pt-BR"]) {
     const start = locale === "/fr/fr" ? locale + ".html" : locale + "/";

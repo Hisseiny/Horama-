@@ -245,15 +245,35 @@ export async function discoverPages(url: string, { max = 15, sectionMax = 2, fet
     const children = [...candidates.keys()].filter((child) => child.startsWith(prefix) && child !== prefix);
     if (count > sectionMax && !children.some((child) => (candidates.get(child) ?? 0) > sectionMax)) repeated.add(prefix);
   }
+  function sectionOf(address: string): string | undefined {
+    return sections(address).find((prefix) => repeated.has(prefix));
+  }
+  const reserved = new Set<string>();
+  const preferredSections = queue.filter(sameLocale);
+  for (const address of preferredSections) {
+    const section = sectionOf(address);
+    if (section && address !== initial && reserved.size < max - 1) reserved.add(section);
+  }
   let attempts = 0;
   for (let index = 0; index < queue.length; index++) {
     if (locale && result.pages.length < max && attempts < max * 3 && !sameLocale(queue[index])) {
       const offset = queue.slice(index + 1).findIndex(sameLocale);
       if (offset >= 0) queue.splice(index, 0, queue.splice(index + 1 + offset, 1)[0]);
     }
+    if (result.pages.length < max && attempts < max * 3) {
+      const pending = new Map<string, number>();
+      for (let position = index; position < queue.length; position++) {
+        const section = sectionOf(queue[position]);
+        if (section && reserved.has(section) && !sectionCounts.has(section) && !pending.has(section)) pending.set(section, position);
+      }
+      if (max - result.pages.length <= pending.size) {
+        const position = pending.values().next().value;
+        if (position !== undefined && position > index) queue.splice(index, 0, queue.splice(position, 1)[0]);
+      }
+    }
     const address = queue[index];
     if (result.pages.includes(address)) continue;
-    const section = sections(address).find((prefix) => repeated.has(prefix));
+    const section = sectionOf(address);
     if (section && (sectionCounts.get(section) ?? 0) >= sectionMax) { exclude(address, "section-limit"); continue; }
     if (result.pages.length >= max) { exclude(address, "limit"); continue; }
     if (++attempts > max * 3) { exclude(address, "request-limit"); continue; }

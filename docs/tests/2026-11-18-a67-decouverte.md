@@ -369,3 +369,57 @@ $ grep -riE "eugenia|albertschool|kpmg|skema|grantthornton" agent/src
 ```
 
 Toujours aucune vérification graphique, aucun second passage visuel ou contrôle de défaut : le complément reste dans le périmètre découverte de #67/#63.
+
+## Relecture PR #81 — réservation des sections
+
+Une place est maintenant réservée à chaque section répétitive détectée, dans la limite de max moins la place de départ. La réservation minimale est **une** page (donc au plus sectionMax) ; le reste reste accessible selon le budget et le plafond de section. Une section déjà visitée satisfait sa réservation. Les échecs réseau ne la satisfont pas : le candidat suivant est tenté. Quand le budget est trop petit pour toutes les sections, priorité à leur première apparition. Avec une locale, seules les sections de cette locale réservent des places ; le repli hors locale ne doit pas évincer les pages locales.
+
+Ordre interne choisi : **première découverte stable**, sans tri lexical ajouté ni dernière modification supposée. Les liens de menu équilibrés précèdent ceux du footer, puis les entrées du sitemap dans son ordre XML, puis les liens du corps et de profondeur. Pour une section absente du menu/footer, son premier candidat est donc sa première entrée dans le sitemap. La réservation ne change pas cet ordre. Aucun article ni domaine du banc dans le code.
+
+Tests hors ligne : menu plus grand que max avec deux sections, réservation d'une page de chacune, ordre volontairement non alphabétique dans le sitemap, deuxième page de section si budget suffisant, erreur HTTP avec remplacement par le candidat suivant, max inférieur au nombre de sections, cas sans section et max 1.
+
+### Une découverte réelle Eugenia, max 15
+
+- Durée : **1,219020197 s** ; **19 requêtes**, **15 pages retenues**, **106 exclusions**, **0 erreur**.
+- Article `/blog/fin-de-parcoursup-ce-qui-change-premiere-terminale` : **absent**. La règle générique choisit le premier article du sitemap, pas cet article précis.
+- Références : **5 sur 7** ; MSc et campus/paris ont cédé leur place aux réservations. Ce compromis est celui de la priorité stable conservée, pas une impossibilité mathématique de choisir les sept références et un article en quinze pages.
+
+Liste retenue, dans l'ordre :
+
+1. https://www.eugeniaschool.com/
+2. https://www.eugeniaschool.com/programme/bachelor-ia-business
+3. https://www.eugeniaschool.com/notre-adn
+4. https://www.eugeniaschool.com/entreprises-partenaires
+5. https://www.eugeniaschool.com/processus-admission
+6. https://www.eugeniaschool.com/evenements
+7. https://www.eugeniaschool.com/tech-hub
+8. https://www.eugeniaschool.com/certification-architecte-ia
+9. https://www.eugeniaschool.com/carrieres
+10. https://www.eugeniaschool.com/recruter-nos-etudiants
+11. https://www.eugeniaschool.com/faq
+12. https://www.eugeniaschool.com/presse
+13. https://www.eugeniaschool.com/blog/7-idees-de-business-a-lancer-pendant-ses-etudes
+14. https://www.eugeniaschool.com/evenements/apres-midi-portes-ouvertes
+15. https://www.eugeniaschool.com/projets-entreprises/dust-hackathon
+
+Proposition de réglage pour la démo : augmenter **max et sectionMax**, par exemple `{ max: 60, sectionMax: 20 }`, afin de visiter davantage d'articles dans leur ordre de découverte. Augmenter max seul ne suffit pas avec un plafond de deux articles. Ce réglage est une proposition non mesurée en réseau, pas la garantie d'atteindre l'article ni de retrouver ses défauts. Un max de 17 devrait libérer les deux places manquantes pour les références selon ce même ordre, également non mesuré. Pas de nouveau passage sur Albert School/KPMG/Grant Thornton : leurs chiffres précédents décrivent les versions précédentes, pas cette nouvelle politique.
+
+Vérification après fusions demandées de origin/dev et origin/a-57-pages-sitemaps-correctifs :
+
+```text
+$ node --test agent/exploration-pages.test.ts
+# tests 28
+# pass 28
+# fail 0
+# duration_ms 178.730023
+
+$ pnpm -r --if-present run check
+agent check: # tests 158
+agent check: # pass 158
+agent check: # fail 0
+agent check: # skipped 0
+agent check: # duration_ms 825.782672
+agent check: Done
+```
+
+Découverte seulement, toujours aucun constat visuel ni H : les deux défauts réels de #67 ne sont pas validés par cette mesure.
