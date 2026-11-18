@@ -19,13 +19,14 @@ export interface ResultatSession {
 }
 export interface SessionInput {
   consigne: Consigne;
+  maxSteps?: number;
   cle: "dev" | "demo";
   signal?: AbortSignal;
   onCreated(id: string): Promise<void>;
   onStep(etape: EtapeSession): Promise<void>;
   onTool(name: string, args: Record<string, unknown>): Promise<string>;
 }
-export interface SessionEnCours { id: string; fin: Promise<ResultatSession>; stop?(): Promise<void> }
+export interface SessionEnCours { id: string; fin: Promise<ResultatSession>; stop?(): Promise<void>; confirmStopped?(): Promise<void> }
 export type Session = (input: SessionInput) => Promise<SessionEnCours>;
 export interface NavigateurSession {
   channel: string;
@@ -54,6 +55,7 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
   if (!Number.isFinite(settle_s) || settle_s < 0) throw new Error("settle_s doit être un nombre positif ou nul de secondes.");
   let previous = false;
   return async (input) => {
+    if (input.maxSteps !== undefined && (!Number.isSafeInteger(input.maxSteps) || input.maxSteps < 1)) throw new Error("maxSteps doit être un entier positif.");
     const secret = key ?? (input.cle === "demo" ? process.env.HAI_API_KEY_DEMO : process.env.HAI_API_KEY);
     if (!secret) throw new Error("Clé H absente pour ce passage.");
     if (!navigateur) throw new Error("Le couloir scène doit fournir le navigateur et son pont local (navigateur).");
@@ -103,17 +105,21 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
           environments: [{ id: "browser", kind: "web", host: "user_device", session_id: browser.channel, settle_s, mode: { type: "visual", markdown: true } }],
           tools: input.consigne.tools,
         },
-        messages: [{ type: "user_message", message: input.consigne.task }], queue: false, max_time_s: 240, max_steps: 40,
+        messages: [{ type: "user_message", message: input.consigne.task }], queue: false, max_time_s: 240, max_steps: input.maxSteps ?? 40,
       });
     } catch (error) { await closeBrowser(browser); throw error; }
     const id: string = session.id;
     let status: string = session.status?.status ?? "";
     let stopping: Promise<void> | undefined;
+    let stopFailure: Error | undefined;
     const stop = () => stopping ??= (async () => {
       const closed = closeBrowser(browser);
       if (!TERMINAL.includes(status)) {
         try { await h("DELETE", `/sessions/${id}`, undefined, true); }
-        catch { signaler(`Session ${id} : arrêt H non confirmé ; session abandonnée.`); }
+        catch {
+          stopFailure = new Error(`Session ${id} : arrêt H non confirmé ; session abandonnée.`);
+          signaler(stopFailure.message);
+        }
       }
       await closed;
     })();
@@ -197,6 +203,6 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
       }
       return { id, muted, cout_usd: metrics?.total_cost ?? null, etapes, ...(erreur ? { erreur } : {}), ...(replay_url ? { replay_url } : {}) };
     })();
-    return { id, fin, stop };
+    return { id, fin, stop, async confirmStopped() { await stop(); if (stopFailure) throw stopFailure; } };
   };
 }

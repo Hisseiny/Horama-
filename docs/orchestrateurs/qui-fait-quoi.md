@@ -1,65 +1,57 @@
 # Qui fait quoi
 
-État à la clôture du lundi 16 novembre 2026 (mardi 17, 0 h 30). Tenu à jour par l'orchestrateur du couloir Nathan à chaque étape franchie. Cap : `docs/decisions/2026-11-16-scene-en-direct.md`. Détail daté : `docs/journal-nathan.md`.
+État du mercredi 18 novembre 2026, fin de matinée, après le recadrage de Nathan ([décision](../decisions/2026-11-18-recadrage-grand-public-et-dev.md), [feuille de route](../feuille-de-route.md)). Chaque tâche a son issue : c'est là que se suivent l'avancement et les preuves. L'historique du 16/11 est dans `docs/journal-nathan.md` et dans l'historique Git de ce fichier.
 
-## Fait et prouvé
+## Règle de partage
 
-| Brique | État | Preuve |
+- **Ali** construit le moteur : l'agent H, l'exploration et ses contrôles (`agent/`), le service en ligne, le réveil par Vercel et le commentaire sur la PR. Sa file, dans l'ordre : **#78** (issue épinglée).
+- **Le couloir Nathan** (Nathan et son orchestrateur) construit ce que le jury regarde : la scène, le récapitulatif, la note du passage dans le vault, l'extension, la page d'accueil. Nathan refait lui-même la direction artistique.
+- **Axil, Noé, Leslie, Inès** : le vault d'Eugenia, le rendu et le pitch.
+- Personne ne code dans le dossier d'un autre. Une question passe en commentaire de l'issue concernée.
+
+## Ali
+
+| Ordre | Quoi | Issue | Dossiers |
+|---|---|---|---|
+| 1 | Mode grand public sur n'importe quel site : corrections de #63, contrôle des liens (redirections, plafond), faux constats de Holo (PR #66), banc de 7 sites | #67 | `agent/` |
+| 2 | Service en ligne que le jury essaie seul, après la décision d'architecture de Nathan | #68 | à définir dans #68 |
+| 3 | Mode dev : réveil par un vrai déploiement Vercel, commentaire sur la PR du développeur | #71 points 1 et 3 | `automatisation/reveil/`, `automatisation/pr-doc/` |
+| 4 | Lecteur de valeurs : ligne vide, chiffre dans l'étiquette | #76 | `jugement/verification/` |
+
+Pas avant la fin du hackathon : #55 (accessibilité), #77 (sélection élargie), #57 étape 3 (trois agents), #54 et PR #56.
+
+## Couloir Nathan
+
+| Ordre | Quoi | Issue | Qui |
+|---|---|---|---|
+| 1 | Scène épurée, squelette sans couleur : pendant le parcours, seulement le curseur, la mascotte et un trait à la main ; tout le texte au récapitulatif. Montrée à Nathan avant toute couleur | #69 | Orchestrateur |
+| 2 | Note du passage dans le vault (« l'agent réexplique à Obsidian où sont les erreurs ») | #71 point 2 | Orchestrateur |
+| 3 | Direction artistique (méthode `/taste`), page d'accueil, extension Chrome | #69, #70, #68 | Nathan, dans une session à part |
+| | Décisions : architecture du service (#68), cible du mode dev si l'école ne donne pas le dépôt (#71), quatre sites du banc (#67), prévenir l'école des deux défauts trouvés | | Nathan |
+
+Fusion des PR, push sur `dev` ou `main`, dépenses : Nathan seul.
+
+## Le reste de l'équipe
+
+| Quoi | Qui | Issue |
 |---|---|---|
-| Facturo en ligne, v12 et v13, 15 changements activables | Fait | `docs/decisions/2026-11-16-url-faux-saas.md` |
-| Vault de Facturo : 5 notes, 13 règles, 3 tests C2, références v12 | Fait | `vault-horama/facturo/` |
-| Base Supabase | Fait | `base/appliquer.mjs --verifier` |
-| Lecture et écriture du vault (`@horama/memoire`) | Fait | 28 tests |
-| Génération des tests par Hugging Face | Marche, trop lent (16,3 s pour 10 s visés) | `jugement/generation/comparaison.md` |
-| Agent H dans un Chrome local, clics suivis, captures identiques | Prouvé, 3 passages sur 3 | `docs/tests/2026-11-16-t7-navigateur-local.md` |
-| Vérification à chaque écran pendant le parcours (valeurs, 5 règles, image) | Fait, 34 tests sur les captures réelles | `jugement/verification/` |
-| La scène : curseur, mascotte provisoire, phrases simples, trait animé, fin où l'humain tranche, décisions écrites dans le vault | Jouée de bout en bout avec le vrai agent (101 s, 4 écrans, 3 questions) | `automatisation/scene/`, `docs/captures/2026-11-16-scene/` |
-| App à 8 onglets (`interface/`) | Faite, forme abandonnée ; écrans de fin à réemployer | `docs/captures/2026-11-16-porte-direction/` |
+| Notes du vault d'Eugenia (7 pages recopiées du site), puis génération des tests | Axil, Noé, puis Leslie | #72 |
+| Vue « question ouverte » pour les réponses repliées de la FAQ | Inès ou Leslie | #72 (PR #75) |
+| Rendu de mercredi 17 h : parcours utilisateur, architecture, Loom de 2 min, feuille de route | Noé, Axil | #73 |
+| Point business, pitch | Noé | |
 
-## Nathan et son orchestrateur : la scène (ce que le jury regarde)
+Le thème « Musée grec » d'Inès (PR #65) n'est pas branché : Nathan refait la direction artistique.
 
-| N° | Tâche | État |
-|---|---|---|
-| S1, S2, S3 | Scène, vérification pendant le parcours, fin de parcours | faits, **en attente de l'avis de Nathan** sur le dernier parcours |
-| S3 (suite) | Défauts connus de la scène : une règle conforme ne montre pas ses deux valeurs ; le doute qui devient problème change de couleur hors champ ; clignotement de la couche à chaque capture ; marques des autres constats visibles pendant une question | à faire |
-| S3 (suite) | Correction de la documentation proposée après un « voulu » qui la contredit (le modèle propose la phrase, l'humain accepte, la note change) | à faire |
-| S4 | Déclenchement par un déploiement Vercel | à faire |
-| | Tenue sur 5 à 10 parcours de suite (3 muets sur 11 le 8/11 sur Nami) et vidéo de secours | à faire |
-| | Remesurer la génération avec un fournisseur plus rapide | à faire |
-| | Banc de mesure | à faire, coupé en premier si le temps manque |
+## Dossiers et propriétaires
 
-## Ali et son orchestrateur : le moteur (ce qui doit tenir)
-
-| Tâche | État |
+| Dossier | À qui |
 |---|---|
-| Agent `horama-testeur` et ses outils `relever` et `terminer` | à confirmer par Ali |
-| Coureur robuste : suivi de la session, sessions muettes relancées, coût et durée, écriture de `passages`, `evenements`, `captures` en base | A4, attente levée par T7 |
-| Outillage du dépôt (`pnpm -r check` échoue sur `@horama/contrats`, `packageManager` non exact) | à faire |
-| Mode cloud pour la version en ligne que le jury teste seul | à trancher |
-| Réponse à la proposition de partage de la décision | attendue |
-| Branche `dev-ali` | toujours absente du dépôt le 17/11 à 0 h 30 |
+| `agent/` | Ali |
+| `automatisation/reveil/`, `automatisation/pr-doc/` | Ali |
+| `automatisation/scene/`, `automatisation/impact/` | Couloir Nathan |
+| `jugement/` | Couloir Nathan, sauf #76 (Ali) |
+| `vault-horama/` | Axil, Noé, Leslie |
+| `docs/decisions/`, `docs/feuille-de-route.md` | Nathan |
+| `contrats/` | Gelés (`contrats-v2`) : un changement se décide à deux, Ali et Nathan |
 
-Le couloir Nathan n'est pas bloqué : `automatisation/scene/agent-h.mjs` contient un coureur minimal qui marche. Rien n'est encore écrit en base par la scène (elle écrit un `passage.json` local et les décisions dans le vault) : c'est le point de jonction avec le coureur d'Ali.
-
-## Le reste de l'équipe : le visuel et le pitch
-
-| Tâche | Qui |
-|---|---|
-| Mascotte définitive : 5 états (repos, vérification, interrogation, défaut, conforme), un bloc par état dans `automatisation/scene/couche-horama.js`, format et ancrage décrits dans `automatisation/scene/README.md` | groupe de Nathan |
-| Direction artistique de la scène (bulle, bandeau, boutons, écran de fin) et des écrans de fin | Inès |
-| Pitch | Noé |
-
-## En attente de Nathan (à reposer à la reprise)
-
-1. Son avis sur le dernier parcours : curseur, mascotte, rythme, phrases, fin avec les boutons.
-2. Quota Devin à 75 % (remise à zéro après la démo) : l'orchestrateur code lui-même les ajustements, ou Devin réservé à une ou deux grosses tâches, ou achat de solde.
-3. La réponse d'Ali sur le partage.
-4. Un écran d'au moins 900 px de haut utiles pour la démo (l'écran intégré du Mac ne suffit pas).
-
-## Pour rejouer la scène
-
-Depuis la racine, avec `holo` installé (`pip install "hai-agents[cli,browser]"` dans un environnement à part) et la clé de H dans `.env.local` :
-
-`node --env-file=.env.local automatisation/scene/parcours.mjs --plafond 20`
-
-Souris hors de la fenêtre de l'agent pendant le parcours ; les questions de fin se cliquent à la souris. Sans agent, pour voir le montage : ajouter `--sans-agent --rythme 3`. Les décisions s'écrivent dans `vault-horama/facturo/decisions/` : les retirer pour rejouer à zéro.
+Le format `horama-exploration-1` est le point de jonction entre le moteur d'Ali et la scène : il ne change pas sans un commentaire dans #69.

@@ -1,0 +1,23 @@
+main { max-width: 980px; margin: 0 auto; padding: 24px 24px 64px; }
+header h1 { margin: 0 0 4px; font-size: 26px; }
+h2 { margin: 32px 0 6px; font-size: 18px; }
+#etat { font-weight: 600; }
+#pages ol { margin: 8px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--filet); }
+#pages li { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--filet); }
+#pages li .chemin { overflow-wrap: anywhere; }
+#pages li.a_visiter { color: var(--gris); }
+#pages li.en_cours { font-weight: 600; }
+.marque { display: inline-block; width: 10px; height: 10px; margin-right: 8px; border-radius: 50%; background: var(--filet); vertical-align: 0; }
+.visitee .marque { background: var(--bon); }
+.visitee.defaut .marque { background: var(--defaut); }
+.en_cours .marque { background: var(--encre); animation: pouls 1s ease-in-out infinite alternate; }
+.non_visitee .marque { background: var(--gris); }
+@keyframes pouls { to { opacity: 0.2; } }
+.cartes { display: grid; gap: 22px; margin-top: 12px; }
+.carte { border: 1px solid var(--filet); padding: 14px; }
+.carte h3 { margin: 0 0 4px; font-size: 16px; }
+.carte p { margin: 4px 0 0; }
+.preuve { font-family: ui-monospace, Menlo, monospace; font-size: 13px; overflow-wrap: anywhere; }
+.capture { position: relative; overflow: hidden; margin-top: 10px; background: #eee; }
+.capture img { position: absolute; left: 0; top: 0; max-width: none; }
+.capture .zone { position: absolute; }

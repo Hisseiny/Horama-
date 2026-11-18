@@ -24,6 +24,9 @@ export interface Bridge {
 
 export interface BrowserRuntime {
   relever(ecran: string, vue: string): Promise<ReleveCapture>;
+  capturerZone?(zone: { x: number; y: number; largeur: number; hauteur: number }): Promise<{
+    png: Buffer; zone?: { x: number; y: number; largeur: number; hauteur: number }; defilement: [number, number];
+  }>;
   navigateur(): Promise<NavigateurSession>;
   close(): void;
 }

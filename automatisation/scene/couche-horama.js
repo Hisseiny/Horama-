@@ -1,32 +1,33 @@
 // Horama layer, put in every page by Page.addScriptToEvaluateOnNewDocument (see installLayer in scene.mjs). Two
 // characters: the cursor, an arrow that travels to each click of the agent and presses there, and the mascot, which
-// floats beside what it talks about, never on it. Plus the bubble tied to the mascot, the zones drawn as with a felt
-// pen (rough-notation), the banner, and the end of the course: each finding in the light, « bug » or « voulu ».
+// waits in a corner and changes its look. While the agent works, nothing else: no text, no label, no counter; a line
+// drawn as with a felt pen (rough-notation) rings what is wrong, at the moment it is found. All the text comes at the
+// end, in a panel: the summary (the choice of the tests, each defect and doubt with its capture ringed), each question
+// « bug » or « voulu », the correction of a note in the bubble of the mascot, and what was written.
 // From the cursor layer of the T7 probe (itself from Nami, extension/agent-overlay.js): the closed Shadow DOM, the
 // trusted presses followed and reported through the CDP binding horamaPress, the layer hidden for a capture.
 // Everything drawn lives in that Shadow DOM, and the whole state lives in sessionStorage: it survives a change of page.
 // The script runs in the isolated world « horama » of the page: the page's own code reaches neither window.__horama
 // nor the bindings horamaPress and horamaChoix, which only exist in that world.
 // This file is one function expression: installLayer calls it with the id of the course (a new id forgets what an
-// earlier course left), the title of the banner ("" in the probe: the cursor alone, shown at the first click), the
-// options ({ direct }: the click is not held) and `annotate` of rough-notation.
+// earlier course left), a title ("" in the probe: the cursor alone, shown at the first click, no mascot), the options
+// ({ direct }: the click is not held) and `annotate` of rough-notation.
 (function horamaLayer(PASSAGE, TITLE, OPTIONS, annotate) {
   if (window.top !== window || window.__horama) return;
   // rough-notation would add its keyframes to the head of the page: they are in the Shadow DOM below instead.
   window.__rno_kf_s = true;
 
   // ---------- The mascot: one block per state, each replaceable by an image (see README) ----------
-  // Art direction (CDO): the winged eye of the logo video, on the violet of the eye. No outline except the stamps and the
-  // graphite line of the eye; square corners everywhere except the eye, the O of the logo and the loupe.
+  // Skeleton (issue #69): the colours below are provisional and neutral; the art direction comes after, by /taste.
   const M = 96; // side of the box of a state, in px
-  const INK = "#2B2B2B"; // line of the eye and the wings
-  const NIGHT = "#2A2163"; // violet of the eye: banner, question, end
-  const BLOCK = "#3A2F86";
-  const PAPER = "#F3EBDD";
-  const IRIS = "#7F77DD"; // iris at rest, and the frame of what the eye reads
+  const INK = "#1C1C1C";
+  const PAPER = "#FFFFFF";
+  const GREY = "#6B6B6B";
+  const IRIS = "#7F77DD"; // iris of the mascot at rest
   const WING = "#AFA9EC";
-  const COLORS = { conforme: "#B6E36B", defaut: "#F26B5B", doute: "#AFA9EC" };
-  const STAMPS = { conforme: "OK", defaut: "Défaut prouvé", doute: "À trancher", bug: "Bug noté", voulu: "Voulu" };
+  // One colour for a proven defect, another for a doubt.
+  const COLORS = { conforme: "#2E9E5B", defaut: "#E5484D", doute: "#E8A33D" };
+  const STAMPS = { bug: "Bug noté", voulu: "Voulu" };
   // Two wings and one eye. The pupils (class « pupils ») are moved by the layer towards what the mascot looks at.
   const wings = `<g fill="${WING}" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round">
     <path class="wing wing-l" d="M30 46C24 30 10 24 2 28c6 3 7 7 5 10 5 1 7 5 5 8 5 1 8 5 7 9 5-1 9-4 11-9Z"/>
@@ -38,13 +39,12 @@
   const svg = (inside) => `<svg viewBox="0 0 96 96">${wings}${inside}</svg>`;
   const SPRITES = {
     repos: svg(eye(IRIS)),
-    // Reading: the violet frame of what the eye reads closes around it.
+    // Reading: a frame closes around the eye.
     verification: svg(`<path d="M22 31v-9h9M65 22h9v9M74 65v9h-9M31 74h-9v-9" fill="none" stroke="${IRIS}" stroke-width="4"/>` + eye(IRIS)),
-    interrogation: svg(eye(IRIS) + badge(WING, sign("?"))),
+    interrogation: svg(eye(IRIS) + badge(COLORS.doute, sign("?"))),
     defaut: svg(eye(COLORS.defaut) + badge(COLORS.defaut, sign("!"))),
     conforme: svg(eye(COLORS.conforme) + badge(COLORS.conforme, `<path d="M71 17.5l4 4 7.5-8" fill="none" stroke="${INK}" stroke-width="3"/>`)),
   };
-  const LOGO = `H<span class="o"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6.6" fill="${IRIS}"/><circle cx="12" cy="12" r="2.9" fill="${INK}"/><circle cx="13.7" cy="10.3" r="1.2" fill="#fff"/></svg></span>RAMA`;
 
   // ---------- Sizes and times ----------
   const TIP = { x: 7, y: 5 }; // point of the cursor arrow in its 40 px box
@@ -52,8 +52,7 @@
   const STROKE = 800; // ms to draw the line around a zone
   const GAP = 16; // between the mascot and its bubble
   const FONT = '"Segoe UI", "Avenir Next", Arial, sans-serif';
-  const LENS = 300; // diameter of the loupe, in px
-  const ZOOM = 2.4;
+  const PANEL = 1000; // width of the panel of the end
 
   const host = document.createElement("div");
   host.setAttribute("aria-hidden", "true");
@@ -63,39 +62,11 @@
     * { pointer-events: none !important; box-sizing: border-box; }
     [hidden] { display: none !important; }
     .zones { position: absolute; left: 0; top: 0; }
-    .zone { position: absolute; transition: background-color 300ms ease-out, opacity 300ms ease-out, outline-color 300ms; }
-    .zone.doute { outline: 4px dashed transparent; outline-offset: 8px; }
-    .zone.done.doute { outline-color: ${COLORS.doute}; background: ${COLORS.doute}33; }
-    .zone.done.defaut { background: ${COLORS.defaut}26; }
-    .zone.old { margin: -7px; padding: 7px; box-sizing: content-box; outline: none; border: 3px dashed ${NIGHT}; background: none !important; opacity: 0; }
+    .zone { position: absolute; }
+    .zone.old { margin: -7px; padding: 7px; box-sizing: content-box; border: 3px dashed ${GREY}; opacity: 0; transition: opacity 300ms ease-out; }
     .zone.old.done { opacity: 0.6; }
-    .zone.old::after { content: "AVANT"; position: absolute; left: 50%; top: 50%; color: ${NIGHT}; font: 800 16px/1 ${FONT}; letter-spacing: 0.08em; transform: translate(-50%, -50%); }
-    .zone b { position: absolute; right: 100%; top: 50%; min-width: 34px; height: 34px; margin-right: 18px; padding: 0 8px;
-      color: ${INK}; font: 800 21px/34px ${FONT}; text-align: center; opacity: 0; transform: translateY(-50%) scale(0.4); transition: opacity 200ms ease-out, transform 200ms ease-out, background-color 300ms; }
-    .zone.inside b { right: auto; left: 0; top: auto; bottom: 100%; margin: 0 0 14px; transform: scale(0.4); }
-    .zone.done b { opacity: 1; transform: translateY(-50%); }
-    .zone.inside.done b { transform: none; }
-    .zone.doute b { background: ${COLORS.doute}; }
-    .zone.defaut b { background: ${COLORS.defaut}; }
-    .zone.changed b { animation: bump 600ms ease-out; }
-    .stamp { display: inline-block; padding: 3px 9px; border: 3px solid currentColor; font: 800 15px/1.2 ${FONT}; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; transform: rotate(-6deg); }
-    .stamp.conforme, .stamp.voulu { color: ${COLORS.conforme}; }
-    .stamp.defaut, .stamp.bug { color: ${COLORS.defaut}; }
-    .stamp.doute { color: ${COLORS.doute}; }
-    .zone .stamp { position: absolute; right: 0; bottom: 100%; margin: 0 0 12px; background: ${NIGHT}; opacity: 0; }
-    .zone.done .stamp { animation: thunk 350ms cubic-bezier(0.3, 1.6, 0.5, 1) forwards; }
-    .dim { position: fixed; left: 0; top: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 400ms ease-out; }
+    .dim { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); opacity: 0; transition: opacity 400ms ease-out; }
     .dim.on { opacity: 1; }
-    .dim path { fill: ${NIGHT}; fill-opacity: 0.8; transition: d 450ms cubic-bezier(0.2, 0.8, 0.2, 1); }
-    .banner { position: fixed; left: 50%; top: 10px; display: flex; align-items: center; gap: 26px; height: 54px; padding: 0 24px;
-      background: ${NIGHT}; color: ${PAPER}; font: 600 19px/1 ${FONT}; white-space: nowrap; transform: translateX(-50%); }
-    .banner .title { opacity: 0.85; }
-    .banner .stamp { font-size: 14px; transform: rotate(-3deg); }
-    .banner .changed { animation: bump-stamp 700ms ease-out; }
-    @keyframes bump-stamp { 30% { transform: rotate(-3deg) scale(1.25); } }
-    .logo { display: inline-flex; align-items: center; color: ${PAPER}; font: 500 24px/1 ${FONT}; letter-spacing: 0.04em; }
-    .logo .o { display: inline-block; width: 26px; height: 26px; margin: 0 1px; border: 3px solid ${PAPER}; border-radius: 50%; background: #E6DAC4; }
-    .logo svg { display: block; width: 100%; height: 100%; }
     .mascot { position: fixed; left: 0; top: 0; width: ${M}px; height: ${M}px; will-change: transform; }
     .body { width: ${M}px; height: ${M}px; transform-origin: 50% 80%; animation: hover 3.6s ease-in-out infinite; }
     .body > * { display: block; width: ${M}px; height: ${M}px; transform-origin: 50% 50%; overflow: visible; }
@@ -112,50 +83,50 @@
     .defaut .body > * { animation: shake 420ms ease-in-out; }
     .conforme .body > * { animation: spin 640ms cubic-bezier(0.3, 1.2, 0.5, 1); }
     .jolt .body { animation: jolt 420ms cubic-bezier(0.3, 1.6, 0.5, 1); }
-    .bubble { position: absolute; left: 0; top: 0; width: max-content; max-width: 470px; padding: 16px 22px; background: ${NIGHT}; color: ${PAPER};
-      font: 600 26px/1.28 ${FONT}; white-space: normal; opacity: 0; transform: scale(0.96); transition: opacity 180ms ease-out, transform 180ms ease-out; }
+    .bubble { position: absolute; left: 0; top: 0; width: max-content; max-width: 470px; padding: 16px 22px; background: ${PAPER}; color: ${INK};
+      font: 600 24px/1.28 ${FONT}; white-space: normal; opacity: 0; transform: scale(0.96); transition: opacity 180ms ease-out, transform 180ms ease-out; }
     .bubble.on { opacity: 1; transform: none; }
     .bubble::before { content: ""; position: absolute; top: var(--tail); width: 0; height: 0; margin-top: -11px; border: 11px solid transparent; }
-    .bubble.right::before { left: -22px; border-right-color: var(--bg, ${NIGHT}); }
-    .bubble.left::before { right: -22px; border-left-color: var(--bg, ${NIGHT}); }
-    .bubble.conforme { --bg: ${COLORS.conforme}; background: ${COLORS.conforme}; color: ${NIGHT}; }
-    .bubble.defaut { --bg: ${COLORS.defaut}; background: ${COLORS.defaut}; color: ${NIGHT}; }
-    .bubble.doute { --bg: ${WING}; background: ${WING}; color: ${NIGHT}; }
-    .bubble.ask { max-width: 640px; padding: 24px 28px 28px; font-size: 32px; line-height: 1.2; }
-    .bubble.correction { font-size: 24px; }
-    .correction-file { margin-bottom: 18px; overflow-wrap: anywhere; font-size: 17px; }
+    .bubble.right::before { left: -22px; border-right-color: ${PAPER}; }
+    .bubble.left::before { right: -22px; border-left-color: ${PAPER}; }
+    .bubble.ask { max-width: 640px; padding: 24px 28px 28px; }
+    .correction-file { margin-bottom: 18px; overflow-wrap: anywhere; color: ${GREY}; font-size: 17px; }
     .correction-before { display: block; opacity: 0.7; text-decoration-thickness: 2px; }
-    .correction-after { margin: 18px 0 0; color: ${COLORS.conforme}; }
-    .rank { margin-bottom: 10px; color: ${WING}; font: 800 17px/1 ${FONT}; letter-spacing: 0.1em; text-transform: uppercase; }
-    .choices { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 24px; }
-    .choice { flex: 1; padding: 17px 20px; border: 0; color: ${NIGHT}; font: 800 22px/1 ${FONT}; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; pointer-events: auto !important; cursor: pointer;
+    .correction-after { margin: 18px 0 0; }
+    .rank { margin-bottom: 10px; color: ${GREY}; font: 700 15px/1 ${FONT}; letter-spacing: 0.1em; text-transform: uppercase; }
+    .choices { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 20px; }
+    .choice { flex: 1; padding: 15px 20px; border: 0; color: ${PAPER}; font: 700 20px/1 ${FONT}; white-space: nowrap; pointer-events: auto !important; cursor: pointer;
       transition: opacity 200ms ease-out, transform 200ms ease-out; }
     .choice.bug { background: ${COLORS.defaut}; }
     .choice.voulu { background: ${COLORS.conforme}; }
-    .choice.loupe { flex-basis: 100%; padding: 12px 20px; background: ${BLOCK}; color: ${PAPER}; font-size: 17px; }
     .choice:hover { transform: translateY(-2px); }
     .choices.made .choice { opacity: 0.3; pointer-events: none !important; }
     .choices.made .choice.chosen { opacity: 1; }
-    .bubble > .stamp { position: absolute; right: 22px; top: -18px; background: ${NIGHT}; font-size: 22px; animation: thunk 350ms cubic-bezier(0.3, 1.6, 0.5, 1); }
-    .loupe-box { position: fixed; left: 0; top: 0; width: ${LENS}px; height: ${LENS}px; opacity: 0; transform: scale(0.6); transition: opacity 220ms ease-out, transform 260ms cubic-bezier(0.3, 1.4, 0.5, 1); }
-    .loupe-box.on { opacity: 1; transform: none; }
-    .lens { position: absolute; inset: 0; overflow: hidden; border: 7px solid ${INK}; border-radius: 50%; background: #fff; }
-    .handle { position: absolute; left: 50%; top: 100%; width: 16px; height: 86px; margin: -4px 0 0 -8px; background: ${INK}; transform-origin: 50% 0; transform: rotate(var(--handle, -35deg)); }
-    .lens .page { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
-    .lens .mark { position: absolute; }
-    .lens .mark.defaut { outline: 3px solid ${COLORS.defaut}; outline-offset: 4px; }
-    .lens .mark.doute { outline: 3px dashed ${IRIS}; outline-offset: 4px; }
-    .end { position: fixed; left: 50%; top: 50%; width: 860px; padding: 40px 48px; background: ${NIGHT}; color: ${PAPER}; font: 600 22px/1.4 ${FONT};
-      opacity: 0; transform: translate(-50%, -46%); transition: opacity 300ms ease-out, transform 300ms ease-out; }
-    .end.on { opacity: 1; transform: translate(-50%, -50%); }
-    .end .logo { margin-bottom: 26px; }
-    .end > .stamp { position: absolute; right: 44px; top: 36px; font-size: 26px; padding: 6px 14px; opacity: 0; }
-    .end.on > .stamp { animation: thunk 380ms cubic-bezier(0.3, 1.6, 0.5, 1) 450ms forwards; }
-    .end h1 { margin: 0 0 6px; font: 700 48px/1.1 ${FONT}; }
-    .end p { margin: 0 0 26px; font: 600 30px/1.25 ${FONT}; color: ${WING}; }
-    .end small { display: block; margin-bottom: 10px; font-size: 17px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.7; }
-    .end ul { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
-    .end li { padding: 6px 10px; background: ${BLOCK}; font: 500 16px/1.3 ui-monospace, Consolas, monospace; overflow-wrap: anywhere; }
+    .stamp { display: inline-block; padding: 3px 9px; border: 3px solid currentColor; background: ${PAPER}; font: 800 18px/1.2 ${FONT}; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; transform: rotate(-6deg); }
+    .stamp.voulu, .stamp.conforme { color: ${COLORS.conforme}; }
+    .stamp.bug { color: ${COLORS.defaut}; }
+    .bubble > .stamp, .panel > .stamp { position: absolute; right: 24px; top: -18px; animation: thunk 350ms cubic-bezier(0.3, 1.6, 0.5, 1); }
+    .panel { position: fixed; left: 50%; top: 50%; width: ${PANEL}px; max-height: calc(100% - 24px); padding: 26px 32px 30px; background: ${PAPER}; color: ${INK};
+      font: 500 18px/1.4 ${FONT}; opacity: 0; transform: translate(-50%, -48%); transition: opacity 300ms ease-out, transform 300ms ease-out; }
+    .panel.on { opacity: 1; transform: translate(-50%, -50%); }
+    .panel h1 { margin: 0 0 8px; font: 700 30px/1.15 ${FONT}; }
+    .panel h2 { margin: 18px 0 8px; color: ${GREY}; font: 700 14px/1 ${FONT}; letter-spacing: 0.1em; text-transform: uppercase; }
+    .panel p { margin: 0 0 4px; }
+    .panel ul { margin: 0; padding: 0 0 0 20px; }
+    .panel li { margin: 0 0 2px; }
+    .panel .files { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; list-style: none; }
+    .panel .files li { padding: 5px 9px; background: #EEE; font: 500 15px/1.3 ui-monospace, Consolas, monospace; overflow-wrap: anywhere; }
+    .items { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 16px; }
+    .item p { margin-top: 6px; font-size: 15px; line-height: 1.3; }
+    .tag { display: inline-block; width: 12px; height: 12px; margin-right: 7px; border-radius: 50%; vertical-align: 0; }
+    .tag.defaut { background: ${COLORS.defaut}; }
+    .tag.doute { background: ${COLORS.doute}; }
+    .shot { position: relative; overflow: hidden; background: #E9E9E9; }
+    .shot img { position: absolute; left: 0; top: 0; max-width: none; }
+    .shot .mark { position: absolute; }
+    .examen .shot { margin: 4px 0 14px; }
+    .examen .texts p { font-size: 20px; }
+    .examen .question { margin-top: 10px; font: 700 24px/1.25 ${FONT}; }
     .cursor { position: fixed; left: 0; top: 0; width: 40px; height: 40px; will-change: transform; }
     .cursor svg { display: block; width: 40px; height: 40px; transform-origin: ${TIP.x}px ${TIP.y}px; transition: transform 90ms ease-out; }
     .cursor.press svg { transform: scale(0.78); }
@@ -172,15 +143,12 @@
     @keyframes spin { from { transform: rotateY(0deg); } to { transform: rotateY(360deg); } }
     @keyframes thunk { from { opacity: 0; transform: rotate(-6deg) scale(1.8); } to { opacity: 1; transform: rotate(-6deg) scale(1); } }
     @keyframes ripple { from { transform: scale(0.5); opacity: 1; } to { transform: scale(3); opacity: 0; } }
-    @keyframes bump { 30% { transform: scale(1.16); } }
     @keyframes jolt { 35% { transform: translateY(-14px) scale(1.06); } 70% { transform: translateY(2px); } }
   </style>
-  <div class="zones"></div><svg class="dim"><path fill-rule="evenodd"/></svg><div class="banner" hidden></div><div class="end"></div>
-  <div class="loupe-box"><div class="handle"></div><div class="lens"></div></div>
+  <div class="zones"></div><div class="dim"></div><div class="panel"></div>
   <div class="mascot" hidden><div class="body"></div><div class="bubble"></div></div>
   <div class="cursor" hidden><svg viewBox="0 0 24 24"><path d="M4.2 3v16.2l4.3-4 2.9 6.6 2.9-1.3-2.9-6.5h6.1Z" fill="${INK}" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg></div>`;
-  const [zonesBox, dim, banner, mascot, body, bubble, end, cursor, loupeBox, lens] = ["zones", "dim", "banner", "mascot", "body", "bubble", "end", "cursor", "loupe-box", "lens"].map((name) => shadow.querySelector(`.${name}`));
-  const dimPath = dim.firstChild;
+  const [zonesBox, dim, panel, mascot, body, bubble, cursor] = ["zones", "dim", "panel", "mascot", "body", "bubble", "cursor"].map((name) => shadow.querySelector(`.${name}`));
 
   // ---------- State, kept across pages (sessionStorage is refused on about:blank) ----------
   const stored = () => {
@@ -191,7 +159,7 @@
       return null;
     }
   };
-  const state = stored() ?? { passage: PASSAGE, cursor: null, travel: null, mascot: null, etat: "repos", bulle: null, compteur: [0, 0, 0], zones: {}, numbers: {}, next: 1, revue: false };
+  const state = stored() ?? { passage: PASSAGE, cursor: null, travel: null, mascot: null, etat: "repos", bulle: null, zones: {}, revue: false };
   const save = () => {
     try {
       sessionStorage.setItem("horama", JSON.stringify(state));
@@ -202,7 +170,7 @@
   if (state.bulle && state.bulle.page !== here()) state.bulle = null;
   const norm = (text) => (text ?? "").replace(/\s+/g, " ").trim();
   // No line break inside a number, nor between a quote mark or a sign and its word.
-  const typo = (text) => text.replace(/« /g, "«\u00a0").replace(/ (?=[»:;?!€])/g, "\u00a0").replace(/(\d) (?=\d)/g, "$1\u00a0");
+  const typo = (text) => text.replace(/« /g, "« ").replace(/ (?=[»:;?!€])/g, " ").replace(/(\d) (?=\d)/g, "$1 ");
   const wait = (ms) => new Promise((done) => setTimeout(done, ms));
   const element = (tag, className, text) => Object.assign(document.createElement(tag), { className, textContent: text ?? "" });
   // A rectangle of the page (x, y, largeur, hauteur) as a box of the screen, `by` px wider on each side.
@@ -211,9 +179,9 @@
 
   // ---------- Where things are, each frame: the cursor along its path, the mascot on its spring, its eyes ----------
   if (TITLE && !state.cursor) state.cursor = { x: Math.round(innerWidth * 0.52), y: Math.round(innerHeight * 0.62) };
-  // While the agent runs the mascot says nothing and waits in a corner of the page, under the banner.
+  // While the agent runs the mascot says nothing and waits in a corner of the page.
   const corners = () => {
-    const [left, right, top, bottom] = [24, innerWidth - M - 24, (TITLE ? 72 : 8) + 16, innerHeight - M - 24];
+    const [left, right, top, bottom] = [24, innerWidth - M - 24, 24, innerHeight - M - 24];
     return [{ x: right, y: bottom }, { x: left, y: bottom }, { x: right, y: top }, { x: left, y: top }];
   };
   let goal = state.mascot ?? corners()[0];
@@ -246,10 +214,9 @@
     ring.addEventListener("animationend", () => ring.remove(), { once: true });
     shadow.append(ring);
   };
-  // The eyes look at what the mascot talks about; with nothing to say, at the cursor; straight ahead when it talks to us.
+  // The eyes look at the cursor while the agent works; straight ahead at the end.
   const look = () => {
-    const about = state.bulle?.cible;
-    const target = about ? { x: about.x - scrollX + about.largeur / 2, y: about.y - scrollY + about.hauteur / 2 } : state.bulle || state.revue ? null : cursorAt;
+    const target = state.bulle || state.revue ? null : cursorAt;
     const dx = target ? target.x - at.x - M / 2 : 0;
     const dy = target ? target.y - at.y - M / 2 : 0;
     const reach = (4.2 * Math.min(1, Math.hypot(dx, dy) / 80)) / (Math.hypot(dx, dy) || 1);
@@ -297,12 +264,11 @@
     body.innerHTML = SPRITES[name];
   };
 
-  // ---------- Where the mascot stands: beside what it talks about, hiding as little as it can ----------
+  // ---------- Where the mascot stands: hiding as little as it can ----------
   // Room kept free around the cursor, or around the point where it is about to land.
   const clearance = ({ x, y }) => ({ left: x - 70, top: y - 70, right: x + 110, bottom: y + 120, weight: 60 });
-  // What must stay readable: the texts and the controls of the page, and far more the zones, what the mascot points at
-  // and the cursor.
-  const busy = (about) => {
+  // What must stay readable: the texts and the controls of the page, and far more the zones and the cursor.
+  const busy = () => {
     const boxes = [];
     for (const control of document.querySelectorAll("a, button, summary, input, select, textarea")) {
       for (const { left, top, right, bottom } of control.getClientRects()) boxes.push({ left: left - 6, top: top - 6, right: right + 6, bottom: bottom + 6, weight: 10 });
@@ -314,26 +280,24 @@
       range.selectNodeContents(node);
       for (const { left, top, right, bottom } of range.getClientRects()) boxes.push({ left: left - 6, top: top - 6, right: right + 6, bottom: bottom + 6, weight: 10 });
     }
-    for (const zone of state.zones[here()] ?? []) boxes.push({ ...box(zone, 24, 60), ...(zone.n && { left: zone.x - scrollX - 74 }) });
-    if (about) boxes.push(box(about, 24, 60));
+    for (const zone of state.zones[here()] ?? []) boxes.push(box(zone, 24, 60));
     if (state.cursor && !state.revue) boxes.push(clearance(state.cursor));
     return boxes;
   };
   const hidden = (left, top, width, height, boxes) => boxes.reduce((sum, { left: l, top: t, right, bottom, weight }) =>
     sum + weight * Math.max(0, Math.min(left + width, right) - Math.max(left, l)) * Math.max(0, Math.min(top + height, bottom) - Math.max(top, t)), 0);
-  // The best place for the mascot and a bubble of this size on one of its sides: near `about` (failing that the cursor;
-  // with `stay`, near where it already is), whole in the screen, under the banner.
-  function place(about, width, height, stay) {
-    const boxes = busy(about);
-    const top = TITLE ? 72 : 8;
-    const near = stay ? null : about ? box(about) : state.cursor && { left: state.cursor.x, top: state.cursor.y, right: state.cursor.x, bottom: state.cursor.y };
+  // The best place for the mascot and a bubble of this size on one of its sides: near the cursor (with `stay`, near
+  // where it already is), whole in the screen.
+  function place(width, height, stay) {
+    const boxes = busy();
+    const near = stay || !state.cursor ? null : { left: state.cursor.x, top: state.cursor.y, right: state.cursor.x, bottom: state.cursor.y };
     let best = null;
-    for (let y = top; y <= innerHeight - M - 8; y += 20) {
+    for (let y = 8; y <= innerHeight - M - 8; y += 20) {
       for (let x = 8; x <= innerWidth - M - 8; x += 20) {
-        for (const side of width ? ["right", "left"] : ["right"]) {
+        for (const side of ["right", "left"]) {
           const bx = side === "right" ? x + M + GAP : x - GAP - width;
           if (bx < 8 || bx + width > innerWidth - 8) continue;
-          const by = Math.max(top, Math.min(y + M / 2 - height / 2, innerHeight - height - 8));
+          const by = Math.max(8, Math.min(y + M / 2 - height / 2, innerHeight - height - 8));
           const far = near ? Math.hypot(Math.max(near.left - x - M, x - near.right, 0), Math.max(near.top - y - M, y - near.bottom, 0)) : 0;
           const cost = hidden(x, y, M, M, boxes) + hidden(bx, by, width, height, boxes) + 25 * far + 4 * Math.hypot(x - goal.x, y - goal.y);
           if (!best || cost < best.cost) best = { cost, x, y, side, left: bx - x, top: by - y, tail: Math.max(24, Math.min(y + M / 2 - by, height - 24)) };
@@ -348,7 +312,7 @@
     return !best || cost < best.cost ? { ...spot, cost } : best;
   }, null);
 
-  // ---------- Bubble: tied to the mascot, one at a time; the mascot moves first, then the bubble appears ----------
+  // ---------- Bubble (end only): tied to the mascot, one at a time; the mascot moves first, then the bubble ----------
   let turn = 0;
   const choices = element("div", "choices");
   for (const [choix, label] of [["bug", "C'est un bug"], ["voulu", "C'est voulu"]]) {
@@ -356,52 +320,15 @@
     button.addEventListener("click", (event) => event.isTrusted && window.__horama.choisir(choix));
     choices.append(button);
   }
-  // A third button, under the two others: the loupe, which shows the zone of the finding magnified beside it.
-  const loupeButton = element("button", "choice loupe", "Voir à la loupe");
-  loupeButton.addEventListener("click", (event) => event.isTrusted && window.__horama.loupe(!loupeBox.classList.contains("on")));
-  choices.append(loupeButton);
   const correctionChoices = element("div", "choices");
   for (const [choice, label, color] of [["accepter", "Accepter", "voulu"], ["refuser", "Refuser", "bug"]]) {
     const button = element("button", `choice ${color} ${choice}`, label);
     button.addEventListener("click", (event) => event.isTrusted && window.__horama.chooseCorrection(choice));
     correctionChoices.append(button);
   }
-
-  // ---------- The loupe: a copy of the page, magnified, in a round lens beside the zone (no blur, no screenshot) ----------
-  function showLoupe(on) {
-    const question = state.bulle?.question;
-    const zone = question && (state.zones[here()] ?? []).find((candidate) => candidate.id === question.id && !candidate.trait);
-    loupeButton.textContent = on && zone ? "Fermer la loupe" : "Voir à la loupe";
-    if (!on || !zone) return void loupeBox.classList.remove("on");
-    const inner = LENS - 14;
-    const page = element("div", "page");
-    const style = getComputedStyle(document.body);
-    page.style.cssText = `width:${document.documentElement.scrollWidth}px;height:${document.documentElement.scrollHeight}px;background:${style.backgroundColor};`;
-    // The page's own styles, then its body (a <body> element, so that its rules still apply), then the mark of the zone.
-    for (const sheet of document.querySelectorAll("style, link[rel=stylesheet]")) page.append(sheet.cloneNode(true));
-    page.append(document.body.cloneNode(true));
-    const mark = element("div", `mark ${zone.genre}`);
-    mark.style.cssText = `left:${zone.x}px;top:${zone.y}px;width:${zone.largeur}px;height:${zone.hauteur}px`;
-    page.append(mark);
-    const cx = zone.x + zone.largeur / 2;
-    const cy = zone.y + zone.hauteur / 2;
-    page.style.transform = `translate(${inner / 2 - cx * ZOOM}px, ${inner / 2 - cy * ZOOM}px) scale(${ZOOM})`;
-    lens.replaceChildren(page);
-    // Beside the question, on the side away from the mascot (else the other side), whole in the screen, under the banner.
-    const card = bubble.getBoundingClientRect();
-    const leftRoom = card.left - LENS - 24 >= 8;
-    const rightRoom = card.right + LENS + 24 <= innerWidth - 8;
-    const mascotRight = goal.x > card.left;
-    const right = mascotRight ? !leftRoom && rightRoom : rightRoom || !leftRoom;
-    const x = right ? card.right + 24 : card.left - LENS - 24;
-    loupeBox.style.left = `${Math.max(8, Math.min(innerWidth - LENS - 8, x))}px`;
-    loupeBox.style.top = `${Math.max(76, Math.min(innerHeight - LENS - 90, card.top + card.height / 2 - LENS / 2))}px`;
-    loupeBox.style.setProperty("--handle", right ? "-35deg" : "35deg");
-    loupeBox.classList.add("on");
-  }
   function layout() {
     const { bulle } = state;
-    bulle.spot = place(bulle.cible, bubble.offsetWidth, bubble.offsetHeight, state.revue && !bulle.cible);
+    bulle.spot = place(bubble.offsetWidth, bubble.offsetHeight, state.revue);
     save();
   }
   async function renderBubble(live) {
@@ -413,17 +340,13 @@
       if (mine !== turn) return;
     }
     if (!bulle) return void bubble.classList.remove("on");
-    bubble.className = `bubble ${bulle.genre}${bulle.question || bulle.correction ? " ask" : ""}${bulle.correction ? " correction" : ""}`;
+    bubble.className = `bubble${bulle.correction ? " ask" : ""}`;
     if (bulle.correction) {
       const correction = bulle.correction;
       correctionChoices.className = `choices${correction.choice ? " made" : ""}`;
       for (const button of correctionChoices.children) button.classList.toggle("chosen", button.classList.contains(correction.choice));
       bubble.replaceChildren(element("div", "rank", "Corriger la note"), element("div", "correction-file", correction.file), element("del", "correction-before", correction.before), element("p", "correction-after", correction.after), correctionChoices);
       if (correction.status) bubble.append(element("div", "stamp conforme", correction.status === "acceptee" ? "Correction acceptée" : "Correction refusée"));
-    } else if (bulle.question) {
-      choices.className = "choices";
-      for (const button of choices.children) button.classList.remove("chosen");
-      bubble.replaceChildren(element("div", "rank", bulle.question.rang), element("div", "", typo(bulle.question.texte)), choices);
     } else bubble.textContent = typo(bulle.texte);
     if (live || !bulle.spot) layout();
     const { spot } = bulle;
@@ -452,75 +375,77 @@
     renderBubble(false);
   };
 
-  // ---------- Zones (page coordinates): a line drawn around each one, then its number ----------
+  // ---------- Zones (page coordinates): a line drawn as with a felt pen around each one, no text ----------
+  // A proven defect is circled, a doubt boxed, each in its colour; where the thing used to be, a grey dashed frame.
+  const pen = (genre, animate) => ({ type: genre === "defaut" ? "circle" : "box", color: COLORS[genre], strokeWidth: genre === "defaut" ? 4 : 3, padding: genre === "defaut" ? 12 : 8, iterations: genre === "defaut" ? 1 : 2, animate, animationDuration: STROKE });
   const drawn = [];
-  const zoneClass = (zone) => `zone ${zone.genre}${zone.trait ? " old" : ""}${zone.x < 70 ? " inside" : ""}`;
   async function drawZone(zone, animate) {
-    const frameOf = element("div", zoneClass(zone));
+    const frameOf = element("div", `zone${zone.trait ? " old" : ""}`);
     frameOf.style.cssText = `left:${zone.x}px;top:${zone.y}px;width:${zone.largeur}px;height:${zone.hauteur}px`;
     zonesBox.append(frameOf);
     const item = { zone, element: frameOf };
     drawn.push(item);
     if (zone.trait) {
-      // Where the thing used to be: a dashed frame, which fades in.
       void frameOf.offsetWidth;
       frameOf.classList.add("done");
       return animate && wait(300);
     }
-    frameOf.append(element("b", "", zone.n), element("em", `stamp ${zone.verdict ?? zone.genre}`, STAMPS[zone.verdict ?? zone.genre]));
-    // A proven defect is circled in coral; a doubt gets a lavender dashed frame (drawn by CSS when the zone is done).
-    if (zone.genre === "defaut") ring(item, animate);
-    if (animate) await wait(zone.genre === "defaut" ? STROKE : 300);
-    frameOf.classList.add("done");
-    if (animate) await wait(250);
+    ring(item, animate);
+    if (animate) await wait(STROKE + 250);
   }
   function ring(item, animate) {
-    item.annotation = annotate(item.element, { type: "circle", color: COLORS.defaut, strokeWidth: 4, padding: 12, iterations: 1, animate, animationDuration: STROKE });
+    item.annotation = annotate(item.element, pen(item.zone.genre, animate));
     item.annotation.show();
   }
-  const restamp = (item) => {
-    const stamp = item.element.querySelector(".stamp");
-    if (!stamp) return;
-    const kind = item.zone.verdict ?? item.zone.genre;
-    stamp.className = `stamp ${kind}`;
-    stamp.textContent = STAMPS[kind];
-  };
   const follow = () => {
     zonesBox.style.transform = `translate(${-scrollX}px, ${-scrollY}px)`;
-    if (state.revue) renderDim();
   };
 
-  // ---------- Banner ----------
-  const renderBanner = (before = state.compteur) => {
-    banner.hidden = !TITLE;
-    // The counters are stamps: OK, défauts, à trancher.
-    const words = [["OK", "OK", "conforme"], ["défaut", "défauts", "defaut"], ["à trancher", "à trancher", "doute"]];
-    banner.replaceChildren(Object.assign(element("span", "logo"), { innerHTML: LOGO }), element("span", "title", TITLE), ...words.map(([one, many, genre], index) => {
-      const count = state.compteur[index];
-      return element("span", `stamp ${genre}${count === before[index] ? "" : " changed"}`, `${count} ${count > 1 ? many : one}`);
-    }));
-  };
-
-  // ---------- End of the course: the page goes dark except the zones of one finding ----------
-  let holes = [];
-  let lit = null; // id of the finding in the light
-  function renderDim(opening) {
-    dim.classList.toggle("on", state.revue);
-    const hole = (zone, k) => {
-      const w = (zone.largeur + 32) * k;
-      const h = (zone.hauteur + 32) * k;
-      const r = 0; // square corners, as everywhere in the art direction
-      return `M${zone.x - scrollX + zone.largeur / 2 - w / 2 + r} ${zone.y - scrollY + zone.hauteur / 2 - h / 2}h${w - 2 * r}a${r} ${r} 0 0 1 ${r} ${r}v${h - 2 * r}a${r} ${r} 0 0 1 ${-r} ${r}h${2 * r - w}a${r} ${r} 0 0 1 ${-r} ${-r}v${2 * r - h}a${r} ${r} 0 0 1 ${r} ${-r}Z`;
-    };
-    const path = (k) => `path("M0 0H${innerWidth}V${innerHeight}H0Z${holes.map((zone) => hole(zone, k)).join("")}")`;
-    if (opening) {
-      dimPath.style.transition = "none";
-      dimPath.style.d = path(0.05);
-      void dimPath.getBoundingClientRect();
-      dimPath.style.transition = "";
-    }
-    dimPath.style.d = path(1);
+  // ---------- The panel of the end: all the text, and the captures with their zone ringed ----------
+  // A capture of the course (a data: address), cropped around its zones (pixels of the capture), shown w × h px, the zones
+  // ringed as they were on the page. Without a zone, the whole capture.
+  function shot({ image, zones = [], page, genre }, w, h) {
+    const frameOf = element("div", "shot");
+    frameOf.style.cssText = `width:${w}px;height:${h}px`;
+    if (!image) return { element: frameOf, show() {} };
+    const all = zones.length ? zones.reduce((a, z) => ({ x: Math.min(a.x, z.x), y: Math.min(a.y, z.y), r: Math.max(a.r, z.x + z.largeur), b: Math.max(a.b, z.y + z.hauteur) }), { x: Infinity, y: Infinity, r: -Infinity, b: -Infinity }) : null;
+    const scale = all ? Math.min(1, w / (all.r - all.x + 200), h / (all.b - all.y + 150)) : Math.min(w / page.largeur, h / page.hauteur);
+    const [rw, rh] = [w / scale, h / scale];
+    const from = (centre, size, full) => (size >= full ? (full - size) / 2 : Math.max(0, Math.min(centre - size / 2, full - size)));
+    const rx = all ? from((all.x + all.r) / 2, rw, page.largeur) : (page.largeur - rw) / 2;
+    const ry = all ? from((all.y + all.b) / 2, rh, page.hauteur) : (page.hauteur - rh) / 2;
+    const img = Object.assign(document.createElement("img"), { src: image });
+    img.style.cssText = `width:${page.largeur * scale}px;height:${page.hauteur * scale}px;left:${-rx * scale}px;top:${-ry * scale}px`;
+    frameOf.append(img);
+    const marks = zones.map((zone) => {
+      const mark = element("div", "mark");
+      mark.style.cssText = `left:${(zone.x - rx) * scale}px;top:${(zone.y - ry) * scale}px;width:${zone.largeur * scale}px;height:${zone.hauteur * scale}px`;
+      frameOf.append(mark);
+      return mark;
+    });
+    // rough-notation measures the element: the rings are drawn once the panel is shown.
+    return { element: frameOf, show: (animate) => marks.forEach((mark) => annotate(mark, pen(genre, animate)).show()) };
   }
+  const placeBeside = () => {
+    const card = panel.getBoundingClientRect();
+    goTo({ x: Math.max(8, card.left - M - 12), y: Math.max(8, card.top) });
+  };
+  async function showPanel(children, shots = []) {
+    panel.classList.remove("on");
+    panel.replaceChildren(...children);
+    void panel.offsetWidth;
+    panel.classList.add("on");
+    placeBeside();
+    await wait(320);
+    for (const item of shots) item.show(true);
+    // Resolves once the rings are drawn.
+    if (shots.length) await wait(STROKE + 100);
+  }
+  const list = (lines) => {
+    const ul = element("ul");
+    ul.append(...lines.map((line) => element("li", "", typo(line))));
+    return ul;
+  };
 
   // The script runs before the page has a root element, and the page may replace its content: attach when possible.
   let started = false;
@@ -541,8 +466,7 @@
   });
   window.addEventListener("scroll", follow, true);
 
-  renderBanner();
-  renderDim();
+  dim.classList.toggle("on", state.revue);
   setEtat(state.etat);
   mascot.hidden = !TITLE;
   cursor.hidden = !state.cursor || state.revue;
@@ -552,24 +476,18 @@
   attach();
 
   // ---------- Commands called by the script (CDP Runtime.evaluate; a promise is awaited) ----------
+  let examined = null; // id of the finding whose question is asked
   window.__horama = {
     // repos, verification, interrogation, defaut, conforme. sursaut: the mascot jumps once as it takes this state.
     etat(name, sursaut) {
       setEtat(name);
-      if (sursaut) mascot.classList.add("jolt");
+      mascot.classList.toggle("jolt", Boolean(sursaut));
     },
-    // One bubble at a time, null to hide it. genre: "", "conforme", "defaut" or "doute" (its colour). cible: the rectangle
-    // of the page the mascot talks about and stands beside; none: the cursor. Resolves once the bubble is shown.
-    bulle(texte, genre = "", cible = null) {
-      state.bulle = texte ? { texte, genre, cible, page: here() } : null;
+    // One bubble at a time (end only), null to hide it. Resolves once the bubble is shown.
+    bulle(texte) {
+      state.bulle = texte ? { texte, page: here() } : null;
       save();
       return renderBubble(true);
-    },
-    compteur(bons, problemes, doutes) {
-      const before = state.compteur;
-      state.compteur = [bons, problemes, doutes];
-      save();
-      renderBanner(before);
     },
     // Rectangles of the text of the elements whose displayed text is exactly `texte` (the smallest element that holds it).
     trouver(texte) {
@@ -584,6 +502,15 @@
           return rounded({ x: left + scrollX, y: top + scrollY, largeur: width, hauteur: height });
         })
         .filter((rect) => rect.largeur > 0 && rect.hauteur > 0);
+    },
+    // The rectangle of the first element the CSS selector finds, in page coordinates; [] when there is none.
+    element(selecteur) {
+      let found = null;
+      try {
+        found = document.querySelector(selecteur);
+      } catch {}
+      const rect = found?.getBoundingClientRect();
+      return rect && rect.width > 0 && rect.height > 0 ? [rounded({ x: rect.left + scrollX, y: rect.top + scrollY, largeur: rect.width, hauteur: rect.height })] : [];
     },
     // The element at the centre of a zone: its displayed text ("" when it is none or a whole block of the page) and the
     // rectangle that holds both the zone and that text, so that a line is drawn around the whole value, not half of it.
@@ -620,15 +547,20 @@
     },
     // Draws a line around rectangles of the page `adresse` (pathname and search), for the finding `id`; genre: "doute" or
     // "defaut"; avant: where the thing used to be, framed with dashes. Kept for when the page is that address again;
-    // drawn now when it is this page, the line first, then the number. Returns the number.
-    async surligner(adresse, rects, genre, id, avant) {
-      const n = (state.numbers[id] ??= state.next++);
-      if ((state.zones[adresse] ?? []).some((zone) => zone.id === id)) return n;
-      const zones = [...rects.map((rect) => ({ id, n, genre, ...rounded(rect) })), ...(avant ? [{ id, genre, trait: "pointille", ...rounded(avant) }] : [])];
+    // drawn now when it is this page. voir: a zone out of the screen is first scrolled into view (only where the agent
+    // does not read the page after its relevé).
+    async surligner(adresse, rects, genre, id, avant, voir) {
+      if ((state.zones[adresse] ?? []).some((zone) => zone.id === id)) return;
+      const zones = [...rects.map((rect) => ({ id, genre, ...rounded(rect) })), ...(avant ? [{ id, genre, trait: "pointille", ...rounded(avant) }] : [])];
       (state.zones[adresse] ??= []).push(...zones);
       save();
-      if (adresse !== here()) return n;
+      if (adresse !== here()) return;
       attach();
+      const first = zones[0];
+      if (voir && first && (first.y < scrollY || first.y + first.hauteur > scrollY + innerHeight)) {
+        scrollTo({ top: Math.max(0, first.y - innerHeight / 3), behavior: "smooth" });
+        await wait(600);
+      }
       // The mascot moves away first when it stands on what is about to be drawn: to another corner.
       if (hidden(goal.x, goal.y, M, M, zones.map((zone) => box(zone, 14))) > 0) {
         goTo(corner(busy()));
@@ -636,60 +568,72 @@
       }
       await Promise.all(zones.filter((zone) => !zone.trait).map((zone) => drawZone(zone, true)));
       for (const zone of zones.filter((candidate) => candidate.trait)) await drawZone(zone, true);
-      return n;
     },
-    // A doubt that became a proven defect (or the reverse): its line and its number change colour, on every page.
+    // A doubt that became a proven defect (or the reverse): its line changes colour and shape, on every page.
     requalifier(id, genre) {
       for (const zone of Object.values(state.zones).flat()) if (zone.id === id) zone.genre = genre;
       save();
-      for (const item of drawn.filter((candidate) => candidate.zone.id === id)) {
-        item.element.className = `${zoneClass(item.zone)} done changed`;
-        restamp(item);
-        if (item.zone.trait) continue;
-        if (genre === "defaut" && !item.annotation) ring(item, true);
-        if (genre !== "defaut" && item.annotation) {
-          item.annotation.remove();
-          item.annotation = null;
-        }
+      for (const item of drawn.filter((candidate) => candidate.zone.id === id && !candidate.zone.trait)) {
+        item.annotation?.remove();
+        ring(item, true);
       }
     },
     // End of the course. revue(true): the page goes dark, the cursor leaves, clicks on the page are ignored.
     revue(on) {
       state.revue = on;
-      holes = [];
-      lit = null;
       save();
       cursor.hidden = on || !state.cursor;
-      renderDim();
+      dim.classList.toggle("on", on);
     },
-    // One finding in the light: the page goes dark except its zones. Returns the zone the mascot talks about.
-    async lumiere({ id, etat }) {
-      const mine = (state.zones[here()] ?? []).filter((zone) => zone.id === id);
-      const about = mine.find((zone) => !zone.trait) ?? null;
-      if (about) scrollTo(0, Math.max(0, about.y - innerHeight / 2));
+    // The summary: { titre, lignes, selection, items }. lignes: sentences; selection: { titre, lignes } or null (the
+    // choice of the tests, development mode); items: { id, genre, texte, image, zones, page } for each defect and doubt.
+    async recap({ titre, lignes = [], selection = null, items = [] }) {
       this.revue(true);
-      holes = mine;
-      lit = id;
-      renderDim(true);
-      setEtat(etat);
-      await wait(450);
-      return about;
+      await this.bulle(null);
+      // Two rows of three at most: the others come one by one after.
+      const first = items.slice(0, 6);
+      const shots = first.map((item) => shot(item, 296, 168));
+      const children = [element("h1", "", typo(titre)), ...lignes.map((line) => element("p", "", typo(line)))];
+      if (selection) children.push(element("h2", "", selection.titre), list(selection.lignes));
+      if (items.length) {
+        const grid = element("div", "items");
+        grid.append(...first.map((item, index) => {
+          const card = element("div", "item");
+          const caption = element("p", "", typo(item.texte));
+          caption.prepend(element("span", `tag ${item.genre}`));
+          card.append(shots[index].element, caption);
+          return card;
+        }));
+        children.push(element("h2", "", "À trancher"), grid);
+        if (items.length > first.length) children.push(element("p", "", `Et ${items.length - first.length} de plus, montrés un par un ensuite.`));
+      }
+      await showPanel(children, shots);
     },
-    // The finding in the light (lumiere, unless it already is), its question in large with the two buttons. rang:
-    // « 1 sur 3 ». The answer comes back through the CDP binding horamaChoix, from a real click on a button or from choisir().
-    async question({ id, texte, rang, etat }) {
-      const about = lit === id ? (state.zones[here()] ?? []).find((zone) => zone.id === id && !zone.trait) ?? null : await this.lumiere({ id, etat });
+    // One finding, its capture ringed in large, what was found, and the question with its two buttons. rang: « 1 sur 3 ».
+    // The answer comes back through the CDP binding horamaChoix, from a real click on a button or from choisir().
+    async examen({ id, rang, genre, etat, image, zones, page, textes = [], question }) {
+      this.revue(true);
+      await this.bulle(null);
       setEtat(etat);
-      state.bulle = { question: { id, texte, rang }, genre: "", cible: about, page: here() };
-      save();
-      showLoupe(false);
-      return renderBubble(true);
+      examined = id;
+      choices.className = "choices";
+      for (const button of choices.children) button.classList.remove("chosen");
+      const big = shot({ image, zones, page, genre }, PANEL - 64, 440);
+      const texts = element("div", "texts");
+      texts.append(...textes.map((text) => element("p", "", typo(text))));
+      panel.className = "panel examen";
+      await showPanel([element("div", "rank", rang), big.element, texts, element("p", "question", typo(question)), choices], [big]);
+    },
+    // Hides the panel.
+    panneau() {
+      panel.className = "panel";
+      panel.replaceChildren();
     },
     async correction({ id, file, before, after }) {
       this.revue(true);
-      showLoupe(false);
+      this.panneau();
       setEtat("interrogation");
-      state.bulle = { correction: { id, file, before, after }, genre: "", cible: null, page: here() };
+      state.bulle = { correction: { id, file, before, after }, page: here() };
       save();
       return renderBubble(true);
     },
@@ -709,34 +653,25 @@
       save();
       return renderBubble(true);
     },
-    // The third button: the zone of the question, magnified in a loupe beside it. loupe(false) closes it.
-    loupe(on) {
-      showLoupe(on);
-    },
     choisir(choix) {
-      const id = state.bulle?.question?.id;
+      const id = examined;
       if (!id || choices.classList.contains("made")) return;
       choices.classList.add("made");
       choices.querySelector(`.${choix}`).classList.add("chosen");
-      showLoupe(false);
-      // The verdict falls as a stamp on the question and on the zone: « BUG NOTÉ » or « VOULU ».
-      bubble.append(element("div", `stamp ${choix}`, STAMPS[choix]));
-      for (const zone of Object.values(state.zones).flat()) if (zone.id === id) zone.verdict = choix;
-      save();
-      for (const item of drawn.filter((candidate) => candidate.zone.id === id)) restamp(item);
+      // The verdict falls as a stamp on the panel: « BUG NOTÉ » or « VOULU ».
+      panel.append(element("div", `stamp ${choix}`, STAMPS[choix]));
+      examined = null;
       window.horamaChoix?.(JSON.stringify({ id, choix }));
     },
-    // Last screen: what was written. { titre, compte, legende, fichiers }.
+    // Last screen: what leaves. { titre, compte, legende, fichiers }.
     async fin({ titre, compte, legende, fichiers }) {
       await this.bulle(null);
       this.revue(true);
-      const list = element("ul");
-      list.append(...fichiers.map((file) => element("li", "", file.split(/[\\/]/).pop())));
-      end.replaceChildren(Object.assign(element("div", "logo"), { innerHTML: LOGO }), element("div", "stamp conforme", "Tout est tranché"), element("h1", "", titre), element("p", "", compte), element("small", "", legende), list);
-      end.classList.add("on");
+      panel.className = "panel";
+      const files = element("ul", "files");
+      files.append(...fichiers.map((file) => element("li", "", file.split(/[\\/]/).pop())));
       setEtat("conforme");
-      const panel = end.getBoundingClientRect();
-      goTo({ x: Math.max(8, innerWidth / 2 - 430 - M * 0.55), y: Math.max(72, innerHeight / 2 - panel.height / 2 - M * 0.6) });
+      await showPanel([element("h1", "", typo(titre)), element("p", "", typo(compte)), element("h2", "", legende), files]);
     },
     masquer() {
       host.style.setProperty("display", "none", "important");

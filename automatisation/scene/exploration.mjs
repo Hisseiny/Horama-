@@ -1,0 +1,326 @@
+// The public mode in the scene (issue #69, point 5): any site, no test written. The explorer of agent/ finds the pages
+// and has the H agent visit them in the scene's Chrome; its checks write horama-exploration-1
+// (docs/decisions/2026-11-17-format-exploration.md). The scene gives it the Chrome, the bridge and our captures (layer
+// hidden), reads that file as it grows and, at the moment a page is checked, draws a line around each defect and doubt
+// of the page, without a word, while the mascot changes its look. At the end, the same summary as the development mode
+// (recapitulatif.mjs): every defect and doubt with its capture ringed, then « bug » or « voulu », written as a decision
+// in the memory of the site. Nothing here is particular to a site.
+//
+// Usage: node [--env-file=<.env.local>] automatisation/scene/exploration.mjs --url <adresse> [--max 15] [--sans-agent]
+//          [--sans-holo] [--sans-base | --avec-base] [--choix bug,voulu,...] [--sans-fin] [--par <nom>] [--rythme <s>]
+//          [--vault <dir>] [--sortie <dir>] [--temoins <dir>] [--port 9333] [--profil <dir>] [--fermer-chrome]
+// Env: HAI_API_KEY (H and Holo), SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, CHROME_BIN, HOLO_BIN.
+// Exit: 0 the exploration ended « fini » and nothing failed, 1 otherwise, 2 something is missing, 130 Ctrl+C.
+import { randomUUID } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { BaseMemoire, creerBaseSupabase, creerSessionH } from "../../agent/index.ts";
+import { explorer } from "../../agent/src/exploration/explorer.ts";
+import { libelleAction } from "../../agent/src/session.ts";
+import { ecrireDecision } from "../../memoire/index.ts";
+import { findHolo, startBridge, stopIfMissing } from "./agent-h.mjs";
+import { creerEcrivainMemoire, creerEcrivainSupabase } from "./decisions.mjs";
+import { completerNote } from "./note-passage.mjs";
+import { revoir, sizeOf } from "./recapitulatif.mjs";
+import { ouvrirVitrine } from "./vitrine.mjs";
+import { HEIGHT, WIDTH, capture, captureZone, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, layer, navigate, openChrome, option, say, sleep } from "./scene.mjs";
+
+const HERE = fileURLToPath(new URL(".", import.meta.url));
+const SANS_AGENT = flag("sans-agent");
+const URL_SITE = option("url", "");
+const MAX = Number(option("max", 15));
+const VAULT = resolve(option("vault", join(HERE, "../../vault-horama")));
+const PORT = Number(option("port", 9333));
+const PROFILE = resolve(option("profil", "/Users/nathan/Code/projet/horama/.orchestrateur/chrome-agent"));
+const ID = `${new Date().toLocaleString("sv-SE").slice(0, 16).replace(" ", "-").replace(":", "h")}-${randomUUID().slice(0, 4)}`;
+const OUT = resolve(option("sortie", `/Users/nathan/Code/projet/horama/.orchestrateur/exploration/${ID}`));
+const WITNESSES = option("temoins") ? resolve(option("temoins")) : null;
+const CHOICES = flag("choix") ? option("choix").split(",") : [];
+const PAR = option("par", "Nathan");
+const RYTHME = Number(option("rythme", 2));
+const CHROME_BIN = process.env.CHROME_BIN || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const FILE = join(OUT, "exploration.json");
+
+const missing = [];
+try {
+  if (!/^https?:$/.test(new URL(URL_SITE).protocol)) throw new Error();
+} catch {
+  missing.push("--url attend l'adresse HTTP(S) d'un site.");
+}
+if (!Number.isSafeInteger(MAX) || MAX < 1) missing.push("--max attend un entier positif.");
+if (CHOICES.some((choix) => choix !== "bug" && choix !== "voulu")) missing.push("--choix attend une liste de « bug » et de « voulu », séparés par des virgules.");
+if (flag("temoins") && !option("temoins")) missing.push("--temoins demande un dossier.");
+if (flag("sans-base") && flag("avec-base")) missing.push("--sans-base et --avec-base s'excluent.");
+if (!flag("sans-holo") && !process.env.HAI_API_KEY) missing.push("Holo demande HAI_API_KEY (sans Holo : --sans-holo).");
+let base = null;
+let ecrivain = null;
+try {
+  base = (SANS_AGENT ? flag("avec-base") : !flag("sans-base")) ? creerBaseSupabase() : new BaseMemoire();
+  ecrivain = base instanceof BaseMemoire ? creerEcrivainMemoire(base) : creerEcrivainSupabase();
+} catch (error) {
+  missing.push(`${error.message} (sans base partagée : --sans-base).`);
+}
+const holo = SANS_AGENT ? null : findHolo();
+stopIfMissing({ port: PORT, chromeBin: CHROME_BIN, sansAgent: SANS_AGENT, holo }, missing);
+
+mkdirSync(OUT, { recursive: true });
+if (WITNESSES) mkdirSync(WITNESSES, { recursive: true });
+const chrome = await openChrome({ bin: CHROME_BIN, port: PORT, profile: PROFILE });
+say(chrome.started ? `Chrome dédié lancé (${chrome.version}, port ${PORT}).` : `Un Chrome écoute déjà sur le port ${PORT} : réutilisé.`);
+const page = await connectTab(PORT);
+let chosen = null;
+await installLayer(page, () => {}, { passage: ID, titre: "Horama", onChoice: (choice) => chosen?.(choice) });
+const area = await fitViewport(page);
+if (area.largeur !== WIDTH || area.hauteur !== HEIGHT || area.densite !== 1) {
+  say(`Zone de page ${area.largeur} × ${area.hauteur} à la densité ${area.densite} au lieu de ${WIDTH} × ${HEIGHT} à la densité 1 : exploration non jouée.`);
+  process.exit(2);
+}
+const mascot = (command, ...args) => layer(page, command, ...args);
+// The showcase (--vitrine): the scene enlarged to a whole screen in a separate Chrome; this page stays 1280 × 900.
+const vitrine = flag("vitrine") ? await ouvrirVitrine(page, { chromeBin: CHROME_BIN, profil: resolve(option("profil-vitrine", "/Users/nathan/Code/projet/horama/.orchestrateur/chrome-vitrine")),
+  debugPort: flag("vitrine-debug") ? Number(option("vitrine-debug")) : null, say }) : null;
+// The page of departure at once, the mascot reading: what the audience sees while the pages are found and the H agent
+// starts (about 20 s measured on 18/11, 11 h 45), instead of a blank page.
+await navigate(page, URL_SITE);
+await mascot("etat", "verification").catch(() => {});
+let witnesses = 0;
+let capturing = false;
+async function witness(label) {
+  if (!WITNESSES || capturing) return;
+  const image = await Promise.race([page.send("Page.captureScreenshot", { format: "png" }).then(({ data }) => Buffer.from(data, "base64"), () => null), sleep(300).then(() => null)]);
+  if (image) writeFileSync(join(WITNESSES, `${String(++witnesses).padStart(2, "0")}-${label}.png`), image);
+}
+
+// ---------- What the explorer is given: our Chrome, our captures (layer hidden), the bridge of each H session ----------
+const bridges = new Set();
+const runtime = {
+  async relever() {
+    capturing = true;
+    const shot = await capture(page).finally(() => (capturing = false));
+    return { png: new Uint8Array(shot.png), texte: shot.texte_page, url_page: shot.url_page, largeur: shot.largeur, hauteur: shot.hauteur, defilement: shot.defilement, phrase: "Capture enregistrée. Continue le parcours." };
+  },
+  async navigateur() {
+    // The page stays where it is (the page of departure at first): the agent opens it again by its go_to.
+    const channel = randomUUID();
+    const bridge = startBridge({ holo, port: PORT, channel, logFile: join(OUT, "pont-holo.log") });
+    bridges.add(bridge);
+    const stopBridge = () => {
+      bridge.stop();
+      bridges.delete(bridge);
+    };
+    if (!(await bridge.ready(20_000)) && !bridge.failed) say("Le pont n'a pas écrit sa ligne de départ en 20 s : la session est créée quand même.");
+    if (bridge.failed) {
+      stopBridge();
+      throw new Error(bridge.failed);
+    }
+    return { channel, stop: stopBridge, failed: () => bridge.failed };
+  },
+  // The capture of a defect out of the first screen, for captures/<id>.png (hook validated by Ali on PR #85): scrolled
+  // at once, layer hidden, scroll put back. On failure the explorer falls back on its own capture.
+  async capturerZone(zone) {
+    capturing = true;
+    try {
+      return await captureZone(page, zone);
+    } finally {
+      capturing = false;
+    }
+  },
+  close() {
+    for (const bridge of bridges) bridge.stop();
+  },
+};
+// Without H: the script opens each page of the course and calls the tools as the agent would, one step per gesture.
+async function scriptedSession({ consigne, onCreated, onStep, onTool }) {
+  const id = `script-${ID}`;
+  let etapes = 0;
+  const gesture = (name) => onStep({ horodatage: new Date().toISOString(), etape: ++etapes, action: libelleAction([name]), etat_session: "en_cours" });
+  await onCreated(id);
+  const fin = (async () => {
+    for (const step of consigne.course) {
+      await gesture("go_to");
+      await navigate(page, step.address);
+      await sleep(RYTHME * 1000);
+      await gesture("relever");
+      say(`relever(${step.ecran}) : ${(await onTool("relever", { ecran: step.ecran, vue: "defaut" })).split("\n")[0]}`);
+      // The agent takes a step before its next gesture (8 to 10 s with H): the page stays while its lines are drawn.
+      await sleep(RYTHME * 1000);
+    }
+    await gesture("terminer");
+    await onTool("terminer", { etat: "reussi" });
+  })().then(() => ({ id, muted: false, cout_usd: null, etapes }), (error) => ({ id, muted: false, cout_usd: null, etapes, erreur: error.message }));
+  return { id, fin };
+}
+const session = SANS_AGENT ? scriptedSession : creerSessionH({ navigateur: runtime.navigateur, settle_s: 1.2, key: process.env.HAI_API_KEY, signaler: say });
+// --sans-holo: no look by Holo, at no cost; the checks by the code still run.
+const noHolo = async () => ({ status: "SUSPECTED", findings: [], model: "holo4-27b", durationMs: 0 });
+
+// ---------- While the agent works: the file is read every 250 ms, each page checked gets its lines ----------
+const read = () => {
+  try {
+    return JSON.parse(readFileSync(FILE, "utf8"));
+  } catch {
+    return null;
+  }
+};
+const GENRE = { VERIFIED_FAIL: "defaut", SUSPECTED: "doute" };
+const LOOK = { VERIFIED_FAIL: "defaut", SUSPECTED: "interrogation", INCONCLUSIVE: "repos", PASS: "conforme" };
+const shown = new Set(); // pages whose findings were handed to the mascot
+const drawnOn = new Map(); // finding id -> drawn on the live page
+let queue = Promise.resolve();
+const sameAddress = (a, b) => {
+  const [x, y] = [new URL(a), new URL(b)];
+  return x.origin === y.origin && x.pathname.replace(/\/+$/, "") === y.pathname.replace(/\/+$/, "") && x.search === y.search;
+};
+// Where a finding is on the live page: its element (CSS selector of the check), else its displayed texts, else its
+// zone of the capture of the page (taken at the top of the page, so in page coordinates).
+async function rectsOf(constat, pageEntry) {
+  const selector = constat.preuve?.element;
+  if (selector) {
+    const rects = await mascot("element", selector);
+    if (rects.length) return rects;
+  }
+  for (const text of constat.textes_a_surligner ?? []) {
+    const rects = await mascot("trouver", text);
+    if (rects.length) return rects;
+  }
+  if (constat.zone && constat.capture === pageEntry.capture?.fichier) {
+    const [dx, dy] = pageEntry.capture.defilement ?? [0, 0];
+    return [{ ...constat.zone, x: constat.zone.x + dx, y: constat.zone.y + dy }];
+  }
+  return [];
+}
+function showPage(pageEntry, constats) {
+  queue = queue.then(async () => {
+    const mine = constats.filter((constat) => constat.ecran === pageEntry.ecran && !constat.explique_par);
+    await mascot("etat", "verification");
+    const live = await evaluate(page, "location.href").catch(() => "");
+    if (live && sameAddress(live, pageEntry.url)) {
+      const address = await evaluate(page, "location.pathname + location.search");
+      for (const constat of mine.filter((candidate) => GENRE[candidate.statut])) {
+        const rects = await rectsOf(constat, pageEntry);
+        if (!rects.length) continue;
+        const drawing = mascot("surligner", address, rects, GENRE[constat.statut], constat.id, null, true);
+        await sleep(300);
+        await witness("trait-pendant-agent");
+        await drawing;
+        drawnOn.set(constat.id, rects);
+        await witness(`trait-${GENRE[constat.statut]}`);
+      }
+    }
+    const worst = ["VERIFIED_FAIL", "SUSPECTED", "INCONCLUSIVE"].find((statut) => mine.some((constat) => constat.statut === statut)) ?? "PASS";
+    await mascot("etat", LOOK[worst], worst !== "INCONCLUSIVE");
+    await sleep(1200);
+    await mascot("etat", "repos");
+  }).catch((error) => say(`Mascotte : ${error.message}`));
+}
+let watching = true;
+const watch = (async () => {
+  while (watching) {
+    const report = read();
+    for (const entry of report?.pages ?? []) {
+      if (entry.etat !== "visitee" || shown.has(entry.ecran)) continue;
+      shown.add(entry.ecran);
+      showPage(entry, report.constats);
+    }
+    await sleep(250);
+  }
+})();
+
+// ---------- The exploration ----------
+const arret = new AbortController();
+process.on("SIGINT", () => {
+  say("Interrompu : arrêt de l'exploration.");
+  arret.abort(new Error("Passage annulé par Ctrl+C."));
+});
+const errors = [];
+let report = null;
+try {
+  report = await explorer({ url: URL_SITE, max: MAX, sortie: OUT, vault: VAULT, port: PORT }, { base, runtime, session, signal: arret.signal, log: say, ...(flag("sans-holo") ? { holo: noHolo } : {}) });
+} catch (error) {
+  errors.push(error.message);
+  say(`Échec : ${error.message}`);
+}
+watching = false;
+await watch;
+report = read() ?? report;
+await queue;
+
+// ---------- The end: the summary, then bug or voulu for each defect and doubt ----------
+const count = (number, one, many) => `${number} ${number > 1 ? many : one}`;
+const decisions = [];
+if (report?.format === "horama-exploration-1") {
+  const { totaux, trouvees, constats } = report;
+  const toDecide = [...constats.filter((constat) => constat.statut === "VERIFIED_FAIL"), ...constats.filter((constat) => constat.statut === "SUSPECTED" && !constat.explique_par)];
+  const review = flag("sans-fin") ? [] : toDecide;
+  const pathOf = (ecran) => {
+    const entry = report.pages.find((candidate) => candidate.ecran === ecran);
+    return entry ? new URL(entry.url).pathname : ecran;
+  };
+  const proof = (constat) => (constat.source === "controle"
+    ? `Prouvé par le code. Mesuré : ${constat.preuve.mesure}. Attendu : ${constat.preuve.attendu}`
+    : constat.source === "holo" ? "Doute du regard de Holo, le modèle visuel de H : rien n'est prouvé." : "Écart d'image avec la capture du passage précédent.");
+  const items = toDecide.map((constat) => {
+    const png = readFileSync(join(OUT, constat.capture));
+    return { id: constat.id, genre: GENRE[constat.statut], etat: LOOK[constat.statut], texte: `${pathOf(constat.ecran)} : ${constat.description}`, png, zones: constat.zone ? [constat.zone] : [], page: constat.page ?? sizeOf(png),
+      textes: [`Page ${pathOf(constat.ecran)} : ${constat.description}`, proof(constat)], question: "C'est un bug, ou c'est voulu ?" };
+  });
+  const excluded = Object.entries(trouvees.exclues.reduce((all, { raison }) => ({ ...all, [raison]: (all[raison] ?? 0) + 1 }), {})).map(([raison, n]) => `${raison} (${n})`);
+  const recap = {
+    titre: "Récapitulatif",
+    lignes: [
+      `${report.adresse} : ${count(totaux.pages_visitees, "page visitée", "pages visitées")} sur ${count(totaux.pages_trouvees, "trouvée", "trouvées")}${report.etat === "fini" ? "" : ", passage interrompu"}.`,
+      `${count(totaux.defauts, "défaut prouvé", "défauts prouvés")}, ${count(totaux.doutes, "doute", "doutes")}${totaux.sans_conclusion ? `, ${count(totaux.sans_conclusion, "point non vérifié", "points non vérifiés")}` : ""}.`,
+    ],
+    selection: { titre: "Pages", lignes: [`Trouvées par ${trouvees.par === "sitemap" ? "le plan du site" : "les liens"}, ${trouvees.plafond} au plus.`, ...(excluded.length ? [`Écartées : ${excluded.join(", ")}.`] : [])] },
+  };
+  say(`Récapitulatif : ${recap.lignes.join(" ")}`);
+  try {
+    const made = await revoir({ mascot, recap, items: items.filter((item) => review.some((constat) => constat.id === item.id)), choix: CHOICES, presentation: true, witness, say }, () => new Promise((resolve) => (chosen = resolve)));
+    const le = new Date().toISOString();
+    for (const { item, choix } of made) {
+      const constat = review.find((candidate) => candidate.id === item.id);
+      // The decision of the development mode (C5), for a page of the site: test exploration--<ecran>.
+      const decision = { id: `${le.slice(0, 10)}-${constat.id}`, passage_id: report.passage_id, test_id: `exploration--${constat.ecran}`, ecart_id: constat.id, decision: choix, logiciel: report.site,
+        ecran: constat.ecran, vue: "defaut", ecart: constat.description, ...(constat.zone ? { zone: constat.zone } : {}), version: report.version, portee: "cet ecart, cet ecran, cette version", par: PAR, le };
+      decisions.push({ fichier: ecrireDecision(VAULT, decision), decision });
+    }
+    if (made.length) {
+      const tally = [["bug", "bug à corriger", "bugs à corriger"], ["voulu", "changement validé", "changements validés"]].map(([choix, one, many]) => [made.filter((entry) => entry.choix === choix).length, one, many]).filter(([n]) => n).map(([n, one, many]) => count(n, one, many)).join(", ");
+      await mascot("fin", { titre: "C'est rangé.", compte: tally, legende: "Écrit dans la mémoire du site :", fichiers: decisions.map(({ fichier }) => fichier) });
+      await sleep(900);
+      await witness("fin");
+      say(`${tally}. ${count(decisions.length, "décision écrite", "décisions écrites")} dans ${VAULT} : ${decisions.map(({ fichier }) => fichier).join(", ")}.`);
+    }
+  } catch (error) {
+    errors.push(`Fin du parcours : ${error.message}`);
+  }
+  // The report the runner wrote in the memory of the site, completed after the choices (issue #71, point 2).
+  try {
+    const visited = report.pages.filter((entry) => entry.etat === "visitee").map((entry) => new URL(entry.url).pathname);
+    const reasonOf = (ecran) => constats.find((constat) => constat.ecran === ecran && constat.raison)?.raison;
+    const notVisited = report.pages.filter((entry) => entry.etat !== "visitee").map((entry) => `${new URL(entry.url).pathname}${reasonOf(entry.ecran) ? ` : ${reasonOf(entry.ecran)}` : ""}`);
+    const note = completerNote({ vault: VAULT, logiciel: report.site, passage: report.passage_id, tests: { titre: "Pages", lignes: [...visited.map((path) => `Visitée : ${path}`), ...notVisited.map((line) => `Non visitée : ${line}`), ...(excluded.length ? [`Écartées à la découverte : ${excluded.join(", ")}`] : [])] }, items, decisions });
+    say(note ? `Note du passage complétée : ${join(VAULT, note)}.` : `Aucune note du passage ${report.passage_id} : rien à compléter.`);
+  } catch (error) {
+    errors.push(`Note du passage : ${error.message}`);
+  }
+  // The decisions in the base, then the passage « verifie », as in the development mode.
+  try {
+    for (const { decision } of decisions) await ecrivain.ecrireDecision(decision);
+    await ecrivain.marquerVerifie(report.passage_id);
+  } catch (error) {
+    errors.push(`Base : ${error.message}`);
+  }
+} else errors.push(`${FILE} absent ou illisible.`);
+
+const showcase = vitrine?.mesures() ?? null;
+if (showcase) say(`Vitrine : ${showcase.images_recues} images reçues, ${showcase.images_affichees} affichées, ${showcase.images_par_seconde} par seconde ; délai de l'image dessinée à l'image affichée : médiane ${showcase.delai_total_ms.mediane} ms, p95 ${showcase.delai_total_ms.p95} ms.`);
+await vitrine?.stop({ fermer: flag("fermer-chrome") });
+writeFileSync(join(OUT, "scene.json"), `${JSON.stringify({ id: ID, passage_id: report?.passage_id ?? null, adresse: URL_SITE, mode: SANS_AGENT ? "sans agent" : "agent H", holo: !flag("sans-holo"), traits: Object.fromEntries(drawnOn), decisions, vitrine: showcase, erreurs: errors }, null, 2)}\n`);
+for (const line of errors) say(`Erreur : ${line}`);
+runtime.close();
+page.close();
+if (flag("fermer-chrome")) await closeChrome({ port: PORT, pid: chrome.pid });
+else say(`Chrome laissé ouvert (port ${PORT}).`);
+process.exit(errors.length || report?.etat !== "fini" ? 1 : 0);

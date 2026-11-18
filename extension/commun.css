@@ -1,0 +1,21 @@
+/* Squelette (#68, étape 3) : couleurs provisoires et neutres, la direction artistique vient ensuite (/taste). */
+:root {
+  --encre: #1c1c1c;
+  --gris: #6b6b6b;
+  --filet: #e2e2e2;
+  --fond: #ffffff;
+  --defaut: #e5484d;
+  --doute: #e8a33d;
+  --bon: #2e9e5b;
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--encre);
+  background: var(--fond);
+}
+body { margin: 0; }
+h1, h2, h3 { line-height: 1.2; }
+a { color: inherit; }
+button { font: inherit; padding: 9px 16px; border: 0; background: var(--encre); color: #fff; cursor: pointer; }
+button:disabled { opacity: 0.4; cursor: default; }
+input { font: inherit; padding: 8px 10px; border: 1px solid var(--filet); width: 100%; box-sizing: border-box; }
+.erreur { color: var(--defaut); }
+.second { color: var(--gris); }
