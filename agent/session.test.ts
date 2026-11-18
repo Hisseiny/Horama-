@@ -30,6 +30,41 @@ test("suppression refusée : arrêt compatible mais confirmation de fermeture en
   await assert.rejects(async () => { await running.confirmStopped?.(); }, /arrêt H non confirmé/);
 });
 
+for (const remote of ["erreur", "illisible", "running"]) {
+  test(`état terminal connu par les événements, confirmation distante : ${remote}`, async () => {
+    const messages: string[] = [];
+    let reads = 0, deletes = 0, polls = 0;
+    const session = creerSessionH({
+      key: "test-key", navigateur: async () => ({ channel: "fake", stop() {} }),
+      pause: async () => {}, signaler: message => messages.push(message),
+      requete: async (url, init) => {
+        const path = new URL(String(url)).pathname;
+        if (path.endsWith("/sessions")) return json({ id: "finished", status: { status: "running" } });
+        if (path.endsWith("/share")) return json({ share_url: "/share/finished" });
+        if (path.endsWith("/changes")) {
+          polls++;
+          return json({ status: "completed", new_events: [] });
+        }
+        if (init?.method === "DELETE") { deletes++; return new Response(null, { status: 204 }); }
+        reads++;
+        if (remote === "erreur") throw new Error("GET indisponible");
+        return json(remote === "illisible" ? {} : { status: { status: "running" } });
+      },
+    });
+    const running = await session(defaults());
+    await running.fin;
+    assert.ok(polls > 0);
+    if (remote === "running") {
+      await assert.rejects(async () => running.confirmStopped?.(), /arrêt H non confirmé/);
+      assert.equal(deletes, 3);
+    } else {
+      await running.confirmStopped?.();
+      assert.match(messages.at(-1)!, /lectures distantes indisponibles ; état terminal déjà connu : completed/);
+    }
+    assert.equal(reads, 4);
+  });
+}
+
 for (const outcome of ["completed", "idle", "running", "illisible", "erreur"]) {
   test(`confirmation distante après abandon : ${outcome}`, async () => {
     let deletes = 0, reads = 0;

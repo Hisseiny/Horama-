@@ -206,14 +206,20 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
     return { id, fin, stop, async confirmStopped() {
       await stop();
       let remoteStatus = "illisible";
+      let observedActive = false;
       for (let attempt = 0; attempt < 4; attempt++) {
         try {
           const remote = await h("GET", `/sessions/${id}`, undefined, true);
           remoteStatus = remote?.status?.status ?? "illisible";
           if ([...TERMINAL, "idle"].includes(remoteStatus)) return;
+          if (remoteStatus !== "illisible") observedActive = true;
           if (attempt < 3) await h("DELETE", `/sessions/${id}`, undefined, true);
         } catch { /* L'état doit être confirmé même si une requête échoue. */ }
         if (attempt < 3) await pause(1000);
+      }
+      if (TERMINAL.includes(status) && !observedActive) {
+        signaler(`Session ${id} : lectures distantes indisponibles ; état terminal déjà connu : ${status}.`);
+        return;
       }
       const failure = new Error(`Session ${id} : arrêt H non confirmé ; état distant : ${remoteStatus}.`);
       signaler(failure.message);
