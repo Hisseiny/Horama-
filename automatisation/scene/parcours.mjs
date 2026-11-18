@@ -25,6 +25,7 @@ import { libelleAction } from "../../agent/src/session.ts";
 import { appliquerCorrection, ecrireDecision, ecrireReference, lireDecisions, lireNotes, lireReferences, refuserCorrection } from "../../memoire/index.ts";
 import { findHolo, startBridge, stopIfMissing } from "./agent-h.mjs";
 import { creerEcrivainMemoire, creerEcrivainSupabase } from "./decisions.mjs";
+import { dataUrl, revoir, sizeOf } from "./recapitulatif.mjs";
 import { HEIGHT, WIDTH, capture, clickAt, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, layer, navigate, openChrome, option, say, sleep, waitFor } from "./scene.mjs";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
@@ -239,9 +240,9 @@ let chosen = null;
 
 const mascot = (command, ...args) => layer(page, command, ...args);
 // The mascot only speaks at the end of the course.
-async function speak(text, genre, cible, label) {
+async function speak(text, label) {
   if (SANS_PRESENTATION) return;
-  await mascot("bulle", text, genre, cible);
+  await mascot("bulle", text);
   await witness(label);
   await sleep(reading(text));
   await mascot("bulle", null);
@@ -256,18 +257,16 @@ function totals() {
 }
 async function reveal(constat) {
   revealed.add(constat.id);
-  // A doubt already shown that this defect explains is no longer a doubt: its line turns coral.
+  // A doubt already shown that this defect explains is no longer a doubt: its line takes the colour of a defect.
   for (const doubt of consolidated.filter((candidate) => candidate.explique_par === constat.id && revealed.has(candidate.id))) {
     await mascot("requalifier", doubt.id, "defaut");
     await witness("doute-devenu-probleme");
   }
-  const { bons, problemes, doutes } = totals();
-  await mascot("compteur", bons, problemes, doutes);
 }
 
 // What a screen shows once its relevé is taken, while the agent goes on: the mascot reads, the line around each new
-// finding is drawn and counted, then the mascot takes the look of the worst one (a proven defect, else a doubt, else
-// nothing it could conclude, else all good) with a jump, and rests. Not a word. Queued, never awaited by relever: a
+// finding is drawn, then the mascot takes the look of the worst one (a proven defect, else a doubt, else nothing it
+// could conclude, else all good) with a jump, and rests. Not a word, no counter. Queued, never awaited by relever: a
 // screen the agent has already left keeps its lines for its address (surligner).
 let queue = Promise.resolve();
 function show(step, units) {
@@ -478,20 +477,9 @@ try {
     throw new Error(`zone de page ${area.largeur} × ${area.hauteur} à la densité ${area.densite} au lieu de ${WIDTH} × ${HEIGHT} à la densité 1 (émulation refusée ou zoom de page) : parcours non joué`);
   }
   if (FILM) film();
-  if (impact) {
-    // What the change asks to replay, said once before the agent starts, on its departure page.
-    const plural = (n, one, many) => `${n} ${n > 1 ? many : one}`;
-    const reasons = [...new Set(impact.ecartes.map(({ raison }) => raison).filter(Boolean))];
-    const text = `Nouvelle version${impact.vers ? ` (${String(impact.vers).slice(0, 7)})` : ""} : ${plural(impact.retenus.length, "test rejoué", "tests rejoués")}${impact.ecartes.length ? `, ${plural(impact.ecartes.length, "écarté", "écartés")}${reasons.length ? ` : ${reasons.join(", ")}` : ""}` : ""}.`;
-    say(`Sélection : ${text} Retenus : ${impact.retenus.map(({ id, raisons }) => `${id} (${(raisons ?? []).join(" ; ")})`).join(", ")}. Écartés : ${impact.ecartes.map(({ id, raison }) => `${id} (${raison})`).join(", ") || "aucun"}.`);
-    if (!SANS_PRESENTATION) {
-      await navigate(page, START);
-      await mascot("bulle", text, "", null);
-      await witness("selection");
-      await sleep(reading(text));
-      await mascot("bulle", null);
-    }
-  }
+  // What the change asks to replay: said in the terminal now, shown in the summary at the end (nothing on screen
+  // before the agent starts).
+  if (impact) say(`Sélection : retenus ${impact.retenus.map(({ id, raisons }) => `${id} (${(raisons ?? []).join(" ; ")})`).join(", ")}. Écartés : ${impact.ecartes.map(({ id, raison }) => `${id} (${raison})`).join(", ") || "aucun"}.`);
   const coureur = creerCoureur({
     vault: VAULT, base, baseUrl: BASE, identifiant: () => ID, signaler: say, hookTimeoutMs: HOOK_TIMEOUT_MS, signal: arret.signal,
     relever: async (ecran, vue) => {
@@ -524,54 +512,40 @@ const outcome = [
   [final.problemes && count(final.problemes, "problème", "problèmes"), final.doutes && count(final.doutes, "doute", "doutes")].filter(Boolean).join(" et ") || (complete && !final.sans_conclusion ? "Tout est bon" : ""),
   final.sans_conclusion ? `${count(final.sans_conclusion, "point", "points")} que je n'ai pas pu vérifier` : "",
 ];
-const summary = sentences([complete ? "J'ai fini." : "Je n'ai pas pu finir le parcours.", ...outcome, review.length > 1 ? "On les regarde ensemble." : review.length ? "On le regarde ensemble." : ""]);
-// The first thing the mascot says: what it needs from the human, or, with nothing to decide, how the course went.
-const rest = sentences([!complete && "Je n'ai pas pu finir le parcours.", ...outcome]);
-const recap = review.length ? "Petit récapitulatif : j'ai besoin de toi pour voir certaines choses." : `Petit récapitulatif : ${rest.charAt(0).toLowerCase()}${rest.slice(1)}`;
+const summary = sentences([complete ? "J'ai fini." : "Je n'ai pas pu finir le parcours.", ...outcome]);
 say(`Bilan : ${summary}`);
 let finMs = null; // from the last relevé to the end screen (to the summary when there is nothing to decide)
 // The test a finding belongs to: the one that carries its rule, failing that the first one that asks for its screen.
 const testOf = (constat) => (tests.find((test) => constat.regle && test.regles.some((rule) => same(rule, constat.regle))) ?? tests[course.find((step) => step.ecran === constat.ecran && step.vue === constat.vue).part - 1]).id;
+// What the summary shows of a finding: its capture (the relevé, layer hidden) with the zones that were ringed on the
+// page, what was checked and found, and the question. A result the question repeats word for word is not said twice.
+const itemOf = (constat) => {
+  const { annonce, question, resultat } = formuler(constat);
+  const text = question ?? resultat;
+  const { png } = taken.get(`${constat.ecran}--${constat.vue}`);
+  const [etat, genre] = KIND[constat.statut];
+  return { id: constat.id, genre, etat, texte: resultat, image: dataUrl(png), zones: marks.get(constat.id)?.rects ?? (constat.zone ? [constat.zone] : []), page: sizeOf(png),
+    textes: [annonce, !text.startsWith(resultat) && resultat].filter(Boolean), question: text };
+};
+// The choice of the tests: the change and its reasons (--impact), else the tests played.
+const selection = impact
+  ? { titre: `Tests choisis pour ce changement${impact.vers ? ` (${String(impact.vers).slice(0, 7)})` : ""}`,
+    lignes: [...impact.retenus.map(({ id, raisons }) => `${id} : rejoué${raisons?.length ? `, ${raisons.join(" ; ")}` : ""}`), ...impact.ecartes.map(({ id, raison }) => `${id} : écarté${raison ? `, ${raison}` : ""}`)] }
+  : { titre: "Tests joués", lignes: tests.map((test) => test.id) };
 if (page) {
   try {
-    say(SANS_PRESENTATION ? `Récapitulatif non dit (--sans-presentation) : ${recap}` : `Récapitulatif : ${recap}`);
-    if (!SANS_PRESENTATION) await mascot("bulle", recap, "", null);
-    await hold(350);
-    await witness("recapitulatif");
+    const recap = { titre: "Récapitulatif", lignes: [summary, ...(review.length ? [review.length > 1 ? "On les regarde ensemble." : "On le regarde ensemble."] : [])], selection };
+    say(`Récapitulatif : ${recap.lignes.join(" ")}`);
+    const choices = (await revoir({ mascot, recap, items: review.map(itemOf), choix: CHOICES, presentation: !SANS_PRESENTATION, witness, say }, () => new Promise((resolve) => (chosen = resolve))))
+      .map(({ item, choix }) => {
+        const constat = review.find((candidate) => candidate.id === item.id);
+        return { constat, choix, question: formuler(constat).question };
+      });
     if (!review.length && answeredAt) finMs = Date.now() - answeredAt;
     if (review.length) {
-      await hold(reading(recap));
-      await mascot("bulle", null);
-      await mascot("revue", true);
-      const choices = [];
-      for (const [index, constat] of review.entries()) {
-        await navigate(page, taken.get(`${constat.ecran}--${constat.vue}`).url);
-        const { annonce, question, resultat } = formuler(constat);
-        const text = question ?? resultat;
-        const [etat, genre] = KIND[constat.statut];
-        // In the light, what was checked and what was found, said here since nothing was said during the course; a
-        // result the question repeats word for word is not said twice.
-        const cible = await mascot("lumiere", { id: constat.id, etat });
-        const told = [annonce, !text.startsWith(resultat) && resultat].filter(Boolean);
-        if (told.length && !SANS_PRESENTATION) say(`Explication ${index + 1} sur ${review.length} : ${told.join(" ")}`);
-        if (annonce) await speak(annonce, "", cible, `annonce-${index + 1}`);
-        if (!text.startsWith(resultat)) await speak(resultat, genre, cible, `resultat-${index + 1}`);
-        const answer = new Promise((resolve) => (chosen = resolve));
-        await mascot("question", { id: constat.id, texte: text, rang: `${index + 1} sur ${review.length}`, etat });
-        await witness(`question-${index + 1}`);
-        // --choix answers by itself, after the time it takes to read the question.
-        if (CHOICES[index]) sleep(SANS_PRESENTATION ? 0 : reading(text)).then(() => mascot("choisir", CHOICES[index])).catch(() => {});
-        const { choix } = await answer;
-        say(`Question ${index + 1} sur ${review.length} : ${text} Réponse : ${choix}${CHOICES[index] ? " (--choix)" : ""}.`);
-        choices.push({ constat, choix, question });
-        await hold(900);
-        await witness(`reponse-${index + 1}`);
-        await mascot("bulle", null);
-      }
       // Each choice becomes a decision of the vault, read again once written.
-      await mascot("revue", true);
       await mascot("etat", "repos");
-      await speak("Je range tout ça.", "", null, "rangement");
+      await speak("Je range tout ça.", "rangement");
       const le = new Date().toISOString();
       for (const { constat, choix, question } of choices) {
         let decision = versDecision(constat, choix, { passage_id: ID, test_id: testOf(constat), logiciel: LOGICIEL, version: VERSION, par: PAR, le });
@@ -594,7 +568,6 @@ if (page) {
             failure = error;
           }
           if (decision.correction_de_note) {
-            await navigate(page, taken.get(`${constat.ecran}--${constat.vue}`).url);
             const answer = new Promise((resolve) => (chosen = resolve));
             const correction = decision.correction_de_note;
             await mascot("correction", { id: decision.id, file: correction.fichier, before: correction.avant, after: correction.apres });
@@ -619,11 +592,11 @@ if (page) {
             await mascot("bulle", null);
           } else if (proposal) {
             say(proposal.raison);
-            await speak(proposal.raison, "", null, "correction-absente");
+            await speak(proposal.raison, "correction-absente");
           }
           if (failure) {
             say(`Correction de note impossible, décision gardée sans correction : ${failure.message}`);
-            await speak("Je n'ai pas pu corriger la note : je garde ta décision sans correction.", "", null, "correction-impossible");
+            await speak("Je n'ai pas pu corriger la note : je garde ta décision sans correction.", "correction-impossible");
           }
         }
         decisions.push({ fichier: file ?? ecrireDecision(VAULT, decision), decision });
