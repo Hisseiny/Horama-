@@ -216,7 +216,9 @@ export async function layer(page, command, ...args) {
 }
 
 // Our own capture of the page, layer hidden. Field names follow Capture of contrats/types.ts.
-export async function capture(page) {
+// beforeCapture (optional, 3rd argument of relever since PR #102): called once the page is still, just before the
+// screenshot, layer still hidden; the explorer rechecks the cookie banner there. The text is read again after it.
+export async function capture(page, beforeCapture) {
   try {
     await inLayer(page, "window.__horama?.masquer()").catch(() => {});
     // No hover in a capture: the pointer left on a button (last click, or the real mouse over the window) would colour
@@ -233,6 +235,10 @@ export async function capture(page) {
       await frames();
       return { texte_page: document.body.innerText, url_page: location.href, defilement: [scrollX, scrollY] };
     })()`);
+    if (beforeCapture) {
+      await beforeCapture();
+      Object.assign(seen, await evaluate(page, "({ texte_page: document.body.innerText, url_page: location.href, defilement: [scrollX, scrollY] })"));
+    }
     const { data } = await page.send("Page.captureScreenshot", { format: "png" });
     const png = Buffer.from(data, "base64");
     return { png, largeur: png.readUInt32BE(16), hauteur: png.readUInt32BE(20), ...seen, prise_le: new Date().toISOString() };
