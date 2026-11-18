@@ -10,7 +10,7 @@ export interface CdpClient {
 
 export interface Defaut {
   statut: "VERIFIED_FAIL";
-  sorte: "page_en_erreur" | "image_cassee" | "defilement_horizontal" | "debordement" | "lien_casse" | "texte_erreur" | "erreur_console";
+  sorte: "page_en_erreur" | "image_cassee" | "defilement_horizontal" | "debordement" | "texte_rogne" | "lien_casse" | "texte_erreur" | "erreur_console";
   message: string;
   selecteur?: string;
   zone?: Zone;
@@ -91,8 +91,28 @@ function inspectDocument() {
     const match = element.closest("code,pre,kbd,samp,var") ? null : text.match(pattern);
     if (match) add("texte_erreur", "Un texte d’erreur est affiché.", match[0], element);
     if (!(element.textContent ?? "").trim()) continue;
-    if (element.children.length && !element.matches("button,a")) continue;
     const style = getComputedStyle(element);
+    const clippedX = ["hidden", "clip"].includes(style.overflowX) && element.scrollWidth > element.clientWidth + 1;
+    const clippedY = ["hidden", "clip"].includes(style.overflowY) && element.scrollHeight > element.clientHeight + 1;
+    if ((clippedX || clippedY) && style.textOverflow !== "ellipsis" && element.clientWidth > 1 && element.clientHeight > 1) {
+      let excluded = false;
+      for (let ancestor: Element | null = element; ancestor && !excluded; ancestor = ancestor.parentElement) {
+        const css = getComputedStyle(ancestor);
+        excluded = ancestor.matches('.sr-only,[aria-roledescription="carousel"],[aria-roledescription="carrousel"]') || css.clip !== "auto" || css.clipPath !== "none"
+          || [css.overflowX, css.overflowY].some(value => ["auto", "scroll"].includes(value));
+      }
+      const ink = excluded ? undefined : textBounds(element);
+      const box = element.getBoundingClientRect();
+      const indent = parseFloat(style.textIndent) || 0;
+      const scaleX = box.width / (element as HTMLElement).offsetWidth || 1, scaleY = box.height / (element as HTMLElement).offsetHeight || 1;
+      const left = box.left + element.clientLeft * scaleX, top = box.top + element.clientTop * scaleY;
+      if (ink && !(indent < 0 && ink.right <= box.left) && box.right + scrollX > 0 && box.bottom + scrollY > 0
+        && ((clippedX && (ink.right > left + (element.clientWidth + 1) * scaleX || ink.left < left - scaleX))
+          || (clippedY && (ink.bottom > top + (element.clientHeight + 1) * scaleY || ink.top < top - scaleY)))) {
+        add("texte_rogne", "Le texte est rogné par son conteneur.", `${element.scrollWidth}×${element.scrollHeight} > ${element.clientWidth}×${element.clientHeight}`, element);
+      }
+    }
+    if (element.children.length && !element.matches("button,a")) continue;
     if ([style.overflowX, style.overflowY].some(value => ["hidden", "clip", "auto", "scroll"].includes(value)) || style.textOverflow === "ellipsis") continue;
     if (!element.clientWidth || !element.clientHeight || (element.scrollWidth <= element.clientWidth + 1 && element.scrollHeight <= element.clientHeight + 1)) continue;
     const box = element.getBoundingClientRect();
