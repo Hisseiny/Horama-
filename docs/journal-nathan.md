@@ -509,3 +509,10 @@ Orchestrateur : Claude Code (Opus 5.5). Mission : J0 à J4 (scène branchée sur
 - `note-passage.mjs` : la note `passages/<id>.md` du coureur est complétée après les décisions (tests rejoués et écartés, ou pages ; chaque constat avec sa capture entourée dans `passages/<id>/` et sa décision ; PR par `--pr`). Branché dans `parcours.mjs` et `exploration.mjs`.
 - Banc (sites de #67) sans H ni Holo : albertschool.com/fr code 0, 10 pages, aucun constat ; skema.edu/fr code 1 (accueil redirigé refusé par le moteur, passage `interrompu`), 7 débordements que je juge faux (texte en arc autour du bouton vidéo), bannière de cookies non refusée. À signaler à Ali (#67). Preuve : `docs/tests/2026-11-18-note-passage-et-banc.md`.
 - Pas branché : lien de la PR de documentation (`ouvrirPrDoc` non appelé par la scène), `--pr` passé par le réveil.
+
+### 18/11, 12 h 30 : départ depuis l'article, PR de documentation, PR 85, README
+- Départ depuis l'onglet de l'article (décision de démo de Nathan), sans H ni Holo : avec `dev` seul, l'article n'est pas visité ; avec la PR #81, il l'est en premier, 404 entouré en direct et au récapitulatif (code 0, 142 s, 15 pages).
+- PR #85 d'Ali (worktree jetable dev + #85 + #81 + dev-nathan) : scène compatible, 404 entouré en direct ; mais `captureDefect` donne une capture non centrée et sans zone (le site déclare `scroll-behavior: smooth`, le `scrollTo` est animé) et la couche de la scène dessus (connexion CDP du moteur). Verdict envoyé à « hackaton » pour Ali.
+- `--pr-doc` : `ouvrirPrDoc` après une correction acceptée, lien ou raison d'échec dans la note du passage, échec sans blocage. Essayé sur un dépôt Git nu local, faux module de correction, faux `gh` : branche à un commit d'une ligne, code 0 ; échec (dépôt absent) : code 0, raison dans la note. Aucune PR réelle.
+- README racine (couloir d'Ali, sur consigne de la coordination) : service décidé (#68, conteneur sur Railway, étapes d'Ali), « Évolutions prévues » (plusieurs agents après le hackathon, consignes de Holo spécialisées), parcours du mode grand public à un agent.
+- Preuve : `docs/tests/2026-11-18-depart-article-et-pr-doc.md`.
