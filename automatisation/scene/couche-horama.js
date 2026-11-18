@@ -448,7 +448,8 @@
     frameOf.style.cssText = `width:${w}px;height:${h}px`;
     if (!image) return { element: frameOf, show() {} };
     const all = zones.length ? zones.reduce((a, z) => ({ x: Math.min(a.x, z.x), y: Math.min(a.y, z.y), r: Math.max(a.r, z.x + z.largeur), b: Math.max(a.b, z.y + z.hauteur) }), { x: Infinity, y: Infinity, r: -Infinity, b: -Infinity }) : null;
-    const scale = all ? Math.min(1, w / (all.r - all.x + 200), h / (all.b - all.y + 150)) : Math.min(w / page.largeur, h / page.hauteur);
+    // The whole width of the page, never a crop through the middle of a line; the height centred on the zones.
+    const scale = Math.min(w / page.largeur, all ? h / (all.b - all.y + 150) : h / page.hauteur);
     const [rw, rh] = [w / scale, h / scale];
     const from = (centre, size, full) => (size >= full ? (full - size) / 2 : Math.max(0, Math.min(centre - size / 2, full - size)));
     const rx = all ? from((all.x + all.r) / 2, rw, page.largeur) : (page.largeur - rw) / 2;
