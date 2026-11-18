@@ -46,7 +46,15 @@ if (args.includes("--help")) {
   } finally {
     process.removeListener("SIGTERM", cancel);
     process.removeListener("SIGINT", cancel);
-    await closeChrome({ port: 9333, pid: chrome.pid }).catch(() => chrome.kill());
+    await closeChrome({ port: 9333, pid: chrome.pid }).catch(() => {});
+    if (chrome.exitCode === null && chrome.signalCode === null) {
+      await new Promise(resolve => {
+        const done = () => { clearTimeout(timer); chrome.removeListener("exit", done); resolve(); };
+        const timer = setTimeout(() => { chrome.kill("SIGKILL"); done(); }, 2000);
+        chrome.once("exit", done);
+        chrome.kill("SIGTERM");
+      });
+    }
     await rm(profile, { recursive: true, force: true });
   }
 }

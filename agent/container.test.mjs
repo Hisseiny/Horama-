@@ -38,22 +38,37 @@ test("container cancellation during CDP readiness skips the engine and cleans up
       import { syncBuiltinESMExports } from "node:module";
       let profile;
       let spawns = 0;
+      let chromeExited = false;
+      const kills = [];
       childProcess.spawn = (bin, args) => {
         spawns++;
         profile = args.find(arg => arg.startsWith("--user-data-dir=")).split("=")[1];
-        return Object.assign(new EventEmitter(), { exitCode: null });
+        const chrome = Object.assign(new EventEmitter(), {
+          exitCode: null, signalCode: null,
+          kill(signal) {
+            kills.push(signal);
+            setTimeout(() => {
+              chrome.signalCode = signal;
+              chromeExited = true;
+              chrome.emit("exit", null, signal);
+            }, 20);
+            return true;
+          },
+        });
+        return chrome;
       };
       syncBuiltinESMExports();
       let requests = 0;
       globalThis.fetch = async () => {
         if (requests++ === 0) {
           process.emit(${JSON.stringify(signal)});
-          return { ok: true };
         }
         throw new Error("Chrome closed");
       };
       await import("./agent/scripts/container.mjs");
       assert.equal(spawns, 1);
+      assert.deepEqual(kills, ["SIGTERM"]);
+      assert.equal(chromeExited, true);
       assert.equal(existsSync(profile), false);
       assert.equal(process.exitCode, 130);
     `], { cwd, encoding: "utf8", env: { ...process.env, HAI_API_KEY: "not-a-real-key" }, timeout: 5000 });
