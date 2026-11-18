@@ -1,15 +1,16 @@
 // Wake-up by a pull request of the target site (issue #71, mode dev on a clone whose code we have): the Mac asks GitHub
-// every 20 s or so, no public server. For each open PR whose last commit has a successful Vercel Preview deployment,
-// once: the files the PR changes (GitHub), the tests they touch (choisirTests of impact.mjs, on the vault of this
+// every 20 s or so, no public server. For each open PR whose last commit has a successful Vercel preview (a GitHub
+// deployment, or the Vercel status of the commit and the address in the comment of the Vercel bot) that opens without
+// a Vercel login, once: the files the PR changes (GitHub), the tests they touch (choisirTests of impact.mjs, on the vault of this
 // repository: notes whose `code:` field lists a changed file, plus the baseline), then the scene on the preview address.
 // Several pushes in a row: only the last commit of the PR is played, once its own preview is ready.
 //
 // Usage: node automatisation/reveil/pr.mjs --depot <propriétaire/dépôt> --logiciel <logiciel du vault> [--intervalle 20]
 //          [--une-fois] [--a-blanc] [--vault vault-horama] [--sortie .orchestrateur/reveil-pr] [--faux-github <fichier.json>]
 //          [-- options de la scène, par exemple --vitrine]
-// --a-blanc: one look at the repository, nothing played (no scene, no H, nothing written): the open PRs, the Preview
-// deployment of their last commit, their files and the tests they would replay, and how many Preview deployments the
-// repository has at all (none: Vercel is not linked to it yet).
+// --a-blanc: one look at the repository, nothing played (no scene, no H, nothing written): the open PRs, the preview of
+// their last commit (where it was found, whether it opens without a Vercel login), their files and the tests they would
+// replay.
 // --faux-github: a JSON file { prs: [...], deploiements: { <sha>: { etat, adresse } }, fichiers: { <numéro>: [...] } }
 // read instead of GitHub, to try the chain without a real PR.
 // Exit: 0 (--une-fois: after the first PR played), 2 on a usage error or a failed impact or scene.
@@ -25,21 +26,57 @@ import { choisirTests } from "../impact/impact.mjs";
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const gh = (path) => JSON.parse(execFileSync("gh", ["api", "--paginate", "--slurp", path], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })).flat();
 
-// What GitHub says of a repository: its open PRs, the Preview deployment of a commit, the files of a PR. Vercel writes a
-// deployment per commit with an environment named « Preview » (sometimes « Preview – <projet> ») and, once ready, a
-// status « success » whose environment_url is the preview address.
+// The preview address in the comment of the Vercel bot on a PR: the JSON of its hidden line « [vc]: #<id>:<base64> »
+// (projects[].previewUrl, the alias of the branch, which follows its last commit), else its « [Preview](<url>) » link.
+export function adresseCommentaireVercel(body) {
+  const hidden = /\[vc\]: #[^:\s]*:([A-Za-z0-9+/=]+)/.exec(body ?? "");
+  if (hidden) {
+    try {
+      const url = JSON.parse(Buffer.from(hidden[1], "base64").toString("utf8")).projects?.find((project) => project.previewUrl)?.previewUrl;
+      if (url) return /^https?:\/\//.test(url) ? url : `https://${url}`;
+    } catch {}
+  }
+  return /\[Preview\]\((https:\/\/[^)\s]+)\)/.exec(body ?? "")?.[1] ?? null;
+}
+
+// What GitHub says of a repository: its open PRs, the preview of a commit, the files of a PR. Two ways for Vercel to
+// give a preview: a GitHub deployment with an environment named « Preview » (sometimes « Preview – <projet> ») whose
+// status « success » carries environment_url; or, as on the clone of Eugenia (18/11), no deployment at all, only a commit
+// status whose context names Vercel (its target_url is the Vercel dashboard, not the site) and a comment of the
+// vercel[bot] on the PR that gives the address.
 export function lecteurGithub(depot, read = gh) {
   return {
     prs: () => read(`repos/${depot}/pulls?state=open&per_page=100`).map((pr) => ({ numero: pr.number, adresse: pr.html_url, titre: pr.title, base: pr.base.sha, tete: pr.head.sha })),
-    previsualisation(sha) {
+    previsualisation(sha, numero) {
       const deployment = read(`repos/${depot}/deployments?sha=${sha}&per_page=100`).find((candidate) => /^preview/i.test(candidate.environment ?? ""));
-      if (!deployment) return null;
-      const status = read(`repos/${depot}/deployments/${deployment.id}/statuses?per_page=100`)[0];
-      return status ? { etat: status.state, adresse: status.environment_url || status.target_url || null } : null;
+      if (deployment) {
+        const status = read(`repos/${depot}/deployments/${deployment.id}/statuses?per_page=100`)[0];
+        return status ? { etat: status.state, adresse: status.environment_url || status.target_url || null, source: "déploiement GitHub" } : null;
+      }
+      const status = (read(`repos/${depot}/commits/${sha}/status`)[0]?.statuses ?? []).find((candidate) => /vercel/i.test(candidate.context ?? ""));
+      if (!status) return null;
+      const comment = status.state === "success" && numero !== undefined
+        ? read(`repos/${depot}/issues/${numero}/comments?per_page=100`).filter((candidate) => candidate.user?.login === "vercel[bot]").at(-1)
+        : undefined;
+      return { etat: status.state, adresse: adresseCommentaireVercel(comment?.body), source: "statut et commentaire de Vercel" };
     },
     fichiers: (numero) => read(`repos/${depot}/pulls/${numero}/files?per_page=100`).map((file) => file.filename),
-    deploiementsPreview: () => read(`repos/${depot}/deployments?per_page=100`).filter((candidate) => /^preview/i.test(candidate.environment ?? "")).length,
   };
+}
+
+// Whether a preview opens without a Vercel login (Deployment Protection off): a redirection to vercel.com, or a 401,
+// means the agent would land on a login page. Never throws: a network failure is said as such.
+export async function ouverteSansConnexion(adresse, request = fetch) {
+  try {
+    const response = await request(adresse, { redirect: "manual", signal: AbortSignal.timeout(15_000) });
+    const location = response.headers.get("location") ?? "";
+    if (response.status === 401 || (response.status >= 300 && response.status < 400 && /vercel\.com/.test(location))) {
+      return { ouverte: false, raison: `la prévisualisation demande une connexion Vercel (code ${response.status})` };
+    }
+    return { ouverte: true, code: response.status };
+  } catch (error) {
+    return { ouverte: false, raison: `la prévisualisation ne répond pas (${error.message})` };
+  }
 }
 
 // The same three answers read from a JSON file (--faux-github), for a trial without a real PR.
@@ -49,7 +86,6 @@ export function lecteurFaux(fichier) {
     prs: () => data().prs,
     previsualisation: (sha) => data().deploiements?.[sha] ?? null,
     fichiers: (numero) => data().fichiers?.[numero] ?? [],
-    deploiementsPreview: () => Object.keys(data().deploiements ?? {}).length,
   };
 }
 
@@ -59,7 +95,7 @@ export function aJouer(lecteur, faits) {
   const prets = [];
   for (const pr of lecteur.prs()) {
     if (faits.has(`${pr.numero}@${pr.tete}`)) continue;
-    const preview = lecteur.previsualisation(pr.tete);
+    const preview = lecteur.previsualisation(pr.tete, pr.numero);
     if (preview?.etat === "success" && preview.adresse) prets.push({ ...pr, previsualisation: preview.adresse });
   }
   return prets;
@@ -72,18 +108,23 @@ export function impactDePr({ pr, fichiers, vault, logiciel, socle = [] }) {
   return { format: "horama-impact-1", le: new Date().toISOString(), depuis: pr.base, vers: pr.tete, logiciel, fichiers, fiches_retenues: [], socle, pr: pr.adresse, ...resultat };
 }
 
-// The dry run (--a-blanc): what the wake-up would do now, as lines for a human. Reads GitHub, plays nothing.
-export function aBlanc(lecteur, { vault, logiciel, socle = [] }) {
+// The dry run (--a-blanc): what the wake-up would do now, as lines for a human. Reads GitHub and asks the preview
+// whether it opens without a login; plays nothing.
+export async function aBlanc(lecteur, { vault, logiciel, socle = [], ouverte = ouverteSansConnexion }) {
   const lines = [];
-  const total = lecteur.deploiementsPreview();
-  lines.push(total ? `${total} déploiement(s) Preview sur le dépôt.` : "Aucun déploiement Preview sur le dépôt : Vercel n'y est pas encore relié.");
   const prs = lecteur.prs();
   if (!prs.length) lines.push("Aucune PR ouverte.");
   for (const pr of prs) {
-    const preview = lecteur.previsualisation(pr.tete);
+    const preview = lecteur.previsualisation(pr.tete, pr.numero);
     const fichiers = lecteur.fichiers(pr.numero);
     const impact = impactDePr({ pr, fichiers, vault, logiciel, socle });
-    const etat = !preview ? "pas de déploiement Preview pour ce commit" : preview.etat === "success" && preview.adresse ? `prévisualisation prête, ${preview.adresse}` : `prévisualisation « ${preview.etat} », pas encore jouable`;
+    let etat = "pas de prévisualisation pour ce commit (ni déploiement GitHub, ni statut Vercel)";
+    if (preview && preview.etat !== "success") etat = `prévisualisation « ${preview.etat} », pas encore jouable`;
+    else if (preview && !preview.adresse) etat = `prévisualisation prête (${preview.source}), mais son adresse est introuvable`;
+    else if (preview) {
+      const access = await ouverte(preview.adresse);
+      etat = `prévisualisation prête (${preview.source}), ${preview.adresse}, ${access.ouverte ? `répond sans connexion (code ${access.code})` : `pas jouable : ${access.raison}`}`;
+    }
     lines.push(`PR #${pr.numero} (${pr.tete.slice(0, 7)}) « ${pr.titre ?? ""} » : ${etat}.`);
     lines.push(`  ${fichiers.length} fichier(s) : ${fichiers.join(", ") || "aucun"}`);
     lines.push(`  tests rejoués : ${impact.ids.join(", ") || "aucun"} ; écartés : ${impact.ecartes.map((e) => e.id).join(", ") || "aucun"}`);
@@ -157,13 +198,21 @@ async function main() {
   const socle = JSON.parse(readFileSync(join(ROOT, "automatisation/impact/socle.json"), "utf8"))[values.logiciel] ?? [];
   if (values["a-blanc"]) {
     console.log(`réveil PR, à blanc : ${values.depot ?? values["faux-github"]}, vault ${values.logiciel}, rien n'est joué.`);
-    for (const line of aBlanc(lecteur, { vault, logiciel: values.logiciel, socle })) console.log(line);
+    for (const line of await aBlanc(lecteur, { vault, logiciel: values.logiciel, socle })) console.log(line);
     return;
   }
   const faits = new Set();
+  const protegees = new Set(); // « numéro@sha » already said protected: said once, tried again at each round
   console.log(`réveil PR : surveillance de ${values.depot ?? values["faux-github"]} toutes les ${interval} s, vault ${values.logiciel}.`);
   for (;;) {
     for (const pr of aJouer(lecteur, faits)) {
+      // A protected preview would send the agent to a Vercel login page: not played, tried again once it opens.
+      const access = await ouverteSansConnexion(pr.previsualisation);
+      if (!access.ouverte) {
+        if (!protegees.has(`${pr.numero}@${pr.tete}`)) console.log(`réveil PR : #${pr.numero} (${pr.tete.slice(0, 7)}) pas jouée, ${access.raison}.`);
+        protegees.add(`${pr.numero}@${pr.tete}`);
+        continue;
+      }
       faits.add(`${pr.numero}@${pr.tete}`);
       await jouerPr({ pr, fichiers: lecteur.fichiers(pr.numero), vault, logiciel: values.logiciel, socle, sortie, sceneArgs });
       if (values["une-fois"]) return;
