@@ -24,7 +24,7 @@ export const BLOCKED_CONSENT_URLS = [
 export function hideConsentForGood(): number {
   const descendants = (root: Document | ShadowRoot | Element): HTMLElement[] => [...("shadowRoot" in root && root.shadowRoot ? descendants(root.shadowRoot) : []), ...[...root.querySelectorAll<HTMLElement>("*")].flatMap(element => [element, ...(element.shadowRoot ? descendants(element.shadowRoot) : [])])];
   const parentOf = (element: Element): Element | null => element.parentElement ?? (element.getRootNode() instanceof ShadowRoot ? (element.getRootNode() as ShadowRoot).host : null);
-  const normalize = (text: string) => text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+  const normalize = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
   const text = (element: Element) => normalize([element, ...descendants(element)].map(node => node.shadowRoot ? `${node.textContent} ${node.shadowRoot.textContent}` : "").join(" ") + " " + element.textContent);
   const control = /\b(?:accepter|refuser|tout refuser|parametrer|personnaliser|autoriser|j['’]accepte|accept|accept all|reject|decline|deny|manage|customize|preferences|allow|agree|ok!?|let me choose|laissez-moi choisir|cookie settings|parametres des cookies|gerer les cookies|no,? thanks|non merci|nein danke|akzeptieren|ablehnen|einstellungen|zustimmen|erlauben)\b/;
   const consent = /cookie|consent|einwilligung|rgpd|gdpr|traceurs/;
@@ -120,7 +120,7 @@ export async function garderSansConsentement(port: number, log: (message: string
       ]));
       if (targetInfo.type === "page" && ++guarded === 1) log("Bandeaux de consentement : plateformes bloquées, refus puis masquage pendant tout le passage.");
     });
-    await send("Target.setAutoAttach", { autoAttach: true, waitForDebuggerOnStart: false, flatten: true });
+    await Promise.race([send("Target.setAutoAttach", { autoAttach: true, waitForDebuggerOnStart: false, flatten: true }), new Promise(resolve => setTimeout(resolve, 3000))]);
     await Promise.race([Promise.all(setups), new Promise(resolve => setTimeout(resolve, 3000))]);
     return () => socket.close();
   } catch {
