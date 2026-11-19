@@ -1,0 +1,17 @@
+Améliorations sur les écrans existants, sans changer la charte « L'envoyé », la coque (barre latérale Soleil clair #FFE39A en mode clair, Encre en mode sombre, jamais violette), les couleurs ni la mise en page générale. Vouvoiement, aucun tiret cadratin ni demi-cadratin. Toutes les valeurs restent des données d'exemple.
+
+1) 11.8 Passages et historique : chaque ligne du tableau PASSAGES se déplie (chevron) et montre le « Journal de l'agent », test par test. Chaque étape affiche : heure exacte en mono (ex. 14:02:19) et numéro d'étape ; nom du test ; action de l'agent (ex. « Ouvre « Factures » ») ; adresse de la page en mono (ex. https://app.facturation-pro.exemple/factures?filtre=echeance) et écran reconnu (ex. Liste des factures · vue filtrée) ; position de défilement en mono ; une vignette de capture 96 × 64 qui s'agrandit au clic ; l'état de la session en pilule (en cours, attente d'un outil, relancée, abandonnée) ; et, quand l'étape vérifie une règle, le résultat « mesuré : … · attendu : … » avec son statut (conforme olivier ✓, suspect ocre [ ? ], défaut prouvé miltos [ ! ], non concluant encre secondaire [ - ]). Exemple pour le passage du 18/11 : 14:02:04 connexion au compte de test ; 14:02:19 ouvre « Factures » ; 14:02:31 ouvre le menu Filtres ; 14:02:42 choisit « Échéance dépassée » ; 14:02:55 relève 6 lignes ; 14:03:08 vérifie la règle, mesuré : 1 240,00 € · attendu : 1 420,00 €, défaut prouvé ; une étape « session figée, relancée après 45 s » marquée relancée. Lien « Replay de la session H ↗ » par test. Au-dessus du journal : filtres en pilules par test, par écran et par statut, et un champ « Chercher une adresse ou un texte » qui filtre vraiment. Dans le JOURNAL DES DÉCISIONS, chaque entrée affiche aussi : portée « cet écart, cet écran, cette version », la version, le pourquoi s'il existe, et le statut de la correction de note (proposée, acceptée, refusée).
+
+2) 11.3 Passage en cours : un clic sur une étape du fil affiche sa capture dans le cadre CAPTURE EN COURS ; une étape montre l'état de la session (pilule « relancée » sur une étape figée).
+
+3) 11.4 Rapport : ajoute le 4e statut « non concluant » (encre secondaire #5C5546, signe [ - ]) dans les plis du résumé et une ligne du tableau ; le sous-titre devient « écrit dans vault-horama/facturo/passages/ ».
+
+4) 11.5 Comparaison : sous le panneau de synthèse, un tableau « Valeurs relevées » en mono avec les colonnes VALEUR, v12 (référence), v13 (testée), ATTENDU SELON LA RÈGLE ; ligne « Total du mois » : 1 420,00 € · 1 240,00 € · égal au CA du tableau de bord, en miltos.
+
+5) 11.6 À relire : sous les boutons de chaque carte, un champ facultatif « Pourquoi ? (facultatif) » et une ligne en mono « Portée : cet écart, cet écran, cette version » ; après « C'est un bug », un bouton secondaire « Créer l'issue GitHub » qui affiche le toast « Issue préparée avec captures et replay ».
+
+6) 11.2 Tests à valider : des flèches « Test 1 / 2 » pour passer au second test proposé (« Liste des factures : bouton Exporter en haut à droite », règle de présence), et un lien « Ouvrir la note dans le vault » sous le chemin du fichier.
+
+7) 11.1 Couverture : une pastille « modifiée depuis le dernier passage » sur « Liste des factures » dans Écrans suivis ; « 3 règles sans test » ouvre un petit panneau qui liste les 3 règles et leur note, chacune avec « Proposer un test » qui ouvre #screen-11-2.
+
+Vérifie ensuite que toutes les routes et tous les boutons marchent.
