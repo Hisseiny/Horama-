@@ -221,6 +221,9 @@ function showPage(pageEntry, constats) {
         await witness(`trait-${GENRE[constat.statut]}`);
       }
     }
+    // A stroke drawn: the layer has put the expression before it and keeps it until the next gesture of H (S3). Without
+    // a stroke (no zone on the live page), the expression of the page for 1.2 s, as before.
+    if (mine.some((constat) => drawnOn.has(constat.id))) return;
     const worst = ["VERIFIED_FAIL", "SUSPECTED", "INCONCLUSIVE"].find((statut) => mine.some((constat) => constat.statut === statut)) ?? "PASS";
     await mascot("etat", LOOK[worst]);
     await sleep(1200);

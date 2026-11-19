@@ -202,6 +202,8 @@
   let cursorAt = state.cursor;
   // The reading of the page by the mascot while H thinks (see « Reading » below): its timer, the title it reads.
   let readTimer = 0, reading = null, readIndex = -1;
+  // At a stroke (S3): where the mascot looks (the zone), and until when its expression is kept at least.
+  let lookAt = null, held3 = 0;
   let frame = 0;
   let last = 0;
   // The way of a hand from one point to the point H chose, never another point: a curve bowed to one side (how much and
@@ -313,7 +315,7 @@
     if (!pupil) return;
     // Reading: the eye goes along the title it reads, slowly, from its start to its end.
     const sweep = reading ? { x: reading.look.x + Math.sin(performance.now() / 1100) * reading.half, y: reading.look.y } : null;
-    const target = state.bulle || state.revue ? null : sweep ?? state.travel?.to ?? cursorAt;
+    const target = state.bulle || state.revue ? null : sweep ?? state.travel?.to ?? lookAt ?? cursorAt;
     const dx = target ? target.x - at.x - M / 2 : 0;
     const dy = target ? target.y - at.y - M / 2 : 0;
     const distance = Math.hypot(dx, dy) || 1;
@@ -394,16 +396,18 @@
   // drawn), that hides as little as it can of the page, nothing of the arrow, of its target or of the way to it, and
   // not too far from where the mascot already is, so that it flies a short way beside the arrow.
   // `near`: while it reads, being close to the title counts more than a short flight.
-  const nearSpot = (point, boxes, from, near = false) => {
+  // `rings` and `textOk` (at a stroke, S3): a nearer ring, and a text of the page may be covered (never the zone, the
+  // arrow or its way, which stay in `boxes` with a higher weight).
+  const nearSpot = (point, boxes, from, near = false, { rings = [130, 170, 220, 280, 350, 430, 560, 700], textOk = false } = {}) => {
     const p = { x: Math.max(0, Math.min(innerWidth, point.x)), y: Math.max(0, Math.min(innerHeight, point.y)) };
     const way = from ? [0.2, 0.4, 0.6, 0.8].map((t) => ({ x: from.x + (p.x - from.x) * t, y: from.y + (p.y - from.y) * t }))
       .map(({ x, y }) => ({ left: x - 34, top: y - 34, right: x + 34, bottom: y + 34, weight: 60 })) : [];
-    const all = [...boxes, clearance(p), ...way];
+    const all = [...(textOk ? boxes.filter(({ weight }) => weight !== 10) : boxes), clearance(p), ...way];
     // What must stay readable (texts, links, buttons: weight 10) is a hard rule: a place that covers none of it wins over
     // any place that covers some, even farther from the point; among free places, the cheapest.
-    const readable = boxes.filter(({ weight }) => weight === 10);
+    const readable = textOk ? [] : boxes.filter(({ weight }) => weight === 10);
     let best = null;
-    for (const r of [130, 170, 220, 280, 350, 430, 560, 700]) {
+    for (const r of rings) {
       for (let a = 0; a < 24; a++) {
         const x = Math.round(p.x + Math.cos((a / 24) * 2 * Math.PI) * r - M / 2);
         const y = Math.round(p.y + Math.sin((a / 24) * 2 * Math.PI) * r - M / 2);
@@ -758,12 +762,18 @@
         scrollTo({ top: Math.max(0, first.y - innerHeight / 3), behavior: "smooth" });
         await wait(600);
       }
-      // The mascot lands beside what is about to be drawn (never on it), then the stroke comes.
+      // S3: the expression first (a proven defect: trouve; a doubt: doute), then the mascot flies close to what is about
+      // to be drawn (110 to 260 px; it may cover a nearby text, never the zone nor the arrow) and looks at it, then the
+      // stroke comes. The expression stays until the next gesture of H, 3 s at least.
       if (TITLE && first && !state.bulle) {
+        setEtat(genre === "defaut" ? "trouve" : "doute");
+        held3 = Date.now() + 3000;
+        stopReading();
         const marked = zones.map((zone) => box(zone, 14, 60));
         const left = Math.min(...marked.map((b) => b.left)), top = Math.min(...marked.map((b) => b.top));
         const right = Math.max(...marked.map((b) => b.right)), bottom = Math.max(...marked.map((b) => b.bottom));
-        goTo(nearSpot({ x: (left + right) / 2, y: (top + bottom) / 2 }, [...busy(), ...marked]));
+        lookAt = { x: (left + right) / 2, y: (top + bottom) / 2 };
+        goTo(nearSpot(lookAt, [...busy(), ...marked.map((b) => ({ ...b, weight: 200 }))], null, true, { rings: [110, 150, 200, 260], textOk: true }));
         await arrived();
       }
       await Promise.all(zones.filter((zone) => !zone.trait).map((zone) => drawZone(zone, true)));
@@ -1008,6 +1018,11 @@
   // Each gesture of H: the reading stops, and starts again once H is quiet.
   const gestured = () => {
     stopReading();
+    lookAt = null;
+    if (state.etat === "trouve" || state.etat === "doute") {
+      const keep = held3 - Date.now();
+      setTimeout(() => (state.etat === "trouve" || state.etat === "doute") && !state.revue && !state.bulle && setEtat("observe"), Math.max(0, keep));
+    }
     readTimer = setTimeout(readNext, READ_AFTER + 1100);
   };
   document.addEventListener("DOMContentLoaded", () => {
