@@ -6,7 +6,7 @@
 set -eu
 cd "$(dirname "$0")"
 DEST=../accueil/rapport
-FILES="rapport.js rapport.css commun.css envoye.css mascotte.js lib/trait.js mascotte/observe.svg mascotte/trouve.svg mascotte/doute.svg mascotte/bloquee.svg mascotte/fini.svg"
+FILES="rapport.js rapport.css commun.css envoye.css mascotte.js lib/trait.js lib/ticket.mjs mascotte/observe.svg mascotte/trouve.svg mascotte/doute.svg mascotte/bloquee.svg mascotte/fini.svg"
 if [ "${1:-}" = "--verifier" ]; then
   KO=0
   cmp -s rapport.html "$DEST/index.html" || { echo "différent : accueil/rapport/index.html"; KO=1; }
