@@ -15,10 +15,11 @@ Pour le jury, à distance, sans terminal : Horama cherche les défauts d'un site
 1. **Ouvrir Horama.** Sans rien installer : https://horama-gold.vercel.app. Ou l'extension Chrome : téléchargez https://horama-gold.vercel.app/horama-extension.zip ou, depuis la release GitHub, https://github.com/Hisseiny/Horama-/releases/download/extension-v0.2.0/horama-extension.zip ([release extension-v0.2.0](https://github.com/Hisseiny/Horama-/releases/tag/extension-v0.2.0)), dézippez-le, ouvrez `chrome://extensions`, activez le « Mode développeur », cliquez « Charger l'extension non empaquetée » et choisissez le dossier dézippé.
 2. **Donner le site.** Sur la page d'accueil, collez l'adresse dans le champ. Avec l'extension, ouvrez le site puis cliquez sur l'icône Horama : l'adresse de l'onglet est déjà remplie.
 3. **Lancer.** Cliquez « Envoyer Horama ». Le rapport s'ouvre dans un onglet. S'il y a déjà une exploration en cours, il affiche votre place dans la file.
-4. **Regarder.** L'encadré « En direct » montre l'onglet que pilote l'agent H ; les pages visitées s'ajoutent une à une. Comptez **environ 4 minutes** : une exploration s'arrête au plus tard à 240 s, avec 8 pages au plus (`HORAMA_MAX_PAGES=8`). Sur le service en ligne, le 19/11, 3 à 7 pages sur 8 tenaient dans ce temps ([#208](https://github.com/Hisseiny/Horama-/issues/208)) ; les pages non atteintes sont marquées « non visitée », jamais comptées comme réussies.
+4. **Regarder.** L'encadré « En direct » montre l'onglet que pilote l'agent H ; les pages visitées s'ajoutent une à une. Comptez **environ 6 minutes** : une exploration s'arrête au plus tard à 380 s (`HORAMA_MAX_SECONDS=380`), avec 8 pages au plus (`HORAMA_MAX_PAGES=8`) ; le passage de 8 pages sur la PR #16 du clone, en mode développeur sur une machine locale, a pris 343 s ; sur le service en ligne avec 380 s, à mesurer. Avec l'ancien plafond de 240 s, le 19/11, 3 à 7 pages sur 8 tenaient ([#208](https://github.com/Hisseiny/Horama-/issues/208)) ; les pages non atteintes sont marquées « non visitée », jamais comptées comme réussies.
 5. **Lire le récapitulatif.**
    - Un **défaut prouvé** a été vérifié par le code (lien qui répond en erreur, texte qui déborde de sa boîte, image cassée, texte resté dans une autre langue…) : il vient avec sa capture entourée et sa mesure (« mesuré : … », « attendu : … »).
    - Un **doute** vient du regard du modèle visuel Holo : rien n'est prouvé, c'est à vous de trancher « bug » ou « voulu ».
+6. **Revenir à vos passages.** La tour de contrôle, https://horama-gold.vercel.app/tour/, liste les explorations envoyées depuis votre navigateur et les passages du mode développeur (les PR du clone d'Eugenia School), chacun avec ses constats sur leur capture et les décisions déjà prises.
 
 **Ce qui peut arriver**
 - Un site qui bloque les robots (decathlon.fr répond 403) : l'exploration s'arrête tout de suite et le dit.
@@ -26,7 +27,7 @@ Pour le jury, à distance, sans terminal : Horama cherche les défauts d'un site
 - Un grand site : 8 pages au plus sont visitées (plafond du service, réglé dans Railway).
 - Un service occupé : une exploration à la fois, 5 en file au plus ; 4 demandes par heure et par adresse IP, 12 par heure en tout. Au-delà, un message le dit.
 - Une adresse privée, locale ou avec identifiants : refusée avant tout lancement.
-- La langue : le service tourne aux Pays-Bas, certains sites servent leur version néerlandaise.
+- La langue : le Chrome du service est réglé en français (`fr-FR`) ; un site qui choisit sa langue d'après le navigateur sert sa version française, mais un site qui la choisit d'après l'adresse IP peut encore servir sa version néerlandaise (le service tourne aux Pays-Bas).
 
 **Pour l'équipe : l'adresse du service et le `.zip`.** L'adresse est la constante `DEFAULT_SERVICE` de `extension/service.js` ; chaque utilisateur peut la changer dans les options de l'extension. Après un changement de l'extension : `sh extension/empaqueter.sh` produit `extension/dist/horama-extension.zip` et rappelle l'adresse qu'il contient ; le copier dans `accueil/horama-extension.zip` le publie avec la page d'accueil, au prochain redéploiement de horama-gold. Une release GitHub n'est téléchargeable par le jury que si le dépôt est public ; elle attend le go de Nathan.
 
@@ -66,7 +67,8 @@ Décisions dans le vault, réponse sur la PR avec captures, index public des pas
    - Page d'accueil, mode grand public : https://horama-gold.vercel.app
    - Extension Chrome : https://horama-gold.vercel.app/horama-extension.zip
    - Mode développeur en vrai : la PR #16 du clone (traduction en allemand) et la réponse d'Horama, https://github.com/Hisseiny/eugenia-school-website/pull/16#issuecomment-7010755513
-   - Index public des passages (données de la tour de contrôle) : https://raw.githubusercontent.com/Hisseiny/eugenia-school-website/horama/captures/index.json
+   - Tour de contrôle (tous les passages et leurs constats) : https://horama-gold.vercel.app/tour/
+   - Index public des passages (ses données pour le mode développeur) : https://raw.githubusercontent.com/Hisseiny/eugenia-school-website/horama/captures/index.json
 7. **Comment tester.** Sans rien installer : la page d'accueil, une adresse, « Envoyer Horama » ; ou l'extension. Détail plus haut, « Essayer Horama » ; pour lancer le code, « Comment lancer ».
 
 ## Deux modes
@@ -231,7 +233,7 @@ curl -sS http://127.0.0.1:8787/explorations -H 'Content-Type: application/json' 
 - `POST /explorations` avec `{"url":"…"}` : `202 {id, place}` (`0` si le travail démarre). Chaque demande acceptée a un nouvel identifiant. `400` pour une adresse refusée, `429` au-delà du quota et `503` si la file est pleine ou le service indisponible ; les erreurs contiennent `erreur`.
 - `GET /explorations/:id` : `{id, etat: "en_file", place}` en attente, puis le rapport `horama-exploration-1` dès son écriture. `404` si l'identifiant est inconnu, `503` si le moteur s'arrête sans rapport final. Récupérer un PNG à `/explorations/:id/<capture>` (par exemple `captures/accueil.png`, chemin indiqué dans le rapport). CORS autorise `GET`, `POST` et `OPTIONS`.
 - Un passage à la fois : chaque passage utilise le même port CDP local (`9333`), mais un profil Chrome neuf. Cinq passages peuvent attendre. Quotas proposés : 12 admissions par heure au total, 4 par IP de connexion. Derrière un proxy, cette IP peut être partagée ; le service ne fait pas confiance aux en-têtes d'IP fournis par le client.
-- `HORAMA_MAX_PAGES` (1 à 8, défaut 8) et `HORAMA_MAX_SECONDS` (1 à 240, défaut 240, puis jusqu'à 5 s pour arrêter le moteur) fixent les plafonds, non modifiables par la requête. Le proxy Chrome et les fetchs du moteur refusent les destinations privées après résolution. Le parcours H n'envoie aucun formulaire : il visite le site en simple visiteur.
+- `HORAMA_MAX_PAGES` (1 à 8, défaut 8) et `HORAMA_MAX_SECONDS` (1 à 420, défaut 240, réglé à 380 sur Railway, puis jusqu'à 5 s pour arrêter le moteur) fixent les plafonds, non modifiables par la requête. Le proxy Chrome et les fetchs du moteur refusent les destinations privées après résolution. Le parcours H n'envoie aucun formulaire : il visite le site en simple visiteur.
 - Le mode CLI est conservé : `docker run --rm horama-explorations --help`.
 
 #### Préparer Railway (pas encore déployé)
@@ -265,7 +267,7 @@ Ce qui n'est pas mesuré : la boucle complète d'une correction (un commit qui c
 
 ## Ce qui n'est pas fait
 
-- **Mode grand public en ligne** : l'exploration de 8 pages s'arrête vers 6 pages au plafond de temps du service (240 s) ; le plafond passe à 380 s (#208). Sur des sites inconnus, les contrôles donnent encore des faux positifs, en cours de correction (#208) : lien jugé mort parce que le site refuse les requêtes sans en-têtes de navigateur, illustrations coupées exprès prises pour du texte rogné, texte sous un bandeau de cookies. nike.com fait tomber le service par la mémoire (1,98 Go sur 2 Go) ; un site protégé par un anti-robot (decathlon.fr) ou qui redirige vers une autre adresse (www.hcompany.ai) finit sans page, avec sa raison.
+- **Mode grand public en ligne** : le plafond de temps du service passe de 240 s (6 pages sur 8 environ) à 380 s (#208, #219) ; une exploration de 8 pages sur le service en ligne avec ce plafond est à mesurer. Sur des sites inconnus, les contrôles donnent encore des faux positifs, en cours de correction (#208) : lien jugé mort parce que le site refuse les requêtes sans en-têtes de navigateur, illustrations coupées exprès prises pour du texte rogné, texte sous un bandeau de cookies. nike.com fait tomber le service par la mémoire (1,98 Go sur 2 Go) ; un site protégé par un anti-robot (decathlon.fr) ou qui redirige vers une autre adresse (www.hcompany.ai) finit sans page, avec sa raison.
 - **Temps morts pendant une exploration** : l'agent H met 8 à 10 s par étape ; deux creux mesurés au passage final, des défilements sans effet sur une page courte et l'étape « terminer » de H en fin de visite (environ 17 s), sont confiés à l'explorateur (#208).
 - **Contrôle « texte non traduit »** : il ne juge que les blocs d'au moins 8 mots, dont 3 mots outils de la langue étrangère (`agent/src/exploration/controles.ts`) ; un titre, un bouton ou un menu court resté dans une autre langue que celle déclarée par la page n'est pas relevé (sur la PR #16 du clone, deux titres de `/ecole` restés en français).
 - **Holo** : des faux doutes répétés (un logo très petit pris pour un logo masqué, sur albertschool.com) ; consignes spécialisées par sorte de doute à venir.
