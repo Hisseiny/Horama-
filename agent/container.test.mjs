@@ -8,6 +8,21 @@ const run = (args, key = "") => spawnSync(process.execPath, ["agent/scripts/cont
   cwd, encoding: "utf8", env: { ...process.env, HAI_API_KEY: key },
 });
 
+test("service accepts 380 and 420 seconds and rejects 421", () => {
+  for (const seconds of ["380", "420", "421"]) {
+    const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
+      import fs from "node:fs/promises";
+      import { syncBuiltinESMExports } from "node:module";
+      fs.mkdtemp = async () => { throw new Error("SETTINGS_ACCEPTED"); };
+      syncBuiltinESMExports();
+      process.argv = ["node", "container", "--service"];
+      await import("./agent/scripts/container.mjs");
+    `], { cwd, encoding: "utf8", env: { ...process.env, HAI_API_KEY: "not-a-real-key", HORAMA_MAX_SECONDS: seconds } });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, seconds === "421" ? /Valeur attendue entre 1 et 420/ : /SETTINGS_ACCEPTED/);
+  }
+});
+
 test("container help does not require Chrome or a key", () => {
   const result = run(["--help"]);
   assert.equal(result.status, 0, result.stderr);
