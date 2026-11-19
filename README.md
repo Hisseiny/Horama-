@@ -6,7 +6,46 @@ Horama teste un site web comme le ferait une personne : un agent H (Agents API d
 
 Hackathon Eugenia « Build The Future », 16 au 20 novembre 2026, équipe 11. Horama prolonge la [démo QA de H Company](https://github.com/hcompai/agents-api-demos/tree/main/examples/software_qa) (licence MIT), dont il reprend le format de test Markdown. Produit et fonctionnalités : [cadrage](docs/cadrage.md).
 
-Ce document décrit l'architecture rendue le 18 novembre à 17 h : ce qui existe, ce qui a été mesuré, ce qui reste à construire. Chaque chiffre renvoie à son rapport dans `docs/tests/` ; une valeur non mesurée est écrite « à mesurer ».
+Ce document décrit l'architecture rendue le 18 novembre à 17 h, complétée le 19 : ce qui existe, ce qui a été mesuré, ce qui reste à construire. Chaque chiffre renvoie à son rapport dans `docs/tests/` ; une valeur non mesurée est écrite « à mesurer ».
+
+## Fiche projet
+
+1. **Problème.** Une équipe produit documente son logiciel (écrans, règles métier), puis la documentation et le site divergent : personne ne relit chaque page à chaque déploiement, et un test automatique classique ne voit ni un texte coupé ni une page restée dans la mauvaise langue. Sans documentation du tout, un site n'est jamais regardé.
+2. **Solution.** Horama transforme la documentation en tests et les fait jouer par un agent H qui navigue comme une personne, en direct dans Chrome. Le code prouve ce qui se mesure (une règle calculée, un lien mort, un texte qui déborde, un bloc non traduit), le modèle visuel Holo signale le reste comme un doute, un humain tranche « bug » ou « voulu », et la décision est gardée pour le passage suivant. Deux modes : **développeur** (une PR GitHub réveille Horama, qui répond sur la PR) et **grand public** (une adresse suffit, depuis la page d'accueil ou l'extension Chrome).
+3. **Stack.** Node 22 (TypeScript natif), pnpm. Agents API de H Company (agent H, pont local `holo` qui pilote Chrome par CDP, modèle visuel Holo). Chrome et son protocole de débogage (la scène, les captures). Vault Obsidian en Markdown (documentation, tests, décisions). Supabase (base des passages). Hugging Face, `openai/gpt-oss-120b` (génération des tests, correction de note). GitHub (API, réponses sur les PR, captures publiques). Vercel (page d'accueil, prévisualisations du clone), Railway (service d'exploration du grand public). Extension Chrome Manifest V3.
+4. **Architecture.**
+
+```
+Mode développeur                                   Mode grand public
+----------------                                   -----------------
+PR GitHub du site + déploiement Vercel              Page d'accueil (horama-gold) ou extension Chrome
+        |                                                   |  POST /explorations { url }
+        v                                                   v
+Réveil (automatisation/reveil)                      Service d'exploration (Railway, agent/scripts)
+  lit la PR et le vault, choisit les tests           une exploration à la fois, file d'attente
+        |                                                   |
+        v                                                   v
+Scène (automatisation/scene) : Chrome visible       Explorateur (agent/src/exploration) : Chrome
+  agent H + mascotte, curseur, traits                 sans fenêtre, agent H, contrôles, Holo, direct
+        |                                                   |
+        v                                                   v
+Jugement (jugement/) : règles calculées,            Rapport horama-exploration-1 : défauts prouvés,
+  comparaison d'images ; Holo pour les doutes          doutes, pages, captures entourées
+        |                                                   |
+        v                                                   v
+Humain : « bug » ou « voulu » dans la scène          Page de rapport (accueil/rapport, extension),
+        |                                              suivie en direct
+        v
+Décisions dans le vault, réponse sur la PR avec captures, index public des passages (tour de contrôle)
+```
+
+5. **Repo.** https://github.com/Hisseiny/Horama- (ce dépôt) et le clone du site d'Eugenia School qui sert de terrain au mode développeur, https://github.com/Hisseiny/eugenia-school-website.
+6. **Lien du proto.**
+   - Page d'accueil, mode grand public : https://horama-gold.vercel.app
+   - Extension Chrome : https://horama-gold.vercel.app/horama-extension.zip
+   - Mode développeur en vrai : la PR #16 du clone (traduction en allemand) et la réponse d'Horama, https://github.com/Hisseiny/eugenia-school-website/pull/16#issuecomment-7010755513
+   - Index public des passages (données de la tour de contrôle) : https://raw.githubusercontent.com/Hisseiny/eugenia-school-website/horama/captures/index.json
+7. **Comment tester.** Sans rien installer : la page d'accueil, une adresse, « Envoyer Horama » ; ou l'extension. Détail plus bas, « Essayer Horama » ; pour lancer le code, « Comment lancer ».
 
 ## Deux modes
 
@@ -170,7 +209,7 @@ curl -sS http://127.0.0.1:8787/explorations -H 'Content-Type: application/json' 
 - `POST /explorations` avec `{"url":"…"}` : `202 {id, place}` (`0` si le travail démarre). Chaque demande acceptée a un nouvel identifiant. `400` pour une adresse refusée, `429` au-delà du quota et `503` si la file est pleine ou le service indisponible ; les erreurs contiennent `erreur`.
 - `GET /explorations/:id` : `{id, etat: "en_file", place}` en attente, puis le rapport `horama-exploration-1` dès son écriture. `404` si l'identifiant est inconnu, `503` si le moteur s'arrête sans rapport final. Récupérer un PNG à `/explorations/:id/<capture>` (par exemple `captures/accueil.png`, chemin indiqué dans le rapport). CORS autorise `GET`, `POST` et `OPTIONS`.
 - Un passage à la fois : chaque passage utilise le même port CDP local (`9333`), mais un profil Chrome neuf. Cinq passages peuvent attendre. Quotas proposés : 12 admissions par heure au total, 4 par IP de connexion. Derrière un proxy, cette IP peut être partagée ; le service ne fait pas confiance aux en-têtes d'IP fournis par le client.
-- `HORAMA_MAX_PAGES` (1–8, défaut 8) et `HORAMA_MAX_SECONDS` (1–240, défaut 240, puis jusqu'à 5 s pour arrêter le moteur) fixent les plafonds, non modifiables par la requête. Le proxy Chrome et les fetchs du moteur refusent les destinations privées après résolution. Le parcours H ne demande pas de clic de navigation ni d'envoi de formulaire.
+- `HORAMA_MAX_PAGES` (1 à 8, défaut 8) et `HORAMA_MAX_SECONDS` (1 à 240, défaut 240, puis jusqu'à 5 s pour arrêter le moteur) fixent les plafonds, non modifiables par la requête. Le proxy Chrome et les fetchs du moteur refusent les destinations privées après résolution. Le parcours H n'envoie aucun formulaire : il visite le site en simple visiteur.
 - Le mode CLI est conservé : `docker run --rm horama-explorations --help`.
 
 #### Préparer Railway (pas encore déployé)
@@ -183,7 +222,7 @@ L'image exécute Chromium sous `horama-chrome` et le moteur sous `node`. Le comp
 
 ## Chiffres mesurés
 
-Tous sur le Mac de démo sauf mention, au 17/11. Les durées et coûts de l'agent H sont ceux rendus par l'API pour un passage.
+Tous sur le Mac de démo sauf mention, du 17 au 19/11. Les durées et coûts de l'agent H sont ceux rendus par l'API pour un passage.
 
 | Mesure | Résultat | Preuve |
 |---|---|---|
@@ -196,18 +235,22 @@ Tous sur le Mac de démo sauf mention, au 17/11. Les durées et coûts de l'agen
 | Réveil par commit | Impact écrit à 0,21 s du commit, scène lancée à 0,23 s (Linux, site d'essai synthétique, sans agent H ni base) | [réveil local](docs/tests/2026-11-17-reveil-local.md) |
 | Coureur seul sur Facturo, 3 passages de suite | 3 sur 3 joués ; 64 à 88 s ; 0,026 à 0,034 $ | [A5](docs/tests/2026-11-17-a5-trois-passages-agent-h.md) |
 | Mode grand public à un agent, sur eugeniaschool.com en ligne | 15 pages trouvées et visitées par H, 174 à 237 s, environ 0,07 $ par passage ; 8 constats relus à la main : 2 vrais (lien « portes ouvertes » en 404, chapô d'article coupé), 6 faux, tous venus de Holo ; second passage : 15 captures sur 15 identiques aux références | [mode grand public](docs/tests/2026-11-18-mode-visuel.md) |
+| Mode développeur de bout en bout sur la PR #16 du clone (traduction en allemand), 19/11 | Réveil par la PR, page d'attente, exploration de la prévisualisation : 8 pages (6 par un clic de H, 1 par son adresse), 343 s, 0,22 $ ; 3 défauts prouvés, vrais d'après les captures : « Zertifikatskurs » qui déborde, « Studienjahr » qui déborde (3 éléments), et le bloc laissé en français exprès sur `/ecole` (contrôle « texte non traduit ») ; 2 doutes de Holo sur des titres coupés, celui d'`/admissions` vrai (« Studienzulassung »), celui de `/programmes` à relire ; décisions prises par Nathan dans la scène, réponse publiée sur la PR avec les captures entourées, index des passages publié | [passage final](docs/tests/2026-11-19-langue-et-lecture.md), [réponse](https://github.com/Hisseiny/eugenia-school-website/pull/16#issuecomment-7010755513) |
+| Passages filmés de la scène, nuit du 18 au 19/11 et 19/11 (relus image par image) | Clone allemand, 6 passages : 140 à 343 s, 0,08 à 0,22 $ ; Albert School, site jamais réglé : 8 pages sur 8 par un clic de H, 198 et 278 s, 0,10 et 0,13 $, après correction d'une panne (lien ouvert dans un nouvel onglet) ; louvre.fr : 8 pages sur 8 par clic, 287 s, 0,15 $, mais 6 « défauts prouvés » faux (textes coupés exprès par des points de suspension, texte réservé aux lecteurs d'écran), corrigés depuis dans les contrôles (#186) | [Albert School](docs/tests/2026-11-19-albert-1.md), [passage 1](docs/tests/2026-11-19-passage-1.md), [passage 2](docs/tests/2026-11-19-passage-2.md) |
+| Banc « site au hasard » sur le service en ligne (Railway, 2 Go, 8 pages au plus, plafond de 240 s), 19/11 | vercel.com : 7 pages sur 8, 11 défauts prouvés et 1 doute, **tous faux** (un lien répond 404 sans en-têtes de navigateur mais 200 dans Chrome ; des cartes d'illustration coupées exprès) ; apple.com : 3 pages, 1 doute (troncature voulue) ; hcompany.ai : 4 pages, 3 doutes (texte sous le bandeau de cookies, voulu) ; decathlon.fr : bloqué par l'anti-robot (403), fini proprement ; nike.com : arrêt sans rapport, mémoire à 1,98 Go sur 2 Go. **0 défaut réel prouvé sur les 5 sites ; aucun site à 8 pages** (plafond de 240 s) | [#208](https://github.com/Hisseiny/Horama-/issues/208) |
 
-Ce qui n'est pas mesuré : le taux de faux constats d'un vrai défaut sur le site d'Eugenia (aucune régression réelle n'y a été jouée par l'agent H ; les doutes de la répétition sont plantés dans une copie du vault), le parcours sur le fork, le mode grand public sur d'autres sites (#67), l'accessibilité.
+Ce qui n'est pas mesuré : la boucle complète d'une correction (un commit qui corrige les défauts de la PR #16, puis une réponse d'Horama sans défaut), le taux de faux constats sur un banc stable après les corrections en cours, l'accessibilité.
 
 ## Ce qui n'est pas fait
 
-- **Mode grand public** : moteur à un agent fusionné (#64) ; marche sur n'importe quel site à prouver (#67) ; extension Chrome et service que le jury essaie seul (#68).
-- **Direction artistique** de la scène (le squelette épuré est fait, #69), page d'accueil (#70).
-- **Mode dev de bout en bout** : réveil par un vrai déploiement Vercel, rapport dans Obsidian, commentaire sur la PR GitHub (#71).
-- **Clone du site d'Eugenia** : le clone d'Ali (`Hisseiny/eugenia-school-website`) remplace le fork attendu de l'école. Il a son vault (`vault-horama/eugenia-clone/`), ses références prises sur sa production Vercel, et le réveil lit ses PR (#71). Reste à jouer un passage réel avec l'agent H sur une PR du clone.
-- **Interface web** (`interface/`) : sur données factices ; la démo se joue dans la scène.
+- **Mode grand public en ligne** : l'exploration de 8 pages s'arrête vers 6 pages au plafond de temps du service (240 s) ; le plafond passe à 380 s (#208). Sur des sites inconnus, les contrôles donnent encore des faux positifs, en cours de correction (#208) : lien jugé mort parce que le site refuse les requêtes sans en-têtes de navigateur, illustrations coupées exprès prises pour du texte rogné, texte sous un bandeau de cookies. nike.com fait tomber le service par la mémoire (1,98 Go sur 2 Go) ; un site protégé par un anti-robot (decathlon.fr) ou qui redirige vers une autre adresse (www.hcompany.ai) finit sans page, avec sa raison.
+- **Temps morts pendant une exploration** : l'agent H met 8 à 10 s par étape ; deux creux mesurés au passage final, des défilements sans effet sur une page courte et l'étape « terminer » de H en fin de visite (environ 17 s), sont confiés à l'explorateur (#208).
+- **Holo** : des faux doutes répétés (un logo très petit pris pour un logo masqué, sur albertschool.com) ; consignes spécialisées par sorte de doute à venir.
+- **Mode développeur** : joué de bout en bout sur la PR #16 du clone ; reste la boucle d'une correction (un commit qui corrige les défauts, puis une réponse sans défaut). Quand une PR change la langue du site, les tests écrits du vault sont écartés et seule l'exploration est jouée.
+- **Tour de contrôle** (#149) : les données sont publiques (index des passages du mode dev, explorations du service) ; l'écran attend la maquette d'Axil.
+- **Interface web** (`interface/`) : sur données factices ; la démo se joue dans la scène et la page de rapport.
 - **n8n** (C7, notification « cas à relire ») : non construit.
-- **Limites connues** : le mode scripté (sans agent H) ne sait pas cliquer un lien hors de l'écran ni ouvrir le menu burger ; un clic humain dans la fenêtre de la scène passe avant les réponses automatiques ; la correction de note varie d'un appel à l'autre.
+- **Limites connues** : le mode scripté (sans agent H) ne sait pas cliquer un lien hors de l'écran ni ouvrir le menu burger ; la correction de note varie d'un appel à l'autre.
 
 ## Évolutions prévues
 
