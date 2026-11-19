@@ -1045,13 +1045,20 @@
   // rests 3.5 s, then the next one; a gesture of H brings it back beside the arrow at once. Never on a text.
   const READ_AFTER = 2500, READ_PAUSE = 3500;
   const readable = () => {
-    const seen = (el) => {
+    // The part of an element on the screen (a title larger than the screen counts by its visible part), 40 × 10 px at least.
+    const seen = (el, min = [40, 10]) => {
       const r = el.getBoundingClientRect();
-      return r.width > 40 && r.height > 10 && r.top > 30 && r.bottom < innerHeight - 30 && r.left < innerWidth - 40 && r.right > 40 && el.checkVisibility?.({ opacityProperty: true, visibilityProperty: true }) !== false ? r : null;
+      const left = Math.max(r.left, 0), top = Math.max(r.top, 30), right = Math.min(r.right, innerWidth), bottom = Math.min(r.bottom, innerHeight - 30);
+      return right - left > min[0] && bottom - top > min[1] && el.checkVisibility?.({ opacityProperty: true, visibilityProperty: true }) !== false
+        ? { left, top, right, bottom, width: right - left, height: bottom - top } : null;
     };
-    const titles = [...document.querySelectorAll("h1, h2, h3, h4, [role=heading]")].map(seen).filter(Boolean);
-    if (titles.length) return titles;
-    return [...document.querySelectorAll("p, li")].filter((el) => el.innerText?.trim().length >= 40).map(seen).filter(Boolean).slice(0, 6);
+    const titles = [...document.querySelectorAll("h1, h2, h3, h4, [role=heading]")].map((el) => seen(el)).filter(Boolean);
+    if (titles.length >= 2) return titles;
+    // One title or none on the screen (S8, louvre.fr 19/11: « ÉDITIONS » alone, the mascot stayed on it 30 s): the title,
+    // then the paragraphs and the pictures of the screen, in the order of the page.
+    const paragraphs = [...document.querySelectorAll("p, li")].filter((el) => el.innerText?.trim().length >= 40).map((el) => seen(el)).filter(Boolean).slice(0, 4);
+    const pictures = [...document.querySelectorAll("img, picture, video")].map((el) => seen(el, [160, 100])).filter(Boolean).slice(0, 3);
+    return [...titles, ...paragraphs, ...pictures].slice(0, 7);
   };
   const stopReading = () => {
     clearTimeout(readTimer);
