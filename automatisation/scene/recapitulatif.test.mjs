@@ -2,7 +2,7 @@
 // no network. Run from this folder: node --test recapitulatif.test.mjs
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { bilanExploration, dejaVoulu } from "./recapitulatif.mjs";
+import { bilanExploration, dejaVoulu, revoir } from "./recapitulatif.mjs";
 
 // The site blocked by its anti-robot (as in docs/tests/2026-11-18-a67-anti-robot.md, skema.edu): no page, no H session.
 const bloquee = {
@@ -63,4 +63,22 @@ test("déjà voulu : même page, même description, zones qui se recoupent ; une
   assert.equal(dejaVoulu(constat, [{ ...voulu, ecran: "accueil" }]), null);
   assert.equal(dejaVoulu(constat, [{ ...voulu, ecart: "Le bouton déborde." }]), null);
   assert.equal(dejaVoulu(constat, [{ ...voulu, zone: { x: 900, y: 100, largeur: 50, hauteur: 20 } }]), null);
+});
+
+// --choix taken again from the start (S9): three questions, two answers given: voulu, bug, then voulu again; every
+// question answered, none left to a human. A mascot that reports each choice as the layer does.
+test("revoir : --choix repris en boucle quand il y a plus de questions que de réponses", async () => {
+  let report = null;
+  const asked = [];
+  const mascot = async (command, value) => {
+    if (command === "choisir") {
+      asked.push(value);
+      report?.({ choix: value });
+    }
+  };
+  const item = (id) => ({ id, genre: "doute", etat: "doute", texte: id, png: Buffer.from("png"), zones: [], page: null, textes: ["Un texte."], question: "Bug, ou voulu ?" });
+  const made = await revoir({ mascot, recap: {}, items: ["a", "b", "c"].map(item), choix: ["voulu", "bug"], presentation: false, witness: async () => {}, say: () => {} },
+    () => new Promise((resolve) => (report = resolve)));
+  assert.deepEqual(asked, ["voulu", "bug", "voulu"]);
+  assert.deepEqual(made.map(({ choix }) => choix), ["voulu", "bug", "voulu"]);
 });

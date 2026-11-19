@@ -39,7 +39,8 @@ export function dejaVoulu(constat, decisions) {
 // mascot: (command, ...args) => layer call. recap: { titre, site, chiffres, lignes, selection } (see recap in
 // couche-horama.js). items: { id, genre ("defaut" or "doute"), etat (of the mascot), texte (one line in the summary),
 // mesure (its measure in the summary, or nothing), png (the capture), zones, page, textes, question }. choix: the
-// answers of --choix, in order. answer(): a promise of the next { id, choix } the layer reports. Returns, per item, the
+// answers of --choix, in order, taken again from the start when there are more questions than answers (S9: a filmed
+// passage shows the whole end without knowing in advance how many questions it will ask). answer(): a promise of the next { id, choix } the layer reports. Returns, per item, the
 // choice made.
 export async function revoir({ mascot, recap, items, choix = [], presentation, witness, say }, answer) {
   await mascot("recap", { ...recap, items: items.map(({ id, genre, texte, mesure }) => ({ id, genre, texte, mesure })) });
@@ -55,9 +56,10 @@ export async function revoir({ mascot, recap, items, choix = [], presentation, w
     await witness(`examen-${index + 1}`);
     // --choix answers by itself, after the time it takes to read: 2,5 s plus 50 ms per character.
     const words = [...item.textes, item.question].join(" ");
-    if (choix[index]) sleep(presentation ? 2500 + 50 * words.length : 0).then(() => mascot("choisir", choix[index])).catch(() => {});
+    const auto = choix.length ? choix[index % choix.length] : null;
+    if (auto) sleep(presentation ? 2500 + 50 * words.length : 0).then(() => mascot("choisir", auto)).catch(() => {});
     const { choix: chosen } = await response;
-    say(`Question ${rang} : ${item.question} Réponse : ${chosen}${choix[index] ? " (--choix)" : ""}.`);
+    say(`Question ${rang} : ${item.question} Réponse : ${chosen}${auto ? " (--choix)" : ""}.`);
     made.push({ item, choix: chosen });
     if (presentation) await sleep(900);
     await witness(`reponse-${index + 1}`);

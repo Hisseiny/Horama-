@@ -7,7 +7,7 @@
 // in the memory of the site. Nothing here is particular to a site.
 //
 // Usage: node [--env-file=<.env.local>] automatisation/scene/exploration.mjs --url <adresse> [--site <dossier du vault>] [--max 15] [--pages-cliquees 4] [--sans-agent]
-//          [--sans-holo] [--sans-base | --avec-base] [--choix bug,voulu,...] [--sans-fin] [--par <nom>] [--rythme <s>]
+//          [--sans-holo] [--sans-base | --avec-base] [--choix bug,voulu,... (repris en boucle)] [--sans-fin] [--par <nom>] [--rythme <s>]
 //          [--vault <dir>] [--sortie <dir>] [--temoins <dir>] [--port 9333] [--profil <dir>] [--fermer-chrome]
 // Env: HAI_API_KEY (H and Holo), SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, CHROME_BIN, HOLO_BIN.
 // Exit: 0 the exploration ended « fini » and nothing failed, 1 otherwise, 2 something is missing, 130 Ctrl+C.
@@ -398,6 +398,9 @@ writeFileSync(join(OUT, "scene.json"), `${JSON.stringify({ id: ID, passage_id: r
 for (const line of errors) say(`Erreur : ${line}`);
 runtime.close();
 page.close();
-if (flag("fermer-chrome")) await closeChrome({ port: PORT, pid: chrome.pid });
-else say(`Chrome laissé ouvert (port ${PORT}).`);
+if (flag("fermer-chrome")) {
+  // The end stays on the screen before Chrome closes (S9: a filmed passage sees the summary or « C'est rangé »).
+  await sleep(8000);
+  await closeChrome({ port: PORT, pid: chrome.pid });
+} else say(`Chrome laissé ouvert (port ${PORT}).`);
 process.exit(errors.length || report?.etat !== "fini" ? 1 : 0);
