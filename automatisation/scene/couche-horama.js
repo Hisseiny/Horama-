@@ -29,6 +29,7 @@
   const SKY = "#E3E0F9"; // ciel: where the envoy flies
   const WING = "#AFA9EC";
   const IRIS = "#7F77DD"; // iris of the mascot, for the ripple of a click
+  const AILE = "#AFA9EC"; // lilac of the wings: the line of reading (S4), never a sign of proof
   const COLORS = { conforme: "#2E7D55", defaut: "#B8321F", doute: "#C48A1E" }; // olivier, miltos, ocre
   const STAMPS = { bug: "Bug noté", voulu: "Voulu" };
   // observe (the course), trouve (a proven defect ringed), doute (a finding of Holo), bloquee (the course stops for a
@@ -58,7 +59,11 @@
     :host { --miltos: ${COLORS.defaut}; --ocre: ${COLORS.doute}; }
     .zones { position: absolute; left: 0; top: 0; }
     .zone { position: absolute; transition: opacity 160ms ease-out; }
-    .zone.covered { opacity: 0 !important; } /* over .zone.old.done (three classes): a dashed old place hides too */
+    .zone.covered { opacity: 0 !important; }
+    /* S4 : la ligne de lecture de la mascotte, fine, droite, lilas des ailes, qui se trace au rythme de l'œil puis
+       s'efface. Rien à voir avec les signes de preuve (le trait miltos à main levée, les points ocre). */
+    .lecture { position: absolute; height: 2px; border-radius: 1px; background: ${AILE}; opacity: 0; transform-origin: left center; transform: scaleX(0); transition: opacity 400ms ease-out; }
+    .lecture.on { opacity: 0.9; transform: scaleX(1); transition: opacity 300ms ease-out, transform var(--lire, 3000ms) linear; } /* over .zone.old.done (three classes): a dashed old place hides too */
     .zone > svg, .shot .mark > svg { position: absolute; left: 0; top: 0; overflow: visible; }
     .zone.old { margin: -7px; padding: 7px; box-sizing: content-box; border: 3px dashed ${INK}; opacity: 0; transition: opacity 300ms ease-out; }
     .zone.old.done { opacity: 0.45; }
@@ -337,7 +342,7 @@
   const look = () => {
     if (!pupil) return;
     // Reading: the eye goes along the title it reads, slowly, from its start to its end.
-    const sweep = reading ? { x: reading.look.x + Math.sin(performance.now() / 1100) * reading.half, y: reading.look.y } : null;
+    const sweep = reading ? { x: reading.start ? reading.left + reading.width * Math.min(1, (performance.now() - reading.start) / reading.lire) : reading.left, y: reading.look.y } : null;
     const target = state.bulle || state.revue ? null : sweep ?? state.travel?.to ?? lookAt ?? cursorAt;
     const dx = target ? target.x - at.x - M / 2 : 0;
     const dy = target ? target.y - at.y - M / 2 : 0;
@@ -1043,14 +1048,22 @@
   // Nothing of H moves while it thinks (8 to 15 s a step): the arrow stays where H left it. The mascot is ours: 2.5 s
   // after the last gesture of H it flies slowly beside a title (or a paragraph) of the screen, reads it with its eye,
   // rests 3.5 s, then the next one; a gesture of H brings it back beside the arrow at once. Never on a text.
-  const READ_AFTER = 2500, READ_PAUSE = 3500;
+  const READ_AFTER = 2500, READ_PAUSE = 5000;
+  const readLine = element("div", "lecture");
   const readable = () => {
     // The part of an element on the screen (a title larger than the screen counts by its visible part), 40 × 10 px at least.
     const seen = (el, min = [40, 10]) => {
-      const r = el.getBoundingClientRect();
+      // A text by the box of its letters (a title in a wide block reads as long as its words), a picture by its own box.
+      let r = el.getBoundingClientRect();
+      if (!el.matches("img, picture, video")) {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const letters = range.getBoundingClientRect();
+        if (letters.width > 0 && letters.height > 0) r = letters;
+      }
       const left = Math.max(r.left, 0), top = Math.max(r.top, 30), right = Math.min(r.right, innerWidth), bottom = Math.min(r.bottom, innerHeight - 30);
       return right - left > min[0] && bottom - top > min[1] && el.checkVisibility?.({ opacityProperty: true, visibilityProperty: true }) !== false
-        ? { left, top, right, bottom, width: right - left, height: bottom - top } : null;
+        ? { left, top, right, bottom, width: right - left, height: bottom - top, image: el.matches("img, picture, video") } : null;
     };
     const titles = [...document.querySelectorAll("h1, h2, h3, h4, [role=heading]")].map((el) => seen(el)).filter(Boolean);
     if (titles.length >= 2) return titles;
@@ -1062,6 +1075,7 @@
   };
   const stopReading = () => {
     clearTimeout(readTimer);
+    readLine.classList.remove("on");
     if (reading) {
       reading = null;
       wake();
@@ -1075,9 +1089,25 @@
     readIndex = (readIndex + 1) % list.length;
     const r = list[readIndex];
     const width = Math.min(r.width, 520);
-    reading = { look: { x: r.left + width / 2, y: r.top + r.height / 2 }, half: width / 2 };
+    readLine.classList.remove("on");
+    reading = { look: { x: r.left + width / 2, y: r.top + r.height / 2 }, half: width / 2, left: r.left, width, start: null };
     goTo(nearSpot(reading.look, busy(), null, true));
     wake();
+    const mine = reading;
+    // Once it has landed: the eye goes along the text from its start to its end, and the line of reading is drawn under
+    // it at the same pace (a text only, not a picture), then both rest until the next one (S4: what it reads is seen).
+    arrived().then(() => {
+      if (reading !== mine) return;
+      const lire = Math.round(READ_PAUSE * 0.7);
+      mine.start = performance.now();
+      mine.lire = lire;
+      if (r.image) return;
+      readLine.style.cssText = `left:${r.left + scrollX}px;top:${r.bottom + scrollY + 4}px;width:${width}px;--lire:${lire}ms`;
+      attach();
+      if (!readLine.isConnected) zonesBox.append(readLine);
+      void readLine.offsetWidth;
+      readLine.classList.add("on");
+    });
     readTimer = setTimeout(readNext, READ_PAUSE + 1500);
   }
   // Each gesture of H: the reading stops, and starts again once H is quiet.

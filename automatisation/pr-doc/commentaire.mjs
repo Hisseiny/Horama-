@@ -36,8 +36,11 @@ export function ecrireSectionExploration({ adresse, bilan, totaux, prouves, dout
   const decided = (id) => DECIDED[decisions.find((decision) => decision.ecart_id === id)?.decision] ?? "pas tranché";
   const zone = ({ zone: box }) => (box ? `zone x ${Math.round(box.x)}, y ${Math.round(box.y)}, ${Math.round(box.largeur)} × ${Math.round(box.hauteur)} px sur la capture` : "zone non mesurée");
   // With --captures-sur-branche (option a), an entry carries `image`: the address of its capture ringed, shown under it.
+  // A grouped finding (#180): its CSS selectors folded under the line, for the developer; the jury reads the line.
+  const folded = (item) => (item.selecteurs?.length > 1
+    ? `\n\n  <details><summary>Sélecteurs des ${item.selecteurs.length} éléments</summary>\n\n${item.selecteurs.map((selector) => `  - \`${selector}\``).join("\n")}\n\n  </details>\n` : "");
   const line = (item, withDecision = true) => `- ${item.chemin} : ${item.texte}${item.preuve ? ` ${item.preuve}` : ""} (${zone(item)}${withDecision ? `, décision : ${decided(item.id)}` : ""})`
-    + (item.image ? `\n\n  ![${item.chemin} : ${item.texte.replace(/[[\]]/g, "")}](${item.image})\n` : "");
+    + folded(item) + (item.image ? `\n\n  ![${item.chemin} : ${item.texte.replace(/[[\]]/g, "")}](${item.image})\n` : "");
   const lines = ["### Exploration de tout le site de la prévisualisation", ""];
   if (bilan.aucune) {
     lines.push(`**${bilan.phrase}**`, "");
