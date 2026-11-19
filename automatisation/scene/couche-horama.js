@@ -147,10 +147,14 @@
     .panel .files li { padding: 5px 10px; background: ${PAPER}; border: 2px solid ${FILET}; border-radius: 8px; color: ${INK}; font: 500 13.5px/1.3 ${MESURE}; overflow-wrap: anywhere; }
     .cursor { position: fixed; left: 0; top: 0; width: 40px; height: 40px; will-change: transform; }
     .cursor svg { display: block; width: 40px; height: 40px; transform-origin: ${TIP.x}px ${TIP.y}px; transition: transform 90ms ease-out; }
-    .cursor.press svg { transform: scale(0.78); }
+    .cursor.press svg { transform: scale(0.7); }
+    .echo { position: fixed; left: 0; top: 0; width: 40px; height: 40px; opacity: 0; transition: opacity 120ms; }
+    .echo svg { display: block; width: 40px; height: 40px; }
     .cursor.wheel svg { animation: wheel 380ms ease-in-out; }
     @keyframes wheel { 40% { transform: translateY(calc(var(--wheel, 1) * 5px)) scale(0.94); } }
-    .ripple { position: fixed; width: 28px; height: 28px; margin: -14px; border: 3px solid ${IRIS}; border-radius: 50%; animation: ripple 460ms ease-out forwards; }
+    .ripple { position: fixed; width: 28px; height: 28px; margin: -14px; border: 3px solid ${IRIS}; border-radius: 50%; background: ${IRIS}33; animation: ripple 460ms ease-out forwards; }
+    .ripple.second { background: transparent; border-width: 2px; animation: ripple 560ms ease-out 120ms both; }
+    .mascot .body { transition: rotate 220ms ease-out; }
     @keyframes hover { 50% { transform: translateY(-5px); } }
     @keyframes pop { from { scale: 0.82; } to { scale: 1; } }
     @keyframes flap { from { transform: rotate(0deg); } to { transform: rotate(calc(var(--dir) * 16deg)) scaleY(0.9); } }
@@ -162,6 +166,15 @@
   <div class="mascot" hidden><div class="body"></div><div class="bubble"></div></div>
   <div class="cursor" hidden><svg viewBox="0 0 24 24"><path d="M4.2 3v16.2l4.3-4 2.9 6.6 2.9-1.3-2.9-6.5h6.1Z" fill="${INK}" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg></div>`;
   const [zonesBox, dim, panel, mascot, body, bubble, cursor] = ["zones", "dim", "panel", "mascot", "body", "bubble", "cursor"].map((name) => shadow.querySelector(`.${name}`));
+  // Three echoes of the arrow behind it while it travels to a gesture of H (S2): the trace of the hand, nothing else.
+  const echoes = [0.32, 0.2, 0.1].map((opacity) => {
+    const echo = document.createElement("div");
+    echo.className = "echo";
+    echo.dataset.opacity = String(opacity);
+    echo.innerHTML = cursor.innerHTML;
+    shadow.insertBefore(echo, cursor);
+    return echo;
+  });
 
   // ---------- State, kept across pages (sessionStorage is refused on about:blank) ----------
   const stored = () => {
@@ -259,11 +272,14 @@
     setTimeout(() => {
       cursor.classList.add("press");
       setTimeout(() => cursor.classList.remove("press"), PRESS + 120);
-      const ring = element("div", "ripple");
-      ring.style.left = `${cursorAt.x}px`;
-      ring.style.top = `${cursorAt.y}px`;
-      ring.addEventListener("animationend", () => ring.remove(), { once: true });
-      shadow.append(ring);
+      // A filled ripple and a second ring just after (S2: the click was more visible on 16/11, before the ring alone).
+      for (const name of ["ripple", "ripple second"]) {
+        const ring = element("div", name);
+        ring.style.left = `${cursorAt.x}px`;
+        ring.style.top = `${cursorAt.y}px`;
+        ring.addEventListener("animationend", () => ring.remove(), { once: true });
+        shadow.append(ring);
+      }
     }, HOVER);
   };
   const wake = () => {
@@ -279,9 +295,16 @@
     if (state.travel) {
       const t = Math.min(1, (Date.now() - state.travel.at) / (state.travel.ms || 1));
       putCursor(along(state.travel, t));
+      echoes.forEach((echo, i) => {
+        const p = along(state.travel, Math.max(0, t - (i + 1) * 0.06));
+        echo.style.transform = `translate(${p.x - TIP.x}px, ${p.y - TIP.y}px)`;
+        echo.style.opacity = t < 1 && state.travel.ms > 0 ? echo.dataset.opacity : "0";
+      });
+      // The mascot leans toward where the arrow goes (8 degrees at most), straight again when it lands.
+      if (TITLE) body.style.rotate = t < 1 ? `${Math.max(-8, Math.min(8, (state.travel.to.x - (at.x + M / 2)) / 40))}deg` : "0deg";
       if (t < 1) moving = true;
       else land();
-    }
+    } else for (const echo of echoes) echo.style.opacity = "0";
     // A spring a little under critical damping: it settles without bouncing back and forth.
     // While it reads the page (calm), a slow spring: a quiet flight from one title to the next.
     const [k, c] = reading ? [36, 11.4] : [130, 19];
@@ -963,12 +986,12 @@
     if (held) replay();
     clearTimeout(moving);
     const to = { x: event.clientX, y: event.clientY };
-    // From where the arrow is now (it may be on its way after a move of the mouse of H); the first gesture of H shows it
-    // where it happens.
+    // From where the arrow is now (it may be on its way after a move of the mouse of H); the first gesture of H starts
+    // from the mascot (startOf), or where it happens without a mascot.
     const first = !state.geste;
     state.geste = true;
-    const way = course(first ? to : cursorAt ?? to, to);
-    const ms = first || !cursorAt ? 0 : way.ms;
+    const way = course(first ? startOf(to) : cursorAt ?? to, to);
+    const ms = (first && !TITLE) || (!first && !cursorAt) ? 0 : way.ms;
     const heure = Date.now();
     state.travel = { ...way, ms, at: heure };
     state.cursor = to;
@@ -995,6 +1018,11 @@
       trajet_ms: ms,
     }));
   };
+  // The first gesture of H starts from the mascot, which hands the arrow over: the mouse of H has no known place before
+  // its first gesture, so where the arrow starts from is a convention (until 18/11, the middle of the screen); where it
+  // goes and when are those of H. Without a mascot (the probe), the arrow shows where the gesture happens.
+  const startOf = (to) => (TITLE ? { x: Math.round(at.x + M / 2), y: Math.round(at.y + M / 2) } : to);
+
   // ---------- Reading: while H thinks, the mascot reads the page ----------
   // Nothing of H moves while it thinks (8 to 15 s a step): the arrow stays where H left it. The mascot is ours: 2.5 s
   // after the last gesture of H it flies slowly beside a title (or a paragraph) of the screen, reads it with its eye,
@@ -1058,8 +1086,8 @@
     attach();
     const first = !state.geste;
     state.geste = true;
-    const way = course(first ? to : cursorAt ?? to, to);
-    state.travel = { ...way, ms: first || !cursorAt ? 0 : way.ms, at: Date.now(), clic: false };
+    const way = course(first ? startOf(to) : cursorAt ?? to, to);
+    state.travel = { ...way, ms: (first && !TITLE) || (!first && !cursorAt) ? 0 : way.ms, at: Date.now(), clic: false };
     state.cursor = to;
     save();
     cursor.hidden = false;
