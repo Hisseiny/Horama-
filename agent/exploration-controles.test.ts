@@ -181,6 +181,7 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
     <div style="clip-path:inset(50%)"><div id="clip-path" style="width:40px;white-space:nowrap">Texte beaucoup trop long pour la boîte</div></div>
     <div class="hero-carousel"><div id="slide" style="width:40px;white-space:nowrap">Texte beaucoup trop long pour la boîte</div></div>
     <div style="overflow-x:auto;width:100px;white-space:nowrap"><a id="strip" style="display:inline-block;width:40px">Texte trop long</a><span style="display:inline-block;width:300px"></span></div>
+    <div style="display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;width:100px;font:16px/20px sans-serif"><p id="clamped-child" style="margin:0;height:40px">Erste Zeile zweite Zeile dritte Zeile vierte Zeile fünfte Zeile</p></div>
     <div aria-hidden="true"><div id="decorative" style="width:40px;white-space:nowrap">Texte beaucoup trop long pour la boîte</div></div>\`)` });
   const intentional = await client.send("Runtime.evaluate", { returnByValue: true, expression: "['clamp-visible', 'in-sr-only', 'clip-path', 'slide'].map(id => { const e = document.getElementById(id); return e.scrollWidth > e.clientWidth + 1 || e.scrollHeight > e.clientHeight + 1; })" });
   assert.deepEqual(intentional.result.value, [true, true, true, true], "ces textes débordent réellement de leur boîte");

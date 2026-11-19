@@ -161,6 +161,9 @@ function inspectDocument() {
     if ([style.overflowX, style.overflowY].some(value => ["hidden", "clip", "auto", "scroll"].includes(value)) || style.textOverflow === "ellipsis" || lineClamped) continue;
     if (element.clientWidth <= 1 || element.clientHeight <= 1 || (element.scrollWidth <= element.clientWidth + 1 && element.scrollHeight <= element.clientHeight + 1)) continue;
     if (masked(element)) continue;
+    let clampedAncestor = false;
+    for (let ancestor = element.parentElement; ancestor && !clampedAncestor; ancestor = ancestor.parentElement) clampedAncestor = Number(getComputedStyle(ancestor).webkitLineClamp) > 0;
+    if (clampedAncestor) continue;
     const box = element.getBoundingClientRect();
     if (box.right + scrollX <= 0 || box.bottom + scrollY <= 0) continue;
     const ink = textBounds(element);
