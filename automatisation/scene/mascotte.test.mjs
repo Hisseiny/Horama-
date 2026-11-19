@@ -96,22 +96,23 @@ test("les cinq états de la mascotte de la charte : même taille, même place ; 
     await page.send("Animation.setPlaybackRate", { playbackRate: 0 });
     const clickAndWait = async (x, y) => {
       for (const type of ["mousePressed", "mouseReleased"]) await page.send("Input.dispatchMouseEvent", { type, x, y, button: "left", clickCount: 1 });
-      await sleep(1600);
+      await sleep(2400);
       return PNG.sync.read(crop(await shot(page), await around(page)));
     };
     const left = await clickAndWait(40, 830);
     const up = await clickAndWait(1208, 40);
-    let changed = 0, outside = 0;
+    // The changed pixels all lie in one disc of the size of the eye (radius 20, 22 with its edge), around their centre:
+    // the floating of the mascot, frozen at any moment, moves the eye a few px up or down in the crop.
+    const moved = [];
     for (let y = 0; y < left.height; y++) for (let x = 0; x < left.width; x++) {
       const i = (y * left.width + x) * 4;
-      if (left.data[i] !== up.data[i] || left.data[i + 1] !== up.data[i + 1] || left.data[i + 2] !== up.data[i + 2]) {
-        changed++;
-        // The box of the mascot starts at (20, 20) in the crop; its eye, a circle of radius 20 around (48, 48).
-        if (Math.hypot(x - 20 - 48, y - 20 - 48) > 22) outside++;
-      }
+      if (left.data[i] !== up.data[i] || left.data[i + 1] !== up.data[i + 1] || left.data[i + 2] !== up.data[i + 2]) moved.push([x, y]);
     }
+    const changed = moved.length;
+    const [cx, cy] = [moved.reduce((sum, [x]) => sum + x, 0) / (changed || 1), moved.reduce((sum, [, y]) => sum + y, 0) / (changed || 1)];
+    const outside = moved.filter(([x, y]) => Math.hypot(x - cx, y - cy) > 22).length;
     assert.ok(changed > 20, `la pupille a bougé (${changed} pixels)`);
-    assert.equal(outside, 0, "seul l'œil change");
+    assert.equal(outside, 0, `seul l'œil change (${outside} hors du disque, ${changed} changés)`);
     await page.send("Animation.setPlaybackRate", { playbackRate: 1 });
 
     // A click of the agent: no « hesite » in the charter, the mascot keeps observing while the arrow travels.

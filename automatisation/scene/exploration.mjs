@@ -92,6 +92,9 @@ const vitrine = flag("vitrine") ? await ouvrirVitrine(page, { chromeBin: CHROME_
 // starts (about 20 s measured on 18/11, 11 h 45), instead of a blank page.
 await navigate(page, URL_SITE);
 await mascot("etat", "observe").catch(() => {});
+// While the agent starts, the mascot gets ready in the middle of the page and looks it over, until the first gesture of
+// the mouse of H; the arrow shows only then (couche-horama.js, preparer).
+await mascot("preparer", true).catch(() => {});
 let witnesses = 0;
 let capturing = false;
 async function witness(label) {
