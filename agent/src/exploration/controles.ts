@@ -176,11 +176,26 @@ function inspectDocument() {
     return bounds;
   };
   const truncations: Element[] = [];
+  const truncationMeasures = new Map<Element, boolean>();
+  const isTruncated = (element: Element) => {
+    if (truncationMeasures.has(element)) return truncationMeasures.get(element)!;
+    const box = element.getBoundingClientRect();
+    const scaleX = box.width / (element as HTMLElement).offsetWidth || 1, scaleY = box.height / (element as HTMLElement).offsetHeight || 1;
+    const left = box.left + element.clientLeft * scaleX, top = box.top + element.clientTop * scaleY;
+    const right = left + element.clientWidth * scaleX, bottom = top + element.clientHeight * scaleY;
+    const overflowing = element.scrollWidth > element.clientWidth + 1 || element.scrollHeight > element.clientHeight + 1;
+    const ink = overflowing && !masked(element) ? textBounds(element, true) : undefined;
+    const truncated = !!ink && element.clientWidth > 1 && element.clientHeight > 1 && box.width > 1 && box.height > 1
+      && right + scrollX > 0 && bottom + scrollY > 0 && ink.right > left && ink.left < right && ink.bottom > top && ink.top < bottom
+      && (ink.right > right + scaleX || ink.bottom > bottom + scaleY);
+    truncationMeasures.set(element, truncated);
+    return truncated;
+  };
   const truncationOwner = (element: Element) => {
     for (let ancestor: Element | null = element; ancestor; ancestor = ancestor.parentElement) {
       const css = getComputedStyle(ancestor);
-      if ((css.textOverflow === "ellipsis" && css.overflowX !== "visible")
-        || (Number(css.webkitLineClamp) > 0 && css.webkitBoxOrient === "vertical" && ["-webkit-box", "-webkit-inline-box", "flow-root"].includes(css.display))) return ancestor;
+      if (((css.textOverflow === "ellipsis" && css.overflowX !== "visible")
+        || (Number(css.webkitLineClamp) > 0 && css.webkitBoxOrient === "vertical" && ["-webkit-box", "-webkit-inline-box", "flow-root"].includes(css.display))) && isTruncated(ancestor)) return ancestor;
     }
     return undefined;
   };
@@ -196,15 +211,7 @@ function inspectDocument() {
     const style = getComputedStyle(element);
     const owner = truncationOwner(element);
     if (owner) {
-      if (owner !== element || masked(element) || element.clientWidth <= 1 || element.clientHeight <= 1) continue;
-      const ink = textBounds(element);
-      const box = element.getBoundingClientRect();
-      const scaleX = box.width / (element as HTMLElement).offsetWidth || 1, scaleY = box.height / (element as HTMLElement).offsetHeight || 1;
-      const left = box.left + element.clientLeft * scaleX, top = box.top + element.clientTop * scaleY;
-      const right = left + element.clientWidth * scaleX, bottom = top + element.clientHeight * scaleY;
-      if (ink && box.width > 1 && box.height > 1 && right + scrollX > 0 && bottom + scrollY > 0
-        && ink.right > left && ink.left < right && ink.bottom > top && ink.top < bottom
-        && (ink.right > right + scaleX || ink.bottom > bottom + scaleY)) truncations.push(element);
+      if (owner === element) truncations.push(element);
       continue;
     }
     const clippedX = ["hidden", "clip"].includes(style.overflowX) && element.scrollWidth > element.clientWidth + 1;
@@ -239,9 +246,6 @@ function inspectDocument() {
     if ([style.overflowX, style.overflowY].some(value => ["hidden", "clip", "auto", "scroll"].includes(value)) || style.textOverflow === "ellipsis" || lineClamped) continue;
     if (element.clientWidth <= 1 || element.clientHeight <= 1 || (element.scrollWidth <= element.clientWidth + 1 && element.scrollHeight <= element.clientHeight + 1)) continue;
     if (masked(element)) continue;
-    let clampedAncestor = false;
-    for (let ancestor = element.parentElement; ancestor && !clampedAncestor; ancestor = ancestor.parentElement) clampedAncestor = Number(getComputedStyle(ancestor).webkitLineClamp) > 0;
-    if (clampedAncestor) continue;
     const box = element.getBoundingClientRect();
     if (box.right + scrollX <= 0 || box.bottom + scrollY <= 0) continue;
     const ink = textBounds(element);

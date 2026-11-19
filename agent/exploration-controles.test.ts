@@ -283,6 +283,12 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
   assert.match(cards.message, /4 textes coupés/);
   for (let index = 1; index <= 4; index++) assert.match(cards.message, new RegExp(`#card-${index}`));
   assert.ok(truncations.some(defect => defect.selecteur === "#ancestor-clamp"), "le conteneur tronquant couvre aussi son enfant");
+  await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = \`
+    <div id="fitting-ellipsis" style="width:300px;overflow:hidden;text-overflow:ellipsis"><button id="really-cut" style="width:80px;height:28px;white-space:nowrap;overflow:hidden;font:16px/20px sans-serif;padding:0;border:0">Une longue étiquette de bouton vraiment coupée</button></div>
+    <div id="quiet-parent" style="width:300px;overflow:hidden;text-overflow:ellipsis"><div id="clipped-child" style="width:100px;overflow:hidden;white-space:nowrap;font:16px/20px sans-serif">Un texte long déjà coupé par le conteneur enfant</div></div>
+  \`` });
+  const nestedCuts = (await controlerPage(client, { maxLiens: 0 })).filter(defect => ["debordement", "texte_rogne"].includes(defect.sorte));
+  assert.deepEqual(nestedCuts.map(defect => [defect.selecteur, defect.statut]), [["#really-cut", "VERIFIED_FAIL"], ["#clipped-child", "VERIFIED_FAIL"]]);
   await navigate("/many");
   started = Date.now();
   const many = await controlerPage(client);

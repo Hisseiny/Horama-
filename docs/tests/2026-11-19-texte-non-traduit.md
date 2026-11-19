@@ -1093,3 +1093,29 @@ agent check: Done
 ```
 
 Journal : `/home/ubuntu/horama-179-truncation-check-3.log`.
+
+### Revue des troncatures après `6152742`
+
+1. Un parent portant ellipsis n'absorbe ses enfants que si sa propre
+troncature est mesurée. Un bouton coupé sans ellipsis dans un parent qui
+ne déborde pas reste donc un `VERIFIED_FAIL`.
+2. La mesure exige un débordement propre (`scrollWidth`/`scrollHeight`) et
+utilise les limites d'encre après découpe des descendants. Le texte déjà
+coupé dans un enfant ne rend plus le parent faussement suspect.
+
+Deux fixtures locales vérifient que seul l'enfant est signalé, jamais son
+parent ellipsis non tronqué. `node --test exploration-controles.test.ts`
+dans `agent/` : code **0**.
+
+```text
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 16177.499849
+```
+
+Journal : `/home/ubuntu/horama-179-review-truncation.log`.
