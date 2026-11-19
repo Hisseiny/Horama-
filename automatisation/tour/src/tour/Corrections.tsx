@@ -88,7 +88,7 @@ export default function Corrections({ route, data }: { route: Route; data: Charg
           {!data && <p className="tour-vide">Chargement des décisions…</p>}
           {muet && <p className="tour-vide">Rien à afficher tant que l'index des passages ne répond pas.</p>}
           {data && !muet && !voulus.length && (
-            <p className="tour-filtre">Aucune décision « voulu » dans l'index des passages : aucune note à corriger. Une correction n'existe qu'après un « C'est voulu » tranché dans <a className="tour-lien" href="#relire">À relire</a>.</p>
+            <div className="tour-filtre"><p>Aucune décision « voulu » dans l'index des passages : aucune note à corriger. Une correction n'existe qu'après un « C'est voulu » tranché dans <a className="tour-lien" href="#relire">À relire</a>.</p></div>
           )}
           <div className="tour-corrections">{voulus.map(carte)}</div>
         </div>
