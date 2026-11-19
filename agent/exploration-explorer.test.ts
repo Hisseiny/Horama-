@@ -246,7 +246,8 @@ test("préparation attendue avant capture et contrôles dans explorer", async ()
   const events: string[] = [];
   await run({ deps: {
     connecter: async () => ({ on() {}, close() {}, async send(_method, params) {
-      if (String((params as Record<string, unknown> | undefined)?.expression).includes("responseStatus")) return { result: { value: 200 } };
+      const expression = String((params as Record<string, unknown> | undefined)?.expression);
+      if (expression.includes("responseStatus") || expression.includes("a[href]")) return { result: { value: 200 } };
       events.push("préparation");
       await Promise.resolve();
       events.push("prêt");
@@ -493,7 +494,9 @@ test("consigne : relever, défiler puis cliquer, liste dynamique et repli", () =
   const task = construireExploration(pages, "site", "1", 99).task;
   assert.ok(task.indexOf('Appelle relever') < task.indexOf("scroll_web"));
   assert.ok(task.indexOf("scroll_web") < task.indexOf("clique un lien"));
-  assert.match(task, /faq : https:\/\/example.org\/faq/);
+  assert.match(task, /faq : chemin \/faq \(https:\/\/example.org\/faq\)/);
+  assert.match(task, /Choisis le lien par son adresse/);
+  assert.match(construireExploration(pages, "site", "1", 99).instructions, /Reste sur le site https:\/\/example.org : ne suis aucun lien vers un autre domaine ou sous-domaine/);
   assert.match(task, /Si aucun lien visible.*go_to/);
   assert.equal(task.match(/sans go_to clique/g)?.length, 2);
   assert.doesNotMatch(construireExploration(pages, "site", "1", 0).task, /clique un lien/);
@@ -522,6 +525,8 @@ test("URL courante : réécriture, refus hors liste et repli illisible", async (
       await input.onCreated("urls");
       return { id: "urls", fin: (async () => {
         messages.push(await input.onTool("relever", { ecran: "accueil", vue: "defaut" }));
+        address = "https://example.org/inconnue";
+        messages.push(await input.onTool("relever", { ecran: "accueil", vue: "defaut" }));
         address = "https://outside.example/";
         messages.push(await input.onTool("relever", { ecran: "accueil", vue: "defaut" }));
         address = null;
@@ -534,7 +539,9 @@ test("URL courante : réécriture, refus hors liste et repli illisible", async (
   assert.equal(result.etat, "fini");
   assert.match(messages[0], /1\/2 pages relevées/);
   assert.match(messages[1], /n'est pas dans la liste.*go_to/);
-  assert.ok(logs.some(line => line.includes("https://outside.example/")));
+  assert.match(messages[2], /^Tu étais sorti du site \(https:\/\/outside.example\/\) : cette page n'est ni relevée ni contrôlée/);
+  assert.ok(logs.some(line => line.includes("Sortie du site : https://outside.example/")));
+  assert.equal(result.navigation.sorties, 1);
   assert.equal(result.pages[1].capture !== null, true);
   assert.deepEqual(result.navigation.arrivees, { faq: "adresse", accueil: "depart" });
 });
@@ -561,7 +568,7 @@ test("modes d'arrivée sérialisés, compteurs des actions composées seulement 
       })() };
     },
   } });
-  assert.deepEqual(result.navigation, { arrivees: { accueil: "depart", faq: "clic" }, clics: 1, defilements: 2, goTo: 0, defilementsDepart: 2 });
+  assert.deepEqual(result.navigation, { arrivees: { accueil: "depart", faq: "clic" }, clics: 1, defilements: 2, goTo: 0, defilementsDepart: 2, sorties: 0 });
   assert.ok(logs.includes("faq : clic"));
   const report = JSON.parse(readFileSync(join(root, "out/exploration.json"), "utf8"));
   assert.ok(!("navigation" in report));
@@ -1036,4 +1043,84 @@ test("fermeture non confirmée : aucune relance susceptible de consommer une deu
     assert.equal(result.etat, "interrompu");
     assert.ok(result.pages.slice(13).every(page => page.etat === "non_visitee" && /fermeture/.test(page.raison!)));
   }
+});
+
+test("lien de menu vers une autre origine : H ramené sur le site, rien relevé hors site, liens choisis par adresse", async () => {
+  let address = "https://example.org/";
+  const messages: string[] = [], logs: string[] = [], navigations: Array<[string, unknown]> = [];
+  const menu = [
+    { texte: "Questions", href: "https://example.org/faq#haut", visible: true },
+    { texte: "FAQ partenaires", href: "https://partners.example.org/", visible: true },
+    { texte: "Aide", href: "https://example.org/faq", visible: false },
+  ];
+  const { result, base } = await run({ deps: {
+    log: line => logs.push(line),
+    urlCourante: async () => address,
+    connecter: async (_port, tab) => ({ on() {}, close() {}, async send(method, params) {
+      if (method === "Page.navigate") { navigations.push([tab, (params as { url: string }).url]); address = (params as { url: string }).url; return {}; }
+      const expression = String((params as { expression?: string } | undefined)?.expression);
+      return { result: { value: expression.includes("a[href]") ? menu : 200 } };
+    } }),
+    runtime: { relever: async () => ({ png: original, texte: "Page", url_page: address, largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture" }), navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
+    session: async input => {
+      await input.onCreated("site");
+      assert.match(input.consigne.instructions, /Reste sur le site https:\/\/example.org/);
+      return { id: "site", fin: (async () => {
+        messages.push(await input.onTool("relever", { ecran: "accueil", vue: "defaut" }));
+        address = "https://partners.example.org/";
+        await input.onStep({ etape: 2, horodatage: new Date().toISOString(), action: "Clique", etat_session: "en_cours" });
+        messages.push(await input.onTool("relever", { ecran: "faq", vue: "defaut" }));
+        address = "https://example.org/faq";
+        messages.push(await input.onTool("relever", { ecran: "faq", vue: "defaut" }));
+        await input.onTool("terminer", { etat: "reussi" });
+        return { id: "site", muted: false, cout_usd: null, etapes: 4 };
+      })() };
+    },
+  } });
+  assert.match(messages[0], /faq \(\/faq\) : « Questions », « Aide » \(menu replié\)/);
+  assert.doesNotMatch(messages[0], /FAQ partenaires/);
+  assert.deepEqual(navigations, [["https://partners.example.org/", "https://example.org/"]]);
+  assert.match(messages[1], /^Tu étais sorti du site \(https:\/\/partners.example.org\/\) : cette page n'est ni relevée ni contrôlée. Tu es ramené sur https:\/\/example.org\/ ; reste sur https:\/\/example.org\./);
+  assert.match(messages[2], /Tous les relevés/);
+  assert.ok(logs.includes("Sortie du site : https://partners.example.org/ ; retour sur https://example.org/."));
+  assert.equal(result.etat, "fini");
+  assert.equal(result.navigation.sorties, 1);
+  assert.ok(result.pages.every(page => page.etat === "visitee" && !page.capture?.url?.includes("partners")));
+  assert.ok(base.resultats.every(item => !JSON.stringify(item).includes("partners.example.org")));
+});
+
+test("capture prise sur une autre origine sans redirection de la page : retour sur le site et page réessayée", async () => {
+  let address = "https://example.org/";
+  const messages: string[] = [], navigations: string[] = [];
+  const { result } = await run({ deps: {
+    fetch: async input => {
+      const requested = String(input), path = new URL(requested).pathname;
+      const response = new Response(path === "/robots.txt" ? "" : path === "/sitemap.xml" ? "<urlset><url><loc>https://example.org/faq</loc></url></urlset>" : "<html>Page</html>", { headers: { "Content-Type": path === "/robots.txt" ? "text/plain" : path === "/sitemap.xml" ? "application/xml" : "text/html" } });
+      Object.defineProperty(response, "url", { value: requested });
+      return response;
+    },
+    connecter: async () => ({ on() {}, close() {}, async send(method, params) {
+      if (method === "Page.navigate") { navigations.push((params as { url: string }).url); address = (params as { url: string }).url; }
+      return { result: { value: 200 } };
+    } }),
+    runtime: { relever: async () => ({ png: original, texte: "Page", url_page: address, largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture" }), navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
+    session: async input => {
+      await input.onCreated("capture");
+      return { id: "capture", fin: (async () => {
+        messages.push(await input.onTool("relever", { ecran: "accueil", vue: "defaut" }));
+        address = "https://sub.example.org/";
+        messages.push(await input.onTool("relever", { ecran: "faq", vue: "defaut" }));
+        address = "https://example.org/faq";
+        messages.push(await input.onTool("relever", { ecran: "faq", vue: "defaut" }));
+        await input.onTool("terminer", { etat: "reussi" });
+        return { id: "capture", muted: false, cout_usd: null, etapes: 3 };
+      })() };
+    },
+  } });
+  assert.deepEqual(navigations, ["https://example.org/"]);
+  assert.match(messages[1], /^Tu étais sorti du site \(https:\/\/sub.example.org\/\)/);
+  assert.doesNotMatch(messages[1], /redirige vers un autre site/);
+  assert.match(messages[2], /Tous les relevés/);
+  assert.equal(result.pages.find(page => page.ecran === "faq")!.etat, "visitee");
+  assert.equal(result.navigation.sorties, 1);
 });
