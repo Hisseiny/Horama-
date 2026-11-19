@@ -50,8 +50,8 @@ export interface ExplorerDependencies {
 }
 
 const clickedCount = (pageCount: number, clicked: number) => Math.min(clicked, Math.max(0, pageCount - 1));
-export const explorationTimeBudget = (maxSteps: number) => Math.min(600, Math.max(240, 8 * maxSteps));
-export const explorationStepBudget = (pageCount: number, clicked = 0) => 4 * pageCount + 13 + 3 * clickedCount(pageCount, clicked);
+export const explorationTimeBudget = (maxSteps: number) => Math.min(7200, Math.max(240, 8 * maxSteps));
+export const explorationStepBudget = (pageCount: number, clicked = 0) => 70 * pageCount + 13 + 3 * clickedCount(pageCount, clicked);
 
 export function explorationPassageId(date: Date): string {
   const parts = Object.fromEntries(new Intl.DateTimeFormat("fr-FR", {
@@ -63,8 +63,12 @@ export function explorationPassageId(date: Date): string {
 
 export const exclusionLabel = (reason: string) => reason === "section-limit" ? "limite de pages par rubrique atteinte" : reason;
 
+function readingInstruction(): string {
+  return "Après relever, sur CHAQUE page (départ, clic ou adresse, dernière page comprise), termine cette séquence AVANT de cliquer un lien ou de terminer le parcours : 1. Lis du haut jusqu'en bas avec scroll_web : direction down, num_pixels égal à environ une demi-hauteur de l'écran (450 pour 900 pixels), scroll_element null pour la page. Observe chaque petit pas, sans sauter de section. Les cartes de liens de fin d'article ne sont PAS le bas : descends aussi dans le pied de page jusqu'à ce que deux essais sans déplacement confirment le bas réel. Repère un contrôle de visiteur pendant la descente. 2. Fais ensuite UN geste de visiteur si la page en propose un : ouvrir un menu déroulant, un accordéon, un onglet ou une question FAQ, jamais un formulaire ni une connexion. S'il est plus haut, retrouve ce contrôle en petits pas pendant la remontée, puis active-le ; ne multiplie pas les gestes. 3. Remonte vers le menu avec les mêmes petits pas (direction up, num_pixels environ une demi-hauteur d'écran), jusqu'au tout début de la page : le titre initial doit être revenu à sa position de départ et deux essais sans déplacement confirment le haut. Un menu fixe déjà visible n'autorise PAS à sauter cette remontée. Ferme seulement le panneau ouvert s'il masque le lien suivant. 4. Vérifie avant de partir : bas réel atteint, un geste effectué ou aucun contrôle disponible, haut réel retrouvé. Ne répète pas la lecture déjà faite sur la page courante.";
+}
+
 function clickInstruction(pages: Array<{ ecran: string; url: string }>): string {
-  return `Après relever, fais 1 ou 2 défilements au plus avec scroll_web sur une page atteinte par clic, en grands défilements, avant de cliquer. Pour la page de départ, conserve la limite de 3 défilements au plus jusqu'en bas. Ne répète pas les défilements déjà faits sur la page courante ; aucun défilement demandé sur les autres pages atteintes par adresse. Puis sans go_to clique un lien visible de la page courante (menu, corps ou pied de page) vers une page pas encore relevée de cette liste : ${pages.map(page => `${page.ecran} : ${page.url}`).join(" ; ")}. Attends le chargement puis appelle relever avec l'ecran de la page atteinte. Si aucun lien visible ne mène à une page de la liste : ouvre ${pages[0]?.url} avec go_to puis appelle relever(ecran="${pages[0]?.ecran}", vue="defaut").`;
+  return `${readingInstruction()} Puis sans go_to clique un lien visible de la page courante (menu, corps ou pied de page) vers une page pas encore relevée de cette liste : ${pages.map(page => `${page.ecran} : ${page.url}`).join(" ; ")}. Attends le chargement puis appelle relever avec l'ecran de la page atteinte. Si aucun lien visible ne mène à une page de la liste, même après avoir examiné le menu : en dernier recours seulement, ouvre ${pages[0]?.url} avec go_to puis appelle relever(ecran="${pages[0]?.ecran}", vue="defaut", raison_go_to="explique quel lien manque ou est inutilisable").`;
 }
 
 export function construireExploration(pages: Array<{ ecran: string; url: string }>, site: string, version: string, pagesCliquees = 4): Consigne {
@@ -76,11 +80,11 @@ export function construireExploration(pages: Array<{ ecran: string; url: string 
   return { tests, course, dropped: [], start: pages[0].url,
     instructions: [...COURSE_RULES, "Si une bannière de cookies apparaît, refuse-la (Refuser / Tout refuser / Continuer sans accepter / Reject all), ne l’accepte jamais.", "Simple visiteur : ne remplis et ne soumets aucun formulaire, ne te connecte jamais. N'ouvre aucun onglet ni fenêtre."].join("\n"),
     task: ["Nouveau passage : aucune page n'a encore été relevée dans cette session. La page déjà ouverte ne prouve aucun avancement. Commence à la partie 1, même si le navigateur affiche une partie ultérieure.", ...pages.map((page, index) => `Partie ${index + 1} : ${index === 0
-      ? `si l'onglet n'affiche pas ${page.url}, ouvre cette adresse avec go_to. Appelle relever(ecran="${page.ecran}", vue="defaut"), puis fais 3 défilements au plus jusqu'en bas avec scroll_web, en grands défilements comme un visiteur qui la lit.`
+      ? `si l'onglet n'affiche pas ${page.url}, ouvre cette adresse avec go_to et note raison_go_to="page de départ absente de l'onglet" au relevé. Appelle relever(ecran="${page.ecran}", vue="defaut"). ${readingInstruction()}`
       : index <= clicked ? clickInstruction(pages.slice(1))
-      : `ouvre ${page.url} avec go_to dans l'onglet courant, attends le chargement puis appelle relever(ecran="${page.ecran}", vue="defaut").`}`),
+      : `ouvre ${page.url} avec go_to dans l'onglet courant, attends le chargement puis appelle relever(ecran="${page.ecran}", vue="defaut", raison_go_to="page hors quota de clics demandé"). ${readingInstruction()}`}`),
       'Après toutes les pages, appelle terminer(etat="reussi"). Si une page est inaccessible, continue les autres.'].join("\n"),
-    tools: [{ name: "relever", description: "Enregistre la page chargée.", input_schema: { type: "object", properties: { ecran: { type: "string", enum: pages.map(page => page.ecran) }, vue: { type: "string", enum: ["defaut"] } }, required: ["ecran", "vue"] } }, END_TOOL] };
+    tools: [{ name: "relever", description: "Enregistre la page chargée.", input_schema: { type: "object", properties: { ecran: { type: "string", enum: pages.map(page => page.ecran) }, vue: { type: "string", enum: ["defaut"] }, raison_go_to: { type: "string", description: "Seulement après go_to : raison concrète du recours à une adresse plutôt qu'à un lien." } }, required: ["ecran", "vue"] } }, END_TOOL] };
 }
 
 function overlap(a: Zone, b: Zone): boolean {
@@ -345,7 +349,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
               const remaining = () => {
                 const page = unfinished()[0];
                 if (page && clickedPages < clicked) return `${pages.filter(page => page.etat === "visitee").length}/${pages.length} pages relevées dans ce passage. ${clickInstruction(unfinished())} Ne termine pas avant les relevés restants.`;
-                return page ? `${pages.filter(page => page.etat === "visitee").length}/${pages.length} pages relevées dans ce passage. Ouvre ${page.url} avec go_to puis appelle relever(ecran="${page.ecran}", vue="defaut"). Ne termine pas avant les relevés restants.` : 'Tous les relevés sont acquis. Appelle terminer(etat="reussi").';
+                return page ? `${pages.filter(page => page.etat === "visitee").length}/${pages.length} pages relevées dans ce passage. ${readingInstruction()} Ouvre ${page.url} avec go_to puis appelle relever(ecran="${page.ecran}", vue="defaut", raison_go_to="page hors quota de clics demandé"). Ne termine pas avant les relevés restants.` : `Tous les relevés sont acquis. ${readingInstruction()} Puis appelle terminer(etat="reussi").`;
               };
               if (name === "terminer" && args.etat === "reussi" && unfinished().length) return `Fin refusée : des pages restent à visiter. ${remaining()}`;
               if (name === "relever") {
@@ -401,6 +405,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
                 save();
                 if (mode === "clic") clickedPages++;
                 log(`${accepted.ecran} : ${mode}`);
+                if (hadGoTo) log(`${accepted.ecran} : raison go_to : ${typeof args.raison_go_to === "string" && args.raison_go_to.trim() ? args.raison_go_to.trim() : "à mesurer (raison non fournie par H)"}`);
                 currentScreen = accepted.ecran; hadClick = false; hadGoTo = false;
               }
               if (name === "terminer") completed = args.etat === "reussi";
@@ -551,6 +556,8 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
         let http: number | null = null;
         const hookFetch: typeof fetch = (address, init) => (deps.fetch ?? fetch)(address, { ...init, ...(hookSignal ? { signal: init?.signal ? AbortSignal.any([hookSignal, init.signal]) : hookSignal } : {}) });
         const linkFetch: typeof fetch = (address, init) => siteFetch(address, { ...init, ...(hookSignal ? { signal: init?.signal ? AbortSignal.any([hookSignal, init.signal]) : hookSignal } : {}) });
+        const visualAnalysis = Promise.resolve().then(() => (deps.holo ?? askHolo)(Buffer.from(capture.png), { url: capture.url_page, fetch: hookFetch }))
+          .then(result => ({ result }), error => ({ error }));
         try {
           if (!client) throw new Error("Connexion CDP indisponible.");
           hookSignal?.throwIfAborted();
@@ -596,7 +603,9 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
         hookSignal?.throwIfAborted();
         let holo: NonNullable<ExplorationPage["holo"]> = { etat: "non_lance", modele: null, duree_ms: 0, ecartes_sans_zone: 0, jetons: null, cout_usd: null };
         try {
-          const result = await (deps.holo ?? askHolo)(Buffer.from(capture.png), { url: capture.url_page, fetch: hookFetch });
+          const analysis = await visualAnalysis;
+          if (!("result" in analysis)) throw analysis.error;
+          const result = analysis.result;
           holo = { etat: result.status === "INCONCLUSIVE" ? /timeout|timed|délai/i.test(result.message) ? "hors_delai" : "echec" : "fait", modele: result.model, duree_ms: result.durationMs, ecartes_sans_zone: 0,
             jetons: result.usage ? { entree: result.usage.prompt_tokens, sortie: result.usage.completion_tokens } : null, cout_usd: result.cost_usd };
           if (result.status === "INCONCLUSIVE") inconclusive(page, "holo", findings, `Le regard visuel n'a pas abouti : ${result.message}`);

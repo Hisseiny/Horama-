@@ -1,4 +1,4 @@
-# #170, point 3 — texte non traduit
+# #170 — texte non traduit, captures douces et lecture des pages
 
 ## Changement et seuil
 
@@ -299,3 +299,409 @@ pas explorer.ts ; le corps de connecterCdp, waitForVisibleStable et pages.ts
 est identique à dev, et ce test n'appelle pas captureDefect/scrollSmooth.
 Le nettoyage à la ligne 172 peut masquer une erreur antérieure : déterminer
 la première erreur demanderait une reproduction instrumentée, non obtenue ici.
+
+## Point 1 de #170 — lecture de chaque page et démarrage H
+
+### Changements ciblés
+
+- `construireExploration` et les réponses dynamiques à `relever` demandent la
+  même lecture sur chaque page, y compris le départ, les replis par adresse et
+  la dernière page : descente jusqu'au bas, un geste facultatif de visiteur,
+  remontée vers le menu, puis clic vers une page non relevée. Aucune saisie,
+  aucun formulaire ni connexion ; les gestes ne sont pas des soumissions.
+- `scroll_web` accepte bien `direction`, `num_pixels` et `scroll_element` :
+  observé dans les événements réels H du passage dev (2500 puis 3500 pixels).
+  La nouvelle consigne demande `num_pixels` d'environ une demi-hauteur
+  d'écran, soit 450 pixels à 1280 × 900, dans les deux sens. L'ancien plafond
+  de 3 grands défilements au départ et 1 ou 2 ailleurs est supprimé.
+  La garde anti-boucle est le bas/haut atteint ou deux essais sans déplacement,
+  pas une limite de 2 ou 3 pas qui couperait une page longue.
+- `go_to` reste un dernier recours dans le quota de clics, après recherche
+  dans le menu. Le paramètre facultatif `raison_go_to` de l'outil interne
+  `relever` est journalisé ; aucun contrat ni format de rapport n'est changé.
+  Une raison absente reste explicitement « à mesurer », sans l'inventer.
+  Les modes d'arrivée et les compteurs existants sont conservés : le départ
+  reste `depart`, les sept transitions restantes sont les candidates au clic.
+- Budget : `70 × pages + 13 + 3 × transitions par clic`, contre
+  `4 × pages + 13 + 3 × transitions`. Les 66 étapes supplémentaires par page
+  provisionnent 64 petits défilements (32 aller, 32 retour), un geste et une
+  fermeture éventuelle. Ce n'est pas un plafond de défilement dans la consigne.
+  Huit pages avec `--pages-cliquees 8` reçoivent **594 étapes**, contre 66,
+  et **4752 secondes**, contre 528. La borne globale de temps passe de
+  600 à 7200 secondes, toujours à 8 secondes provisionnées par étape et
+  240 secondes minimum. Les étapes inutilisées ne sont pas consommées.
+  Le timeout d'un relevé reste 30 s ; le `timeout_s: 600` de chaque test
+  concerne ce hook, pas la durée de lecture/navigation de la session.
+- Démarrage CLI : le premier pont Holo démarre pendant la découverte ; sa
+  promesse est consommée une seule fois par la création de session. Une
+  relance obtient un pont neuf ; `runtime.close()` ferme aussi un pont préparé
+  mais inutilisé si la découverte est vide. Aucun changement du redémarrage
+  interne du pont (#178), ni de la sélection d'adresse ou du maintien sur site.
+- Le regard Holo sur la capture démarre en parallèle des contrôles réseau/DOM.
+  La fusion attend toujours les contrôles pour dédupliquer les zones. Un rejet
+  précoce de Holo est observé immédiatement et demeure `INCONCLUSIVE`.
+  L'aide CLI ne promet plus 2 à 3 minutes pour une lecture intégrale de huit
+  pages longues, contrairement à l'ancien survol.
+
+### Protocole réel avant/après
+
+Une seule session H à la fois. Avant : dev détaché au commit `268fd28`,
+`origin/dev` récupéré et identique au moment du passage. Après : branche
+`a-170-texte-non-traduit`, sur les changements ci-dessus. Chaque passage a
+son Chrome headless dédié, 1280 × 900, DPR 1, profil/vault/sortie indépendants.
+Le Chrome bureau CDP 29229 n'est pas utilisé. Aucune saisie de formulaire ni
+connexion demandée. La clé de développement est liée uniquement à
+l'environnement d'exécution par `secret:org:HORAMA_HAI_API_KEY`.
+
+Commande CLI (mêmes options avant/après, ports 9341 et 9342) :
+
+```sh
+node --import /home/ubuntu/horama-170-probe.mjs agent/explorer.ts \
+  --url https://eugenia-school-website-git-devin-179503024-b6c714-ahissein-5983.vercel.app \
+  --max 8 --pages-cliquees 8 --sans-base --chrome-port PORT \
+  --sortie DOSSIER/output --vault DOSSIER/vault
+```
+
+Le lanceur `/home/ubuntu/horama-170-run.mjs` prépare le Chrome puis lance cette
+commande. Le chronomètre part au lancement du processus CLI, pas au lancement
+préalable du Chrome. Une sonde externe, commune aux deux passages, observe les
+logs, le démarrage/ready du pont, les requêtes de création H, les événements
+`policy_event`, les métriques et les appels Holo. Elle n'enregistre aucune
+clé et ne modifie ni consigne ni résultat d'outil. Les durées de première
+étape/action sont des temps de réception de l'événement API, non une mesure
+vidéo du déplacement du pointeur. Les actions peuvent avoir lieu entre deux
+réceptions ; il ne faut pas présenter ces temps comme une mesure visuelle.
+La préparation et la découverte sont séparées grâce à `exploration.json.le`
+et au log « pages trouvées » ; la découverte inclut aussi la construction
+locale du plan et du rapport, pas seulement le réseau.
+
+Artefacts persistants : `/home/ubuntu/horama-170-before/` et
+`/home/ubuntu/horama-170-after/` : `run.json`, `probe.jsonl`, `cli.log`,
+`output/exploration.json`, captures et vault. Avant la première session,
+le pré-lancement Chrome a rencontré « Execution context was destroyed » ;
+aucune session H n'avait été créée. Le lanceur attend maintenant
+`Page.loadEventFired` avant de commencer le chronomètre CLI.
+
+### Vérifications après les changements
+
+Le premier check a révélé deux erreurs TypeScript dans le nouveau test :
+`Property 'required' does not exist on type 'object'` et
+`Property 'properties' does not exist on type 'object'`. Le type local du
+schéma est maintenant explicite ; aucun type partagé n'a été changé.
+
+`node --test exploration-explorer.test.ts`, code 0 :
+
+```text
+# tests 65
+# pass 65
+# fail 0
+# skipped 0
+# duration_ms 938.159078
+```
+
+`pnpm -r --if-present run check`, code 0 après correction :
+
+```text
+agent check: 1..263
+agent check: # tests 270
+agent check: # suites 0
+agent check: # pass 270
+agent check: # fail 0
+agent check: # cancelled 0
+agent check: # skipped 0
+agent check: # todo 0
+agent check: # duration_ms 20576.463767
+agent check: Done
+```
+
+Journal : `/home/ubuntu/horama-170-point1-check-2.log`.
+
+### Premier passage après modification : non validant, arrêté
+
+Session `53913d6d-ac9d-4dbd-8996-35d497b4fda8`, sortie
+`/home/ubuntu/horama-170-after/`, durée CLI **445,568 s**, code 1 après
+Ctrl+C volontaire. Six pages relevées : départ, programmes, carrières,
+école, événements, entreprises. Quatre transitions par clic, une par adresse,
+une arrivée `depart`. **78 étapes reçues** avant l'annulation, **66 scrolls**
+(tous de 450 pixels), un survol de menu, aucun clic d'accordéon/onglet/FAQ.
+Dernier coût API reçu : **0,3056856 USD** ; Holo du rapport : **0,003889 USD**.
+Ce sont des montants observés avant finalisation, pas un coût final garanti :
+le statut interrogé après l'annulation indique 79 étapes et `idle`, sans
+outil ni approbation en attente. Le coût total du rapport interrompu ne
+contient que Holo ; ne pas le comparer au coût complet d'un passage fini.
+
+| Page | Descente | Remontée | Geste offert observé | Arrivée | Défaut langue |
+|---|---:|---:|---|---|---:|
+| Accueil | 20 | 4 | 1 survol du menu, sans ouverture | départ | 0 |
+| Programmes | 11 | 0 | aucun activé | clic | 0 |
+| Carrières | 12 | 0 | aucun activé | clic | 1 |
+| École | 16 | 0 | aucun activé | clic | 1 |
+| Événements | 1 | 0 | aucun activé | clic | 1 |
+| Entreprises | 2 | 0 | aucun activé | adresse | 1 |
+| Admissions | — | — | non visitée | — | — |
+| Bachelor IA Business | — | — | non visitée | — | — |
+
+Le repli adresse a bien transmis sa raison, journalisée sans nouveau champ
+de contrat : « La page Événements est un formulaire plein écran sans menu de
+navigation visible, aucun lien vers /entreprises n'était accessible par
+clic ». C'est l'explication déclarée par H, pas une preuve d'absence de tout
+chemin indirect. Aucun formulaire n'a été rempli ou soumis.
+
+Une sonde CDP passive a été ajoutée pendant le passage. Elle relève par
+exemple un maximum de 4950 px sur Programmes pour un bas à 5699 px, et
+5400 px sur Carrières pour un bas à 6225 px. Le clic suivant part de cette
+position, sans remontée. Le menu fixe était visible, mais la page n'était
+pas revenue en haut. Cela **invalide** l'exécution malgré les bons petits pas.
+Les événements API corroborent le raccourci : H dit voir le footer dans le
+texte et clique une carte « Weiter auf Entdeckungstour » sans achever la
+remontée. La disponibilité d'un vrai contrôle facultatif sur chaque page
+n'a pas été établie ; zéro geste ne prouve donc pas à lui seul une violation.
+
+La consigne a été renforcée avant le second et dernier passage autorisé :
+séquence numérotée obligatoire avant tout clic de départ, cartes de liens
+distinctes du vrai bas, deux essais sans déplacement exigés en bas **et**
+en haut, menu fixe explicitement insuffisant pour éviter la remontée, et
+checklist finale. Pas de garde site-spécifique ni de modification #178.
+
+Après cette dernière édition de code, tests ciblés (code 0) :
+
+```text
+# tests 65
+# pass 65
+# fail 0
+# skipped 0
+# duration_ms 1013.92201
+```
+
+Puis check global (code 0) :
+
+```text
+agent check: 1..263
+agent check: # tests 270
+agent check: # suites 0
+agent check: # pass 270
+agent check: # fail 0
+agent check: # cancelled 0
+agent check: # skipped 0
+agent check: # todo 0
+agent check: # duration_ms 20774.438323
+agent check: Done
+```
+
+Journaux : `/home/ubuntu/horama-170-explorer-test-3.log` et
+`/home/ubuntu/horama-170-point1-check-3.log`. Aucun test relancé ensuite
+pour les seules éditions de documentation.
+
+### Démarrage mesuré (secondes depuis le lancement de la CLI)
+
+| Jalon | Avant, dev | Après, premier passage interrompu |
+|---|---:|---:|
+| Préparation locale jusqu'à l'entrée d'explorer | ≈ 0,779 | ≈ 0,649 |
+| Découverte + plan local (durée) | ≈ 0,420 | ≈ 0,345 |
+| Pages trouvées, temps cumulé | 1,199 | 0,994 |
+| Démarrage du pont Holo CLI | 1,201 | 0,645 |
+| Pont prêt | 2,212 | 1,149 |
+| Création de session H, début | 2,213 | 1,149 |
+| Création de session H, fin | 2,816 | 2,022 |
+| Durée POST de création | 0,603 | 0,872 |
+| Première étape H reçue | 11,479 | 14,904 |
+| Premier appel Holo visuel, début → fin | 14,395 → 14,824 | 15,860 → 16,325 |
+| Premier relevé rendu à H | 14,828 | 17,866 |
+| Premier geste navigateur reçu (scroll) | 19,326 | 19,787 |
+
+Les préparations sont approximatives au milliseconde : reconstruites par
+`exploration.json.le/fin/duree_s` et le temps du log final de la sonde.
+Le pont recouvre bien la découverte après modification (0,645 → 0,994 s).
+Le chemin local jusqu'à la session créée passe de 2,816 à 2,022 s, sans
+constituer une mesure statistique. Le premier geste n'est **pas sous 15 s**.
+Le délai création → première étape vaut 8,663 s avant, 12,882 s après ;
+ce délai API/modèle varie davantage que le gain local sur ces deux essais.
+On ne peut donc pas conclure que la nouvelle consigne accélère l'inférence.
+Holo visuel ne bloque pas la création H : il n'est appelé qu'après une
+capture par `relever` et recouvre désormais les contrôles du relevé.
+
+### Raccordement scène à faire par Nathan (non modifié)
+
+La mesure ci-dessus est celle de la **CLI**, Chrome déjà prêt ; le démarrage
+de la scène graphique reste à mesurer. Dans
+`automatisation/scene/exploration.mjs`, le runtime propre à la scène est
+créé vers la ligne 112, `creerSessionH({ navigateur: runtime.navigateur, ... })`
+vers 163, puis `explorer(...)` vers 248. La préchauffe CLI ne s'applique donc
+pas automatiquement à la scène. Pour reproduire le recouvrement : importer
+`preparerNavigateur` de `agent/src/exploration/cli.ts`, préparer le navigateur
+une seule fois hors du mode `SANS_AGENT`, puis fournir cette fonction à
+`creerSessionH` à la place de `runtime.navigateur`. Conserver `runtime.close()`
+et les options `settle_s`, `key`, `signaler` existantes. Ne pas réutiliser
+le pont préparé lors des relances ; le helper garantit une consommation unique.
+
+Ajouter les jalons dès l'entrée de la scène, autour du lancement Chrome,
+de `fitViewport`, de la préparation de couche/animation et du premier geste
+H : ils ne sont pas inclus dans cette mesure CLI. Sans mesure de ces étapes,
+il serait trompeur de promettre 15 secondes pour la scène. La création H a
+besoin du canal du pont et de la consigne construite avec les pages découvertes ;
+la lancer avant ces deux entrées demanderait une autre orchestration/API,
+pas simplement un `Promise.all` autour de l'appel existant.
+
+### Second passage après renforcement — interruption, pas de troisième essai
+
+Sortie `/home/ubuntu/horama-170-after-2/`, durée CLI **959,897 s**, code 1.
+Deux réponses HTTP 429 sur la création, puis création de
+`0116ab1a-b104-4f30-9cf7-bda06ed853d3` à 73,668 s, sans aucune étape reçue.
+Le client la ferme/confirme son arrêt avant la relance existante, annoncée
+à 146,634 s. Le statut de quota interrogé pendant les 429 était
+`{"scope":"org","limit":3,"active":2,"available":1}` : cela ne permet pas
+d'attribuer avec certitude les 429 au seul quota de sessions.
+
+La seconde session interne, `3de51202-1156-435f-adee-2f8572615743`, est créée
+à 183,145 s après le délai de reprise de 35 s déjà présent. Première étape
+à 192,778 s, premier geste navigateur à **207,812 s**. Holo du premier relevé
+commence à 195,511 s et finit à 195,925 s ; relevé rendu à 197,676 s.
+Préparation locale ≈ 0,607 s, découverte + plan ≈ 0,377 s, pont prêt à
+1,608 s. Ces incidents API rendent ce lancement impropre à une conclusion
+de performance normale ; l'objectif de 15 secondes n'est pas atteint.
+
+La relance remet **déjà sur dev** le quota de clics à zéro : dans
+`explorer.ts`, `launch` utilise `launches === 1 ? clickTarget : 0`, et le plan
+de reprise est reconstruit avec `construireExploration(remaining, site,
+version, 0)`. Cette logique de reprise, dans le périmètre parallèle #178,
+n'a pas été modifiée. Elle explique de façon vérifiable les consignes
+« page hors quota de clics demandé » puis les arrivées par adresse du second
+passage. Il ne s'agit pas d'une preuve que les liens manquent sur le site.
+**Le critère huit pages par clic reste donc non validé.**
+
+La session reprise s'interrompt après quatre pages avec la raison du client :
+`La session H est interrompue (erreur réseau ou outil).` La dernière action
+reçue est un scroll sur Carrières à 880,646 s ; aucun `terminer` réussi.
+Le `catch` de `creerSessionH` remplace la cause originale par cette phrase :
+on ne peut pas en déduire une panne réseau précise ni exclure une erreur
+d'outil/callback. Aucun correctif spéculatif du pont ou des reprises.
+Ce n'est pas un épuisement démontré du budget : 121 étapes reçues pour un
+budget de reprise de 573, durée de l'agent reprise 813,232 s pour 4584 s
+autorisées. Les quatre pages manquantes sont bien `INCONCLUSIVE`.
+
+| Page | Descente / remontée H | Geste de visiteur tenté | Bas réel / retour au haut observés CDP | Arrivée | Défaut langue |
+|---|---:|---|---|---|---:|
+| Accueil | 22 / 21 | 1 clic flèche du carrousel de témoignages | oui (9418 px) / oui (0) | adresse, déjà ouverte à la reprise | 0 |
+| Programmes | 14 / 13 | 1 clic accordéon « 2. Studienjahr » | oui (5699 px) / oui (0) | adresse | 0 |
+| Entreprises | 14 / 13 | aucun activé | oui (5618 px) / oui (0) | adresse | 1 |
+| Carrières | 15 / 0 | aucun avant l'interruption | oui (6225 px) / non, interruption à 5775 px | adresse | 1 |
+| Admissions | — | non visitée | à mesurer | — | à mesurer |
+| École | — | non visitée | à mesurer | — | à mesurer |
+| Événements | — | non visitée | à mesurer | — | à mesurer |
+| Bachelor IA Business | — | non visitée | à mesurer | — | à mesurer |
+
+Tous les 112 appels `scroll_web` reçus demandent 450 px. La mesure CDP
+passive est installée avant la CLI pour ce second passage (`viewport.jsonl`).
+Les chiffres de descente/remontée comptent les appels H, y compris ceux sans
+déplacement à une extrémité, pas les nombreux événements de l'animation.
+Les clics du carrousel et de l'accordéon sont observés dans le DOM ; leur
+rendu ouvert n'a pas fait l'objet d'une capture visuelle dédiée. Aucun outil
+de saisie, de connexion ou de soumission n'a été appelé. Aucune validation
+visuelle de la scène graphique n'est revendiquée.
+
+Constats de langue de ce passage, tous `VERIFIED_FAIL` :
+
+- Entreprises : « 7 blocs en français ; le plus long : 27 mots, 8 mots outils
+  français, 0 allemands ; page déclarée de ».
+- Carrières : « 9 blocs en français ; le plus long : 24 mots, 6 mots outils
+  français, 0 allemands ; page déclarée de ».
+
+Le plafond de huit pages de la découverte choisit Bachelor IA Business,
+pas Bachelor 3 : les mesures Bachelor 3 du début du document restent un
+contrôle CDP distinct, pas une visite H dans ces passages.
+
+### Bilan comparatif des passages réels
+
+| Mesure | Avant, dev | Après 1, arrêté pour consigne insuffisante | Après 2, consigne renforcée |
+|---|---:|---:|---:|
+| Durée CLI (s) | 145,969 | 445,568 | 959,897 |
+| Pages relevées / prévues | 8/8 | 6/8 | 4/8 |
+| Arrivées : départ / clic / adresse | 1 / 6 / 1 | 1 / 4 / 1 | 0 / 0 / 4 |
+| Appels `go_to` | 1 | 1 | 3 |
+| Étapes H reçues, proxy de coût | 28 | 78 | 121, plus session muette sans étape reçue |
+| Scrolls H | 11 | 66 | 112 |
+| Gestes non navigants | 0 | 1 survol sans ouverture | 2 clics de visiteur |
+| Défauts `texte_non_traduit` | 0, contrôle absent sur dev | 4 | 2, quatre pages non visitées |
+| Coût H dernière métrique reçue par la CLI (USD) | 0,0826736 | 0,3056856 | 0,517908, session muette inconnue de la CLI |
+| Coût H consulté après arrêt dans les événements API (USD) | 0,0826736 | 0,3106464 | 0,53733 (0,0048292 + 0,5325008) |
+| Holo additionné dans le rapport (USD) | 0,0051582 | 0,003889 | 0,0026274 |
+| Total du rapport (USD) | 0,0878318 | 0,003889, partiel après annulation | 0,5205354, coût de la session muette inconnu |
+| Somme coûts API après arrêt + Holo (USD) | 0,0878318 | 0,3145354 | 0,5399574 |
+| Crédits distincts des USD | à mesurer, non renvoyés | à mesurer | à mesurer |
+| Premier geste H reçu (s) | 19,326 | 19,787 | 207,812, avec 429/session muette/reprise |
+| État | fini | interrompu | interrompu |
+
+Avant, scrolls par page (tous descendants) : accueil 3, programmes 2,
+carrières 2, école 1, entreprises 1, admissions 1, événements 1,
+Bachelor IA Business 0. Les six clics sont navigants, aucun geste de lecture
+non navigant. L'unique `go_to` mène d'Événements à Bachelor IA Business ;
+sa raison n'est pas transmise par dev et reste **à mesurer**. Zéro défaut
+de langue sur dev ne démontre pas une traduction correcte : le contrôle
+n'y existe pas. Les contrôles réels du début de ce document prouvent bien
+le français sur les pages concernées.
+
+Vérification finale en lecture seule : les trois sessions après sont toutes
+`interrupted`, sans outil ni approbation en attente. Les derniers événements
+`MetricsUpdateEvent` ont été relus après fermeture des Chrome et fournissent
+les coûts de la nouvelle ligne API ci-dessus ; ils dépassent les métriques
+reçues avant interruption par la CLI. Les nombres d'étapes serveur sont
+79 pour Après 1, puis 1 + 123 pour Après 2 (dont des étapes jamais reçues
+par le client). Le `GET /sessions/{id}` restitue les limites effectivement
+envoyées : 594 étapes/4752 s pour les sessions initiales et 573/4584 pour la
+reprise. La limite augmentée est donc bien transmise à H ; rien n'étaye un
+arrêt à cause d'un plafond de 120 étapes. Les causes des pertes de réception
+restent non établies. Sources : `/home/ubuntu/horama-170-final-costs.jsonl`
+et `/home/ubuntu/horama-170-after-2/final-status.log`.
+
+Décision à prendre avec #178 avant un nouveau passage payant : conserver
+le quota de clics pour les pages restantes après une reprise, au lieu de
+forcer l'adresse. Ne pas confondre les deux clics de visiteur avec des
+arrivées par clic. Même après cette coordination, une nouvelle exécution H
+sera nécessaire pour valider les huit pages et mesurer un démarrage sans
+incident. Aucun troisième lancement après n'a été effectué.
+
+### État final livré
+
+Le test du parallélisme Holo a été durci lors de la lecture finale du diff :
+l'assertion est faite hors du callback de contrôle, dont les exceptions sont
+normalement converties en constats. Ainsi l'ancien ordre séquentiel ferait
+bien échouer ce test au lieu de masquer l'assertion dans un `INCONCLUSIVE`.
+Cette dernière édition ne change aucun code de production mesuré ci-dessus.
+
+Après cette dernière édition du test, `node --test exploration-explorer.test.ts`
+(code 0) :
+
+```text
+# tests 65
+# pass 65
+# fail 0
+# skipped 0
+# duration_ms 1002.785285
+```
+
+Puis `pnpm -r --if-present run check`, code 0 :
+
+```text
+agent check: 1..263
+agent check: # tests 270
+agent check: # suites 0
+agent check: # pass 270
+agent check: # fail 0
+agent check: # cancelled 0
+agent check: # skipped 0
+agent check: # todo 0
+agent check: # duration_ms 20466.639668
+agent check: Done
+```
+
+Journaux finaux : `/home/ubuntu/horama-170-explorer-test-final.log` et
+`/home/ubuntu/horama-170-point1-check-final.log`. `git diff --check` : code 0.
+Aucun domaine ajouté dans `agent/src/`, aucun contrat ni fichier
+d'`automatisation/` modifié. Aucun processus Chrome des ports 9341/9342/9343
+ni lanceur/observateur de mesure ne subsiste ; le Chrome bureau 29229 est
+laissé intact. Les coûts Holo du tableau sont calculés par `askHolo` à
+partir des tokens, pas des crédits distincts renvoyés par l'API.
+
+Livraison du code et des mesures, **pas** une validation complète de huit
+pages par clic ni d'un démarrage sous 15 secondes. Ces deux objectifs restent
+ouverts, avec les limites et l'action #178 précisées ci-dessus.

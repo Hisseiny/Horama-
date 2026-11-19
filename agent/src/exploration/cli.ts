@@ -2,13 +2,14 @@ import { fileURLToPath } from "node:url";
 import { BaseMemoire, creerBaseSupabase } from "../base.ts";
 import { navigateurLocal } from "../browser.ts";
 import { creerSessionH } from "../session.ts";
+import type { NavigateurSession } from "../session.ts";
 import { explorer } from "./explorer.ts";
 import type { ExplorerOptions } from "./explorer.ts";
 
 export const HELP = `Usage : pnpm --filter @horama/agent explorer -- --url adresse [options]
   --url adresse       Adresse HTTP(S) requise, visite sans connexion ni formulaire
   --site identifiant  Remplace le nom du site dérivé de l’hôte (lettres, chiffres, - et _)
-  --max 15            Plafond de pages ; avec --max 8, le passage vise 2 à 3 min
+  --max 15            Plafond de pages ; lecture complète de chaque page par petits pas
   --pages-cliquees 4  Pages à atteindre par clic (entier ≥ 0)
   --sortie chemin     Sortie (.orchestrateur/exploration du dépôt par défaut)
   --vault chemin      Vault (vault-horama du dépôt par défaut)
@@ -47,6 +48,16 @@ export function lireArguments(args: string[]): (ExplorerOptions & { sansBase: bo
     vault: values.get("--vault") ?? fileURLToPath(new URL("../../../vault-horama", import.meta.url)), sansBase: values.has("--sans-base"), reseauPublic: values.has("--reseau-public") };
 }
 
+export function preparerNavigateur(navigateur: () => Promise<NavigateurSession>): () => Promise<NavigateurSession> {
+  let first: Promise<NavigateurSession> | undefined = navigateur();
+  void first.catch(() => {});
+  return () => {
+    const prepared = first;
+    first = undefined;
+    return prepared ?? navigateur();
+  };
+}
+
 export async function lancerExploration(options: ExplorerOptions & { sansBase: boolean }) {
   if (!process.env.HAI_API_KEY) throw new Error("HAI_API_KEY requise.");
   const base = options.sansBase ? new BaseMemoire() : creerBaseSupabase();
@@ -56,6 +67,7 @@ export async function lancerExploration(options: ExplorerOptions & { sansBase: b
   let runtime: Awaited<ReturnType<typeof navigateurLocal>> | undefined;
   try {
     runtime = await navigateurLocal(options.port);
-    return await explorer(options, { base, runtime, session: creerSessionH({ navigateur: runtime.navigateur }), signal: controller.signal });
+    const navigateur = preparerNavigateur(runtime.navigateur);
+    return await explorer(options, { base, runtime, session: creerSessionH({ navigateur }), signal: controller.signal });
   } finally { process.removeListener("SIGINT", cancel); runtime?.close(); }
 }
