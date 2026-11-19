@@ -26,7 +26,7 @@ Navigation branchée : « Tests à valider » ouvre 11.2, « ▷ Lancer un passa
 - **États** : miltos `#B8321F` (défaut prouvé), ocre `#C48A1E` (suspect), olivier `#2E7D55` (conforme), toujours avec leur signe.
 - **Mascotte** : le dessin de `docs/da/mascotte.js` (ailes lilas pointues, trait `#1C1C1C`), fixe en bas à droite ; seuls l'iris et le badge changent selon l'écran.
 
-Les demandes envoyées à Figma Make sont dans `demande-figma-coque.txt`, `demande-figma-barre-papier.txt` et `demandes-ecrans-11-3-a-11-7.txt`. Les captures ont été prises sur l'aperçu du fichier, à 1440 × 900.
+Les demandes envoyées à Figma Make sont dans `demande-figma-coque.txt`, `demande-figma-barre-papier.txt`, `demande-figma-barre-soleil.txt` (19/11) et `demandes-ecrans-11-3-a-11-7.txt`. Les captures ont été prises sur l'aperçu du fichier, à 1440 × 900.
 
 ## Barre latérale : décisions du 18 et du 19/11
 

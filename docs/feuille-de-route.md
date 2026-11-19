@@ -1,18 +1,20 @@
 # Feuille de route d'Horama
 
-Mise à jour le mercredi 18 novembre 2026 au matin, après le recadrage de Nathan ([décision](decisions/2026-11-18-recadrage-grand-public-et-dev.md)). Ce document répond aussi au livrable du brief « roadmap jusqu'à jeudi ». Chaque ligne a son issue GitHub : c'est là que se suivent l'avancement et les preuves.
+> **Archive du 19/11 : à jour jusqu'à cette date ; l'état actuel est dans le [README](../README.md).**
+
+Mise à jour le mercredi 18 novembre 2026 au matin, après le recadrage de Nathan ([décision](decisions/2026-11-18-recadrage-grand-public-et-dev.md)) ; vocabulaire aligné le 19/11 sur le produit unique ([décision](decisions/2026-11-19-un-seul-produit.md)). Ce document répond aussi au livrable du brief « roadmap jusqu'à jeudi ». Chaque ligne a son issue GitHub : c'est là que se suivent l'avancement et les preuves.
 
 ## Le cap en trois phrases
 
 1. **Votre documentation devient vos tests. Sans documentation, Horama regarde quand même.**
-2. **Mode grand public** : on donne l'adresse de n'importe quel site (extension Chrome ou page d'accueil) ; l'agent H le parcourt et trouve ce que personne n'a vu (lien mort, texte coupé, image cassée), prouvé par le code. **Mode dev** : déploiement Vercel → GitHub → Obsidian → l'agent travaille → il réécrit dans Obsidian où sont les erreurs → non-régression contre le code → PR sur GitHub.
+2. **Un produit, deux entrées.** **Par une adresse** : on donne l'adresse de n'importe quel site (extension Chrome ou page d'accueil) ; l'agent H le parcourt et trouve ce que personne n'a vu (lien mort, texte coupé, image cassée), prouvé par le code. **Par une PR, avec la documentation et GitHub** : déploiement Vercel → GitHub → Obsidian → l'agent travaille → il réécrit dans Obsidian où sont les erreurs → non-régression contre le code → PR sur GitHub.
 3. **Pendant le parcours, on ne voit que le curseur qui clique, la mascotte et un trait à la main sur ce qui cloche** ; tout le texte arrive au récapitulatif, où l'humain tranche.
 
 ## Ce qui est prouvé au 18/11 au matin
 
-- Le moteur du mode dev sur le site d'Eugenia en ligne : 3 tours sur 3, 21 règles PASS, 0 pixel d'écart ([preuve](tests/2026-11-17-tour-du-site-reel.md)).
-- Le moteur du mode grand public, à un agent (#64) : 15 pages visitées par H, et **deux vrais défauts** trouvés sur eugeniaschool.com (lien « portes ouvertes » en 404, chapô d'article coupé) ; 6 faux constats sur 8, tous venus de Holo, réduits par #66.
-- La boucle du mode dev en local : réveil sur commit, choix des tests, scène, décision, correction de note, PR de documentation.
+- Le moteur de l'entrée par une PR sur le site d'Eugenia en ligne : 3 tours sur 3, 21 règles PASS, 0 pixel d'écart ([preuve](tests/2026-11-17-tour-du-site-reel.md)).
+- Le moteur de l'entrée par une adresse, à un agent (#64) : 15 pages visitées par H, et **deux vrais défauts** trouvés sur eugeniaschool.com (lien « portes ouvertes » en 404, chapô d'article coupé) ; 6 faux constats sur 8, tous venus de Holo, réduits par #66.
+- La boucle de l'entrée par une PR en local : réveil sur commit, choix des tests, scène, décision, correction de note, PR de documentation.
 
 ## D'ici vendredi
 
@@ -22,7 +24,7 @@ Mise à jour le mercredi 18 novembre 2026 au matin, après le recadrage de Natha
 |---|---|---|
 | Rendu de 17 h : parcours utilisateur, architecture, Loom 2 min, cette feuille de route | Noé, Axil | #73 |
 | Notes du vault d'Eugenia (7 pages recopiées du site, chiffres répétés), puis génération des tests | Axil, Noé, puis Leslie | #72 |
-| Mode grand public sur n'importe quel site : corrections de #63, filtre #66, banc de 7 sites dont les 4 de Nathan | Ali | #67 |
+| Entrée par une adresse sur n'importe quel site : corrections de #63, filtre #66, banc de 7 sites dont les 4 de Nathan | Ali | #67 |
 | Architecture de l'extension et du service que le jury essaie seul : à trancher | Nathan, Ali | #68 |
 | Scène épurée : le squelette (curseur, mascotte, trait à la main ; texte au récapitulatif) | Couloir Nathan | #69 |
 | Direction artistique : squelette validé, puis récapitulatif, puis couleurs et mascotte (méthode `/taste`) | Nathan | #69, #70 |
@@ -31,9 +33,9 @@ Mise à jour le mercredi 18 novembre 2026 au matin, après le recadrage de Natha
 
 | Quoi | Qui | Issue |
 |---|---|---|
-| Service en ligne du mode grand public, puis extension Chrome | Ali (service), couloir Nathan (extension) | #68 |
+| Service en ligne de l'entrée par une adresse, puis extension Chrome | Ali (service), couloir Nathan (extension) | #68 |
 | Page d'accueil Horama | Couloir Nathan | #70 |
-| Mode dev de bout en bout : réveil par Vercel, rapport dans Obsidian, commentaire sur la PR GitHub | Ali, couloir Nathan | #71 |
+| Entrée par une PR de bout en bout : réveil par Vercel, rapport dans Obsidian, commentaire sur la PR GitHub | Ali, couloir Nathan | #71 |
 | Direction artistique appliquée à la scène, à l'extension, à la page d'accueil | Nathan | #69, #70 |
 | Point business (CEO) | Noé | |
 
@@ -49,9 +51,9 @@ Mise à jour le mercredi 18 novembre 2026 au matin, après le recadrage de Natha
 
 | Sujet | Ce qui manque | Qui tranche |
 |---|---|---|
-| Fork du site d'Eugenia (mode dev sur le vrai code) | La réponse de l'école ([demandes](decisions/2026-11-17-fork-eugenia.md)) | L'école, puis Nathan pour la cible de repli |
+| Fork du site d'Eugenia (entrée par une PR sur le vrai code) | La réponse de l'école ([demandes](decisions/2026-11-17-fork-eugenia.md)) | L'école, puis Nathan pour la cible de repli |
 | Montrer les deux défauts du site d'Eugenia au jury | Prévenir l'école avant | Nathan |
-| Trois agents en parallèle (#57, étape 3) | Le mode à un agent stable sur le banc (#67) | Ali, si le temps le permet |
+| Trois agents en parallèle (#57, étape 3) | L'exploration à un agent stable sur le banc (#67) | Ali, si le temps le permet |
 
 ## Après le hackathon (slide de feuille de route)
 

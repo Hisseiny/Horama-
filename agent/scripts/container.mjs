@@ -1,10 +1,10 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CHROME_FLAGS, closeChrome } from "../../automatisation/scene/scene.mjs";
 import { publicProxyChromeFlags, startPublicProxy, writePublicChromePreferences } from "../src/exploration/reseau.ts";
-import { createExplorationService } from "./exploration-service.mjs";
+import { createExplorationService, finishAtTimeLimit } from "./exploration-service.mjs";
 import { startScreencast } from "./screencast.mjs";
 
 async function runExplorer(args, { signal, vault, output, service = false, onFrame = () => {} }) {
@@ -20,7 +20,7 @@ async function runExplorer(args, { signal, vault, output, service = false, onFra
     throw error;
   }
   const flags = [
-    "--headless=new", "--no-sandbox", "--disable-dev-shm-usage",
+    "--headless=new", "--no-sandbox", "--disable-dev-shm-usage", "--lang=fr-FR",
     "--remote-debugging-address=127.0.0.1", "--remote-debugging-port=9333",
     ...publicProxyChromeFlags(proxy.port), ...CHROME_FLAGS, "about:blank",
   ];
@@ -102,8 +102,8 @@ async function main(args) {
   if (args.length === 1 && args[0] === "--service") {
     const port = bound(process.env.PORT, 8787, 1, 65535);
     const max = bound(process.env.HORAMA_MAX_PAGES, 8, 1, 8);
-    const clicked = bound(process.env.HORAMA_PAGES_CLIQUEES, 2, 0, 8);
-    const seconds = bound(process.env.HORAMA_MAX_SECONDS, 240, 1, 240);
+    const clicked = bound(process.env.HORAMA_PAGES_CLIQUEES, 4, 0, 8);
+    const seconds = bound(process.env.HORAMA_MAX_SECONDS, 240, 1, 420);
     const data = await mkdtemp("/data/explorations-");
     const { server, stop } = createExplorationService({ data, run: async (job, shutdown) => {
       const limit = new AbortController();
@@ -114,6 +114,12 @@ async function main(args) {
             onFrame: (buffer, at) => { job.frame = { buffer, at }; } });
       } finally {
         clearTimeout(timeout);
+        // Stopped by the time limit (not by the service shutting down): the pages visited make a finished run.
+        if (limit.signal.aborted && !shutdown.aborted) {
+          const file = join(job.directory, "exploration.json");
+          const report = finishAtTimeLimit(await readFile(file, "utf8").then(JSON.parse).catch(() => null));
+          if (report) await writeFile(`${file}.tmp`, JSON.stringify(report, null, 2)).then(() => rename(`${file}.tmp`, file)).catch(() => {});
+        }
       }
     } });
     const shutdown = async () => { server.close(); await stop(); await rm(data, { recursive: true, force: true }); };

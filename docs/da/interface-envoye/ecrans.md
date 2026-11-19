@@ -143,7 +143,7 @@ D'autres surfaces existent dans le dépôt. Ce sont des pages web et une extensi
 
 | Surface | Où | À quoi elle sert |
 |---|---|---|
-| Page d'accueil | `accueil/` | Présenter Horama et le faire essayer sur un site (mode grand public) |
+| Page d'accueil | `accueil/` | Présenter Horama et le faire essayer sur un site (entrée par une adresse) |
 | Rapport de la page d'accueil | `accueil/rapport/` | Montrer les défauts trouvés après un essai |
 | Extension Chrome | `extension/` | Lancer Horama depuis l'onglet ouvert, suivre la progression, voir le récapitulatif |
 | Scène | `automatisation/scene/` | Montrer l'agent qui parcourt le site, avec le curseur, la mascotte et les traits |

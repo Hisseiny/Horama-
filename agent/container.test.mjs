@@ -1,11 +1,41 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { runInNewContext } from "node:vm";
 import test from "node:test";
 
 const cwd = fileURLToPath(new URL("..", import.meta.url));
 const run = (args, key = "") => spawnSync(process.execPath, ["agent/scripts/container.mjs", ...args], {
   cwd, encoding: "utf8", env: { ...process.env, HAI_API_KEY: key },
+});
+
+test("service clicked-page default matches the scene and preserves overrides", () => {
+  const source = readFileSync(new URL("./scripts/container.mjs", import.meta.url), "utf8");
+  const scene = readFileSync(new URL("../automatisation/scene/exploration.mjs", import.meta.url), "utf8");
+  const bound = source.match(/function bound\([^]*?\n\}/)?.[0];
+  const setting = source.match(/const clicked = bound\([^;]+;/)?.[0];
+  const sceneDefault = Number(scene.match(/const CLICKED = Number\(option\("pages-cliquees", (\d+)\)\)/)?.[1]);
+  assert.ok(bound && setting);
+  for (const value of [undefined, "0", "6"]) {
+    const actual = runInNewContext(`${bound}\n${setting}\nclicked`, { process: { env: { HORAMA_PAGES_CLIQUEES: value } } });
+    assert.equal(actual, value === undefined ? sceneDefault : Number(value));
+  }
+});
+
+test("service accepts 380 and 420 seconds and rejects 421", () => {
+  for (const seconds of ["380", "420", "421"]) {
+    const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
+      import fs from "node:fs/promises";
+      import { syncBuiltinESMExports } from "node:module";
+      fs.mkdtemp = async () => { throw new Error("SETTINGS_ACCEPTED"); };
+      syncBuiltinESMExports();
+      process.argv = ["node", "container", "--service"];
+      await import("./agent/scripts/container.mjs");
+    `], { cwd, encoding: "utf8", env: { ...process.env, HAI_API_KEY: "not-a-real-key", HORAMA_MAX_SECONDS: seconds } });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, seconds === "421" ? /Valeur attendue entre 1 et 420/ : /SETTINGS_ACCEPTED/);
+  }
 });
 
 test("container help does not require Chrome or a key", () => {

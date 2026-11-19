@@ -196,7 +196,7 @@ Exemple écrit à la main pour montrer la forme, **pas une mesure** : passage su
 |---|---|---|
 | `id`, `ecran`, `vue` | texte | Voir « Identifiants » |
 | `source` | `"controle"`, `"holo"`, `"comparaison"`, `"accessibilite"` | Qui l'a trouvé |
-| `sorte` | texte | `controle` : `page-erreur`, `image-cassee`, `defilement-horizontal`, `debordement`, `lien-casse`, `texte-erreur`, `erreur-console`. `holo` : `texte-coupe`, `chevauchement`, `decalage`, `image-deformee`, `contraste-illisible`, `autre`. `comparaison` : `changement`, `deplacement`. `accessibilite` : l'identifiant de la règle du moteur (par exemple `color-contrast`). Un `INCONCLUSIVE` : `non-conclu` |
+| `sorte` | texte | `controle` : `page-erreur`, `image-cassee`, `defilement-horizontal`, `debordement`, `lien-casse`, `texte-erreur`, `erreur-console`. `holo` : `texte-coupe`, `chevauchement`, `decalage`, `image-deformee`, `contraste-illisible`, `groupe-incomplet` (depuis le 19/11 : un groupe d'onglets ou de boutons qui laisse vide une grande partie de son cadre), `autre`. `comparaison` : `changement`, `deplacement`. `accessibilite` : l'identifiant de la règle du moteur (par exemple `color-contrast`). Un `INCONCLUSIVE` : `non-conclu` |
 | `statut` | statut | Voir le tableau des principes |
 | `description` | texte | Une phrase courte en français, dite par la mascotte, sans jargon (« L'image du campus ne s'affiche pas. ») |
 | `textes_a_surligner` | liste de textes | Textes affichés à entourer sur la page en direct (texte du bouton qui déborde, « undefined » affiché, texte du lien mort) ; vide si rien à entourer par le texte |

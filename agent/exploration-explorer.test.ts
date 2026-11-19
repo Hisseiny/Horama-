@@ -84,6 +84,123 @@ async function run({ png = original, skip = "", refuse = false, failure = false,
   return { result, base, responses };
 }
 
+for (const measurement of [{ page: 966, viewport: 900 }, { page: 1200, viewport: 900 }, { page: 3000, viewport: 900 }, null, "error"]) {
+  test(`lecture ajustée aux dimensions CDP : ${JSON.stringify(measurement)}`, async () => {
+    const { responses } = await run({ deps: {
+      connecter: async () => ({ on() {}, close() {}, send: async (_method, params) => {
+        if (String((params as Record<string, unknown>)?.expression).includes("viewport: window.innerHeight")) {
+          if (measurement === "error") throw new Error("CDP indisponible");
+          return { result: { value: measurement } };
+        }
+        return { result: { value: 200 } };
+      } }),
+    } });
+    if (measurement && typeof measurement === "object") {
+      assert.match(responses[0], measurement.page === 966 ? /0 défilement utile, ne défile pas/ : measurement.page === 1200 ? /exactement 1 petit défilement utile/ : /exactement 5 petits défilements utiles/);
+      if (measurement.page === 1200) assert.match(responses[0], /fais 1 petit scroll_web/);
+      if (measurement.page === 966) assert.doesNotMatch(responses[0], /fais ensuite UN seul grand scroll_web|remonte en 2 ou 3/);
+    } else assert.match(responses[0], /au plus 5 petits scroll_web/);
+  });
+}
+
+for (const failClose of [false, true]) {
+  test(`dernier relevé : fermeture autonome sans terminer H, fermeture échouée=${failClose}`, async () => {
+    let closed = false;
+    const { result } = await run({ deps: {
+      session: async input => {
+        await input.onCreated("autonomous");
+        let resolveStop!: () => void;
+        const stopped = new Promise<void>(resolve => { resolveStop = resolve; });
+        return { id: "autonomous",
+          stop: async () => { closed = true; resolveStop(); },
+          confirmStopped: async () => { if (failClose) throw new Error("Toujours active"); },
+          fin: (async () => {
+            for (const step of input.consigne.course) await input.onTool("relever", { ecran: step.ecran, vue: "defaut" });
+            await stopped;
+            return { id: "autonomous", muted: false, cout_usd: 0, etapes: 2, erreur: "Session supprimée" };
+          })(),
+        };
+      },
+      runtime: { relever: async ecran => ({ png: original, texte: "Page", url_page: ecran === "accueil" ? "https://example.org/" : "https://example.org/faq", largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture" }), navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
+    } });
+    assert.equal(closed, true);
+    assert.equal(result.etat, "fini");
+    assert.equal(result.agents[0].etat, "fini");
+    assert.ok(result.pages.every(page => page.etat === "visitee"));
+    if (failClose) assert.match(result.agents[0].raison!, /fermeture.*confirmée/);
+    const saved = JSON.parse(readFileSync(join(root, "out", "exploration.json"), "utf8"));
+    assert.equal(saved.etat, result.etat);
+    assert.equal(saved.agents[0].etat, result.agents[0].etat);
+    if (failClose) assert.match(saved.agents[0].raison, /fermeture.*confirmée/);
+  });
+}
+
+for (const failure of ["base", "rapport"]) {
+  test(`fin autonome : échec de sauvegarde finale ${failure} après le dernier relevé`, async () => {
+    const base = new BaseMemoire();
+    let closed = false, writes = 0;
+    base.terminerPassage = async report => {
+      writes++;
+      if (failure === "base") throw new Error("Base indisponible");
+      base.rapports.set(report.passage.id, structuredClone(report));
+    };
+    const { result } = await run({ site: "persistence", deps: {
+      base,
+      session: async input => {
+        await input.onCreated("persistence");
+        let resolveStop!: () => void;
+        const stopped = new Promise<void>(resolve => { resolveStop = resolve; });
+        return { id: "persistence", stop: async () => { closed = true; resolveStop(); },
+          confirmStopped: async () => {
+            if (failure === "rapport") {
+              const folder = join(root, "vault", "persistence");
+              mkdirSync(folder, { recursive: true });
+              writeFileSync(join(folder, "passages"), "Écriture du rapport bloquée");
+            }
+          },
+          fin: (async () => {
+            for (const step of input.consigne.course) await input.onTool("relever", { ecran: step.ecran, vue: "defaut" });
+            await stopped;
+            return { id: "persistence", muted: false, cout_usd: 0, etapes: 2 };
+          })() };
+      },
+      runtime: { relever: async ecran => ({ png: original, texte: "Page", url_page: ecran === "accueil" ? "https://example.org/" : "https://example.org/faq", largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture" }), navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
+    } });
+    assert.equal(closed, true);
+    assert.equal(writes, 1);
+    assert.ok(result.pages.every(page => page.etat === "visitee"));
+    assert.equal(result.etat, "interrompu");
+    assert.equal(result.agents[0].etat, "tombe");
+    assert.match(result.agents[0].raison!, failure === "base" ? /sauvegarde finale/ : /rapport final/);
+    const saved = JSON.parse(readFileSync(join(root, "out", "exploration.json"), "utf8"));
+    assert.equal(saved.etat, "interrompu");
+    assert.equal(saved.agents[0].etat, "tombe");
+  });
+}
+
+test("fin autonome : plafond pendant la fermeture sans résolution de fin au stop", async () => {
+  const controller = new AbortController();
+  let stopped = false;
+  const { result } = await run({ deps: {
+    signal: controller.signal,
+    session: async input => {
+      await input.onCreated("ceiling");
+      return { id: "ceiling", stop: async () => { stopped = true; },
+        confirmStopped: async () => { controller.abort(new Error("Plafond")); },
+        fin: (async () => {
+          for (const step of input.consigne.course) await input.onTool("relever", { ecran: step.ecran, vue: "defaut" });
+          await new Promise(resolve => setImmediate(resolve));
+          assert.equal(stopped, true);
+          return { id: "ceiling", muted: true, cout_usd: null, etapes: 2 };
+        })() };
+    },
+    runtime: { relever: async ecran => ({ png: original, texte: "Page", url_page: ecran === "accueil" ? "https://example.org/" : "https://example.org/faq", largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture" }), navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
+  } });
+  assert.equal(controller.signal.aborted, true);
+  assert.equal(result.etat, "fini");
+  assert.ok(result.pages.every(page => page.etat === "visitee"));
+});
+
 test("les redirections vers l’alias www restent sur le site", async () => {
   const { result, responses } = await run({ actual: address => address.replace("://example.org", "://www.example.org") });
   assert.equal(result.pages.filter(page => page.etat === "visitee").length, 2);
@@ -254,7 +371,7 @@ test("préparation attendue avant capture et contrôles dans explorer", async ()
   await run({ deps: {
     connecter: async () => ({ on() {}, close() {}, async send(_method, params) {
       const expression = String((params as Record<string, unknown> | undefined)?.expression);
-      if (expression.includes("responseStatus") || expression.includes("a[href]")) return { result: { value: 200 } };
+      if (expression.includes("responseStatus") || expression.includes("a[href]") || expression.includes("viewport: window.innerHeight")) return { result: { value: 200 } };
       events.push("préparation");
       await Promise.resolve();
       events.push("prêt");
@@ -274,8 +391,36 @@ test("préparation attendue avant capture et contrôles dans explorer", async ()
       return [];
     },
   } });
-  assert.deepEqual(events, ["préparation", "prêt", "capture", "contrôles", "préparation", "prêt", "capture", "contrôles"]);
+  assert.equal(events.filter(event => event === "capture").length, 2);
+  assert.equal(events.filter(event => event === "contrôles").length, 2);
 });
+
+for (const failCapture of [false, true]) {
+  test(`bandeau restauré après la capture avant contrôles, capture échouée=${failCapture}`, async () => {
+    let masked = false, restored = 0;
+    const logs: string[] = [];
+    const { result } = await run({ deps: {
+      log: message => logs.push(message),
+      connecter: async () => ({ on() {}, close() { assert.equal(masked, false); }, async send(method, params) {
+        const data = params as { expression?: string; functionDeclaration?: string } | undefined;
+        if (data?.expression?.includes("function maskConsentBanners")) { masked = true; return { result: { objectId: "banner" } }; }
+        if (method === "Runtime.callFunctionOn" && data?.functionDeclaration?.includes("this.count")) return { result: { value: 1 } };
+        if (method === "Runtime.callFunctionOn") { masked = false; restored++; }
+        return { result: { value: 200 } };
+      } }),
+      controler: async () => { assert.equal(masked, false); return []; },
+      runtime: { relever: async ecran => {
+        assert.equal(masked, true);
+        if (failCapture) throw new Error("Capture indisponible");
+        return { png: original, texte: "Page", url_page: ecran === "accueil" ? "https://example.org/" : "https://example.org/faq", largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture" };
+      }, navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
+    } });
+    assert.ok(restored >= 2);
+    assert.equal(masked, false);
+    assert.equal(result.etat, failCapture ? "interrompu" : "fini");
+    assert.ok(logs.some(message => message.includes("masqué(s) temporairement")));
+  });
+}
 
 test("paramètre de suivi ajouté : capture préparée et persistée normalement", async () => {
   const { result, base } = await run({ query: "?utm_source=internal" });
@@ -496,10 +641,10 @@ for (const mode of ["visible", "different", "unavailable", "overlap", "label"]) 
   });
 }
 
-test("contrôle en échec, Holo hors délai et session interrompue", async () => {
+test("contrôle en échec et Holo hors délai restent non concluants après les relevés", async () => {
   const { result, base } = await run({ failure: true, deps: { controler: async () => { throw new Error("CDP"); },
     holo: async () => ({ status: "INCONCLUSIVE", model: "holo4-35b-a3b", durationMs: 16000, usage: null, cost_usd: null, findings: [], message: "Both Holo models timed out" }) } });
-  assert.equal(result.etat, "interrompu"); assert.equal(result.agents[0].etat, "tombe");
+  assert.equal(result.etat, "fini"); assert.equal(result.agents[0].etat, "fini");
   assert.equal(result.pages[0].holo?.etat, "hors_delai"); assert.equal(result.totaux.sans_conclusion, 4);
   assert.ok(base.resultats.every(item => item.statut === "INCONCLUSIVE" && item.raison));
 });
@@ -527,7 +672,7 @@ test("constats de contrôle regroupés par type, mesure et zone à un pixel prè
   }
 });
 
-test("trois éléments hors écran recadrés au même endroit donnent un constat et une capture", async () => {
+test("trois éléments hors écran recadrés au même endroit gardent chacun leur constat et leur capture", async () => {
   let scrollY = 0;
   const { result, base } = await run({ deps: {
     connecter: async () => ({ send: async (method, params) => {
@@ -544,16 +689,16 @@ test("trois éléments hors écran recadrés au même endroit donnent un constat
       zone: { x: index === 3 ? 500 : 668.5, y, largeur: 96, hauteur: 89.1875 },
     })),
   } });
-  assert.equal(result.totaux.defauts, 4);
+  assert.equal(result.totaux.defauts, 8);
   for (const page of result.pages) {
     const findings = result.constats.filter(item => item.ecran === page.ecran && item.source === "controle");
-    assert.equal(findings.length, 2);
-    assert.match(findings[0].description, /#element-1, #element-2, #element-3/);
-    assert.equal(findings[1].preuve.element, "#element-4");
-    assert.ok(existsSync(join(root, "out", findings[0].capture)));
-    assert.ok(existsSync(join(root, "out", findings[1].capture)));
-    assert.equal(existsSync(join(root, "out/captures", `${page.ecran}--controle--3.png`)), false);
-    assert.equal(Object.keys(base.resultats.find(item => item.test_id === `exploration--${page.ecran}`)!.valeurs).length, 2);
+    assert.deepEqual(findings.map(item => item.preuve.element), ["#element-1", "#element-2", "#element-3", "#element-4"]);
+    assert.equal(new Set(findings.map(item => item.capture)).size, 4);
+    for (const item of findings) {
+      assert.ok(existsSync(join(root, "out", item.capture)));
+      assert.ok(item.zone);
+    }
+    assert.equal(Object.keys(base.resultats.find(item => item.test_id === `exploration--${page.ecran}`)!.valeurs).length, 4);
   }
 });
 
@@ -561,8 +706,8 @@ test("erreur H après le dernier relevé : toutes les pages visitées, passage f
   const { result } = await run({ lateError: true });
   assert.equal(result.etat, "fini");
   assert.ok(result.pages.every(page => page.etat === "visitee"));
-  assert.equal(result.agents[0].etat, "tombe");
-  assert.match(result.agents[0].raison!, /interrompue/);
+  assert.equal(result.agents[0].etat, "fini");
+  assert.equal(result.agents[0].raison, null);
 });
 
 test("budget de temps H proportionnel aux étapes et borné", () => {
@@ -692,6 +837,10 @@ test("consigne : lecture bornée, liens sur place, remontée moyenne facultative
   assert.match(consigne.instructions, /Ne clique jamais vers une page déjà relevée dans ce passage/);
   assert.match(task, /Dès le dernier relever accepté, appelle immédiatement terminer.*sans navigation, scroll, geste ni attente/);
   assert.match(consigne.instructions, /ne remplis et ne soumets aucun formulaire, ne te connecte jamais/);
+  assert.match(consigne.instructions, /Refuser \/ Tout refuser \/ Continuer sans accepter \/ Reject all \/ Ablehnen/);
+  assert.match(consigne.instructions, /REFUSE les cookies, ne les accepte jamais/);
+  assert.match(consigne.instructions, /No, thanks \/ No thanks \/ Non merci \/ Nein danke/);
+  assert.match(consigne.instructions, /Ne clique jamais sur OK, Accept ni Let me choose/);
   const schema = consigne.tools[0].input_schema as { required: string[]; properties: Record<string, unknown> };
   assert.deepEqual(schema.required, ["ecran", "vue"]);
   assert.ok("raison_go_to" in schema.properties);
@@ -891,6 +1040,26 @@ test("le coût total inclut Holo sans modifier le coût de la session H", async 
   assert.equal(result.pages[0].holo?.cout_usd, 0.001);
 });
 
+for (const cost of [null, 0, 0.202]) {
+  test(`coût H ${cost} : Holo seul ne devient pas le coût total`, async () => {
+    const { result } = await run({ deps: {
+      session: async input => {
+        await input.onCreated("cost");
+        return { id: "cost", fin: (async () => {
+          for (const step of input.consigne.course) await input.onTool("relever", { ecran: step.ecran, vue: "defaut" });
+          return { id: "cost", muted: false, cout_usd: cost, etapes: 2 };
+        })() };
+      },
+      runtime: { relever: async ecran => ({ png: original, texte: "Page", url_page: ecran === "accueil" ? "https://example.org/" : "https://example.org/faq", largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture" }), navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
+      holo: async () => ({ status: "SUSPECTED", model: "holo4-27b", durationMs: 3, findings: [], usage: null, cost_usd: 0.001 }),
+    } });
+    assert.equal(result.agents[0].cout_usd, cost);
+    assert.equal(result.cout_usd, cost === null ? null : cost + 0.002);
+    const saved = JSON.parse(readFileSync(join(root, "out", "exploration.json"), "utf8"));
+    assert.equal(saved.cout_usd, result.cout_usd);
+  });
+}
+
 test("défaut à 4583 : capture viewport dédiée et zone dans l’image ; défaut visible conservé", async () => {
   const { result } = await run({ deps: {
     connecter: async () => ({ on() {}, close() {}, async send(method, params) {
@@ -995,7 +1164,7 @@ test("option douce transmise au repli CDP", async () => {
   assert.equal(scrolls.length, 4);
 });
 
-test("cookies préparés avant capture, client partagé puis fermé", async () => {
+test("refus des cookies avant capture, client partagé puis fermé", async () => {
   const calls: string[] = [];
   const { result } = await run({ deps: {
     connecter: async () => { calls.push("connect"); return { on() {}, close() { calls.push("close"); }, async send(_method, params) {
@@ -1019,7 +1188,7 @@ test("connexion CDP indisponible : capture conservée et contrôles non conclus"
   assert.equal(result.pages[0].statut, "INCONCLUSIVE");
 });
 
-test("bannière tardive : statut cookies mis à jour juste avant capture, repli en cas d'erreur", async () => {
+test("bannière tardive : refus puis masquage de repli avant capture, repli en cas d'erreur", async () => {
   for (const fail of [false, true]) {
     const { result } = await run({ deps: {
       connecter: async () => ({ on() {}, close() {}, async send(_method, params) {

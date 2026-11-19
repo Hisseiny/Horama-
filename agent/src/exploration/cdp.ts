@@ -2,40 +2,91 @@ import type { CdpClient } from "./controles.ts";
 
 export interface ExplorationCdp extends CdpClient { close(): void }
 
+export function maskConsentBanners() {
+  const descendants = (root: Document | ShadowRoot | Element): HTMLElement[] => [...("shadowRoot" in root && root.shadowRoot ? descendants(root.shadowRoot) : []), ...[...root.querySelectorAll<HTMLElement>("*")].flatMap(element => [element, ...(element.shadowRoot ? descendants(element.shadowRoot) : [])])];
+  const saved: Array<{ element: HTMLElement; value: string; priority: string }> = [];
+  for (const element of descendants(document.body)) {
+    const style = getComputedStyle(element), rect = element.getBoundingClientRect();
+    if (!["fixed", "sticky"].includes(style.position) || style.visibility !== "visible" || Number(style.opacity) === 0
+      || rect.width <= 0 || rect.height <= 0 || rect.height > innerHeight * 0.6 || rect.right <= 0 || rect.left >= innerWidth
+      || rect.bottom <= 0 || rect.top >= innerHeight || Math.abs(rect.top) > 48 && Math.abs(rect.bottom - innerHeight) > 48) continue;
+    const children = descendants(element);
+    if (!/cookie|consent|privacy|confidentialit|datenschutz|einwilligung/i.test([element, ...children].map(node => [node.textContent, node.shadowRoot?.textContent].join(" ")).join(" "))) continue;
+    const controls = children.filter(child => child.matches('button, [role="button"]'));
+    if (![...controls].some(control => /\b(?:accepter|refuser|parametrer|personnaliser|autoriser|j['’]accepte|accept|reject|decline|manage|customize|preferences|allow|agree|let\s+me\s+choose|laissez-moi\s+choisir|cookie\s+settings|parametres\s+des\s+cookies|gerer\s+les\s+cookies|no,?\s+thanks|non\s+merci|nein\s+danke|akzeptieren|ablehnen|einstellungen|zustimmen|erlauben)\b/i.test(
+      [control.innerText || control.textContent, control.getAttribute("aria-label"), control.getAttribute("title")].join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "")))) continue;
+    saved.push({ element, value: element.style.getPropertyValue("visibility"), priority: element.style.getPropertyPriority("visibility") });
+    element.style.setProperty("visibility", "hidden", "important");
+  }
+  return { count: saved.length, restore() {
+    for (const { element, value, priority } of saved) {
+      if (value) element.style.setProperty("visibility", value, priority);
+      else element.style.removeProperty("visibility");
+    }
+  } };
+}
+
+export async function hideCaptureOverlays(client: ExplorationCdp, log: (message: string) => void = () => {}) {
+  await client.send("Input.dispatchKeyEvent", { type: "keyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
+  await client.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
+  const result = await client.send("Runtime.evaluate", { expression: `(${maskConsentBanners.toString()})()` });
+  if (result.exceptionDetails) throw new Error("Masquage du consentement impossible.");
+  const objectId = result.result?.objectId;
+  const restore = async () => {
+    if (!objectId) return;
+    try { await client.send("Runtime.callFunctionOn", { objectId, functionDeclaration: "function() { this.restore(); }" }); }
+    finally { await client.send("Runtime.releaseObject", { objectId }); }
+  };
+  try {
+    if (objectId) {
+      const count = await client.send("Runtime.callFunctionOn", { objectId, functionDeclaration: "function() { return this.count; }", returnByValue: true });
+      if (count.result?.value > 0) log(`${count.result.value} bandeau(x) de consentement masqué(s) temporairement pour la capture Holo, sans clic.`);
+    }
+    return restore;
+  } catch (error) { await restore(); throw error; }
+}
+
 export function refuseCookies(): boolean {
+  const descendants = (root: Document | ShadowRoot | Element): HTMLElement[] => [...("shadowRoot" in root && root.shadowRoot ? descendants(root.shadowRoot) : []), ...[...root.querySelectorAll<HTMLElement>("*")].flatMap(element => [element, ...(element.shadowRoot ? descendants(element.shadowRoot) : [])])];
+  const parentOf = (element: Element): Element | null => element.parentElement ?? (element.getRootNode() instanceof ShadowRoot ? (element.getRootNode() as ShadowRoot).host : null);
   const normalize = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase().replace(/\s+/g, " ");
-  const refusals = new Set(["tout refuser", "refuser", "refuser tout", "continuer sans accepter", "reject all", "reject", "decline", "deny", "only necessary", "necessary only", "necessaires uniquement", "uniquement les necessaires", "reject all cookies", "refuser tous les cookies"]);
-  const candidates: Array<{ element: HTMLElement; refusal: boolean }> = [];
-  for (const element of document.querySelectorAll<HTMLElement>('button, [role="button"], a')) {
+  const refusals = new Set(["tout refuser", "refuser", "refuser tout", "continuer sans accepter", "reject all", "reject", "decline", "deny", "no, thanks", "no thanks", "non merci", "nein danke", "only necessary", "necessary only", "necessaires uniquement", "uniquement les necessaires", "reject all cookies", "refuser tous les cookies", "ablehnen", "alle ablehnen", "nur notwendige", "nur notwendige cookies"]);
+  for (const element of descendants(document).filter(node => node.matches('button, [role="button"], a'))) {
     const text = normalize(element.innerText || element.textContent || "");
     const labels = [text, normalize(element.getAttribute("aria-label") ?? ""), normalize(element.getAttribute("title") ?? "")];
-    if (labels.some(label => /accept|autoriser|allow|agree/.test(label.replace("continuer sans accepter", "")))) continue;
-    const refusal = labels.some(label => refusals.has(label));
-    const closure = /^(?:fermer|close|×|✕)$/.test(text) || labels.slice(1).some(label => /\b(?:fermer|close)\b/.test(label));
-    if (!refusal && !closure) continue;
+    // « Accept » said in a negation is a refusal (Axeptio, hcompany.ai: aria-label « No, thanks - Close without accepting cookies »).
+    if (labels.some(label => /accept|autoriser|allow|agree|akzeptier|zustimm/.test(label.replace(/\b(?:without|sans|ohne)\s+\S*(?:accept|autoris|akzept|zustimm)\S*/g, "")))) continue;
+    if (!labels.some(label => refusals.has(label))) continue;
     const rect = element.getBoundingClientRect(), style = getComputedStyle(element);
     if (!rect.width || !rect.height || rect.bottom <= 0 || rect.top >= innerHeight || rect.right <= 0 || rect.left >= innerWidth || style.visibility !== "visible" || style.display === "none") continue;
     let visible = true;
-    for (let ancestor: Element | null = element; ancestor; ancestor = ancestor.parentElement) {
+    for (let ancestor: Element | null = element; ancestor; ancestor = parentOf(ancestor)) {
       if (Number(getComputedStyle(ancestor).opacity) === 0) visible = false;
     }
     if (!visible) continue;
     if (element.matches('[type="submit"]') && "form" in element && element.form) continue;
     if (element instanceof HTMLButtonElement && element.type === "submit" && element.form) continue;
-    let parent = element.parentElement;
-    while (parent && parent !== document.body && parent !== document.documentElement) {
-      if (!refusal && (parent.matches('main,nav,[role="main"],[role="navigation"]') || parent.querySelector('main,nav,[role="main"],[role="navigation"]'))) break;
-      if (/cookie|consent|rgpd|gdpr|privacy|confidentialit/.test(normalize([parent.textContent, parent.id, parent.className, parent.getAttribute("aria-label")].join(" ")))) {
-        candidates.push({ element, refusal });
-        break;
+    const ambiguous = labels.filter(label => refusals.has(label)).every(label => ["no, thanks", "no thanks", "non merci", "nein danke"].includes(label));
+    let parent = parentOf(element);
+    if (ambiguous) {
+      for (let ancestor = parent; ancestor && ancestor !== document.body && ancestor !== document.documentElement; ancestor = parentOf(ancestor)) {
+        if (["fixed", "sticky"].includes(getComputedStyle(ancestor).position) || ancestor.matches('[role="dialog"], [role="alertdialog"]')) {
+          parent = ancestor;
+          break;
+        }
       }
-      if (!refusal && (parent.matches('dialog,[role="dialog"],[role="alertdialog"],[aria-modal="true"]') || ["fixed", "sticky"].includes(getComputedStyle(parent).position))) break;
-      parent = parent.parentElement;
+    }
+    while (parent && parent !== document.body && parent !== document.documentElement) {
+      const vocabulary = ambiguous ? /cookie|consent|einwilligung/ : /cookie|consent|rgpd|gdpr|privacy|confidentialit|datenschutz|einwilligung/;
+      if (vocabulary.test(normalize([parent.id, parent.className, parent.getAttribute("aria-label"), ...[parent, ...descendants(parent)].map(node => [node.textContent, node.shadowRoot?.textContent].join(" "))].join(" ")))) {
+        element.click();
+        return true;
+      }
+      if (ambiguous) break;
+      parent = parentOf(parent);
     }
   }
-  const candidate = candidates.find(item => item.refusal) ?? candidates[0];
-  candidate?.element.click();
-  return !!candidate;
+  return false;
 }
 
 export async function dismissCookies(client: ExplorationCdp): Promise<boolean> {

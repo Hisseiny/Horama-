@@ -7,7 +7,7 @@
 // in the memory of the site. Nothing here is particular to a site.
 //
 // Usage: node [--env-file=<.env.local>] automatisation/scene/exploration.mjs --url <adresse> [--site <dossier du vault>] [--max 15] [--pages-cliquees 4] [--sans-agent]
-//          [--sans-holo] [--sans-base | --avec-base] [--choix bug,voulu,...] [--repeter-choix] [--sans-fin] [--par <nom>] [--rythme <s>]
+//          [--sans-holo] [--sans-base | --avec-base] [--choix bug,voulu,...] [--repeter-choix] [--sans-fin] [--fin-dans-la-tour [--tour <adresse>]] [--par <nom>] [--rythme <s>]
 //          [--vault <dir>] [--sortie <dir>] [--temoins <dir>] [--port 9333] [--profil <dir>] [--fermer-chrome]
 //          [--captures-instantanees]
 // The captures of proof of the explorer scroll smoothly to their zone (option doux of #179): the scene is on the screen,
@@ -31,6 +31,8 @@ import { ouvrirVitrine } from "./vitrine.mjs";
 import { HEIGHT, WIDTH, capture, captureZone, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, layer, navigate, openChrome, option, say, sleep } from "./scene.mjs";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
+// Local outputs and Chrome profiles, at the root of the repository wherever it is cloned (ignored by Git).
+const ORCHESTRATEUR = resolve(HERE, "../../.orchestrateur");
 const SANS_AGENT = flag("sans-agent");
 const URL_SITE = option("url", "");
 const MAX = Number(option("max", 15));
@@ -41,9 +43,9 @@ const SITE = option("site", "");
 const CLICKED = Number(option("pages-cliquees", 4));
 const VAULT = resolve(option("vault", join(HERE, "../../vault-horama")));
 const PORT = Number(option("port", 9333));
-const PROFILE = resolve(option("profil", "/Users/nathan/Code/projet/horama/.orchestrateur/chrome-agent"));
+const PROFILE = resolve(option("profil", join(ORCHESTRATEUR, "chrome-agent")));
 const ID = `${new Date().toLocaleString("sv-SE").slice(0, 16).replace(" ", "-").replace(":", "h")}-${randomUUID().slice(0, 4)}`;
-const OUT = resolve(option("sortie", `/Users/nathan/Code/projet/horama/.orchestrateur/exploration/${ID}`));
+const OUT = resolve(option("sortie", join(ORCHESTRATEUR, `exploration/${ID}`)));
 const WITNESSES = option("temoins") ? resolve(option("temoins")) : null;
 const CHOICES = flag("choix") ? option("choix").split(",") : [];
 // --repeter-choix: --choix taken again from the start (S9, filmed passages). It writes as many decisions as there are
@@ -51,6 +53,10 @@ const CHOICES = flag("choix") ? option("choix").split(",") : [];
 const REPEAT = flag("repeter-choix");
 const PAR = option("par", "Nathan");
 const RYTHME = Number(option("rythme", 2));
+// --fin-dans-la-tour (#238): no question in the scene; the summary with its findings, then the mascot hands over to the
+// tower of control, where a human settles each case (the wake-up opens it on « À relire » of this passage).
+const IN_TOWER = flag("fin-dans-la-tour");
+const TOWER = option("tour", "https://horama-gold.vercel.app/tour/");
 const CHROME_BIN = process.env.CHROME_BIN || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const FILE = join(OUT, "exploration.json");
 
@@ -96,7 +102,7 @@ if (area.largeur !== WIDTH || area.hauteur !== HEIGHT || area.densite !== 1) {
 }
 const mascot = (command, ...args) => layer(page, command, ...args);
 // The showcase (--vitrine): the scene enlarged to a whole screen in a separate Chrome; this page stays 1280 × 900.
-const vitrine = flag("vitrine") ? await ouvrirVitrine(page, { chromeBin: CHROME_BIN, profil: resolve(option("profil-vitrine", "/Users/nathan/Code/projet/horama/.orchestrateur/chrome-vitrine")),
+const vitrine = flag("vitrine") ? await ouvrirVitrine(page, { chromeBin: CHROME_BIN, profil: resolve(option("profil-vitrine", join(ORCHESTRATEUR, "chrome-vitrine"))),
   debugPort: flag("vitrine-debug") ? Number(option("vitrine-debug")) : null, say }) : null;
 // The page of departure at once, the mascot reading: what the audience sees while the pages are found and the H agent
 // starts (about 20 s measured on 18/11, 11 h 45), instead of a blank page.
@@ -298,7 +304,7 @@ if (report?.format === "horama-exploration-1") {
   const toDecide = [...constats.filter((constat) => constat.statut === "VERIFIED_FAIL"), ...constats.filter((constat) => constat.statut === "SUSPECTED" && !constat.explique_par)]
     .filter((constat) => (dejaVoulu(constat, past) ? (accepted.push(constat), false) : true));
   if (accepted.length) say(`Déjà déclarés voulus, non redemandés : ${accepted.map((constat) => constat.id).join(", ")}.`);
-  const review = flag("sans-fin") ? [] : toDecide;
+  const review = flag("sans-fin") || IN_TOWER ? [] : toDecide;
   const pathOf = (ecran) => {
     const entry = report.pages.find((candidate) => candidate.ecran === ecran);
     return entry ? new URL(entry.url).pathname : ecran;
@@ -350,7 +356,19 @@ if (report?.format === "horama-exploration-1") {
   // The course stopped for a reason (site that blocks robots, address not found): the mascot says it, the summary keeps it.
   if (bilan.aucune) await mascot("etat", "bloquee").catch(() => {});
   try {
-    const made = await revoir({ mascot, recap, items: items.filter((item) => review.some((constat) => constat.id === item.id)), choix: CHOICES, repeter: REPEAT, presentation: true, witness, say }, () => new Promise((resolve) => (chosen = resolve)));
+    if (IN_TOWER) {
+      // The summary keeps its lines (nothing is asked here), the time to read it, then the hand-over.
+      await mascot("recap", { ...recap, items: items.map(({ id, genre, texte, mesure }) => ({ id, genre, texte, mesure })) });
+      await witness("recapitulatif");
+      if (items.length) {
+        await sleep(Math.min(4000 + 1500 * items.length, 12000));
+        await mascot("fin", { titre: "À vous de trancher.", compte: `${count(items.length, "cas à trancher", "cas à trancher")} : bug, ou voulu ?`, legende: "Je passe la main à la tour de contrôle, écran :", fichiers: ["À relire"] });
+        await sleep(3000);
+        await witness("vers-la-tour");
+        say(`Fin dans la tour : ${count(items.length, "cas à trancher", "cas à trancher")}, la main passe à ${TOWER}.`);
+      }
+    }
+    const made = IN_TOWER ? [] : await revoir({ mascot, recap, items: items.filter((item) => review.some((constat) => constat.id === item.id)), choix: CHOICES, repeter: REPEAT, presentation: true, witness, say }, () => new Promise((resolve) => (chosen = resolve)));
     const le = new Date().toISOString();
     for (const { item, choix } of made) {
       const constat = review.find((candidate) => candidate.id === item.id);
@@ -391,7 +409,7 @@ if (report?.format === "horama-exploration-1") {
     // The elements too, with the capture ringed of each finding (written by completerNote), for the wake-up: it can put
     // them on a branch of the target repository and write the part again with the images (--captures-sur-branche).
     const ringedOf = (item) => ({ ...item, anneau: notePath && existsSync(join(VAULT, report.site, "passages", report.passage_id, `${item.id}.png`)) ? `${report.site}/passages/${report.passage_id}/${item.id}.png` : null });
-    const elements = { adresse: report.adresse, bilan: bilanExploration(report), totaux, decisions: decisions.map(({ decision }) => decision),
+    const elements = { adresse: report.adresse, bilan: bilanExploration(report), totaux, duree_s: report.duree_s ?? null, cout_usd: report.cout_usd ?? null, decisions: decisions.map(({ decision }) => decision),
       prouves: toDecide.filter((constat) => constat.statut === "VERIFIED_FAIL").map(entry).map(ringedOf), doutes: toDecide.filter((constat) => constat.statut === "SUSPECTED").map(entry).map(ringedOf),
       dejaVoulus: accepted.map(entry), note: `vault-horama/${notePath ?? `${report.site}/passages/${report.passage_id}.md`}` };
     commentaire = { corps, elements, publication: null };

@@ -50,6 +50,7 @@ function inspectDocument() {
     return { selecteur: selector(element), zone: { x: rect.x + scrollX, y: rect.y + scrollY, largeur: rect.width, hauteur: rect.height } };
   };
   const add = (sorte: Defaut["sorte"], message: string, valeur: string | number, element?: Element, raison?: string) => {
+    if (sorte === "texte_rogne") raison ??= "Le rognage par le conteneur peut être voulu : à confirmer par un humain.";
     if (sorte === "texte_rogne" && element) {
       for (let node: Element | null = element; node; node = node.parentElement) {
         if (node.matches('[aria-hidden="true"],[role="img"],[role="presentation"],svg,figure,picture,[inert]') || getComputedStyle(node).pointerEvents === "none") {

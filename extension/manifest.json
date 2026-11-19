@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Horama",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "description": "Horama parcourt un site et montre les défauts prouvés : lien mort, image cassée, texte qui déborde, chacun avec sa preuve et sa capture entourée.",
   "action": { "default_title": "Horama : vérifier ce site", "default_popup": "popup.html" },
   "options_page": "options.html",

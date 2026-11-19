@@ -17,10 +17,11 @@ import { COURSE_RULES, END_TOOL, MUTE_MS, REST_MS, SETTINGS, agentPass, findHolo
 import { CHROME_FLAGS, HEIGHT, WIDTH, capture, clickCentre, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, navigate, openChrome, option, say, sleep, waitFor } from "./scene.mjs";
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
+const ORCHESTRATEUR = join(ROOT, ".orchestrateur");
 const SANS_AGENT = flag("sans-agent");
 const PASSES = Number(option("passes", 3));
 const PORT = Number(option("port", 9333));
-const PROFILE = resolve(option("profil", "/Users/nathan/Code/projet/horama/.orchestrateur/chrome-agent"));
+const PROFILE = resolve(option("profil", join(ORCHESTRATEUR, "chrome-agent")));
 const OUT = resolve(option("sortie", join(ROOT, "docs/captures/2026-11-16-t7")));
 const REPORT = resolve(option("rapport", join(ROOT, "docs/tests/2026-11-16-t7-navigateur-local.md")));
 const REFERENCES = join(ROOT, "docs/captures/2026-11-16-n2-faux-saas");
