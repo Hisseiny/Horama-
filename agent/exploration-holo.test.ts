@@ -14,11 +14,21 @@ const reply = (content: string) => Response.json({ choices: [{ message: { conten
 
 test("header identity uses selector or normalized text, never coordinates or a body element", () => {
   const element = { selector: "header > img", text: "logo", header: true, visible: false };
-  assert.ok(sameHeaderElement(element, { ...element, text: "other" }));
+  assert.ok(!sameHeaderElement(element, { ...element, text: "other" }));
   assert.ok(sameHeaderElement(element, { ...element, selector: "header > a > img" }));
   assert.ok(!sameHeaderElement(element, { ...element, header: false }));
   assert.ok(!sameHeaderElement(element, { ...element, text: "menu", selector: "header > nav" }));
   assert.ok(!sameHeaderElement({ ...element, selector: "", text: "" }, { ...element, selector: "", text: "" }));
+});
+
+test("header labels disambiguate a reused selector; selector fallback requires missing text", () => {
+  const element = { selector: "header > a", text: "campus", header: true, visible: false };
+  assert.equal(sameHeaderElement(element, { ...element, text: "programmes" }), false);
+  assert.equal(sameHeaderElement(element, { ...element, selector: "header > nav > a" }), true);
+  assert.equal(sameHeaderElement(element, { ...element, text: "" }), true);
+  assert.equal(sameHeaderElement({ ...element, text: "" }, element), true);
+  assert.equal(sameHeaderElement({ ...element, text: "" }, { ...element, text: "" }), true);
+  assert.equal(sameHeaderElement(element, { ...element, selector: "header > nav > a", text: "" }), false);
 });
 
 test("only cut or hidden doubts can be dismissed, and missing DOM evidence preserves them", async () => {

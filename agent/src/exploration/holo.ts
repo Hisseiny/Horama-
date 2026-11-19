@@ -21,8 +21,8 @@ export interface HoloElement {
 }
 
 export function sameHeaderElement(first: HoloElement, second: HoloElement): boolean {
-  return first.header && second.header && (first.selector === second.selector && !!first.selector
-    || first.text === second.text && !!first.text);
+  return first.header && second.header && (first.text && second.text
+    ? first.text === second.text : first.selector === second.selector && !!first.selector);
 }
 
 export function isCutFinding(finding: HoloFinding): boolean {

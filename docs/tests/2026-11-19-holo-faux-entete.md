@@ -25,8 +25,8 @@ aucune modification d’`automatisation/`, aucun domaine ajouté dans `agent/src
   sont pas retirées au seul motif que l’élément est visible.
 - Pour les doutes conservés, mémoriser sélecteur, texte normalisé et appartenance
   à un `header` ou `[role="banner"]` dans la preuve libre `element_holo`.
-  Remplacer le rapprochement interpages à ±8 px par un même sélecteur **ou** un
-  même texte non vide, seulement entre éléments d’en-tête de même sorte de
+  Remplacer le rapprochement interpages à ±8 px par un même texte quand les deux
+  textes existent, sinon un même sélecteur non vide, entre en-têtes de même sorte de
   constat. Un doute principal ; les suivants portent `explique_par` sans devenir
   des réussites. La priorité d’explication par un contrôle `VERIFIED_FAIL` reste
   inchangée. Aucune identité n’est déduite quand le DOM n’est pas disponible.
@@ -56,7 +56,7 @@ node --test exploration-holo.test.ts exploration-explorer.test.ts exploration-co
 # skipped 0
 ```
 
-Après la dernière modification du code, `pnpm -r --if-present run check`, code 0 :
+À la livraison initiale (`77f7e97`), `pnpm -r --if-present run check`, code 0 :
 
 ```text
 agent check: 1..276
@@ -202,5 +202,25 @@ constats de chevauchement restent conservés et aucun retrait n’est journalis�
 ```text
 # tests 102
 # pass 102
+# fail 0
+```
+
+### 3. Même sélecteur, libellés différents
+
+Retour fondé : le sélecteur identique suffisait même avec deux textes différents.
+Quand les deux textes normalisés sont présents, leur égalité est désormais
+obligatoire ; le sélecteur ne sert de repli que si un texte manque. Les gardes
+d’appartenance à l’en-tête et d’identité non vide restent actives.
+
+Tests unitaires : libellés différents, même texte sous un autre sélecteur, texte
+absent d’un côté ou des deux, sélecteurs différents avec texte absent. Test
+d’explorateur : deux libellés différents sous le même sélecteur restent deux
+doutes principaux sans `explique_par`.
+
+`node --test exploration-holo.test.ts exploration-explorer.test.ts`, code 0 :
+
+```text
+# tests 104
+# pass 104
 # fail 0
 ```

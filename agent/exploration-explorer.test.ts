@@ -452,7 +452,7 @@ test("lien au clic non vérifié reste un doute et un même doute Holo répété
   assert.ok(holoOnly.result.pages.every(page => page.statut === "SUSPECTED"), "un doute rattaché à une autre page n'est pas une réussite");
 });
 
-for (const mode of ["visible", "different", "unavailable", "overlap"]) {
+for (const mode of ["visible", "different", "unavailable", "overlap", "label"]) {
   test(`inspection DOM Holo : ${mode}`, async () => {
     const logs: string[] = [];
     let inspected = 0;
@@ -461,7 +461,8 @@ for (const mode of ["visible", "different", "unavailable", "overlap"]) {
       connecter: async () => ({ send: async (_method, params) => {
         if (!String((params as { expression?: string })?.expression).includes("expected.width")) return { result: { value: 200 } };
         if (mode === "unavailable") throw new Error("CDP indisponible");
-        return { result: { value: { selector: `#item-${inspected++}`, text: `Texte ${inspected}`, header: true, visible: mode === "visible" || mode === "overlap" } } };
+        inspected++;
+        return { result: { value: { selector: mode === "label" ? "header > a" : `#item-${inspected}`, text: `Texte ${inspected}`, header: true, visible: mode === "visible" || mode === "overlap" } } };
       }, on() {}, close() {} }),
       holo: async () => ({ status: "SUSPECTED", model: "holo4-27b", durationMs: 1, usage: null, cost_usd: null, findings: [
         { status: "SUSPECTED", kind: mode === "overlap" ? "overlapping-text" : "cut-off-text", sentence: "Logo masqué.", zone: { x: 49, y: 72, largeur: 70, hauteur: 14 } },
