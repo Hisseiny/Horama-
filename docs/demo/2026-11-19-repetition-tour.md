@@ -13,12 +13,37 @@ Coût : un passage H, environ 0,20 $ et 6 min au plus (le clone, 8 pages sur 8, 
 
 ## 0. Avant de commencer : ce qui doit être vrai (#249, Léon)
 
-- [ ] **Compte d'équipe sur Railway** (`TOUR_EMAIL`, `TOUR_NOM`, `TOUR_MOT_DE_PASSE_HASH`, `TOUR_SECRET`). Vérification : `POST /tour/session` ne répond plus 503.
+- [ ] **Compte d'équipe sur Railway** (`TOUR_EMAIL`, `TOUR_NOM`, `TOUR_MOT_DE_PASSE_HASH`, `TOUR_SECRET`). Vérification : `POST /tour/session` avec un faux mot de passe répond 401, et non plus 503 (503 le 19/11 au soir).
 - [ ] **`GITHUB_TOKEN_TOUR`** sur Railway, avec le droit d'écrire sur `horama/captures` du clone.
-- [ ] **horama-gold redéployé depuis `dev`** (#241 à #252 dedans). Vérification : https://horama-gold.vercel.app/tour/ affiche « Données : service Horama » en pied de barre latérale, et le bouton « Envoyer Horama » n'a pas d'ailes.
+- [ ] **horama-gold redéployé depuis `dev`** (#241 à #252 dedans). Vérification : la page https://horama-gold.vercel.app/tour/ charge le même bundle que `accueil/tour/index.html` de `dev` (le 19/11 au soir : en ligne `index-BuIeHjPq.js`, sur `dev` `index-EqC_1AZ0.js`, donc pas encore redéployé), affiche « Données : service Horama » en pied de barre latérale, et le bouton « Envoyer Horama » n'a pas d'ailes.
 - [ ] **Prévisualisation Vercel de la PR #19** prête, au dernier commit (`1f5c03f` ou plus récent). Vérification : l'étape 1.
 
-## 1. À blanc (gratuit, rien n'est joué)
+## 1. D'abord, rejouer la PR #16 (option B, choisie par Nathan)
+
+Pour que la comparaison montre la même vue de chaque page (section 4), la PR #16 est rejouée avec ce réveil, avant la PR #19. Ses captures de pages entrent dans l'index.
+
+À blanc (gratuit) :
+
+```
+node automatisation/reveil/pr.mjs --depot Hisseiny/eugenia-school-website --logiciel eugenia-clone --vault .orchestrateur/jour/vault-final --numero 16 --a-blanc
+```
+
+Vu le 19/11 au soir : `PR #16 (998767b) « Traduire en allemand les pages de la démo Horama » : prévisualisation prête (statut et commentaire de Vercel), https://eugenia-school-website-git-devin-179503024-b6c714-ahissein-5983.vercel.app, répond sans connexion (code 200).`
+
+Le passage réel, sur go tapé de Nathan, seulement quand les deux premiers préalables sont vrais (compte d'équipe, horama-gold) :
+
+```
+node --env-file=.env.local automatisation/reveil/pr.mjs --depot Hisseiny/eugenia-school-website --logiciel eugenia-clone --vault .orchestrateur/jour/vault-final --sortie .orchestrateur/jour/reveil-tour --numero 16 --une-fois --commenter --captures-sur-branche horama/captures --trancher-dans-la-tour -- --sans-base
+```
+
+Ce que ça change, à savoir avant le go :
+- l'entrée de la PR #16 dans l'index (même PR, même commit `998767b`) est **remplacée** : ses 5 décisions « bug » de Nathan disparaissent, et elles sont à retrancher dans la tour pendant ce passage ;
+- une **seconde réponse** est publiée sur la PR #16, sous la première, avec les nouvelles décisions ;
+- un passage H, environ 0,20 $ et 6 min au plus, plus le temps de trancher.
+
+On doit voir la même suite que pour la PR #19 (section 3) : scène, bascule sur « À relire » de ce passage, connexion, trancher, réponse. Attendus : les 3 défauts prouvés du 19/11 (« Zertifikatskurs », « Studienjahr », le bloc français de `/ecole`) et les doutes de Holo, s'il y en a. L'entrée de la PR #16 a ensuite `pages` (8 captures).
+
+## 2. La PR #19 : à blanc (gratuit, rien n'est joué)
 
 ```
 node automatisation/reveil/pr.mjs --depot Hisseiny/eugenia-school-website --logiciel eugenia-clone --vault .orchestrateur/jour/vault-final --numero 19 --a-blanc
@@ -26,7 +51,7 @@ node automatisation/reveil/pr.mjs --depot Hisseiny/eugenia-school-website --logi
 
 On doit voir : `PR #19 (<sha>) « … » : prévisualisation prête (…), https://…vercel.app, répond sans connexion (code 200).` Le 19/11 au soir, elle répondait encore « prévisualisation « failure », pas encore jouable » (Vercel limité).
 
-## 2. Le passage réel (go tapé de Nathan)
+## 3. La PR #19 : le passage réel (go tapé de Nathan, après la PR #16)
 
 ```
 node --env-file=.env.local automatisation/reveil/pr.mjs --depot Hisseiny/eugenia-school-website --logiciel eugenia-clone --vault .orchestrateur/jour/vault-final --sortie .orchestrateur/jour/reveil-tour --numero 19 --une-fois --commenter --captures-sur-branche horama/captures --trancher-dans-la-tour -- --sans-base
@@ -37,7 +62,7 @@ node --env-file=.env.local automatisation/reveil/pr.mjs --depot Hisseiny/eugenia
 - **`--tour`** n'est pas donné : la tour par défaut est https://horama-gold.vercel.app/tour/.
 - **Vault** : `.orchestrateur/jour/vault-final` est un vault temporaire. Rien n'est écrit dans `vault-horama/`.
 
-## 3. Ce qu'on doit voir, étape par étape
+## 4. Ce qu'on doit voir, étape par étape
 
 1. **Page d'attente** : le Chrome de la scène s'ouvre sur la page d'attente, puis passe sur la prévisualisation de la PR #19.
 2. **La scène** : 8 pages au plus, curseur, mascotte. Aucun trait miltos à l'endroit des défauts corrigés (« Zertifikatskurs », « Studienjahr », le bloc français de `/ecole`).
@@ -58,18 +83,20 @@ node --env-file=.env.local automatisation/reveil/pr.mjs --depot Hisseiny/eugenia
    - `index_reponse.commit`.
 
    L'entrée de la PR #19 a `pages` (8 captures), `duree_s` et `cout_usd`.
-10. **La comparaison**, sur https://horama-gold.vercel.app/tour/#comparer : voir la section 4.
+10. **La comparaison**, sur https://horama-gold.vercel.app/tour/#comparer : voir la section 5.
 
-## 4. La comparaison PR #16 contre PR #19 : à décider
+## 5. La comparaison PR #16 contre PR #19 : option B choisie
 
 L'entrée de la PR #16 date d'avant le champ `pages` : elle n'a que les captures de ses constats, prises à l'endroit du défaut et déjà entourées. La PR #19 aura les captures brutes du haut de chaque page. L'écran Comparer les met côte à côte pour `/`, `/programmes`, `/ecole` et `/admissions`, mais les deux images ne montrent pas la même partie de la page. L'écran le dit, et les pixels bruts n'ont alors pas de sens.
 
-Deux options, à choisir par Nathan :
+Deux options ; Nathan a choisi **B** (section 1) :
 
 - **A. Garder la PR #16 telle quelle.** On montre « avant » : le défaut entouré ; « après » : la page corrigée. Seul le mode « Côte à côte » est parlant. Rien de plus à payer.
 - **B. Rejouer d'abord la PR #16 avec ce réveil.** Un passage H de plus, environ 0,20 $. Pour la même PR et le même commit, son entrée d'index est remplacée : ses 5 décisions « bug » de Nathan sont à retrancher dans la tour, et une seconde réponse est publiée sur la PR #16. Ensuite, les trois modes comparent la même vue de chaque page.
 
-## 5. Ce qui peut empêcher le vert
+Après les deux passages : https://horama-gold.vercel.app/tour/#comparer/%2F, avant « PR #16 », après « PR #19 ». On doit voir les trois modes (côte à côte, rideau, pixels bruts) sur la même vue du haut de page, et sous l'avant les constats de la PR #16, chacun sur sa propre capture, marqués « Corrigé : absent du nouveau passage » s'ils ne reviennent pas dans la PR #19.
+
+## 6. Ce qui peut empêcher le vert
 
 - Le compte d'équipe n'est pas configuré : la connexion dit « La connexion n'est pas encore ouverte sur le service Horama ». On ne peut pas trancher, et la réponse part après 10 min avec « à trancher ».
 - horama-gold n'est pas redéployé : la tour en ligne ne connaît ni `#relire/<cle>` ni la connexion.
