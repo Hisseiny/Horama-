@@ -16,7 +16,7 @@ import type { PageLink } from "./cdp.ts";
 import type { ExplorationCdp } from "./cdp.ts";
 import { controlerPage } from "./controles.ts";
 import type { Defaut } from "./controles.ts";
-import { askHolo } from "./holo.ts";
+import { askHolo, inspectHoloElement, isCutFinding, sameHeaderElement, type HoloElement } from "./holo.ts";
 import { discoverPages, normalizePageQuery, renderPage } from "./pages.ts";
 import { fetchPublic } from "./reseau.ts";
 import { detecterBlocage } from "./blocage.ts";
@@ -65,13 +65,16 @@ export function explorationPassageId(date: Date): string {
 
 export const exclusionLabel = (reason: string) => reason === "section-limit" ? "limite de pages par rubrique atteinte" : reason;
 
-function readingInstruction(): string {
-  return "Après relever, sur CHAQUE page (départ, clic ou adresse), seulement s'il reste des pages à relever : fais au plus 5 petits scroll_web vers le bas (direction down, num_pixels environ 450, soit une demi-hauteur d'écran, scroll_element null). Arrête ces petits pas dès le bas atteint ou si la page ne bouge plus. Si le bas reste hors vue, fais ensuite UN seul grand scroll_web jusqu'en bas (direction down, num_pixels 100000). Fais ensuite UN geste de visiteur facultatif si la page en propose un visible : menu déroulant, accordéon, onglet ou question FAQ, jamais un formulaire ni une connexion. N'ajoute pas de scrolls pour chercher un contrôle. Pour changer de page, cherche d'abord un lien utile visible là où tu es (menu fixe, corps ou pied de page). Seulement si aucun lien utile n'est visible, remonte en 2 ou 3 scroll_web moyens au plus (direction up, num_pixels environ 900, scroll_element null). Jamais de grand scroll vers le haut pour retrouver le menu. Aucun aller-retour supplémentaire, ni répétition à une extrémité sans déplacement. Ne répète pas la lecture déjà faite sur la page courante.";
+function readingInstruction(dimensions?: { page: number; viewport: number }): string {
+  const distance = dimensions ? dimensions.page - dimensions.viewport : null;
+  const count = distance === null ? null : distance < 100 ? 0 : Math.min(5, Math.ceil(distance / 450));
+  if (count === 0) return "Sur cette page : 0 défilement utile, ne défile pas. Fais un geste de visiteur facultatif si un contrôle est visible, jamais un formulaire ni une connexion. Pour changer de page, clique un lien utile visible ; sinon utilise le recours go_to prévu. Ne répète pas la lecture déjà faite sur la page courante.";
+  return (count === null ? "" : `Sur cette page : fais exactement ${count} ${count === 1 ? "petit défilement utile" : "petits défilements utiles"} de 450 px vers le bas. `) + `Après relever, sur CHAQUE page (départ, clic ou adresse), seulement s'il reste des pages à relever : ${count === null ? "fais au plus 5" : `fais ${count}`} ${count === 1 ? "petit" : "petits"} scroll_web vers le bas (direction down, num_pixels environ 450, soit une demi-hauteur d'écran, scroll_element null). Arrête ces petits pas dès le bas atteint ou si la page ne bouge plus. Si le bas reste hors vue, fais ensuite UN seul grand scroll_web jusqu'en bas (direction down, num_pixels 100000). Fais ensuite UN geste de visiteur facultatif si la page en propose un visible : menu déroulant, accordéon, onglet ou question FAQ, jamais un formulaire ni une connexion. N'ajoute pas de scrolls pour chercher un contrôle. Pour changer de page, cherche d'abord un lien utile visible là où tu es (menu fixe, corps ou pied de page). Seulement si aucun lien utile n'est visible, remonte en 2 ou 3 scroll_web moyens au plus (direction up, num_pixels environ 900, scroll_element null). Jamais de grand scroll vers le haut pour retrouver le menu. Aucun aller-retour supplémentaire, ni répétition à une extrémité sans déplacement. Ne répète pas la lecture déjà faite sur la page courante.`;
 }
 
 const pathOf = (address: string) => { const parsed = new URL(address); return parsed.pathname + parsed.search; };
-function clickInstruction(pages: Array<{ ecran: string; url: string }>): string {
-  return `${readingInstruction()} Puis sans go_to clique un lien visible de la page courante (menu, corps ou pied de page) vers une page pas encore relevée de cette liste : ${pages.map(page => `${page.ecran} : chemin ${pathOf(page.url)} (${page.url})`).join(" ; ")}. Choisis le lien par son adresse (son chemin), pas par son nom : un lien au nom proche peut mener ailleurs. Attends le chargement puis appelle relever avec l'ecran de la page atteinte. Si aucun lien visible ne mène à une page de la liste, même après avoir examiné le menu : en dernier recours seulement, ouvre ${pages[0]?.url} avec go_to puis appelle relever(ecran="${pages[0]?.ecran}", vue="defaut", raison_go_to="explique quel lien manque ou est inutilisable").`;
+function clickInstruction(pages: Array<{ ecran: string; url: string }>, dimensions?: { page: number; viewport: number }): string {
+  return `${readingInstruction(dimensions)} Puis sans go_to clique un lien visible de la page courante (menu, corps ou pied de page) vers une page pas encore relevée de cette liste : ${pages.map(page => `${page.ecran} : chemin ${pathOf(page.url)} (${page.url})`).join(" ; ")}. Choisis le lien par son adresse (son chemin), pas par son nom : un lien au nom proche peut mener ailleurs. Attends le chargement puis appelle relever avec l'ecran de la page atteinte. Si aucun lien visible ne mène à une page de la liste, même après avoir examiné le menu : en dernier recours seulement, ouvre ${pages[0]?.url} avec go_to puis appelle relever(ecran="${pages[0]?.ecran}", vue="defaut", raison_go_to="explique quel lien manque ou est inutilisable").`;
 }
 
 export function construireExploration(pages: Array<{ ecran: string; url: string }>, site: string, version: string, pagesCliquees = 4): Consigne {
@@ -83,7 +86,7 @@ export function construireExploration(pages: Array<{ ecran: string; url: string 
   return { tests, course, dropped: [], start: pages[0].url,
     instructions: [...COURSE_RULES, "Si une bannière de cookies apparaît, refuse-la (Refuser / Tout refuser / Continuer sans accepter / Reject all), ne l’accepte jamais.", "Simple visiteur : ne remplis et ne soumets aucun formulaire, ne te connecte jamais. N'ouvre aucun onglet ni fenêtre.",
       "N'utilise jamais la commande retour du navigateur (back). Pour changer de page, clique toujours un lien visible ; go_to reste le dernier recours prévu par la consigne. Ne clique jamais vers une page déjà relevée dans ce passage, même pour retrouver le menu.",
-      `Reste sur le site ${new URL(pages[0].url).origin} : ne suis aucun lien vers un autre domaine ou sous-domaine. Si tu y arrives quand même, tu es ramené sur le site.`].join("\n"),
+      `Reste sur le site ${new URL(pages[0].url).origin} : ne suis aucun lien vers un autre domaine ou sous-domaine. Les adresses avec et sans www. sont le même site et leurs redirections sont autorisées. Si tu arrives sur un autre site, tu es ramené sur le site.`].join("\n"),
     task: ["Nouveau passage : aucune page n'a encore été relevée dans cette session. La page déjà ouverte ne prouve aucun avancement. Commence à la partie 1, même si le navigateur affiche une partie ultérieure.", ...pages.map((page, index) => `Partie ${index + 1} : ${index === 0
       ? `si l'onglet n'affiche pas ${page.url}, ouvre cette adresse avec go_to et note raison_go_to="page de départ absente de l'onglet" au relevé. Appelle relever(ecran="${page.ecran}", vue="defaut"). ${readingInstruction()}`
       : index <= clicked ? clickInstruction(pages.slice(1))
@@ -92,8 +95,6 @@ export function construireExploration(pages: Array<{ ecran: string; url: string 
     tools: [{ name: "relever", description: "Enregistre la page chargée.", input_schema: { type: "object", properties: { ecran: { type: "string", enum: pages.map(page => page.ecran) }, vue: { type: "string", enum: ["defaut"] }, raison_go_to: { type: "string", description: "Seulement après go_to : raison concrète du recours à une adresse plutôt qu'à un lien." } }, required: ["ecran", "vue"] } }, END_TOOL] };
 }
 
-// Same box within a few pixels: a header or menu element repeated on every page of the site.
-const samePlace = (a: Zone, b: Zone) => [a.x - b.x, a.y - b.y, a.largeur - b.largeur, a.hauteur - b.hauteur].every(delta => Math.abs(delta) <= 8);
 // Rendering noise: a box under 4 px in either dimension shows nothing a visitor can judge.
 const tiny = (zone?: Zone) => !!zone && (zone.largeur < 4 || zone.hauteur < 4);
 
@@ -163,6 +164,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
   };
   const normalized = (address: string, query = false) => {
     const parsed = new URL(address);
+    parsed.hostname = parsed.hostname.replace(/^www\./, "");
     normalizePageQuery(parsed);
     return parsed.origin + parsed.pathname.replace(/\/$/, "") + (query ? parsed.search : "");
   };
@@ -252,12 +254,12 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
     if (!finalUrls.has(page.url)) {
       try {
         const response = await siteFetch(page.url, { redirect: "follow", signal: requestSignal });
-        finalUrls.set(page.url, response.url && new URL(response.url).origin === new URL(page.url).origin ? response.url : null);
+        finalUrls.set(page.url, response.url && originOf(response.url) === originOf(page.url) ? response.url : null);
       } catch { finalUrls.set(page.url, null); }
     }
     return finalUrls.get(page.url);
   };
-  const originOf = (address: string) => { try { const parsed = new URL(address); return /^https?:$/.test(parsed.protocol) ? parsed.origin : null; } catch { return null; } };
+  const originOf = (address: string) => { try { const parsed = new URL(address); parsed.hostname = parsed.hostname.replace(/^www\./, ""); return /^https?:$/.test(parsed.protocol) ? parsed.origin : null; } catch { return null; } };
   const offSite = (address: string) => {
     const origin = originOf(address);
     return !!origin && ![url, ...pages.flatMap(page => [page.url, page.url_finale ?? page.url])].some(item => originOf(item) === origin);
@@ -388,9 +390,13 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
       let active: SessionEnCours | undefined;
       let stopped = false;
       let completed = false;
+      let autoCompleted = false;
+      let stopRequest: Promise<void> | undefined;
+      const stopActive = () => stopRequest ??= Promise.resolve().then(() => active?.stop?.());
+      let dimensions: { page: number; viewport: number } | undefined;
       let sessionStarted = Date.now();
       const launch = async (plan: Consigne) => {
-        launches++; completed = false; sessionStarted = Date.now();
+        launches++; completed = false; autoCompleted = false; stopRequest = undefined; dimensions = undefined; sessionStarted = Date.now();
         hadClick = false; hadGoTo = false; currentScreen = undefined;
         const clicked = launches === 1 ? clickTarget : 0;
         try {
@@ -417,13 +423,14 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
               await input.onCreated(sessionId);
             },
             onTool: async (name, args) => withNote(await (async () => {
+              if (autoCompleted) return name === "terminer" ? "Parcours terminé. N'effectue plus aucune action." : 'Tous les relevés sont acquis. Appelle immédiatement terminer(etat="reussi"), sans navigation, scroll, geste ni attente supplémentaire.';
               if (blocage) return input.onTool("terminer", { etat: "echec", raison: blocage });
               const remaining = () => {
                 const page = unfinished()[0];
                 const recorded = pages.filter(page => page.etat === "visitee");
                 const progress = `${recorded.length}/${pages.length} pages relevées dans ce passage. Pages déjà relevées, à ne plus cliquer : ${recorded.map(page => page.ecran).join(", ") || "aucune"}.`;
-                if (page && clickedPages < clicked) return `${progress} ${clickInstruction(unfinished())}${linkHints(unfinished())} Ne termine pas avant les relevés restants.`;
-                return page ? `${progress} ${readingInstruction()} Ouvre ${page.url} avec go_to puis appelle relever(ecran="${page.ecran}", vue="defaut", raison_go_to="page hors quota de clics demandé"). Ne termine pas avant les relevés restants.` : 'Tous les relevés sont acquis. Appelle immédiatement terminer(etat="reussi"), sans navigation, scroll, geste ni attente supplémentaire.';
+                if (page && clickedPages < clicked) return `${progress} ${clickInstruction(unfinished(), dimensions)}${linkHints(unfinished())} Ne termine pas avant les relevés restants.`;
+                return page ? `${progress} ${readingInstruction(dimensions)} Ouvre ${page.url} avec go_to puis appelle relever(ecran="${page.ecran}", vue="defaut", raison_go_to="page hors quota de clics demandé"). Ne termine pas avant les relevés restants.` : 'Tous les relevés sont acquis. Appelle immédiatement terminer(etat="reussi"), sans navigation, scroll, geste ni attente supplémentaire.';
               };
               if (name === "terminer" && args.etat === "reussi" && unfinished().length) return `Fin refusée : des pages restent à visiter. ${remaining()}`;
               if (name === "relever") {
@@ -484,10 +491,27 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
                 currentScreen = accepted.ecran; hadClick = false; hadGoTo = false;
               }
               if (name === "terminer") completed = args.etat === "reussi";
-              if (name === "relever" && !unfinished().length) return remaining();
+              if (name === "relever" && accepted && !unfinished().length) {
+                await input.onTool("terminer", { etat: "reussi" });
+                completed = true; autoCompleted = true;
+                if (active) void stopActive().catch(() => {});
+                return remaining();
+              }
+              if (name === "relever" && accepted) {
+                dimensions = undefined;
+                let client: ExplorationCdp | undefined;
+                try {
+                  client = await (deps.connecter ?? connecterCdp)(port, accepted.url_finale ?? accepted.url);
+                  const measured = await client.send("Runtime.evaluate", { expression: "({ page: Math.max(document.documentElement.scrollHeight, document.body?.scrollHeight || 0), viewport: window.innerHeight })", returnByValue: true });
+                  const value = measured.result?.value;
+                  if (Number.isFinite(value?.page) && Number.isFinite(value?.viewport) && value.page > 0 && value.viewport > 0) dimensions = value;
+                } catch { /* La consigne habituelle reste valable sans mesure CDP. */ }
+                finally { client?.close(); }
+              }
               return name === "relever" ? `${response}\n${remaining()}` : response;
             })()),
           });
+          if (autoCompleted) void stopActive().catch(() => {});
           return active;
         } catch {
           agent.etat = "tombe"; agent.raison = "La session n'a pas pu être créée."; save();
@@ -497,7 +521,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
       const first = await launch(input.consigne);
       return {
         id: first.id,
-        async stop() { stopped = true; await active?.stop?.(); },
+        async stop() { stopped = true; await stopActive(); },
         fin: (async () => {
           let totalCost: number | null = 0, steps = 0;
           for (;;) {
@@ -510,14 +534,18 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
             } catch {
               result = { id: running?.id ?? "", muted: false, cout_usd: null, etapes: 0, erreur: "La session a été interrompue." };
             } finally {
-              try { await running?.stop?.(); await running?.confirmStopped?.(); }
-              catch { closeFailed = true; finalizationFailure = "La fermeture de la session n'a pas pu être confirmée."; agent.raison = finalizationFailure; }
+              try { await stopActive(); await running?.confirmStopped?.(); }
+              catch {
+                closeFailed = true;
+                agent.raison = "La fermeture de la session n'a pas pu être confirmée.";
+                if (!autoCompleted || pages.some(page => page.etat !== "visitee")) finalizationFailure = agent.raison;
+              }
             }
             totalCost = totalCost === null || result.cout_usd === null ? null : totalCost + result.cout_usd;
             steps += result.etapes;
             agent.cout_usd = result.cout_usd; agent.duree_s = (Date.now() - sessionStarted) / 1000;
             agent.replay_url = result.replay_url ?? null;
-            agent.etat = completed && !result.erreur && !result.muted ? "fini" : "tombe";
+            agent.etat = completed && (autoCompleted || (!result.erreur && !result.muted)) ? "fini" : "tombe";
             if (agent.etat === "tombe") agent.raison ??= result.erreur ?? (result.muted ? "La session est restée sans réponse." : "Session arrêtée avant la fin des visites (budget d'étapes ou erreur).");
             save();
             const remaining = unfinished();
@@ -525,7 +553,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
               for (const page of remaining) page.raison ??= signal?.aborted ? "Le passage a été annulé."
                 : closeFailed ? "Page non atteinte : la fermeture de la session précédente n'est pas confirmée."
                 : "Page non atteinte après deux sessions (budget d'étapes ou erreur).";
-              if (!remaining.length && !closeFailed) {
+              if (!remaining.length && (!closeFailed || (autoCompleted && pages.every(page => page.etat === "visitee")))) {
                 const { erreur: _erreur, ...visited } = result;
                 return { ...visited, muted: false, cout_usd: totalCost, etapes: steps };
               }
@@ -596,7 +624,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
         const matches = (address: string) => {
           try {
             const actual = new URL(capture.url_page), expected = new URL(address);
-            return actual.origin === expected.origin && actual.pathname.replace(/\/+$/, "") === expected.pathname.replace(/\/+$/, "")
+            return originOf(actual.href) === originOf(expected.href) && actual.pathname.replace(/\/+$/, "") === expected.pathname.replace(/\/+$/, "")
               && [...expected.searchParams].every(([key, value]) => actual.searchParams.get(key) === value)
               && actual.searchParams.get("filtre") === expected.searchParams.get("filtre");
           } catch { return false; }
@@ -606,7 +634,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
         try {
           const actual = new URL(capture.url_page);
           if (!/^https?:$/.test(actual.protocol)) reason = "La page n'a pas pu être chargée.";
-          else if (actual.origin !== new URL(page.url).origin) {
+          else if (originOf(actual.href) !== originOf(page.url)) {
             if (offSite(capture.url_page) && await resolveFinal(page, hookSignal)) await bringBack(capture.url_page);
             else reason = `La page redirige vers un autre site : ${capture.url_page}`;
           }
@@ -706,15 +734,29 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
           holo = { etat: result.status === "INCONCLUSIVE" ? /timeout|timed|délai/i.test(result.message) ? "hors_delai" : "echec" : "fait", modele: result.model, duree_ms: result.durationMs, ecartes_sans_zone: 0,
             jetons: result.usage ? { entree: result.usage.prompt_tokens, sortie: result.usage.completion_tokens } : null, cout_usd: result.cost_usd };
           if (result.status === "INCONCLUSIVE") inconclusive(page, "holo", findings, `Le regard visuel n'a pas abouti : ${result.message}`);
-          for (const visual of result.findings) {
-            if (!visual.zone) { holo.ecartes_sans_zone++; continue; }
-            const zone = visual.zone;
-            const explained = findings.find(item => item.source === "controle" && item.statut === "VERIFIED_FAIL" && controlZones.has(item.id) && overlap(zone, controlZones.get(item.id) ?? zone))
-              ?? [...report.constats, ...[...pending.entries()].flatMap(([other, data]) => other === ecran ? [] : data.findings)]
-                .find(item => item.source === "holo" && !item.explique_par && item.ecran !== ecran && item.sorte === kinds[visual.kind] && item.zone && samePlace(zone, item.zone));
-            findings.push(finding(page, "holo", findings, { sorte: kinds[visual.kind], statut: "SUSPECTED", description: descriptions[visual.kind], zone,
-              preuve: { modele: result.model, phrase: visual.sentence }, ...(explained ? { explique_par: explained.id } : {}) }));
-          }
+          let inspectionClient: ExplorationCdp | undefined;
+          try {
+            if (result.findings.some(visual => visual.zone)) {
+              try { inspectionClient = await (deps.connecter ?? connecterCdp)(options.port, capture.url_page); }
+              catch { deps.log?.(`${ecran} : inspection DOM Holo indisponible ; doutes conservés.`); }
+            }
+            for (const visual of result.findings) {
+              if (!visual.zone) { holo.ecartes_sans_zone++; continue; }
+              const zone = visual.zone;
+              const element = inspectionClient ? await inspectHoloElement(inspectionClient, visual,
+                { url: capture.url_page, width: capture.largeur, height: capture.hauteur, scroll: capture.defilement }) : null;
+              if (element?.visible && isCutFinding(visual)) {
+                deps.log?.(`${ecran} : doute Holo écarté (${element.selector}) : élément entièrement dans le viewport, non couvert aux points contrôlés et sans débordement DOM.`);
+                continue;
+              }
+              const explained = findings.find(item => item.source === "controle" && item.statut === "VERIFIED_FAIL" && controlZones.has(item.id) && overlap(zone, controlZones.get(item.id) ?? zone))
+                ?? [...report.constats, ...[...pending.entries()].flatMap(([other, data]) => other === ecran ? [] : data.findings)]
+                  .find(item => item.source === "holo" && !item.explique_par && item.ecran !== ecran && item.sorte === kinds[visual.kind]
+                    && element && item.preuve.element_holo && sameHeaderElement(element, item.preuve.element_holo as HoloElement));
+              findings.push(finding(page, "holo", findings, { sorte: kinds[visual.kind], statut: "SUSPECTED", description: descriptions[visual.kind], zone,
+                preuve: { modele: result.model, phrase: visual.sentence, ...(element ? { element_holo: element } : {}) }, ...(explained ? { explique_par: explained.id } : {}) }));
+            }
+          } finally { inspectionClient?.close(); }
         } catch { holo.etat = "echec"; inconclusive(page, "holo", findings, "Le regard visuel n'a pas pu se faire."); }
         pending.set(ecran, { findings, http, holo });
         return capture;

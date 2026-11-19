@@ -153,5 +153,5 @@ export const publicProxyChromeFlags = (port: number) => [`--proxy-server=http://
 // does not stop it, this profile preference does.
 export function writePublicChromePreferences(profile: string): void {
   mkdirSync(join(profile, "Default"), { recursive: true });
-  writeFileSync(join(profile, "Default", "Preferences"), JSON.stringify({ webrtc: { ip_handling_policy: "disable_non_proxied_udp" } }));
+  writeFileSync(join(profile, "Default", "Preferences"), JSON.stringify({ webrtc: { ip_handling_policy: "disable_non_proxied_udp" }, intl: { accept_languages: "fr-FR,fr" } }));
 }
