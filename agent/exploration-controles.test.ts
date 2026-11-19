@@ -21,6 +21,7 @@ function translationPage(german: boolean, announce: boolean) {
       <p class="single">Candidater</p>
       <p id="number">123 456</p><p id="address">12 rue Victor Hugo</p><p id="name">Marie Dupont</p>
       <p id="language" lang="fr">Texte volontaire</p><pre id="code">Une valeur</pre>
+      <p id="mixed-language">Prenez rendez-vous. <span lang="en">${german ? "This week" : "Tomorrow"}</span></p>
       <span hidden>Ne pas montrer</span>
       <button id="overflow-de" class="fixed">${german ? "Wissenschaftskommunikation" : "Science"}</button>
       <button id="overflow-both" class="fixed">${german ? "Unternehmenskommunikation" : "Communicationinstitutionnelle"}</button>
@@ -145,6 +146,7 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
     assert.deepEqual(text.map(item => [item.statut, item.valeur]), [
       ["VERIFIED_FAIL", "« Candidater maintenant » (2 mots, fr / de)"],
       ["SUSPECTED", "« Candidater » (1 mot, fr / de)"],
+      ["VERIFIED_FAIL", "« Prenez rendez-vous. » (2 mots, fr / de)"],
     ]);
     assert.deepEqual(findings.filter(item => item.sorte === "debordement").map(item => item.selecteur), ["#overflow-both", "#missing"]);
     const compared = findings.filter(item => item.sorte === "debordement_traduction");

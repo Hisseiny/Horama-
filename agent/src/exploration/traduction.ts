@@ -45,6 +45,7 @@ function announcedReference(page: ReturnType<typeof readLanguages>) {
 }
 
 function inspectComponents() {
+  const excludedText = "code,pre,kbd,samp,var,address,[lang]";
   const hidden = new Map<Element, boolean>();
   const visible = (element: Element): boolean => {
     const known = hidden.get(element);
@@ -62,7 +63,7 @@ function inspectComponents() {
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     const parent = node.parentElement;
     if (!(parent instanceof HTMLElement) || !node.textContent?.trim() || !visible(parent)
-      || parent.closest("code,pre,kbd,samp,var,script,style,noscript,template,address,form,textarea,select,[lang]:not(html)")) continue;
+      || parent.closest(`:is(${excludedText}):not(html),script,style,noscript,template,form,textarea,select`)) continue;
     const range = document.createRange();
     range.selectNodeContents(node);
     if (![...range.getClientRects()].some(rect => rect.width > 1 && rect.height > 1 && rect.right + scrollX > 0 && rect.bottom + scrollY > 0)) continue;
@@ -103,7 +104,7 @@ function inspectComponents() {
     return parts.join(" > ");
   };
   return [...fragments].flatMap(([element, parts]) => {
-    if (element === document.body || element.querySelector("code,pre,kbd,samp,var,address,[lang]")) return [];
+    if (element === document.body) return [];
     const rect = element.getBoundingClientRect();
     if (rect.width <= 1 || rect.height <= 1 || rect.right + scrollX <= 0 || rect.bottom + scrollY <= 0) return [];
     for (let ancestor: HTMLElement | null = element.parentElement; ancestor; ancestor = ancestor.parentElement) {
@@ -114,6 +115,7 @@ function inspectComponents() {
     const css = getComputedStyle(element);
     const zone = { x: rect.x + scrollX, y: rect.y + scrollY, largeur: rect.width, hauteur: rect.height };
     return [{ key: path(element), selector: selector(element), zone, text: parts.join(" ").normalize("NFC").replace(/\s+/g, " ").trim(),
+      hasExcludedText: !!element.querySelector(excludedText),
       fits: element.clientWidth > 1 && element.clientHeight > 1 && element.scrollWidth <= element.clientWidth + 1 && element.scrollHeight <= element.clientHeight + 1,
       style: [css.fontFamily, css.fontSize, css.fontWeight, css.writingMode, css.whiteSpace, css.overflowX, css.overflowY].join("|") }];
   });
@@ -237,7 +239,7 @@ export async function compareTranslation(client: CdpClient, defects: Defaut[], o
         }
         const index = defects.findIndex(defect => defect.selecteur === selector && defect.statut === "VERIFIED_FAIL"
           && (defect.sorte === "debordement" || defect.sorte === "texte_rogne"));
-        if (index < 0 || !before.fits || before.style !== component.style) continue;
+        if (index < 0 || !before.fits || before.style !== component.style || before.hasExcludedText || component.hasExcludedText) continue;
         try {
           const image = await pairedCapture(client, original, before.zone, zone);
           compared[index] = { ...defects[index], sorte: "debordement_traduction",
