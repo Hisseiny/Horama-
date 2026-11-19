@@ -55,11 +55,17 @@ L'en-tête de chaque écran, en v12 comme en v13, se termine à droite par un bo
 
 ## Scripts
 
+### Bac à sable des formulaires (#201)
+
+`POST /formulaires` reçoit `{ formType, fields }` en JSON (y compris `text/plain`) ; `?mode=500` échoue sans enregistrer. `GET /recus` lit la liste et `DELETE /recus` la vide. CORS ouvert, sans authentification : uniquement des données factices, jamais exposer comme une vraie base. Stockage en mémoire, perdu au redémarrage et non partagé entre instances Vercel ; preuve fiable uniquement avec une instance locale isolée, sans passages concurrents.
+
+Après avoir lancé les deux applications, vérifier le scénario **500** avec `SANDBOX_ALLOWED_HOSTS=localhost node faux-saas/scripts/verifier-formulaire.mjs http://localhost:4321/recruter-nos-etudiants http://localhost:3100`. Construire le clone avec `PUBLIC_SANDBOX_FORM_ENDPOINT=http://localhost:3100/formulaires?mode=500 PUBLIC_SANDBOX_HOSTS=localhost`. Le script utilise Chrome, des coordonnées factices (`test+horama@example.com`), efface `/recus`, soumet le formulaire et rapproche le texte visible de la liste reçue. `VERIFIED_FAIL` signifie succès affiché sans réception ; `PASS` signifie alerte affichée sans réception ; toute observation incertaine ou erreur réseau donne `INCONCLUSIVE`. Les deux hôtes doivent être explicitement autorisés ; le domaine réel de l'école est toujours refusé. Les requêtes navigateur sont aussi filtrées (y compris redirections), seul le POST vers `/formulaires?mode=500` de la base indiquée est permis. Ce scénario ne vérifie pas les envois normaux. Prévisualisation Vercel : à mesurer.
+
 Les scripts de preuve pilotent le Chrome installé (`channel: "chrome"`, sans tête, 1280 × 900) et demandent une application lancée. Paramètre commun : `--base <url>` (défaut `http://localhost:3100`).
 
 | Commande | Effet |
 |---|---|
-| `pnpm --filter @horama/faux-saas run check` | types, puis tests sans navigateur |
+| `pnpm --filter @horama/faux-saas run check` | types, puis tests sans réseau (pages d'essai sandbox ignorées avec « Chrome absent » si Chrome n'est pas lançable ; les échecs après lancement restent bloquants) |
 | `pnpm --filter @horama/faux-saas run verite` | régénère `verite.json` depuis le catalogue |
 | `node faux-saas/scripts/captures.mjs --sortie <dossier>` | 7 captures (v12 et v13), chaque page visitée deux fois et comparée pixel par pixel, planche `index.html` ; sortie 1 si deux visites diffèrent ou si une page défile |
 | `node faux-saas/scripts/verifier-regressions.mjs` | v13 `r=aucun` identique à la v12, effet de chacun des 15 changements, cas du paramètre `r`, puis écrit `positions.json` ; sortie 1 au premier écart |
