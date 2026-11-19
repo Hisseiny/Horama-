@@ -175,9 +175,9 @@ Posée par `Page.addScriptToEvaluateOnNewDocument` avec le code de `rough-notati
 
 ### La mascotte
 
-- Pendant le parcours elle ne parle pas et attend dans un coin de la page (en bas à droite au départ). Elle change de coin quand le curseur va se poser sur elle, quand il s'est posé près d'elle, quand une page s'ouvre avec une zone sous elle et quand un trait va se dessiner sous elle : elle prend le coin qui cache le moins (le curseur et les zones d'abord, puis les textes et les boutons), le plus proche à égalité. Elle ne bouge pas pour un simple texte sous elle.
+- Pendant le parcours elle ne parle pas et accompagne le curseur. Quand la flèche part vers un point, elle vole près de ce point, sur un anneau de 130 à 280 px autour, à la place qui cache le moins : jamais la flèche, sa cible ni le chemin entre les deux, puis le moins possible des zones, des boutons et des textes ; à cache égal, le plus près d'où elle est. Elle revient près de la flèche si elle en est à plus de 340 px, et se déplace si la page qui a réagi se retrouve sous elle. Avant un trait, elle se pose à côté de ce qui va être entouré (jamais dessus), puis le trait vient. Ses yeux regardent où va la flèche (sa cible pendant le trajet).
 - À la fin, elle se tient à gauche du panneau ; pour la correction d'une note, sa bulle se place là où elle cache le moins.
-- Elle rejoint sa place sur un ressort (raideur 130, amortissement 19, sans rebond visible), respire en permanence, et ses pupilles suivent le curseur pendant tout le parcours, droit devant à la fin.
+- Elle rejoint sa place sur un ressort (raideur 130, amortissement 19, sans rebond visible, pas de temps tiré de `performance.now()`), respire en permanence, et ses pupilles suivent le curseur pendant tout le parcours, droit devant à la fin. Pendant que l'agent réfléchit, c'est elle qui vit (ailes, clignement, respiration) : la flèche ne bouge pas.
 - À chaque relevé : `verification` (cadre autour de l'œil, regard qui balaie) pendant le dessin des traits, puis l'expression de l'écran avec un sursaut, gardée 1,2 s, puis `repos`.
 
 Commandes, appelées par `layer(page, "<commande>", ...)` de `scene.mjs` (`window.__horama` dans le monde `horama` de la page ; une promesse est attendue) :
