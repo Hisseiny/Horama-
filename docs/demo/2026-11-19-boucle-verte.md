@@ -13,7 +13,7 @@ On ne touche pas à la PR #16, dont la réponse reste comme preuve du premier pa
    - `/programmes` : « Studienjahr » qui déborde, 3 éléments de la liste des années (96 × 89 px pour 129 px) ;
    - `/ecole` : le bloc resté en français (le `p` du 8e `section`, 28 mots), traduit en allemand ;
    - et, si possible, le titre coupé d'`/admissions` (« Studienzulassung »), doute de Holo.
-2. Une PR en brouillon (draft) de cette branche vers `main`. Son numéro, `N`, sert ci-dessous. Vercel en construit la prévisualisation.
+2. Une PR en brouillon (draft) de cette branche vers `main`. Son numéro, `N`, sert ci-dessous. Vercel en construit la prévisualisation. Le réveil la voit : son lecteur GitHub demande les PR `state=open`, qui comprennent les brouillons, et rien dans `pr.mjs` ne les écarte. Le réveil à blanc de l'étape 2 le confirme avant le passage.
 
 ## 2. Côté Horama : à blanc d'abord (gratuit, rien n'est joué)
 
