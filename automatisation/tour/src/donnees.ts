@@ -233,3 +233,58 @@ export async function charger(): Promise<Chargement> {
   passages.sort((a, b) => String(b.date).localeCompare(String(a.date)));
   return { passages, erreurs, source, vault, agent: donnees?.agent ?? null };
 }
+
+// The connection of the team account (#238): POST <service>/tour/session gives a token of 12 h, kept in sessionStorage
+// (the tab only). An expired token is taken off when read. Every change is announced by the event SESSION_EVENT.
+export type Session = { jeton: string; expire_le: string; nom: string };
+const SESSION_KEY = "horama-tour-session";
+export const SESSION_EVENT = "horama-tour-session";
+
+// The raw text of the session (a string, so that React compares it by value), or null.
+export function sessionBrute(): string | null {
+  try {
+    const brute = sessionStorage.getItem(SESSION_KEY);
+    if (brute && Date.parse(JSON.parse(brute).expire_le) > Date.now()) return brute;
+    if (brute) sessionStorage.removeItem(SESSION_KEY);
+  } catch {}
+  return null;
+}
+
+export function oublierSession() {
+  try {
+    sessionStorage.removeItem(SESSION_KEY);
+  } catch {}
+  window.dispatchEvent(new Event(SESSION_EVENT));
+}
+
+// "ok", or the error to say on the screen.
+export async function connecter(email: string, motDePasse: string): Promise<"ok" | string> {
+  let response: Response;
+  try {
+    response = await fetch(`${SERVICE}/tour/session`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, mot_de_passe: motDePasse }) });
+  } catch {
+    return "Le service ne répond pas.";
+  }
+  if (response.status === 401) return "Adresse ou mot de passe incorrect.";
+  if (response.status === 429) return "Trop d'essais, réessayez dans une minute.";
+  const corps = await response.json().catch(() => null);
+  if (!response.ok || typeof corps?.jeton !== "string") return "Le service n'a pas pu ouvrir la session.";
+  try {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ jeton: corps.jeton, expire_le: corps.expire_le, nom: corps.nom }));
+  } catch {
+    return "Ce navigateur refuse de garder la session.";
+  }
+  window.dispatchEvent(new Event(SESSION_EVENT));
+  return "ok";
+}
+
+// POST <service>/tour/decision: the HTTP status, or 0 when the service does not answer.
+export async function trancher(session: Session, passage: string, constat: string, decision: "bug" | "voulu"): Promise<number> {
+  try {
+    const response = await fetch(`${SERVICE}/tour/decision`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.jeton}` },
+      body: JSON.stringify({ passage, constat, decision }) });
+    return response.status;
+  } catch {
+    return 0;
+  }
+}
