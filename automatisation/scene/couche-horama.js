@@ -58,7 +58,7 @@
     :host { --miltos: ${COLORS.defaut}; --ocre: ${COLORS.doute}; }
     .zones { position: absolute; left: 0; top: 0; }
     .zone { position: absolute; transition: opacity 160ms ease-out; }
-    .zone.covered { opacity: 0; }
+    .zone.covered { opacity: 0 !important; } /* over .zone.old.done (three classes): a dashed old place hides too */
     .zone > svg, .shot .mark > svg { position: absolute; left: 0; top: 0; overflow: visible; }
     .zone.old { margin: -7px; padding: 7px; box-sizing: content-box; border: 3px dashed ${INK}; opacity: 0; transition: opacity 300ms ease-out; }
     .zone.old.done { opacity: 0.45; }
@@ -546,7 +546,9 @@
     for (const item of drawn) {
       const now = underOf(item.zone);
       if (!now) continue; // out of the screen: nothing to tell
-      item.under ??= now;
+      // The element kept is gone (a cookie banner closed, a part of the page drawn again): the zone takes what is there now,
+      // else its stroke would stay hidden for ever.
+      if (!item.under?.isConnected) item.under = now;
       const covered = !(item.under.isConnected && (item.under === now || item.under.contains(now) || now.contains(item.under)));
       item.element.classList.toggle("covered", covered);
     }

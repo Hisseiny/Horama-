@@ -27,7 +27,8 @@ const miltos = async (page) => {
   let n = 0;
   for (let y = 60; y < 260; y++) for (let x = 20; x < 560; x++) {
     const i = (y * image.width + x) * 4;
-    if (image.data[i] > 150 && image.data[i + 1] < 90 && image.data[i + 2] < 80) n++;
+    // Close around miltos (184, 50, 31): the fringes of black text smoothed on Linux must not count (review of #189).
+    if (image.data[i] > 170 && image.data[i + 1] < 70 && image.data[i + 2] < 60) n++;
   }
   return n;
 };
@@ -53,6 +54,10 @@ test("un trait se cache sous un menu, part au changement d'adresse et revient av
     await evaluate(page, "ouvrirMenu(false)");
     await sleep(600);
     assert.ok((await miltos(page)) > 50, "le trait revient quand le menu se ferme");
+    // The page draws the surrounded element again (same place, a new node): the stroke stays.
+    await evaluate(page, `document.getElementById("contenu").innerHTML = document.getElementById("contenu").innerHTML`);
+    await sleep(600);
+    assert.ok((await miltos(page)) > 50, "le trait reste quand la page redessine l'élément entouré");
     await evaluate(page, `allerA("/autre")`);
     await sleep(600);
     assert.ok((await miltos(page)) < 5, "le trait part au changement d'adresse");
