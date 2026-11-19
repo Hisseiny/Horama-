@@ -266,9 +266,16 @@ export async function publierIndex({ depot, branche, entree }, api = ghApi) {
   try {
     const existing = await api(["GET", `repos/${depot}/contents/${chemin}?ref=${encodeURIComponent(branche)}`]).catch(() => null);
     let index = { format: "horama-passages-1", depot, passages: [] };
-    try {
-      if (existing?.content) index = JSON.parse(Buffer.from(existing.content, "base64").toString("utf8"));
-    } catch {}
+    // An index there but unreadable (corrupt JSON, or over 1 MB: the contents API then gives an empty content): no
+    // writing, else the history would be erased without a word (review of #211).
+    if (existing?.sha) {
+      try {
+        index = JSON.parse(Buffer.from(existing.content ?? "", "base64").toString("utf8"));
+        if (!Array.isArray(index.passages)) throw new Error("pas de liste de passages");
+      } catch (error) {
+        return { raison: `index.json illisible (${existing.content ? error.message : "contenu vide, fichier de plus de 1 Mo ?"}) : écriture refusée pour ne pas effacer l'historique` };
+      }
+    }
     const others = (index.passages ?? []).filter((item) => !(item.pr?.numero === entree.pr.numero && item.commit === entree.commit));
     index = { ...index, format: "horama-passages-1", depot, maj: new Date().toISOString(), passages: [entree, ...others].sort((a, b) => String(b.date).localeCompare(String(a.date))) };
     const content = Buffer.from(`${JSON.stringify(index, null, 2)}\n`).toString("base64");

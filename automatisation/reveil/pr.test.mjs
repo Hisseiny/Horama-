@@ -343,6 +343,13 @@ test("index des passages : entrée d'un passage, publiée sur la branche des cap
   // No index yet: a new one.
   const fresh = await publierIndex({ depot: "o/clone", branche: "horama/captures", entree }, async ([method]) => (method === "GET" ? null : { commit: { sha: "c3" } }));
   assert.equal(fresh.passages, 1);
+  // An index there but unreadable (corrupt, or over 1 MB: empty content): no PUT, a reason (review of #211).
+  for (const content of [Buffer.from("{ pas du JSON").toString("base64"), "", Buffer.from(JSON.stringify({ format: "x" })).toString("base64")]) {
+    const puts = [];
+    const refused = await publierIndex({ depot: "o/clone", branche: "horama/captures", entree }, async ([method], body) => (method === "GET" ? { sha: "s9", content } : (puts.push(body), { commit: { sha: "c4" } })));
+    assert.match(refused.raison, /index\.json illisible/);
+    assert.deepEqual(puts, [], "aucune écriture sur un index illisible");
+  }
   // GitHub refuses: a reason, never a throw.
   assert.ok((await publierIndex({ depot: "o/clone", branche: "b", entree }, async () => { throw new Error("HTTP 403"); })).raison);
 });

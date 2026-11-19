@@ -16,3 +16,7 @@ La tour de contrôle sera en ligne et le dépôt Horama est privé ; la branche 
 
 - La publication réelle : au passage final du mode dev sur la PR #16 du clone (avec `--commenter --captures-sur-branche horama/captures`), qui attend le go de Nathan.
 - Côté grand public, la tour lira les explorations de Railway et l'historique gardé dans le navigateur : hors de cette PR.
+
+## Après la relecture de Devin sur #211
+
+Un `index.json` présent mais illisible (JSON corrompu, objet sans liste de passages, ou fichier de plus de 1 Mo dont l'API contents rend un contenu vide) faisait repartir l'index de zéro ; le PUT avec le `sha` existant aurait effacé tout l'historique sans le dire. L'écriture est maintenant refusée, avec une raison (« index.json illisible (…) : écriture refusée pour ne pas effacer l'historique »), gardée dans `reveil.json`. Test : trois index illisibles (JSON cassé, contenu vide, objet sans `passages`), aucune écriture, une raison. `pr.test.mjs` : 15 sur 15. Le mode raw de l'API pour plus de 1 Mo n'est pas couvert : le refus suffit (l'index d'un hackathon reste très loin de 1 Mo).
