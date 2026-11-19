@@ -391,4 +391,26 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
   assert.ok(callerEvents.includes("Erreur de démonstration") && callerEvents.includes("Après le contrôle"));
   await navigate("/healthy");
   assert.deepEqual((await controlerPage(caller, { connexionAppelant: true })).map(defect => [defect.sorte, defect.statut]), [["texte_rogne", "SUSPECTED"]]);
+  await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = '<figure><div id="illustration" style="width:60px;height:20px;overflow:hidden;white-space:nowrap">Texte décoratif beaucoup trop long</div></figure><a id="wrapped" href="/gone" style="font:16px sans-serif">Première ligne<br>Deuxième ligne</a><a href="/hidden" style="display:none">Masqué</a><a href="/empty" style="display:block;width:0;height:0"></a>'` });
+  const decorative = await controlerPage(client, { maxLiens: 0 });
+  assert.equal(decorative.find(item => item.selecteur === "#illustration")?.statut, "SUSPECTED");
+  const wrapped = await controlerPage(client, { fetch: async () => new Response(null, { status: 404 }), verifierClic: async urls => new Map(urls.map(url => [url, "navigue" as const])) });
+  assert.equal(wrapped.filter(item => item.sorte === "lien_casse").length, 1);
+  const measured = (await client.send("Runtime.evaluate", { expression: 'document.querySelector("#wrapped").getClientRects()[0].height', returnByValue: true })).result.value;
+  assert.equal(wrapped.find(item => item.sorte === "lien_casse")?.zone?.hauteur, measured);
 });
+
+for (const status of [200, 404, 429, "error"] as const) {
+  test(`liens contrôlés avec les en-têtes navigateur : ${status}`, async () => {
+    const client: CdpClient = { on() {}, send: async () => ({ result: { value: { defects: [], links: [{ url: "https://example.org/page", rang: 0, selecteur: "a" }] } } }) };
+    const defects = await controlerPage(client, { fetch: async (_url, init) => {
+      const headers = new Headers(init?.headers);
+      assert.match(headers.get("User-Agent") ?? "", /Mozilla.*Chrome\//);
+      assert.match(headers.get("Accept") ?? "", /text\/html/);
+      assert.ok(headers.get("Accept-Language"));
+      if (status === "error") throw new Error("indisponible");
+      return new Response(null, { status });
+    }, verifierClic: async urls => new Map(urls.map(url => [url, "navigue" as const])) });
+    assert.deepEqual(defects.map(item => item.statut), status === 404 ? ["VERIFIED_FAIL"] : []);
+  });
+}

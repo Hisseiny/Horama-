@@ -83,7 +83,7 @@ export function construireExploration(pages: Array<{ ecran: string; url: string 
   return { tests, course, dropped: [], start: pages[0].url,
     instructions: [...COURSE_RULES, "Si une bannière de cookies apparaît, refuse-la (Refuser / Tout refuser / Continuer sans accepter / Reject all), ne l’accepte jamais.", "Simple visiteur : ne remplis et ne soumets aucun formulaire, ne te connecte jamais. N'ouvre aucun onglet ni fenêtre.",
       "N'utilise jamais la commande retour du navigateur (back). Pour changer de page, clique toujours un lien visible ; go_to reste le dernier recours prévu par la consigne. Ne clique jamais vers une page déjà relevée dans ce passage, même pour retrouver le menu.",
-      `Reste sur le site ${new URL(pages[0].url).origin} : ne suis aucun lien vers un autre domaine ou sous-domaine. Si tu y arrives quand même, tu es ramené sur le site.`].join("\n"),
+      `Reste sur le site ${new URL(pages[0].url).origin} : ne suis aucun lien vers un autre domaine ou sous-domaine. Les adresses avec et sans www. sont le même site et leurs redirections sont autorisées. Si tu arrives sur un autre site, tu es ramené sur le site.`].join("\n"),
     task: ["Nouveau passage : aucune page n'a encore été relevée dans cette session. La page déjà ouverte ne prouve aucun avancement. Commence à la partie 1, même si le navigateur affiche une partie ultérieure.", ...pages.map((page, index) => `Partie ${index + 1} : ${index === 0
       ? `si l'onglet n'affiche pas ${page.url}, ouvre cette adresse avec go_to et note raison_go_to="page de départ absente de l'onglet" au relevé. Appelle relever(ecran="${page.ecran}", vue="defaut"). ${readingInstruction()}`
       : index <= clicked ? clickInstruction(pages.slice(1))
@@ -161,6 +161,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
   };
   const normalized = (address: string, query = false) => {
     const parsed = new URL(address);
+    parsed.hostname = parsed.hostname.replace(/^www\./, "");
     normalizePageQuery(parsed);
     return parsed.origin + parsed.pathname.replace(/\/$/, "") + (query ? parsed.search : "");
   };
@@ -250,12 +251,12 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
     if (!finalUrls.has(page.url)) {
       try {
         const response = await siteFetch(page.url, { redirect: "follow", signal: requestSignal });
-        finalUrls.set(page.url, response.url && new URL(response.url).origin === new URL(page.url).origin ? response.url : null);
+        finalUrls.set(page.url, response.url && originOf(response.url) === originOf(page.url) ? response.url : null);
       } catch { finalUrls.set(page.url, null); }
     }
     return finalUrls.get(page.url);
   };
-  const originOf = (address: string) => { try { const parsed = new URL(address); return /^https?:$/.test(parsed.protocol) ? parsed.origin : null; } catch { return null; } };
+  const originOf = (address: string) => { try { const parsed = new URL(address); parsed.hostname = parsed.hostname.replace(/^www\./, ""); return /^https?:$/.test(parsed.protocol) ? parsed.origin : null; } catch { return null; } };
   const offSite = (address: string) => {
     const origin = originOf(address);
     return !!origin && ![url, ...pages.flatMap(page => [page.url, page.url_finale ?? page.url])].some(item => originOf(item) === origin);
@@ -594,7 +595,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
         const matches = (address: string) => {
           try {
             const actual = new URL(capture.url_page), expected = new URL(address);
-            return actual.origin === expected.origin && actual.pathname.replace(/\/+$/, "") === expected.pathname.replace(/\/+$/, "")
+            return originOf(actual.href) === originOf(expected.href) && actual.pathname.replace(/\/+$/, "") === expected.pathname.replace(/\/+$/, "")
               && [...expected.searchParams].every(([key, value]) => actual.searchParams.get(key) === value)
               && actual.searchParams.get("filtre") === expected.searchParams.get("filtre");
           } catch { return false; }
@@ -604,7 +605,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
         try {
           const actual = new URL(capture.url_page);
           if (!/^https?:$/.test(actual.protocol)) reason = "La page n'a pas pu être chargée.";
-          else if (actual.origin !== new URL(page.url).origin) {
+          else if (originOf(actual.href) !== originOf(page.url)) {
             if (offSite(capture.url_page) && await resolveFinal(page, hookSignal)) await bringBack(capture.url_page);
             else reason = `La page redirige vers un autre site : ${capture.url_page}`;
           }
