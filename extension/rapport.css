@@ -9,6 +9,10 @@ h1 { font: 400 56px/1 var(--affiche); letter-spacing: -.012em; margin: 0; }
 h2 { font: 400 34px/1 var(--affiche); margin: 44px 0 8px; }
 .site { margin: 10px 0 0; font: 500 14px var(--mesure); color: var(--encre-2); overflow-wrap: anywhere; }
 #etat { margin: 10px 0 0; font-weight: 600; }
+/* le direct (#164) : l'onglet que l'agent H pilote, image après image, sur sa feuille ; le rond de la barre bat */
+#direct { margin: 22px 0 0; }
+#direct .barre i { background: var(--miltos); animation: bat 1.2s ease-in-out infinite; }
+#direct img { display: block; width: 100%; aspect-ratio: 1280 / 800; object-fit: contain; background: var(--engobe-2); }
 .chiffres { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 26px 0 0; }
 .chiffres div { font-size: 15px; line-height: 1.3; font-weight: 600; }
 .chiffres b { display: block; margin-bottom: 18px; font: 400 76px/.9 var(--affiche); }
