@@ -36,7 +36,7 @@ async function setup(t, { variables = env, run = async () => {} } = {}) {
     index: { format: "horama-passages-1", passages: [{ passage: "passage-essai", commit: "base", constats: [finding()] }] },
     indexSha: "initial-index", testSha: "initial-test", treeSha: "initial-tree",
     markdown: await readFile(new URL(`../vault-horama/eugenia-clone/tests/${testId}.md`, import.meta.url), "utf8"),
-    calls: [], notes: new Map(), writes: [], beforeWrite: () => undefined,
+    calls: [], notes: new Map(), writes: [], beforeWrite: () => undefined, vaultBranch: false,
   };
   async function fetchGitHub(input, init) {
     const url = new URL(input);
@@ -78,8 +78,10 @@ async function setup(t, { variables = env, run = async () => {} } = {}) {
     if (route === testPath) return response(encoded(state.markdown, state.testSha));
     if (route.startsWith(notePath) && state.notes.has(route)) return response(encoded(state.notes.get(route), "note"));
     if (route === `${githubVault}/contents/vault-horama`) {
-      assert.equal(url.searchParams.get("ref"), "dev");
-      return response([{ name: "eugenia-clone", type: "dir", sha: state.treeSha }]);
+      const ref = url.searchParams.get("ref");
+      assert.ok(ref === "horama/vault" || ref === "dev");
+      if (ref === "horama/vault" && !state.vaultBranch) return response({ message: "No commit found for the ref horama/vault" }, 404);
+      return response([{ name: "eugenia-clone", type: "dir", sha: ref === "dev" ? state.treeSha : state.vaultTreeSha ?? state.treeSha }]);
     }
     if (route === `${githubVault}/git/trees/${state.treeSha}`) {
       assert.equal(url.searchParams.get("recursive"), "1");
@@ -169,7 +171,8 @@ test("public tour data caches GitHub for ten seconds and includes current explor
   assert.deepEqual(await b.json(), snapshot);
   assert.deepEqual(snapshot, { index: state.index, vault: [{ chemin: `tests/${testId}.md`, contenu: state.markdown }],
     agent: { disponible: true, file_attente: 0 }, explorations: [] });
-  assert.equal(state.calls.length, 4);
+  assert.deepEqual(state.calls.filter(([, route]) => route.endsWith("/contents/vault-horama")).length, 2);
+  assert.equal(state.calls.length, 5);
   const { id } = await (await post("/explorations", { url: "https://example.test/?parametre=prive" })).json();
   await finished;
   const next = await (await request("/tour/donnees")).json();
@@ -177,10 +180,19 @@ test("public tour data caches GitHub for ten seconds and includes current explor
     id, url: "https://example.test/", date: "2026-11-19T16:00:00.000Z",
     etat: "fini", pages: 3, defauts: 0, doutes: 2, duree_s: 6, cout_usd: 0,
   }]);
-  assert.equal(state.calls.length, 4);
+  assert.equal(state.calls.length, 5);
   advance(10_000);
   assert.equal((await request("/tour/donnees")).status, 200);
-  assert.equal(state.calls.length, 6);
+  assert.equal(state.calls.length, 8);
+});
+
+test("public tour data reads the vault from horama/vault once that branch exists", async t => {
+  const { request, state } = await setup(t);
+  state.vaultBranch = true;
+  const snapshot = await (await request("/tour/donnees")).json();
+  assert.equal(snapshot.vault[0].chemin, `tests/${testId}.md`);
+  const vaultReads = state.calls.filter(([, route]) => route.endsWith("/contents/vault-horama"));
+  assert.equal(vaultReads.length, 1);
 });
 
 test("decisions retry a changed SHA, preserve concurrent index updates and write one note", async t => {
@@ -259,10 +271,25 @@ test("accepting, refusing and editing a vault test preserves unrelated fields an
   assert.equal((await edit("refuser", { test: "../note" })).status, 400);
 });
 
-test("missing Railway secrets leave exploration healthy and fail tour requests closed", async t => {
-  const { request, login, state } = await setup(t, { variables: {} });
+test("missing Railway secrets leave exploration healthy and fail tour requests closed with a visible reason", async t => {
+  const { request, login, post, state } = await setup(t, { variables: {} });
   assert.equal((await request("/sante")).status, 200);
-  assert.equal((await request("/tour/donnees")).status, 503);
-  assert.equal((await login()).status, 503);
+  const data = await request("/tour/donnees");
+  assert.equal(data.status, 503);
+  const body = await data.json();
+  assert.match(body.erreur, /GITHUB_TOKEN_TOUR/);
+  assert.deepEqual({ agent: body.agent, explorations: body.explorations }, { agent: { disponible: true, file_attente: 0 }, explorations: [] });
+  const refused = await login();
+  assert.equal(refused.status, 503);
+  assert.match((await refused.json()).erreur, /TOUR_EMAIL, TOUR_NOM, TOUR_MOT_DE_PASSE_HASH, TOUR_SECRET/);
+  assert.equal((await post("/tour/decision", payload, { Authorization: "Bearer x" })).status, 503);
+  for (let i = 0; i < 4; i++) await login();
+  assert.equal((await login()).status, 429);
   assert.deepEqual(state.calls, []);
+});
+
+test("outside Railway a forged X-Real-IP header does not escape the login limit", async t => {
+  const { login } = await setup(t);
+  for (let i = 0; i < 5; i++) assert.equal((await login("incorrect", { "X-Real-IP": `192.0.2.${i}` })).status, 401);
+  assert.equal((await login(password, { "X-Real-IP": "192.0.2.99" })).status, 429);
 });

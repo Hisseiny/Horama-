@@ -1,7 +1,7 @@
 import { createHmac, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 import { isIP } from "node:net";
 import { promisify } from "node:util";
-import { createTourGitHub } from "./tour-github.mjs";
+import { createTourGitHub, missingToken } from "./tour-github.mjs";
 import { recordDecision, updateTestMarkdown } from "./tour-vault.mjs";
 
 const deriveKey = promisify(scrypt);
@@ -9,6 +9,7 @@ const minute = 60_000;
 const sessionLifetime = 12 * 60 * minute;
 const authError = { erreur: "Identifiants ou jeton invalides." };
 const unavailable = { erreur: "Service de la tour indisponible." };
+const missingAccount = { erreur: "Compte d’équipe non configuré sur le service (variables TOUR_EMAIL, TOUR_NOM, TOUR_MOT_DE_PASSE_HASH, TOUR_SECRET)." };
 const badBody = { erreur: "Données de la tour invalides." };
 const routes = new Map([
   ["/tour/session", "POST"], ["/tour/donnees", "GET"], ["/tour/decision", "POST"],
@@ -69,6 +70,7 @@ export function createTourService({ env = process.env, now, readJson, runtimeDat
     if (request.method === "OPTIONS") return send(204);
     if (request.method !== routes.get(path)) return send(405, { erreur: "Méthode refusée." }, { Allow: `${routes.get(path)}, OPTIONS` });
     if (path === "/tour/donnees") {
+      if (!env.GITHUB_TOKEN_TOUR) return send(503, { erreur: missingToken, ...await runtimeData() });
       try {
         const [snapshot, live] = await Promise.all([github.data(), runtimeData()]);
         return send(200, { ...snapshot, ...live });
@@ -77,10 +79,10 @@ export function createTourService({ env = process.env, now, readJson, runtimeDat
       }
     }
     if (path === "/tour/session") {
-      if (!account) return send(503, unavailable);
       if (!allowAttempt(clientIP(request, Boolean(env.RAILWAY_ENVIRONMENT_ID)))) {
         return send(429, { erreur: "Trop de tentatives de connexion." }, { "Retry-After": "60" });
       }
+      if (!account) return send(503, missingAccount);
       const body = await readJson(request, 4096).catch(() => null);
       const { email, mot_de_passe: password } = body ?? {};
       if (typeof email !== "string" || typeof password !== "string" || !password || password.length > 1024) return send(401, authError);
@@ -97,7 +99,8 @@ export function createTourService({ env = process.env, now, readJson, runtimeDat
       const payload = `${expires}.${randomBytes(16).toString("base64url")}`;
       return send(200, { jeton: `${payload}.${sign(account.secret, payload)}`, expire_le: new Date(expires).toISOString(), nom: account.name });
     }
-    if (!validToken(request.headers.authorization, account?.secret, now)) return send(401, authError);
+    if (!account) return send(503, missingAccount);
+    if (!validToken(request.headers.authorization, account.secret, now)) return send(401, authError);
     if (path === "/tour/doc") return send(501, { erreur: "La correction des notes n’est pas encore disponible." });
 
     const body = await readJson(request, 16_384).catch(() => null);

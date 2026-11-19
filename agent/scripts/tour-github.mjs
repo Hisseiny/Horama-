@@ -1,5 +1,6 @@
 const indexFile = { repo: "Hisseiny/eugenia-school-website", branch: "horama/captures", path: "index.json" };
 const vault = { repo: "Hisseiny/Horama-", branch: "dev" };
+const vaultBranch = "horama/vault";
 const vaultRoot = "vault-horama/eugenia-clone";
 const encodePath = path => path.split("/").map(encodeURIComponent).join("/");
 const fromBase64 = file => {
@@ -9,6 +10,8 @@ const fromBase64 = file => {
   return Buffer.from(file.content, "base64").toString("utf8");
 };
 
+export const missingToken = "Jeton GitHub du service absent (variable GITHUB_TOKEN_TOUR) : lecture et écriture sur GitHub impossibles.";
+
 export function createTourGitHub({ token, fetchGitHub = fetch, now }) {
   let cache;
   let pending;
@@ -16,7 +19,7 @@ export function createTourGitHub({ token, fetchGitHub = fetch, now }) {
   let vaultCache;
 
   async function api(repo, path, body, { optional = false } = {}) {
-    if (!token) throw new Error("Jeton GitHub du service absent.");
+    if (!token) throw new Error(missingToken);
     const response = await fetchGitHub(`https://api.github.com/repos/${repo}/${path}`, {
       method: body ? "PUT" : "GET",
       headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${token}`,
@@ -68,7 +71,8 @@ export function createTourGitHub({ token, fetchGitHub = fetch, now }) {
   }
 
   async function readVault() {
-    const directory = await readFile({ ...vault, path: "vault-horama" });
+    const directory = await readFile({ ...vault, branch: vaultBranch, path: "vault-horama" }, true) ??
+      await readFile({ ...vault, branch: "dev", path: "vault-horama" });
     const root = directory.find(entry => entry.name === "eugenia-clone" && entry.type === "dir");
     if (!root) throw new Error("Vault du clone introuvable.");
     if (vaultCache?.sha === root.sha) return vaultCache.notes;

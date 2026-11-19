@@ -115,12 +115,21 @@ un sel aléatoire de 16 octets et `scrypt` de Node (paramètres par défaut, cl�
 `GITHUB_TOKEN_TOUR` doit permettre la lecture et l'écriture du contenu des
 deux dépôts spécifiés dans [#238](https://github.com/Hisseiny/Horama-/issues/238).
 
+- CORS des routes `/tour/*` : seulement `https://horama-gold.vercel.app` et
+  `http://127.0.0.1:<port>`, en-têtes `Content-Type` et `Authorization`. Une
+  autre origine reçoit `403`.
 - `POST /tour/session` donne un jeton valide 12 h. Envoyer ce jeton dans
   `Authorization: Bearer <jeton>` pour les écritures. Après cinq essais de
-  connexion par IP en une minute, le service répond `429`.
+  connexion par IP en une minute, le service répond `429`. Sur Railway, l'IP
+  est celle de l'en-tête `X-Real-IP` posé par le proxy ; ailleurs, celle de la
+  connexion. Sans les quatre variables du compte, la route répond `503` en les
+  nommant.
 - `GET /tour/donnees` renvoie l'index, les notes Markdown du vault du clone
-  (chemins relatifs au vault), et les explorations récentes avec leurs nombres
-  de pages visitées, défauts et doutes. Les mesures indisponibles valent `null`.
+  (chemins relatifs au vault, lus sur la branche `horama/vault` si elle existe,
+  sinon sur `dev`), et les explorations récentes avec leurs nombres de pages
+  visitées, défauts et doutes. Les mesures indisponibles valent `null`. Sans
+  `GITHUB_TOKEN_TOUR`, la route répond `503` avec la raison, les explorations et
+  l'état de l'agent ; la tour passe alors par son repli GitHub.
 - `POST /tour/decision` enregistre le choix dans l'index, puis sa note dans le
   vault. Chaque écriture produit son propre commit. Après un `503`, rejouer la
   demande. Si l'index avait été écrit, la note est complétée avant le `409`.
