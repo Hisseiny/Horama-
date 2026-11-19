@@ -20,11 +20,60 @@ test("container refuses an empty environment before starting Chrome", () => {
   assert.match(result.stderr, /HAI_API_KEY requise/);
 });
 
+test("service rejects invalid clicked-page limits before starting Chrome", () => {
+  for (const value of ["-1", "9", "1.5", "invalid"]) {
+    const result = spawnSync(process.execPath, ["agent/scripts/container.mjs", "--service"], {
+      cwd, encoding: "utf8", env: { ...process.env, HAI_API_KEY: "not-a-real-key", HORAMA_PAGES_CLIQUEES: value },
+    });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Valeur attendue entre 0 et 8/);
+  }
+});
+
 test("container refuses overrides of its isolated paths and CDP port", () => {
   for (const option of ["--vault", "--sortie", "--chrome-port"]) {
     const result = run([option, "other"], "not-a-real-key");
     assert.equal(result.status, 1);
     assert.match(result.stderr, /réserve CDP 9333/);
+  }
+});
+
+test("direct screencast failure is optional and the kill switch preserves the old engine", () => {
+  for (const direct of ["0", "1"]) {
+    const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
+      import assert from "node:assert/strict";
+      import childProcess from "node:child_process";
+      import { EventEmitter } from "node:events";
+      import { syncBuiltinESMExports } from "node:module";
+      let spawns = 0;
+      let cdpRequests = 0;
+      childProcess.spawn = (_bin, args) => {
+        const engine = ++spawns === 2;
+        const child = Object.assign(new EventEmitter(), {
+          exitCode: null, signalCode: null,
+          kill(signal) { this.signalCode = signal; this.emit("exit", null, signal); },
+        });
+        if (engine) {
+          assert.equal(args[0], ${JSON.stringify(direct === "0" ? "agent/explorer.ts" : "agent/scripts/explorer-direct.mjs")});
+          assert.equal(args.includes("--sans-agent"), ${direct !== "0"});
+          assert.ok(args.includes("--reseau-public"));
+          process.nextTick(() => child.emit("exit", 0));
+        }
+        return child;
+      };
+      syncBuiltinESMExports();
+      globalThis.fetch = async url => {
+        if (url.endsWith("/json/version")) return { ok: true };
+        cdpRequests++;
+        throw new Error("Screencast unavailable");
+      };
+      await import("./agent/scripts/container.mjs");
+      assert.equal(spawns, 2);
+      assert.equal(cdpRequests, ${direct === "0" ? 0 : 1});
+      assert.equal(process.exitCode, 0);
+    `], { cwd, encoding: "utf8", env: { ...process.env, HAI_API_KEY: "not-a-real-key",
+      HORAMA_DIRECT: direct, HORAMA_SANS_AGENT: "1" }, timeout: 5000 });
+    assert.equal(result.status, 0, result.stderr);
   }
 });
 

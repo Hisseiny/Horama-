@@ -983,3 +983,44 @@ douce, langue, Holo parallèle, consigne bornée, retour sur site, liens par
 adresse et nouveau pont sont inclus. Seule cette documentation a changé
 après le check vert ; aucune mesure H antérieure n'est présentée comme
 une validation réelle de la combinaison après fusion.
+
+### Nouvelle fusion de dev : #180, #182, #186 et #181
+
+Fusion normale de `origin/dev` (`aa56a5e`) après lecture des diffs des quatre
+PR. #180 et #182 sont déjà dans notre historique ; leurs regroupements,
+références et protections de navigation restent conservés.
+
+Seul `controles.ts` présente cette fois un conflit réel : l'union des sortes
+conserve `texte_non_traduit` et le type de #186 conserve `SUSPECTED` et
+`raison`. Le contrôle de langue reste agrégé à un défaut par page avec ses
+seuils et exclusions inchangés. Les règles de #186 propres aux liens,
+débordements et textes techniques ne deviennent pas des règles linguistiques.
+
+`cdp.ts` fusionne automatiquement la vérification des clics dans un contexte
+isolé de #186 avec la capture douce existante. `explorer.ts` fusionne
+automatiquement la propagation du statut et de la raison, le regroupement
+tenant compte du statut, les rapprochements Holo entre pages et l'exclusion
+des minuscules zones visuelles. La consigne 5 × 450 px est identique mot pour
+mot à celle d'avant fusion ; `raison_go_to`, Holo parallèle, capture douce et
+quota de reprise sont inchangés. Le direct de #181 est importé tel quel :
+service/conteneur en mode direct par défaut (`HORAMA_DIRECT=0` pour l'ancien
+mode), images JPEG du screencast et parcours direct associé.
+
+`pnpm -r --if-present run check` passe dès le premier essai, code **0** :
+
+```text
+agent check: 1..277
+agent check: # tests 284
+agent check: # suites 0
+agent check: # pass 284
+agent check: # fail 0
+agent check: # cancelled 0
+agent check: # skipped 0
+agent check: # todo 0
+agent check: # duration_ms 20463.309536
+agent check: Done
+```
+
+Journal : `/home/ubuntu/horama-179-merge-2-check.log`. Aucun nettoyage de
+Chrome ni nouvel essai nécessaire. Aucun nouveau passage H ni vérification
+visuelle ; seule cette documentation a changé après le check vert.

@@ -10,11 +10,10 @@ const fullError = "Le service est complet : réessaie dans quelques minutes.";
 const rateError = "Trop de demandes en une heure : réessaie plus tard.";
 const runError = "L’exploration a été interrompue avant de produire un rapport complet.";
 
-function send(response, status, body) {
-  const type = Buffer.isBuffer(body) ? "image/png" : "application/json; charset=utf-8";
+function send(response, status, body, type = Buffer.isBuffer(body) ? "image/png" : "application/json; charset=utf-8", headers = {}) {
   response.writeHead(status, { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Cache-Control": "no-store", "Content-Type": type,
-    "X-Content-Type-Options": "nosniff" });
+    "X-Content-Type-Options": "nosniff", ...headers });
   response.end(status === 204 ? undefined : Buffer.isBuffer(body) ? body : JSON.stringify(body));
 }
 
@@ -53,6 +52,7 @@ export function createExplorationService({ data, run, resolveAddress = resolvePu
     job.controller = new AbortController();
     job.running = Promise.resolve().then(() => run(job, job.controller.signal)).catch(() => {}).finally(() => {
       job.finished = now();
+      delete job.frame;
       active = undefined;
       startNext();
     });
@@ -96,9 +96,15 @@ export function createExplorationService({ data, run, resolveAddress = resolvePu
       startNext();
       return send(response, 202, { id, place: waiting.indexOf(job) + 1 });
     }
-    const match = /^\/explorations\/([a-f0-9-]+)(?:\/captures\/([a-z0-9-]+\.png))?$/.exec(pathname);
+    const match = /^\/explorations\/([a-f0-9-]+)(?:\/captures\/([a-z0-9-]+\.png)|\/(direct))?$/.exec(pathname);
     const job = match && jobs.get(match[1]);
     if (request.method !== "GET" || !job) return send(response, 404, { erreur: "Exploration inconnue." });
+    if (match[3]) {
+      if (job.finished !== undefined) return send(response, 410, { erreur: "Exploration terminée." });
+      return job.frame ? send(response, 200, job.frame.buffer, "image/jpeg", {
+        "X-Horama-Image-At": String(job.frame.at), "Access-Control-Expose-Headers": "X-Horama-Image-At",
+      }) : send(response, 404, { erreur: "Direct indisponible." });
+    }
     if (match[2]) {
       const capture = await readFile(join(job.directory, "captures", match[2])).catch(() => null);
       return capture ? send(response, 200, capture) : send(response, 404, { erreur: "Capture introuvable." });
@@ -107,10 +113,10 @@ export function createExplorationService({ data, run, resolveAddress = resolvePu
     const report = await readFile(join(job.directory, "exploration.json"), "utf8")
       .then(JSON.parse).catch(() => null);
     if (report?.format === "horama-exploration-1" && (report.etat !== "en_cours" || !finished)) {
-      return send(response, 200, report);
+      return send(response, 200, { ...report, ...(!finished && job.frame ? { direct: true } : {}) });
     }
     if (finished) return send(response, 503, { erreur: runError });
-    return send(response, 200, { id: job.id, etat: "en_file", place: waiting.indexOf(job) + 1 });
+    return send(response, 200, { id: job.id, etat: "en_file", place: waiting.indexOf(job) + 1, ...(job.frame ? { direct: true } : {}) });
   }
 
   const server = createServer({ requestTimeout: 10_000, headersTimeout: 10_000 }, (request, response) => {

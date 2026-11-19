@@ -11,7 +11,7 @@ import type { Consigne } from "../consigne.ts";
 import { creerCoureur } from "../coureur.ts";
 import type { ReleveCapture } from "../coureur.ts";
 import type { ResultatSession, Session, SessionEnCours } from "../session.ts";
-import { captureDefect, connecterCdp, dismissCookies, prepareCapture, readLinks } from "./cdp.ts";
+import { captureDefect, connecterCdp, dismissCookies, prepareCapture, readLinks, verifierClics } from "./cdp.ts";
 import type { PageLink } from "./cdp.ts";
 import type { ExplorationCdp } from "./cdp.ts";
 import { controlerPage } from "./controles.ts";
@@ -91,6 +91,11 @@ export function construireExploration(pages: Array<{ ecran: string; url: string 
     tools: [{ name: "relever", description: "Enregistre la page chargée.", input_schema: { type: "object", properties: { ecran: { type: "string", enum: pages.map(page => page.ecran) }, vue: { type: "string", enum: ["defaut"] }, raison_go_to: { type: "string", description: "Seulement après go_to : raison concrète du recours à une adresse plutôt qu'à un lien." } }, required: ["ecran", "vue"] } }, END_TOOL] };
 }
 
+// Same box within a few pixels: a header or menu element repeated on every page of the site.
+const samePlace = (a: Zone, b: Zone) => [a.x - b.x, a.y - b.y, a.largeur - b.largeur, a.hauteur - b.hauteur].every(delta => Math.abs(delta) <= 8);
+// Rendering noise: a box under 4 px in either dimension shows nothing a visitor can judge.
+const tiny = (zone?: Zone) => !!zone && (zone.largeur < 4 || zone.hauteur < 4);
+
 function overlap(a: Zone, b: Zone): boolean {
   const width = Math.max(0, Math.min(a.x + a.largeur, b.x + b.largeur) - Math.max(a.x, b.x));
   const height = Math.max(0, Math.min(a.y + a.hauteur, b.y + b.hauteur) - Math.max(a.y, b.y));
@@ -105,7 +110,7 @@ function groupControls(defects: Defaut[]) {
   const groups: { defect: Defaut; measure: string; selectors: Set<string> }[] = [];
   for (const defect of defects) {
     const measure = String(defect.valeur ?? defect.message);
-    const group = groups.find(item => item.defect.sorte === defect.sorte && item.measure === measure && sameControlZone(item.defect.zone, defect.zone));
+    const group = groups.find(item => item.defect.sorte === defect.sorte && item.defect.statut === defect.statut && item.measure === measure && sameControlZone(item.defect.zone, defect.zone));
     if (group) {
       if (defect.selecteur) group.selectors.add(defect.selecteur);
     } else groups.push({ defect, measure, selectors: new Set(defect.selecteur ? [defect.selecteur] : []) });
@@ -116,7 +121,7 @@ function controlDescription(message: string, selectors: Set<string>): string {
   return selectors.size > 1 ? `${message} Éléments : ${[...selectors].join(", ")}.` : message;
 }
 function pageStatus(findings: Finding[]): Statut {
-  return (["VERIFIED_FAIL", "SUSPECTED", "INCONCLUSIVE"] as Statut[]).find(status => findings.some(finding => !finding.explique_par && finding.statut === status)) ?? "PASS";
+  return (["VERIFIED_FAIL", "SUSPECTED", "INCONCLUSIVE"] as Statut[]).find(status => findings.some(finding => finding.statut === status && !findings.some(other => other.id === finding.explique_par))) ?? "PASS";
 }
 const kinds = { "cut-off-text": "texte-coupe", "overlapping-text": "chevauchement", "misaligned-element": "decalage", "distorted-image": "image-deformee", "unreadable-contrast": "contraste-illisible" };
 const descriptions = { "cut-off-text": "Un texte semble coupé.", "overlapping-text": "Des textes semblent se chevaucher.", "misaligned-element": "Un élément semble décalé.", "distorted-image": "Une image semble déformée.", "unreadable-contrast": "Un texte semble difficile à lire." };
@@ -314,7 +319,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
     return { passage_id: passageId, test_id: `exploration--${page.ecran}`, version_testee: version, version_reference: versionReference ?? version,
       statut: page.statut, ecrans: [page.ecran], valeurs: Object.fromEntries(controls.map((item, index) => [`${page.ecran}.${item.sorte} ${index + 1}`, String(item.preuve.mesure)])),
       calcul: controls.map(item => item.description).join(" ; "), niveau_de_preuve: controls.length ? "releve" : "aucun",
-      ecarts_visuels: findings.flatMap(item => item.source !== "controle" && !item.explique_par && item.zone && (item.statut === "PASS" || item.statut === "SUSPECTED") ? [{ id: item.id, ecran: item.ecran, vue: item.vue, description: item.description, zone: item.zone, statut: item.statut, ...(item.decision_id ? { decision_id: item.decision_id } : {}) }] : []),
+      ecarts_visuels: findings.flatMap(item => (item.source !== "controle" || (item.statut === "SUSPECTED" && item.capture === `captures/${page.ecran}.png`)) && !item.explique_par && item.zone && (item.statut === "PASS" || item.statut === "SUSPECTED") ? [{ id: item.id, ecran: item.ecran, vue: item.vue, description: item.description, zone: item.zone, statut: item.statut, ...(item.decision_id ? { decision_id: item.decision_id } : {}) }] : []),
       captures: page.capture?.url ? [page.capture.url] : [], ...(replayUrl ? { replay_url: replayUrl } : {}), ...(reason ? { raison: reason } : {}) };
   };
   const wrapped: BasePassages = {
@@ -636,9 +641,10 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
           hookSignal?.throwIfAborted();
           const status = await client.send("Runtime.evaluate", { expression: "performance.getEntriesByType('navigation')[0]?.responseStatus || null", returnByValue: true });
           http = status.result.value;
-          const defects = await (deps.controler ?? controlerPage)(client, { fetch: linkFetch });
+          const verifierClic = (urls: string[]) => verifierClics(port, capture.url_page, urls, { ...(hookSignal ? { signal: hookSignal } : {}) });
+          const defects = await (deps.controler ?? controlerPage)(client, { fetch: linkFetch, verifierClic });
           for (const { defect, measure, selectors } of groupControls(defects)) {
-            const item = finding(page, "controle", findings, { sorte: sorts[defect.sorte], statut: "VERIFIED_FAIL", description: controlDescription(defect.message, selectors),
+            const item = finding(page, "controle", findings, { sorte: sorts[defect.sorte], statut: defect.statut, description: controlDescription(defect.message, selectors), ...(defect.raison ? { raison: defect.raison } : {}),
               preuve: { ...(defect.selecteur ? { element: defect.selecteur } : {}), mesure: measure, attendu: expectedText(defect.sorte),
                 ...(["image_cassee", "lien_casse"].includes(defect.sorte) ? { url: String(defect.valeur).replace(/ : \d+$/, "") } : {}),
                 ...(defect.sorte === "erreur_console" ? { console: String(defect.valeur).slice(0, 300) } : {}) },
@@ -693,7 +699,9 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
           for (const visual of result.findings) {
             if (!visual.zone) { holo.ecartes_sans_zone++; continue; }
             const zone = visual.zone;
-            const explained = findings.find(item => item.source === "controle" && item.statut === "VERIFIED_FAIL" && controlZones.has(item.id) && overlap(zone, controlZones.get(item.id) ?? zone));
+            const explained = findings.find(item => item.source === "controle" && item.statut === "VERIFIED_FAIL" && controlZones.has(item.id) && overlap(zone, controlZones.get(item.id) ?? zone))
+              ?? [...report.constats, ...[...pending.entries()].flatMap(([other, data]) => other === ecran ? [] : data.findings)]
+                .find(item => item.source === "holo" && !item.explique_par && item.ecran !== ecran && item.sorte === kinds[visual.kind] && item.zone && samePlace(zone, item.zone));
             findings.push(finding(page, "holo", findings, { sorte: kinds[visual.kind], statut: "SUSPECTED", description: descriptions[visual.kind], zone,
               preuve: { modele: result.model, phrase: visual.sentence }, ...(explained ? { explique_par: explained.id } : {}) }));
           }
@@ -720,7 +728,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
               const compared = verifierReleve({ releve, releves: [releve], regles: [], decisions,
                 reference: readFileSync(join(vault, reference.chemin)), version_reference: reference.version,
                 zones_ignorees: (notes.find(note => note.entete.ecran === page.ecran)?.entete.zones_ignorees ?? []) as Zone[] });
-              for (const item of compared) report.constats.push(finding(page, "comparaison", report.constats, { ...item, id: `${page.ecran}--comparaison--${compared.indexOf(item) + 1}`, sorte: item.statut === "INCONCLUSIVE" ? "non-conclu" : item.nature ?? "changement", preuve: { reference: page.reference?.fichier ?? join(vault, reference.chemin) } }));
+              for (const item of compared.filter(item => !tiny(item.zone))) report.constats.push(finding(page, "comparaison", report.constats, { ...item, id: `${page.ecran}--comparaison--${compared.indexOf(item) + 1}`, sorte: item.statut === "INCONCLUSIVE" ? "non-conclu" : item.nature ?? "changement", preuve: { reference: page.reference?.fichier ?? join(vault, reference.chemin) } }));
             }
           } catch { inconclusive(page, "comparaison", report.constats, "La comparaison avec la référence n'a pas pu se faire."); }
         }

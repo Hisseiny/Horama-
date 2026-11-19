@@ -9,12 +9,14 @@ export interface CdpClient {
 }
 
 export interface Defaut {
-  statut: "VERIFIED_FAIL";
+  // SUSPECTED: the measure is real but does not prove a defect for a visitor (raison says why); a human settles it.
+  statut: "VERIFIED_FAIL" | "SUSPECTED";
   sorte: "page_en_erreur" | "image_cassee" | "defilement_horizontal" | "debordement" | "texte_rogne" | "lien_casse" | "texte_erreur" | "erreur_console" | "texte_non_traduit";
   message: string;
   selecteur?: string;
   zone?: Zone;
   valeur?: string | number;
+  raison?: string;
 }
 
 function inspectDocument() {
@@ -45,8 +47,28 @@ function inspectDocument() {
     const rect = element.getBoundingClientRect();
     return { selecteur: selector(element), zone: { x: rect.x + scrollX, y: rect.y + scrollY, largeur: rect.width, hauteur: rect.height } };
   };
-  const add = (sorte: Defaut["sorte"], message: string, valeur: string | number, element?: Element) => {
-    defects.push({ statut: "VERIFIED_FAIL", sorte, message, valeur, ...(element ? proof(element) : {}) });
+  const add = (sorte: Defaut["sorte"], message: string, valeur: string | number, element?: Element, raison?: string) => {
+    defects.push({ statut: raison ? "SUSPECTED" : "VERIFIED_FAIL", sorte, message, valeur, ...(element ? proof(element) : {}), ...(raison ? { raison } : {}) });
+  };
+  // Text a visitor cannot see on purpose: screen-reader only, clipped, or inside a box of one pixel that hides its overflow.
+  const masked = (element: Element) => {
+    for (let ancestor: Element | null = element; ancestor; ancestor = ancestor.parentElement) {
+      const css = getComputedStyle(ancestor);
+      const box = ancestor.getBoundingClientRect();
+      if (ancestor.matches(".sr-only,.visually-hidden") || css.clip !== "auto" || css.clipPath !== "none"
+        || (["hidden", "clip"].includes(css.overflowX) && box.width <= 1) || (["hidden", "clip"].includes(css.overflowY) && box.height <= 1)) return true;
+    }
+    return false;
+  };
+  // Slides of a carousel overflow on purpose; the overflow is real but a visitor may never see it as a defect.
+  const carousel = (element: Element) => {
+    for (let ancestor: Element | null = element.parentElement; ancestor && ancestor !== document.body; ancestor = ancestor.parentElement) {
+      if (ancestor.matches('[aria-roledescription="carousel" i],[aria-roledescription="carrousel" i],[aria-roledescription="slide" i]')
+        || /(^|[-_\s])(carousel|carrousel|slider|swiper|slick|splide|glide|flickity|owl)([-_\s]|$)/i.test(String(ancestor.getAttribute("class") ?? ""))
+        || getComputedStyle(ancestor).scrollSnapType !== "none"
+        || (["auto", "scroll"].includes(getComputedStyle(ancestor).overflowX) && ancestor.scrollWidth > ancestor.clientWidth + 1)) return true;
+    }
+    return false;
   };
   const status = (performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined)?.responseStatus;
   if (status && status >= 400) add("page_en_erreur", "Le document renvoie une erreur HTTP.", status);
@@ -158,33 +180,46 @@ function inspectDocument() {
     if (!visible(element) || element.matches("script,style,noscript,template")) continue;
     const text = Array.from(element.childNodes).filter(node => node.nodeType === Node.TEXT_NODE).map(node => node.textContent).join(" ").trim();
     const match = element.closest("code,pre,kbd,samp,var") ? null : text.match(pattern);
-    if (match) add("texte_erreur", "Un texte d’erreur est affiché.", match[0], element);
+    // Proven only where a value is shown (alone, or after ":" or "="); inside written text ("The Null Object", "the behaviour is undefined") it may be meant.
+    const value = match && (/lorem|\{\{/i.test(match[0]) || text === match[0] || /[:=]\s*$/.test(text.slice(0, match.index)));
+    if (match) add("texte_erreur", "Un texte d’erreur est affiché.", match[0], element, value ? undefined : "Le mot technique est dans un texte rédigé (phrase ou titre) : il peut s'agir du texte voulu.");
     if (!(element.textContent ?? "").trim()) continue;
     const style = getComputedStyle(element);
     const clippedX = ["hidden", "clip"].includes(style.overflowX) && element.scrollWidth > element.clientWidth + 1;
     const clippedY = ["hidden", "clip"].includes(style.overflowY) && element.scrollHeight > element.clientHeight + 1;
     const lineClamped = Number(style.webkitLineClamp) > 0 && style.webkitBoxOrient === "vertical" && ["-webkit-box", "-webkit-inline-box", "flow-root"].includes(style.display);
     if ((clippedX || clippedY) && style.textOverflow !== "ellipsis" && !lineClamped && element.clientWidth > 1 && element.clientHeight > 1) {
-      let excluded = false;
+      let excluded = masked(element) || carousel(element);
       for (let ancestor: Element | null = element; ancestor && !excluded; ancestor = ancestor.parentElement) {
         const css = getComputedStyle(ancestor);
-        excluded = ancestor.matches('.sr-only,[aria-roledescription="carousel"],[aria-roledescription="carrousel"]') || css.clip !== "auto" || css.clipPath !== "none"
-          || [css.overflowX, css.overflowY].some(value => ["auto", "scroll"].includes(value));
+        excluded = [css.overflowX, css.overflowY].some(value => ["auto", "scroll"].includes(value));
       }
       const ink = excluded ? undefined : textBounds(element, true);
       const box = element.getBoundingClientRect();
       const indent = parseFloat(style.textIndent) || 0;
       const scaleX = box.width / (element as HTMLElement).offsetWidth || 1, scaleY = box.height / (element as HTMLElement).offsetHeight || 1;
       const left = box.left + element.clientLeft * scaleX, top = box.top + element.clientTop * scaleY;
-      if (ink && !(indent < 0 && ink.right <= box.left) && box.right + scrollX > 0 && box.bottom + scrollY > 0
+      // Text pushed entirely out of the clipping boxes (image replacement, negative indent) is hidden on purpose, not cut.
+      let view = ink && { left: ink.left, top: ink.top, right: ink.right, bottom: ink.bottom };
+      for (let ancestor: Element | null = element; ancestor && view; ancestor = ancestor.parentElement) {
+        const css = getComputedStyle(ancestor), clip = ancestor.getBoundingClientRect();
+        if (["hidden", "clip"].includes(css.overflowX)) view = { ...view, left: Math.max(view.left, clip.left), right: Math.min(view.right, clip.right) };
+        if (["hidden", "clip"].includes(css.overflowY)) view = { ...view, top: Math.max(view.top, clip.top), bottom: Math.min(view.bottom, clip.bottom) };
+        if (view.right <= view.left || view.bottom <= view.top) view = undefined;
+      }
+      if (ink && view && !(indent < 0 && ink.right <= box.left) && box.right + scrollX > 0 && box.bottom + scrollY > 0
         && ((clippedX && (ink.right > left + (element.clientWidth + 1) * scaleX || ink.left < left - scaleX))
           || (clippedY && (ink.bottom > top + (element.clientHeight + 1) * scaleY || ink.top < top - scaleY)))) {
         add("texte_rogne", "Le texte est rogné par son conteneur.", `${element.scrollWidth}×${element.scrollHeight} > ${element.clientWidth}×${element.clientHeight}`, element);
       }
     }
     if (element.children.length && !element.matches("button,a")) continue;
-    if ([style.overflowX, style.overflowY].some(value => ["hidden", "clip", "auto", "scroll"].includes(value)) || style.textOverflow === "ellipsis") continue;
-    if (!element.clientWidth || !element.clientHeight || (element.scrollWidth <= element.clientWidth + 1 && element.scrollHeight <= element.clientHeight + 1)) continue;
+    if ([style.overflowX, style.overflowY].some(value => ["hidden", "clip", "auto", "scroll"].includes(value)) || style.textOverflow === "ellipsis" || lineClamped) continue;
+    if (element.clientWidth <= 1 || element.clientHeight <= 1 || (element.scrollWidth <= element.clientWidth + 1 && element.scrollHeight <= element.clientHeight + 1)) continue;
+    if (masked(element)) continue;
+    let clampedAncestor = false;
+    for (let ancestor = element.parentElement; ancestor && !clampedAncestor; ancestor = ancestor.parentElement) clampedAncestor = Number(getComputedStyle(ancestor).webkitLineClamp) > 0;
+    if (clampedAncestor) continue;
     const box = element.getBoundingClientRect();
     if (box.right + scrollX <= 0 || box.bottom + scrollY <= 0) continue;
     const ink = textBounds(element);
@@ -196,7 +231,9 @@ function inspectDocument() {
     const across = (Math.max(0, left - ink.left) + Math.max(0, ink.right - left - element.clientWidth * scaleX)) / scaleX;
     const down = (Math.max(0, top - ink.top) + Math.max(0, ink.bottom - top - element.clientHeight * scaleY)) / scaleY;
     if (across > 3 || down > Math.max(3, lineHeight / 2)) {
-      add("debordement", "Le texte dépasse la boîte de son conteneur.", `${element.scrollWidth}×${element.scrollHeight} > ${element.clientWidth}×${element.clientHeight}`, element);
+      add("debordement", "Le texte dépasse la boîte de son conteneur.", `${element.scrollWidth}×${element.scrollHeight} > ${element.clientWidth}×${element.clientHeight}`, element,
+        carousel(element) ? "Le texte est dans un carrousel ou un bandeau défilant, dont les éléments débordent volontairement."
+          : element.closest('[aria-hidden="true"]') ? "Le texte est décoratif (aria-hidden) : son débordement peut être voulu." : undefined);
     }
   }
   const rank = (link: Element) => link.closest("main,[role=main]") ? 0 : link.closest("header,nav,footer,aside,[role=banner],[role=navigation],[role=contentinfo]") ? 2 : 1;
@@ -234,6 +271,8 @@ export interface ControleOptions {
   fetch?: typeof fetch;
   // Caller's connection: no Runtime.disable/enable, no listener replaced; console errors come from installerJournalConsole.
   connexionAppelant?: boolean;
+  // Clicks the links answering an error as a visitor would; without it, or without "navigue", a link in error is only a doubt.
+  verifierClic?: (urls: string[]) => Promise<Map<string, "navigue" | "intercepte" | "introuvable">>;
 }
 
 // Without connexionAppelant, use a dedicated CDP connection: Runtime is disabled then enabled again and listeners are replaced.
@@ -292,7 +331,7 @@ async function checkLinks(links: ReturnType<typeof inspectDocument>["links"], op
     }
     return undefined;
   };
-  const defects: Defaut[] = [];
+  const broken: Array<{ link: (typeof links)[number]; message: string; valeur: string }> = [];
   const seen = new Set<string>();
   for (const link of links) {
     if (seen.has(link.url)) continue;
@@ -307,8 +346,18 @@ async function checkLinks(links: ReturnType<typeof inspectDocument>["links"], op
       const message = final.hops
         ? `Le lien interne mène, après ${final.hops} redirection${final.hops > 1 ? "s" : ""}, à ${final.url} qui renvoie HTTP ${final.status}.`
         : `Le lien interne renvoie HTTP ${final.status}.`;
-      defects.push({ statut: "VERIFIED_FAIL", sorte: "lien_casse", message, selecteur: link.selecteur, zone: link.zone, valeur: `${link.url} : ${final.status}` });
+      broken.push({ link, message, valeur: `${link.url} : ${final.status}` });
     } catch { /* Une absence de réponse ne prouve pas un lien cassé. */ }
   }
-  return defects;
+  let clicks = new Map<string, "navigue" | "intercepte" | "introuvable">();
+  if (broken.length && options.verifierClic) {
+    try { clicks = await options.verifierClic(broken.map(item => item.link.url)); } catch { /* Clic non vérifié : doute. */ }
+  }
+  const reasons = { intercepte: "Un script prend en charge le clic : un visiteur qui clique n'est pas envoyé vers cette adresse.",
+    introuvable: "Le lien n'a pas été retrouvé pour vérifier le clic d'un visiteur.", absent: "Le clic d'un visiteur sur ce lien n'a pas pu être vérifié." };
+  return broken.map(({ link, message, valeur }): Defaut => {
+    const click = clicks.get(link.url);
+    return { statut: click === "navigue" ? "VERIFIED_FAIL" : "SUSPECTED", sorte: "lien_casse", message, selecteur: link.selecteur, zone: link.zone, valeur,
+      ...(click === "navigue" ? {} : { raison: reasons[click ?? "absent"] }) };
+  });
 }

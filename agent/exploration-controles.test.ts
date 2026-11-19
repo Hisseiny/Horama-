@@ -6,6 +6,7 @@ import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { verifierClics } from "./src/exploration/cdp.ts";
 import { controlerPage, installerJournalConsole } from "./src/exploration/controles.ts";
 import type { CdpClient } from "./src/exploration/controles.ts";
 
@@ -37,6 +38,10 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
 <div style="transform:scale(.5);transform-origin:0 0"><button id="scaled" style="width:120px;height:24px;font-size:16px;line-height:20px;padding:0">Première ligne<br>Deuxième ligne</button></div>
 <div id="real" style="width:60px;height:20px;white-space:nowrap;background:#eee">Texte beaucoup trop long pour la boîte</div>
 <script>const few = document.getElementById("few"), range = document.createRange(); range.selectNodeContents(few); few.style.width = (range.getBoundingClientRect().width - 2) + "px"; const border = document.getElementById("border"); range.selectNodeContents(border); border.style.width = (range.getBoundingClientRect().width - 7) + "px";</script></body>`);
+    } else if (request.url === "/intercepted") {
+      response.setHeader("Content-Type", "text/html; charset=utf-8");
+      response.end(`<!doctype html><meta charset="utf-8"><main><a href="/popin-gone" style="display:none">Lien masqué</a><a href="/popin-gone" onclick="event.preventDefault()">Ouvrir la fenêtre</a><a href="/gone">Page supprimée</a><a href="/new-gone" target="_blank">Nouvel onglet</a></main>
+<script>document.addEventListener("click", event => { if (event.target.closest('a[href="/delegated-gone"]')) event.preventDefault(); });</script><main><a href="/delegated-gone">Délégué</a></main>`);
     } else if (request.url === "/many") {
       const links = (from: number, to: number) => Array.from({ length: to - from }, (_, i) => `<a href="/ok-${from + i}">Lien ${from + i}</a>`).join("");
       response.setHeader("Content-Type", "text/html; charset=utf-8");
@@ -158,6 +163,11 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
   assert.ok(!(await controlerPage(client, { maxLiens: 0 })).some(defect => defect.sorte === "texte_erreur"));
   await client.send("Runtime.evaluate", { expression: `document.querySelector('main').insertAdjacentHTML('beforeend', '<p id="error">Erreur : undefined</p>')` });
   assert.deepEqual((await controlerPage(client, { maxLiens: 0 })).filter(defect => defect.sorte === "texte_erreur").map(defect => [defect.selecteur, defect.valeur]), [["#error", "undefined"]]);
+  await client.send("Runtime.evaluate", { expression: `document.querySelector('main').insertAdjacentHTML('beforeend', '<p id="prose">The behaviour is undefined when the pointer is NULL.</p><p id="price">Prix : NaN €</p><a id="title" href="#n">The Null Object</a>')` });
+  const technical = (await controlerPage(client, { maxLiens: 0 })).filter(defect => defect.sorte === "texte_erreur");
+  assert.deepEqual(technical.map(defect => [defect.selecteur, defect.valeur, defect.statut]), [["#error", "undefined", "VERIFIED_FAIL"], ["#prose", "undefined", "SUSPECTED"], ["#price", "NaN", "VERIFIED_FAIL"], ["#title", "Null", "SUSPECTED"]]);
+  assert.match(technical[1].raison ?? "", /phrase/);
+  await client.send("Runtime.evaluate", { expression: "document.querySelectorAll('#prose,#price').forEach(element => element.remove())" });
   await client.send("Runtime.evaluate", { expression: "document.body.innerHTML = ''" });
   assert.ok(!(await controlerPage(client, { maxLiens: 0 })).some(defect => defect.sorte === "texte_erreur"));
   await navigate("/broken");
@@ -209,6 +219,21 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
   assert.deepEqual(overflows.map(defect => defect.selecteur), ["#contents", "#border", "#scaled", "#real"]);
   const before = await client.send("Runtime.evaluate", { returnByValue: true, expression: "['icon', 'card', 'few', 'ring', 'svg'].map(id => { const e = document.getElementById(id); return e.scrollWidth > e.clientWidth + 1 || e.scrollHeight > e.clientHeight + 1; })" });
   assert.deepEqual(before.result.value, [true, true, true, true, true], "l'ancienne règle les aurait signalés");
+  await client.send("Runtime.evaluate", { expression: `document.body.insertAdjacentHTML('beforeend', \`
+    <p id="clamp-visible" style="width:210px;height:60px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3">Une longue description de carte qui continue sur bien plus de trois lignes dans la petite boîte de la carte</p>
+    <div class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(1px,1px,1px,1px)"><p id="in-sr-only" style="width:40px;white-space:nowrap">Texte réservé aux lecteurs d’écran</p></div>
+    <div style="width:1px;overflow:hidden"><p id="one-pixel" style="white-space:nowrap">Texte dans une boîte d’un pixel</p></div>
+    <div style="clip-path:inset(50%)"><div id="clip-path" style="width:40px;white-space:nowrap">Texte beaucoup trop long pour la boîte</div></div>
+    <div class="hero-carousel"><div id="slide" style="width:40px;white-space:nowrap">Texte beaucoup trop long pour la boîte</div></div>
+    <div style="overflow-x:auto;width:100px;white-space:nowrap"><a id="strip" style="display:inline-block;width:40px">Texte trop long</a><span style="display:inline-block;width:300px"></span></div>
+    <div style="display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;width:100px;font:16px/20px sans-serif"><p id="clamped-child" style="margin:0;height:40px">Erste Zeile zweite Zeile dritte Zeile vierte Zeile fünfte Zeile</p></div>
+    <div aria-hidden="true"><div id="decorative" style="width:40px;white-space:nowrap">Texte beaucoup trop long pour la boîte</div></div>\`)` });
+  const intentional = await client.send("Runtime.evaluate", { returnByValue: true, expression: "['clamp-visible', 'in-sr-only', 'clip-path', 'slide'].map(id => { const e = document.getElementById(id); return e.scrollWidth > e.clientWidth + 1 || e.scrollHeight > e.clientHeight + 1; })" });
+  assert.deepEqual(intentional.result.value, [true, true, true, true], "ces textes débordent réellement de leur boîte");
+  const carousel = (await controlerPage(client, { maxLiens: 0 })).filter(defect => defect.sorte === "debordement");
+  assert.deepEqual(carousel.map(defect => [defect.selecteur, defect.statut]), [["#contents", "VERIFIED_FAIL"], ["#border", "VERIFIED_FAIL"], ["#scaled", "VERIFIED_FAIL"], ["#real", "VERIFIED_FAIL"], ["#slide", "SUSPECTED"],
+    ["#strip", "SUSPECTED"], ["#decorative", "SUSPECTED"]]);
+  assert.match(carousel[4].raison ?? "", /carrousel/); assert.match(carousel[6].raison ?? "", /décoratif/);
   await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = \`
     <style>button { width:80px; height:28px; white-space:nowrap; overflow:hidden; font:16px/20px sans-serif; padding:0; border:0 }</style>
     <button id="german">Krankenversicherungsunternehmen</button>
@@ -227,6 +252,7 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
     <div id="ellipsis-card" style="overflow:hidden;width:100px;height:80px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Krankenversicherungsunternehmen</div><img width="200" height="20" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='20'/%3E"></div>
     <div id="clipping-parent" style="overflow:hidden;width:100px;height:80px"><div style="width:400px;overflow:hidden;white-space:nowrap"><span>Krankenversicherungsunternehmen</span></div></div>
     <div id="inline-clipping-parent" style="overflow:hidden;width:100px;height:80px;white-space:nowrap"><span style="overflow:hidden">Krankenversicherungsunternehmen</span></div>
+    <div id="image-title" style="overflow:hidden;height:40px"><h1 style="overflow:hidden;height:0;padding-top:50px;margin:0;font:16px/20px sans-serif">Logo</h1></div>
   \`` });
   const clippedText = (await controlerPage(client, { maxLiens: 0 })).filter(defect => defect.sorte === "texte_rogne");
   t.diagnostic(`Textes rognés : ${clippedText.map(defect => defect.selecteur).join(", ")}`);
@@ -247,6 +273,19 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
   const first = await controlerPage(client, { maxLiens: 26 });
   assert.equal(first.filter(defect => defect.sorte === "lien_casse").length, 1);
   assert.ok(!requests.some(value => /\/ok-([0-9]|[12][0-9]) |\/loop/.test(`${value} `)), "liens de la zone principale d'abord");
+  await navigate("/intercepted");
+  const unchecked = (await controlerPage(client)).filter(defect => defect.sorte === "lien_casse");
+  assert.equal(unchecked.length, 4);
+  assert.ok(unchecked.every(defect => defect.statut === "SUSPECTED" && defect.raison), "clic non vérifié : doute");
+  requests.length = 0;
+  const clicked = (await controlerPage(client, { verifierClic: urls => verifierClics(Number(port), `${base}/intercepted`, urls) })).filter(defect => defect.sorte === "lien_casse");
+  t.diagnostic(`Clics : ${clicked.map(defect => `${defect.valeur} ${defect.statut}`).join(", ")}`);
+  assert.deepEqual(clicked.map(defect => [defect.valeur, defect.statut]), [[`${base}/popin-gone : 404`, "SUSPECTED"], [`${base}/gone : 404`, "VERIFIED_FAIL"],
+    [`${base}/new-gone : 404`, "VERIFIED_FAIL"], [`${base}/delegated-gone : 404`, "SUSPECTED"]]);
+  assert.match(clicked[0].raison ?? "", /script/);
+  assert.ok(!requests.some(value => value.startsWith("GET ") && value.endsWith("-gone") && requests.filter(other => other === value).length > 1), "le clic ne quitte pas Chrome");
+  assert.equal((await client.send("Runtime.evaluate", { expression: "location.pathname", returnByValue: true })).result.value, "/intercepted", "l'onglet du visiteur ne bouge pas");
+  assert.deepEqual(await verifierClics(Number(port), `${base}/intercepted`, [`${base}/absent`]), new Map([[`${base}/absent`, "introuvable"]]));
   await navigate("/error");
   assert.ok((await controlerPage(client)).some(defect => defect.sorte === "page_en_erreur" && defect.valeur === 500));
   await navigate("/healthy");

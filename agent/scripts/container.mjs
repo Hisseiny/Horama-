@@ -5,8 +5,9 @@ import { join } from "node:path";
 import { CHROME_FLAGS, closeChrome } from "../../automatisation/scene/scene.mjs";
 import { publicProxyChromeFlags, startPublicProxy, writePublicChromePreferences } from "../src/exploration/reseau.ts";
 import { createExplorationService } from "./exploration-service.mjs";
+import { startScreencast } from "./screencast.mjs";
 
-async function runExplorer(args, { signal, vault, output, service = false }) {
+async function runExplorer(args, { signal, vault, output, service = false, onFrame = () => {} }) {
   signal.throwIfAborted();
   const launcher = process.env.HORAMA_CHROME_LAUNCHER;
   const profile = launcher ? undefined : await mkdtemp(join(tmpdir(), "horama-chrome-"));
@@ -34,6 +35,7 @@ async function runExplorer(args, { signal, vault, output, service = false }) {
   let engine;
   let deadline;
   let ready;
+  let screencast;
   const cancel = () => {
     if (!engine?.pid) return;
     engine.kill("SIGINT");
@@ -52,7 +54,15 @@ async function runExplorer(args, { signal, vault, output, service = false }) {
     }
     signal.throwIfAborted();
     if (!ready) throw new Error("Chrome CDP indisponible.");
-    engine = spawn(process.execPath, ["agent/explorer.ts", ...args, "--chrome-port", "9333", "--reseau-public",
+    const direct = process.env.HORAMA_DIRECT !== "0";
+    if (direct) {
+      try {
+        screencast = await startScreencast(onFrame);
+      } catch { screencast?.close(); screencast = undefined; }
+    }
+    signal.throwIfAborted();
+    engine = spawn(process.execPath, [direct ? "agent/scripts/explorer-direct.mjs" : "agent/explorer.ts", ...args,
+      ...(direct && process.env.HORAMA_SANS_AGENT === "1" ? ["--sans-agent"] : []), "--chrome-port", "9333", "--reseau-public",
       "--vault", vault, "--sortie", output], { stdio: service ? "ignore" : "inherit",
       env: service ? { PATH: process.env.PATH, HOME: process.env.HOME, HOLO_BIN: process.env.HOLO_BIN,
         HAI_API_KEY: process.env.HAI_API_KEY } : process.env });
@@ -61,6 +71,7 @@ async function runExplorer(args, { signal, vault, output, service = false }) {
       engine.once("exit", code => resolve(code ?? 1));
     });
   } finally {
+    screencast?.close();
     signal.removeEventListener("abort", cancel);
     clearTimeout(deadline);
     if (chrome.exitCode === null && chrome.signalCode === null) {
@@ -91,14 +102,16 @@ async function main(args) {
   if (args.length === 1 && args[0] === "--service") {
     const port = bound(process.env.PORT, 8787, 1, 65535);
     const max = bound(process.env.HORAMA_MAX_PAGES, 8, 1, 8);
+    const clicked = bound(process.env.HORAMA_PAGES_CLIQUEES, 2, 0, 8);
     const seconds = bound(process.env.HORAMA_MAX_SECONDS, 240, 1, 240);
     const data = await mkdtemp("/data/explorations-");
     const { server, stop } = createExplorationService({ data, run: async (job, shutdown) => {
       const limit = new AbortController();
       const timeout = setTimeout(() => limit.abort(), seconds * 1000);
       try {
-        await runExplorer(["--url", job.url, "--max", String(max), "--sans-base", "--pages-cliquees", "0"],
-          { signal: AbortSignal.any([shutdown, limit.signal]), vault: join(job.directory, "vault"), output: job.directory, service: true });
+        await runExplorer(["--url", job.url, "--max", String(max), "--sans-base", "--pages-cliquees", String(clicked)],
+          { signal: AbortSignal.any([shutdown, limit.signal]), vault: join(job.directory, "vault"), output: job.directory, service: true,
+            onFrame: (buffer, at) => { job.frame = { buffer, at }; } });
       } finally {
         clearTimeout(timeout);
       }

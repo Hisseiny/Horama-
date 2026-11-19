@@ -13,7 +13,8 @@ import { libelleAction } from "./src/session.ts";
 import type { Session } from "./src/session.ts";
 
 const original = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAACgAAAAKCAYAAADGmhxQAAAAI0lEQVR4nGP4P8gBw0A7gBAYdSClYNSBlIJRB1IKRh1IKQAAxLY6GzXsph8AAAAASUVORK5CYII=", "base64");
-const changed = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAACgAAAAKCAYAAADGmhxQAAAALElEQVR4nGP4P8gBw0A7gBCAO5CBgQErHmgw8C4gAEYdSCkYdSClYNSBlAIA8KcoLbZ8MT8AAAAASUVORK5CYII=", "base64");
+const noise = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAACgAAAAKCAYAAADGmhxQAAAALElEQVR4nGP4P8gBw0A7gBCAO5CBgQErHmgw8C4gAEYdSCkYdSClYNSBlAIA8KcoLbZ8MT8AAAAASUVORK5CYII=", "base64");
+const changed = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAACgAAAAKCAYAAADGmhxQAAAAIklEQVR42mP4P8gBw5BxIAMDA1Y86sBRB45mklEHDnMHAgAgmfJUP+N1BQAAAABJRU5ErkJggg==", "base64");
 function smallPng(): Buffer {
   const chunk = (type: string, data: Buffer) => {
     const body = Buffer.concat([Buffer.from(type), data]);
@@ -379,11 +380,13 @@ test("second passage identique, puis changé et masqué par zones_ignorees", asy
   const second = await run();
   assert.equal(second.result.version, "2"); assert.equal(second.result.version_reference, "1");
   assert.equal(second.result.constats.filter(item => item.source === "comparaison").length, 0);
+  const thin = await run({ png: noise });
+  assert.equal(thin.result.constats.filter(item => item.source === "comparaison").length, 0, "une bande de 1 px est du bruit de rendu");
   const third = await run({ png: changed });
   const findings = third.result.constats.filter(item => item.source === "comparaison");
   assert.equal(findings.length, 2); assert.ok(findings.every(item => item.statut === "SUSPECTED" && item.zone));
   assert.equal(third.base.resultats[0].ecarts_visuels.length, 1);
-  for (const page of third.result.pages) writeFileSync(join(root, `vault/example-org/produit/${page.ecran}.md`), `---\necran: ${page.ecran}\nzones_ignorees: [{ x: 2, y: 2, largeur: 6, hauteur: 1 }]\n---\n`);
+  for (const page of third.result.pages) writeFileSync(join(root, `vault/example-org/produit/${page.ecran}.md`), `---\necran: ${page.ecran}\nzones_ignorees: [{ x: 2, y: 2, largeur: 6, hauteur: 4 }]\n---\n`);
   const fourth = await run({ png: changed });
   assert.equal(fourth.result.constats.filter(item => item.source === "comparaison").length, 0);
 });
@@ -419,6 +422,30 @@ test("contrôle prouvé explique Holo, hors capture et sans zone comptés honnê
   const c4 = base.resultats[0]; assert.equal(c4.statut, "VERIFIED_FAIL"); assert.equal(c4.niveau_de_preuve, "releve");
   assert.deepEqual(c4.valeurs, { "accueil.debordement 1": "200 > 100", "accueil.texte-erreur 2": "undefined" });
   assert.equal(c4.calcul, "Le texte dépasse. ; Un texte d'erreur est affiché."); assert.deepEqual(c4.ecarts_visuels, []);
+});
+
+test("lien au clic non vérifié reste un doute et un même doute Holo répété sur chaque page compte une fois", async () => {
+  const options: unknown[] = [];
+  const { result, base } = await run({ deps: {
+    controler: async (_client, option) => { options.push(option); return [{ statut: "SUSPECTED", sorte: "lien_casse", message: "Le lien interne renvoie HTTP 404.", selecteur: "a", valeur: "https://example.org/popin : 404",
+      zone: { x: 10, y: 10, largeur: 100, hauteur: 30 }, raison: "Un script prend en charge le clic : un visiteur qui clique n'est pas envoyé vers cette adresse." }]; },
+    holo: async () => ({ status: "SUSPECTED", model: "holo4-27b", durationMs: 2, usage: null, cost_usd: null, findings: [
+      { status: "SUSPECTED", kind: "cut-off-text", sentence: "Logo.", zone: { x: 500, y: 400, largeur: 60, hauteur: 30 } }] }),
+  } });
+  assert.ok(options.every(option => typeof (option as { verifierClic?: unknown }).verifierClic === "function"));
+  const links = result.constats.filter(item => item.sorte === "lien-casse");
+  assert.equal(links.length, 2);
+  assert.ok(links.every(item => item.statut === "SUSPECTED" && /script/.test(item.raison ?? "")));
+  const visuals = result.constats.filter(item => item.source === "holo");
+  assert.equal(visuals.length, 2);
+  assert.equal(visuals.filter(item => !item.explique_par).length, 1);
+  assert.equal(visuals.find(item => item.explique_par)?.explique_par, visuals.find(item => !item.explique_par)?.id);
+  assert.equal(result.totaux.defauts, 0); assert.equal(result.totaux.doutes, 3);
+  assert.ok(base.resultats.every(c4 => c4.statut === "SUSPECTED" && c4.niveau_de_preuve === "aucun"));
+  assert.ok(base.resultats.every(c4 => c4.ecarts_visuels.some(ecart => ecart.description.startsWith("Le lien interne"))));
+  const holoOnly = await run({ deps: { controler: async () => [], holo: async () => ({ status: "SUSPECTED", model: "holo4-27b", durationMs: 2, usage: null, cost_usd: null, findings: [
+    { status: "SUSPECTED", kind: "cut-off-text", sentence: "Logo.", zone: { x: 500, y: 400, largeur: 60, hauteur: 30 } }] }) } });
+  assert.ok(holoOnly.result.pages.every(page => page.statut === "SUSPECTED"), "un doute rattaché à une autre page n'est pas une réussite");
 });
 
 test("contrôle en échec, Holo hors délai et session interrompue", async () => {
