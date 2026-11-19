@@ -1,6 +1,6 @@
 # Business model et go-to-market
 
-Décidé par Noé le jeudi 19/11/2026, pour les slides 7 (business model), 8 (go-to-market) et 11 (coût de run) du deck de vendredi. Les prix sont des hypothèses : aucun client ne les a validés. Une valeur inconnue est écrite « à mesurer ».
+Décidé par Noé le jeudi 19/11/2026, pour les slides 7 (business model), 8 (go-to-market) et 11 (coût de run) du deck de vendredi. Les prix ont reçu un avis favorable du CTO de Troov (rapporté par Noé le 19/11, sans citation écrite) ; aucun client ne les a encore payés. Une valeur inconnue est écrite « à mesurer ».
 
 ## Un produit, deux cibles
 
@@ -12,9 +12,9 @@ Horama est un seul produit. Il a deux cibles prioritaires, qui ont le même prob
 | Rythme | Une mise en production presque chaque semaine | Il publie dès qu'il a une idée |
 | Douleur | Une amélioration sur une page en dégrade une autre, et personne ne regarde les autres pages | Un lien mort ou un texte coupé reste en ligne jusqu'à ce qu'un visiteur tombe dessus (le 404 des portes ouvertes d'Eugenia) |
 | Ce qu'il veut d'Horama | Une réponse sur sa PR avant la mise en production, et une doc qui reste juste | Un contrôle après chaque publication, sans écrire un seul test |
-| Combien il paierait | à mesurer | à mesurer |
+| Combien il paierait | Avis favorable du CTO de Troov sur la grille (Noé, 19/11) | à mesurer |
 
-Source des deux cibles : Noé, 19/11. La persona du marketeur qui vibe-code n'a pas encore sa fiche : elle s'appuie aujourd'hui sur le cas réel d'Eugenia ([persona](persona-responsable-site-eugenia.md)).
+Source des deux cibles : Noé, 19/11. Le marketeur qui vibe-code, c'est la responsable du site d'Eugenia ([persona](persona-responsable-site-eugenia.md)).
 
 ## L'unité facturée : le passage
 
@@ -88,7 +88,6 @@ Un seul canal pour vendredi :
 
 | Quoi | Pourquoi | Qui |
 |---|---|---|
-| Ce que le CTO de Troov paierait, et ce qui lui manque | Seul avis client possible avant vendredi | Noé |
 | Le coût d'un passage au-delà de 8 pages, avec le code actuel de `dev` | Un vrai site en a souvent plus ; c'est lui qui fixe le vrai pire cas | Ali |
 | Le coût du service Railway | Payant depuis le 19/11 | Ali |
 | Comment compter les 3 passages gratuits sans compte | Sans compte, rien ne les compte : compte léger, ou limite par extension installée | Nathan, Noé |

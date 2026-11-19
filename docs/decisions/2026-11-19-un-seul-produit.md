@@ -22,4 +22,4 @@ Le code et l'architecture : les deux entrées existent comme avant (`automatisat
 ## Ce qui reste à faire
 
 - Les libellés visibles qui parlent encore de deux modes dans la page d'accueil (`accueil/`), la tour de contrôle (`automatisation/tour/`) et l'extension : à décider par leur propriétaire (Nathan).
-- La fiche persona du marketeur qui vibe-code (Noé).
+- La fiche persona du marketeur qui vibe-code : c'est la responsable du site d'Eugenia ([persona](../../pitch/persona-responsable-site-eugenia.md)), décision de Noé du 19/11.
