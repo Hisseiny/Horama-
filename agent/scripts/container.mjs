@@ -20,7 +20,7 @@ async function runExplorer(args, { signal, vault, output, service = false, onFra
     throw error;
   }
   const flags = [
-    "--headless=new", "--no-sandbox", "--disable-dev-shm-usage",
+    "--headless=new", "--no-sandbox", "--disable-dev-shm-usage", "--lang=fr-FR",
     "--remote-debugging-address=127.0.0.1", "--remote-debugging-port=9333",
     ...publicProxyChromeFlags(proxy.port), ...CHROME_FLAGS, "about:blank",
   ];
@@ -103,7 +103,7 @@ async function main(args) {
     const port = bound(process.env.PORT, 8787, 1, 65535);
     const max = bound(process.env.HORAMA_MAX_PAGES, 8, 1, 8);
     const clicked = bound(process.env.HORAMA_PAGES_CLIQUEES, 2, 0, 8);
-    const seconds = bound(process.env.HORAMA_MAX_SECONDS, 240, 1, 240);
+    const seconds = bound(process.env.HORAMA_MAX_SECONDS, 240, 1, 420);
     const data = await mkdtemp("/data/explorations-");
     const { server, stop } = createExplorationService({ data, run: async (job, shutdown) => {
       const limit = new AbortController();

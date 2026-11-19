@@ -4,7 +4,7 @@ import { spawn } from "node:child_process";
 import { createSocket } from "node:dgram";
 import { createServer } from "node:http";
 import type { Server } from "node:http";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { connect } from "node:net";
 import type { Socket } from "node:net";
 import { randomBytes } from "node:crypto";
@@ -113,6 +113,16 @@ test("the proxy forwards public sites and refuses private targets for plain HTTP
     assert.match(await proxied(open.port, `CONNECT site-public.test:${secret.port} HTTP/1.1\r\n\r\n`), /^HTTP\/1\.1 200 Connection Established/);
     assert.deepEqual(secret.hits, ["GET /page"]);
   } finally { await guard.close(); await open.close(); await close(secret.server); }
+});
+
+test("profil Chrome public : langue française sans perdre la protection WebRTC", () => {
+  const profile = mkdtempSync(join(tmpdir(), "horama-language-"));
+  try {
+    writePublicChromePreferences(profile);
+    const preferences = JSON.parse(readFileSync(join(profile, "Default", "Preferences"), "utf8"));
+    assert.equal(preferences.intl.accept_languages, "fr-FR,fr");
+    assert.equal(preferences.webrtc.ip_handling_policy, "disable_non_proxied_udp");
+  } finally { rmSync(profile, { recursive: true, force: true }); }
 });
 
 async function visit(secretPort: number, udpPort: number, flags: string[]) {
