@@ -205,8 +205,9 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
       if (readFinalCost) {
         try {
           const final = await h("GET", `/sessions/${id}/changes?from_index=${next}&wait_for_seconds=0`, undefined, true);
+          const stopped = TERMINAL.includes(final?.status) || final?.status === "idle";
           const cost = final?.metrics?.total_cost;
-          metrics = typeof cost === "number" && Number.isFinite(cost) && cost >= 0 ? { total_cost: cost } : null;
+          metrics = stopped && typeof cost === "number" && Number.isFinite(cost) && cost >= 0 ? { total_cost: cost } : null;
           metricsComplete = true;
         } catch { metrics = null; }
       }

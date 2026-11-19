@@ -135,6 +135,49 @@ for (const failClose of [false, true]) {
   });
 }
 
+for (const failure of ["base", "rapport"]) {
+  test(`fin autonome : échec de sauvegarde finale ${failure} après le dernier relevé`, async () => {
+    const base = new BaseMemoire();
+    let closed = false, writes = 0;
+    base.terminerPassage = async report => {
+      writes++;
+      if (failure === "base") throw new Error("Base indisponible");
+      base.rapports.set(report.passage.id, structuredClone(report));
+    };
+    const { result } = await run({ site: "persistence", deps: {
+      base,
+      session: async input => {
+        await input.onCreated("persistence");
+        let resolveStop!: () => void;
+        const stopped = new Promise<void>(resolve => { resolveStop = resolve; });
+        return { id: "persistence", stop: async () => { closed = true; resolveStop(); },
+          confirmStopped: async () => {
+            if (failure === "rapport") {
+              const folder = join(root, "vault", "persistence");
+              mkdirSync(folder, { recursive: true });
+              writeFileSync(join(folder, "passages"), "Écriture du rapport bloquée");
+            }
+          },
+          fin: (async () => {
+            for (const step of input.consigne.course) await input.onTool("relever", { ecran: step.ecran, vue: "defaut" });
+            await stopped;
+            return { id: "persistence", muted: false, cout_usd: 0, etapes: 2 };
+          })() };
+      },
+      runtime: { relever: async ecran => ({ png: original, texte: "Page", url_page: ecran === "accueil" ? "https://example.org/" : "https://example.org/faq", largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture" }), navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
+    } });
+    assert.equal(closed, true);
+    assert.equal(writes, 1);
+    assert.ok(result.pages.every(page => page.etat === "visitee"));
+    assert.equal(result.etat, "interrompu");
+    assert.equal(result.agents[0].etat, "tombe");
+    assert.match(result.agents[0].raison!, failure === "base" ? /sauvegarde finale/ : /rapport final/);
+    const saved = JSON.parse(readFileSync(join(root, "out", "exploration.json"), "utf8"));
+    assert.equal(saved.etat, "interrompu");
+    assert.equal(saved.agents[0].etat, "tombe");
+  });
+}
+
 test("fin autonome : plafond pendant la fermeture sans résolution de fin au stop", async () => {
   const controller = new AbortController();
   let stopped = false;
@@ -794,6 +837,8 @@ test("consigne : lecture bornée, liens sur place, remontée moyenne facultative
   assert.match(consigne.instructions, /Ne clique jamais vers une page déjà relevée dans ce passage/);
   assert.match(task, /Dès le dernier relever accepté, appelle immédiatement terminer.*sans navigation, scroll, geste ni attente/);
   assert.match(consigne.instructions, /ne remplis et ne soumets aucun formulaire, ne te connecte jamais/);
+  assert.match(consigne.instructions, /Refuser \/ Tout refuser \/ Continuer sans accepter \/ Reject all \/ Ablehnen/);
+  assert.match(consigne.instructions, /REFUSE les cookies, ne les accepte jamais/);
   const schema = consigne.tools[0].input_schema as { required: string[]; properties: Record<string, unknown> };
   assert.deepEqual(schema.required, ["ecran", "vue"]);
   assert.ok("raison_go_to" in schema.properties);
@@ -1117,7 +1162,7 @@ test("option douce transmise au repli CDP", async () => {
   assert.equal(scrolls.length, 4);
 });
 
-test("capture stabilisée sans refus de cookies, client partagé puis fermé", async () => {
+test("refus des cookies avant capture, client partagé puis fermé", async () => {
   const calls: string[] = [];
   const { result } = await run({ deps: {
     connecter: async () => { calls.push("connect"); return { on() {}, close() { calls.push("close"); }, async send(_method, params) {
@@ -1131,7 +1176,7 @@ test("capture stabilisée sans refus de cookies, client partagé puis fermé", a
     }, navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
   } });
   assert.deepEqual(calls.slice(0, 5), ["connect", "cookies", "capture", "controls", "close"]);
-  assert.equal(result.pages[0].cookies, "aucune");
+  assert.equal(result.pages[0].cookies, "refusee");
 });
 
 test("connexion CDP indisponible : capture conservée et contrôles non conclus", async () => {
@@ -1141,7 +1186,7 @@ test("connexion CDP indisponible : capture conservée et contrôles non conclus"
   assert.equal(result.pages[0].statut, "INCONCLUSIVE");
 });
 
-test("bannière tardive : masquage revérifié avant capture, repli en cas d'erreur", async () => {
+test("bannière tardive : refus puis masquage de repli avant capture, repli en cas d'erreur", async () => {
   for (const fail of [false, true]) {
     const { result } = await run({ deps: {
       connecter: async () => ({ on() {}, close() {}, async send(_method, params) {
@@ -1158,7 +1203,7 @@ test("bannière tardive : masquage revérifié avant capture, repli en cas d'err
       }, navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
     } });
     assert.equal(result.totaux.pages_visitees, 2);
-    assert.ok(result.pages.every(page => page.cookies === "aucune"));
+    assert.ok(result.pages.every(page => page.cookies === (fail ? "aucune" : "refusee")));
     assert.ok(result.pages.every(page => page.statut === (fail ? "INCONCLUSIVE" : "PASS")));
     if (fail) assert.ok(result.constats.every(finding => finding.statut === "INCONCLUSIVE" && finding.raison?.includes("consentement")));
   }
@@ -1188,7 +1233,7 @@ test("onglets multiples : prépare et contrôle l'onglet redirigé avant capture
   } });
   assert.equal(controls, 2);
   assert.ok(connected.includes("https://example.org/help"));
-  assert.equal(result.pages[1].cookies, "aucune");
+  assert.equal(result.pages[1].cookies, "refusee");
   assert.equal(result.pages[1].http, 200);
 });
 

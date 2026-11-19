@@ -38,7 +38,7 @@ for (const duringTool of [false, true]) {
   });
 }
 
-for (const finalCost of [0.202, 0, null, "error"] as const) {
+for (const finalCost of [0.202, 0, null, undefined, "error"] as const) {
   test(`coût final après arrêt local : ${finalCost}`, async () => {
     let reads = 0;
     let running: Awaited<ReturnType<ReturnType<typeof creerSessionH>>>;
@@ -51,7 +51,7 @@ for (const finalCost of [0.202, 0, null, "error"] as const) {
         if (path.endsWith("wait_for_seconds=0")) {
           reads++;
           if (finalCost === "error") throw new Error("Offline");
-          return json({ metrics: { total_cost: finalCost } });
+          return json({ status: "completed", metrics: { total_cost: finalCost } });
         }
         return json({ metrics: { total_cost: 0.001 }, pending_tool_calls: [{ id: "last", tool_name: "relever" }] });
       } });
@@ -59,6 +59,29 @@ for (const finalCost of [0.202, 0, null, "error"] as const) {
     const result = await running.fin;
     assert.equal(reads, 1);
     assert.equal(result.cout_usd, typeof finalCost === "number" ? finalCost : null);
+  });
+}
+
+for (const status of ["completed", "failed", "timed_out", "interrupted", "idle", "running", "queued", "pending", undefined]) {
+  test(`coût après arrêt local : état distant ${status}`, async () => {
+    let reads = 0;
+    let running: Awaited<ReturnType<ReturnType<typeof creerSessionH>>>;
+    const session = creerSessionH({ key: "test-key", navigateur: async () => ({ channel: "fake", stop() {} }), signaler() {},
+      requete: async (url, init) => {
+        const path = String(url);
+        if (path.endsWith("/sessions")) return json({ id: "cost-status", status: { status: "running" } });
+        if (init?.method === "DELETE") return json({});
+        if (path.endsWith("/share")) return json({ share_url: "https://example.org/replay" });
+        if (path.endsWith("wait_for_seconds=0")) {
+          reads++;
+          return json({ status, metrics: { total_cost: 0.001 } });
+        }
+        return json({ status: "running", metrics: { total_cost: 0.0001 }, pending_tool_calls: [{ id: "last", tool_name: "relever" }] });
+      } });
+    running = await session({ ...defaults(), onTool: async () => { await running.stop?.(); return "Acquis"; } });
+    const result = await running.fin;
+    assert.equal(reads, 1);
+    assert.equal(result.cout_usd, status && ["completed", "failed", "timed_out", "interrupted", "idle"].includes(status) ? 0.001 : null);
   });
 }
 

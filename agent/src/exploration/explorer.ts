@@ -11,7 +11,7 @@ import type { Consigne } from "../consigne.ts";
 import { creerCoureur } from "../coureur.ts";
 import type { ReleveCapture } from "../coureur.ts";
 import type { ResultatSession, Session, SessionEnCours } from "../session.ts";
-import { captureDefect, connecterCdp, hideCaptureOverlays, waitForVisibleStable, readLinks, verifierClics } from "./cdp.ts";
+import { captureDefect, connecterCdp, dismissCookies, hideCaptureOverlays, prepareCapture, readLinks, verifierClics } from "./cdp.ts";
 import type { PageLink } from "./cdp.ts";
 import type { ExplorationCdp } from "./cdp.ts";
 import { controlerPage } from "./controles.ts";
@@ -84,7 +84,7 @@ export function construireExploration(pages: Array<{ ecran: string; url: string 
   const course = pages.map((page, index) => ({ ecran: page.ecran, vue: "defaut", key: `${page.ecran}--defaut`, part: index + 1,
     test_id: tests[index].id, address: page.url, here: `location.href === ${JSON.stringify(page.url)}` }));
   return { tests, course, dropped: [], start: pages[0].url,
-    instructions: [...COURSE_RULES, "Ne clique sur aucun bandeau de consentement : le relevé le masquera temporairement sans modifier le choix du visiteur.", "Simple visiteur : ne remplis et ne soumets aucun formulaire, ne te connecte jamais. N'ouvre aucun onglet ni fenêtre.",
+    instructions: [...COURSE_RULES, "Si un bandeau de cookies propose Refuser / Tout refuser / Continuer sans accepter / Reject all / Ablehnen, REFUSE les cookies, ne les accepte jamais. Sans refus explicite, laisse le bandeau : il sera masqué temporairement pour Holo au relevé.", "Simple visiteur : ne remplis et ne soumets aucun formulaire, ne te connecte jamais. N'ouvre aucun onglet ni fenêtre.",
       "N'utilise jamais la commande retour du navigateur (back). Pour changer de page, clique toujours un lien visible ; go_to reste le dernier recours prévu par la consigne. Ne clique jamais vers une page déjà relevée dans ce passage, même pour retrouver le menu.",
       `Reste sur le site ${new URL(pages[0].url).origin} : ne suis aucun lien vers un autre domaine ou sous-domaine. Les adresses avec et sans www. sont le même site et leurs redirections sont autorisées. Si tu arrives sur un autre site, tu es ramené sur le site.`].join("\n"),
     task: ["Nouveau passage : aucune page n'a encore été relevée dans cette session. La page déjà ouverte ne prouve aucun avancement. Commence à la partie 1, même si le navigateur affiche une partie ultérieure.", ...pages.map((page, index) => `Partie ${index + 1} : ${index === 0
@@ -325,6 +325,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
       ecarts_visuels: findings.flatMap(item => (item.source !== "controle" || (item.statut === "SUSPECTED" && item.capture === `captures/${page.ecran}.png`)) && !item.explique_par && item.zone && (item.statut === "PASS" || item.statut === "SUSPECTED") ? [{ id: item.id, ecran: item.ecran, vue: item.vue, description: item.description, zone: item.zone, statut: item.statut, ...(item.decision_id ? { decision_id: item.decision_id } : {}) }] : []),
       captures: page.capture?.url ? [page.capture.url] : [], ...(replayUrl ? { replay_url: replayUrl } : {}), ...(reason ? { raison: reason } : {}) };
   };
+  let finalizationFailure: string | null = null;
   const wrapped: BasePassages = {
     async insererPassage(passage) { await base.insererPassage(passage); save(); },
     async insererEvenement(event) { agent.session_id = event.session_id; agent.etat = "en_cours"; save(); await base.insererEvenement(event); },
@@ -346,14 +347,18 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
     },
     async enregistrerResultat(result) { await base.enregistrerResultat(result); save(); },
     async terminerPassage(result) {
-      await base.terminerPassage(result);
-      const costs = [...report.agents.flatMap(item => item.cout_usd === null ? [] : [item.cout_usd]),
-        ...report.pages.flatMap(page => page.holo?.cout_usd == null ? [] : [page.holo.cout_usd])];
-      report.cout_usd = report.agents.some(item => item.cout_usd === null) ? null : costs.length ? costs.reduce((sum, cost) => sum + cost, 0) : null; save();
+      try {
+        await base.terminerPassage(result);
+        const costs = [...report.agents.flatMap(item => item.cout_usd === null ? [] : [item.cout_usd]),
+          ...report.pages.flatMap(page => page.holo?.cout_usd == null ? [] : [page.holo.cout_usd])];
+        report.cout_usd = report.agents.some(item => item.cout_usd === null) ? null : costs.length ? costs.reduce((sum, cost) => sum + cost, 0) : null; save();
+      } catch (error) {
+        finalizationFailure = "La sauvegarde finale du passage a échoué.";
+        throw error;
+      }
     },
   };
   const returned = { ...report, navigation };
-  let finalizationFailure: string | null = null;
   let autoCompleted = false;
   try {
     if (blocage) {
@@ -584,7 +589,11 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
             if (owner.replay_url) test.replay_url = owner.replay_url;
           }
         }
-        return ecrireRapportPassage(target, passage, results);
+        try { return ecrireRapportPassage(target, passage, results); }
+        catch (error) {
+          finalizationFailure = "L'écriture du rapport final dans le vault a échoué.";
+          throw error;
+        }
       },
       relever: (ecran, vue, hookSignal) => diagnosticReleve(ecran, async () => {
         const page = pages.find(page => page.ecran === ecran);
@@ -610,7 +619,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
           }
           const reason = await renderedBlock(client);
           if (reason) { inaccessible = reason; markRenderedBlock(page, reason); throw new Error(reason); }
-          await client.send("Runtime.evaluate", { expression: `(${waitForVisibleStable.toString()})()`, awaitPromise: true });
+          page.cookies = await prepareCapture(client);
         } catch { /* Les contrôles signalent une connexion indisponible. */ }
         if (inaccessible) { hookSignal?.removeEventListener("abort", close); close(); throw new Error(inaccessible); }
         let capture: ReleveCapture;
@@ -618,7 +627,12 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
         let captureFailed = false;
         const restorations: Array<() => Promise<void>> = [];
         const hideOverlays = async () => {
-          try { if (client) restorations.push(await hideCaptureOverlays(client, message => deps.log?.(`${ecran} : ${message}`))); }
+          try {
+            if (client) {
+              if (await dismissCookies(client)) page.cookies = "refusee";
+              restorations.push(await hideCaptureOverlays(client, message => deps.log?.(`${ecran} : ${message}`)));
+            }
+          }
           catch { consentFailed = true; }
         };
         try {

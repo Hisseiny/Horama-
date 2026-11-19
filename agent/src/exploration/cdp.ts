@@ -10,6 +10,9 @@ export function maskConsentBanners() {
       || rect.width <= 0 || rect.height <= 0 || rect.height > innerHeight * 0.6 || rect.right <= 0 || rect.left >= innerWidth
       || rect.bottom <= 0 || rect.top >= innerHeight || Math.abs(rect.top) > 12 && Math.abs(rect.bottom - innerHeight) > 12) continue;
     if (!/cookie|consent|privacy|confidentialit|datenschutz|einwilligung/i.test(element.innerText || element.textContent || "")) continue;
+    const controls = element.querySelectorAll<HTMLElement>('button, [role="button"], a');
+    if (![...controls].some(control => /\b(?:accepter|refuser|parametrer|personnaliser|autoriser|j['’]accepte|accept|reject|decline|manage|customize|preferences|allow|agree|akzeptieren|ablehnen|einstellungen|zustimmen|erlauben)\b/i.test(
+      [control.innerText || control.textContent, control.getAttribute("aria-label"), control.getAttribute("title")].join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "")))) continue;
     saved.push({ element, value: element.style.getPropertyValue("visibility"), priority: element.style.getPropertyPriority("visibility") });
     element.style.setProperty("visibility", "hidden", "important");
   }
@@ -43,15 +46,12 @@ export async function hideCaptureOverlays(client: ExplorationCdp, log: (message:
 
 export function refuseCookies(): boolean {
   const normalize = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase().replace(/\s+/g, " ");
-  const refusals = new Set(["tout refuser", "refuser", "refuser tout", "continuer sans accepter", "reject all", "reject", "decline", "deny", "only necessary", "necessary only", "necessaires uniquement", "uniquement les necessaires", "reject all cookies", "refuser tous les cookies"]);
-  const candidates: Array<{ element: HTMLElement; refusal: boolean }> = [];
+  const refusals = new Set(["tout refuser", "refuser", "refuser tout", "continuer sans accepter", "reject all", "reject", "decline", "deny", "only necessary", "necessary only", "necessaires uniquement", "uniquement les necessaires", "reject all cookies", "refuser tous les cookies", "ablehnen", "alle ablehnen", "nur notwendige", "nur notwendige cookies"]);
   for (const element of document.querySelectorAll<HTMLElement>('button, [role="button"], a')) {
     const text = normalize(element.innerText || element.textContent || "");
     const labels = [text, normalize(element.getAttribute("aria-label") ?? ""), normalize(element.getAttribute("title") ?? "")];
-    if (labels.some(label => /accept|autoriser|allow|agree/.test(label.replace("continuer sans accepter", "")))) continue;
-    const refusal = labels.some(label => refusals.has(label));
-    const closure = /^(?:fermer|close|×|✕)$/.test(text) || labels.slice(1).some(label => /\b(?:fermer|close)\b/.test(label));
-    if (!refusal && !closure) continue;
+    if (labels.some(label => /accept|autoriser|allow|agree|akzeptier|zustimm/.test(label.replace("continuer sans accepter", "")))) continue;
+    if (!labels.some(label => refusals.has(label))) continue;
     const rect = element.getBoundingClientRect(), style = getComputedStyle(element);
     if (!rect.width || !rect.height || rect.bottom <= 0 || rect.top >= innerHeight || rect.right <= 0 || rect.left >= innerWidth || style.visibility !== "visible" || style.display === "none") continue;
     let visible = true;
@@ -63,18 +63,14 @@ export function refuseCookies(): boolean {
     if (element instanceof HTMLButtonElement && element.type === "submit" && element.form) continue;
     let parent = element.parentElement;
     while (parent && parent !== document.body && parent !== document.documentElement) {
-      if (!refusal && (parent.matches('main,nav,[role="main"],[role="navigation"]') || parent.querySelector('main,nav,[role="main"],[role="navigation"]'))) break;
-      if (/cookie|consent|rgpd|gdpr|privacy|confidentialit/.test(normalize([parent.textContent, parent.id, parent.className, parent.getAttribute("aria-label")].join(" ")))) {
-        candidates.push({ element, refusal });
-        break;
+      if (/cookie|consent|rgpd|gdpr|privacy|confidentialit|datenschutz|einwilligung/.test(normalize([parent.textContent, parent.id, parent.className, parent.getAttribute("aria-label")].join(" ")))) {
+        element.click();
+        return true;
       }
-      if (!refusal && (parent.matches('dialog,[role="dialog"],[role="alertdialog"],[aria-modal="true"]') || ["fixed", "sticky"].includes(getComputedStyle(parent).position))) break;
       parent = parent.parentElement;
     }
   }
-  const candidate = candidates.find(item => item.refusal) ?? candidates[0];
-  candidate?.element.click();
-  return !!candidate;
+  return false;
 }
 
 export async function dismissCookies(client: ExplorationCdp): Promise<boolean> {
