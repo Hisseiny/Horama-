@@ -3,7 +3,7 @@ import { after, before, test } from "node:test";
 import { creerFauxService } from "./faux-service.mjs";
 
 const index = { format: "horama-passages-1", passages: [{ passage: "p1", constats: [{ id: "c1", statut: "VERIFIED_FAIL" }, { id: "c2", statut: "VERIFIED_FAIL" }] }] };
-const vault = [{ chemin: "tests/admissions.md", contenu: "---\nid: admissions\nstatut: propose\n---\n\n## Task\nancien\n\n## Verification\nancienne\n" }];
+const vault = [{ chemin: "tests/admissions.md", contenu: "---\nid: admissions\nstatut: propose\n---\n\n## Task\nancien\n\n## Verification\nancienne\n\n```regles\n[]\n```\n" }];
 let t = 1_000_000;
 const serveur = creerFauxService({ maintenant: () => t, index, vault });
 let base;
@@ -67,7 +67,7 @@ test("test accepté puis relu, modifié, inconnu", async () => {
   assert.match(note, /accepte_par: Équipe Horama/);
   assert.equal((await appel("/tour/test", { jeton, corps: { test: "admissions", action: "modifier", task: "neuve", verification: "nouvelle" } })).status, 200);
   note = (await donnees()).vault.find((n) => n.chemin === "tests/admissions.md").contenu;
-  assert.match(note, /## Task\nneuve\n\n## Verification\nnouvelle\n/);
+  assert.match(note, /## Task\nneuve\n\n## Verification\nnouvelle\n\n```regles\n\[\]\n```\n/);
   assert.equal((await appel("/tour/test", { jeton, corps: { test: "inconnu", action: "refuser" } })).status, 404);
 });
 

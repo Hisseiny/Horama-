@@ -1,18 +1,21 @@
-// What the three screens of the tower share: the shell of the prototype of Axil (logo, sidebar, mascot), stripped of
+// What the screens of the tower share: the shell of the prototype of Axil (logo, sidebar, mascot), stripped of
 // everything that was an example (no example account, no plan, no « agent disponible »), with the team account of the
-// service at its foot (#238), and the capture of a finding with the sign of the charter on its zone.
-import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+// service at its foot (#238), the capture of a finding with the sign of the charter on its zone, and a minimal reading
+// of the Markdown of the notes of the vault.
+import { Fragment, useEffect, useMemo, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { Icon } from "../../interface/screen-11-1/Icons";
 import { poserDoute, tracerDefaut } from "../trait.js";
-import { SESSION_EVENT, oublierSession, sessionBrute, type Chargement, type Constat, type Decision, type Passage, type Session } from "../donnees";
+import { SESSION_EVENT, enAttente, oublierSession, sessionBrute, testsDuVault, type Chargement, type Constat, type Decision, type Passage, type Session } from "../donnees";
 
-export type Route = { ecran: "passages" | "rapport" | "relire" | "connexion"; cle?: string };
+export type Route = { ecran: "passages" | "rapport" | "relire" | "connexion" | "couverture" | "tests" | "direct" | "comparer" | "doc"; cle?: string };
 
+// #<ecran> or #<ecran>/<cle>: the key names a passage (rapport, relire), a test (tests) or a page (comparer).
 export function lireRoute(): Route {
   const [ecran, ...reste] = window.location.hash.replace(/^#/, "").split("/");
-  if (ecran === "rapport" && reste.length) return { ecran: "rapport", cle: decodeURIComponent(reste.join("/")) };
-  if (ecran === "connexion") return { ecran: "connexion" };
-  if (ecran === "relire") return reste.length ? { ecran: "relire", cle: decodeURIComponent(reste.join("/")) } : { ecran: "relire" };
+  const cle = reste.length ? decodeURIComponent(reste.join("/")) : undefined;
+  if (ecran === "rapport" && cle) return { ecran: "rapport", cle };
+  if (ecran === "connexion" || ecran === "couverture" || ecran === "direct" || ecran === "doc") return { ecran };
+  if (ecran === "relire" || ecran === "tests" || ecran === "comparer") return cle ? { ecran, cle } : { ecran };
   return { ecran: "passages" };
 }
 
@@ -67,9 +70,13 @@ const aRelire = (data: Chargement | null) => (data ? data.passages.flatMap((p) =
 export function Sidebar({ route, data }: { route: Route; data: Chargement | null }) {
   const session = useSession();
   const sites = data ? [...new Set(data.passages.map((p) => p.site).filter(Boolean))] : [];
+  // The order of the prototype. The screens it reaches by a link (11.3, 11.5 from the passages; 11.7 from « À relire »)
+  // light the item they come from.
   const items = [
-    { icon: "clock" as const, label: "Passages et rapports", hash: "", active: route.ecran !== "relire" },
-    { icon: "document" as const, label: "À relire", hash: "relire", active: route.ecran === "relire", count: aRelire(data) },
+    { icon: "layers" as const, label: "Couverture", hash: "couverture", active: route.ecran === "couverture" },
+    { icon: "check" as const, label: "Tests à valider", hash: "tests", active: route.ecran === "tests", count: testsDuVault(data?.vault ?? null).filter(enAttente).length, alert: false },
+    { icon: "clock" as const, label: "Passages et rapports", hash: "", active: ["passages", "rapport", "direct", "comparer"].includes(route.ecran) },
+    { icon: "document" as const, label: "À relire", hash: "relire", active: route.ecran === "relire" || route.ecran === "doc", count: aRelire(data), alert: true },
   ];
   return (
     <aside className="sidebar">
@@ -91,7 +98,7 @@ export function Sidebar({ route, data }: { route: Route; data: Chargement | null
               onClick={() => (window.location.hash = item.hash)}>
               <Icon name={item.icon} />
               <span>{item.label}</span>
-              {item.count !== undefined && item.count > 0 && <span className="nav-count is-alert">{item.count}</span>}
+              {item.count !== undefined && item.count > 0 && <span className={`nav-count${item.alert ? " is-alert" : ""}`}>{item.count}</span>}
             </button>
           ))}
         </nav>
@@ -109,6 +116,7 @@ export function Sidebar({ route, data }: { route: Route; data: Chargement | null
           )
           : <a className="theme-toggle tour-connexion" href="#connexion"><Icon name="arrow" /><span>Se connecter</span></a>}
         {data?.source && <p className="tour-source">Données : {data.source === "service" ? "service Horama" : "GitHub (service injoignable)"}</p>}
+        {data && <p className="tour-source">Vault : {data.vaultSource ?? "illisible"}</p>}
       </div>
     </aside>
   );
@@ -174,4 +182,82 @@ export function Statut({ genre }: { genre: Constat["genre"] }) {
 export function Erreurs({ data }: { data: Chargement | null }) {
   if (!data?.erreurs.length) return null;
   return <div className="tour-erreurs" role="status">{data.erreurs.map((e) => <p key={e}>{e}</p>)}</div>;
+}
+
+// The note of the vault that describes a page of the clone (its field « url »), or null.
+export const notePourPage = <T extends { champs: Record<string, string> }>(notes: T[], page: string) => notes.find((n) => n.champs.url === page) ?? null;
+
+// Markdown, the little the notes of the vault use, drawn as React elements (no HTML injected): titles, paragraphs,
+// lists, tables, code blocks, `code`, **bold**, [[link]] (its name) and [text](address).
+function enLigne(texte: string): ReactNode[] {
+  return texte.split(/(`[^`]+`|\*\*[^*]+\*\*|\[\[[^\]]+\]\]|\[[^\]]+\]\([^)\s]+\))/g).map((bout, i) => {
+    if (/^`.+`$/.test(bout)) return <code key={i}>{bout.slice(1, -1)}</code>;
+    if (/^\*\*.+\*\*$/.test(bout)) return <strong key={i}>{bout.slice(2, -2)}</strong>;
+    if (/^\[\[.+\]\]$/.test(bout)) return <em key={i}>{bout.slice(2, -2).split("|").pop()}</em>;
+    const lien = /^\[(.+)\]\((.+)\)$/.exec(bout);
+    if (lien) return /^https?:\/\//.test(lien[2]) ? <a key={i} href={lien[2]} target="_blank" rel="noopener">{lien[1]}</a> : <Fragment key={i}>{lien[1]}</Fragment>;
+    return <Fragment key={i}>{bout}</Fragment>;
+  });
+}
+
+export function Markdown({ texte }: { texte: string }) {
+  const blocs: ReactNode[] = [];
+  const lignes = texte.replace(/\r\n/g, "\n").split("\n");
+  for (let i = 0; i < lignes.length; ) {
+    const ligne = lignes[i];
+    const prendre = (test: (l: string) => boolean) => {
+      const pris: string[] = [];
+      while (i < lignes.length && test(lignes[i])) pris.push(lignes[i++]);
+      return pris;
+    };
+    if (!ligne.trim()) { i++; continue; }
+    if (ligne.startsWith("```")) {
+      i++;
+      const code = prendre((l) => !l.startsWith("```"));
+      i++;
+      blocs.push(<pre key={i}>{code.join("\n")}</pre>);
+    } else if (/^#{1,6} /.test(ligne)) {
+      const Titre = `h${Math.min(6, ligne.indexOf(" ") + 2)}` as "h3"; // # becomes h3: the screen keeps its h1 and h2
+      blocs.push(<Titre key={i}>{enLigne(ligne.replace(/^#+ /, ""))}</Titre>);
+      i++;
+    } else if (/^\s*[-*] /.test(ligne)) {
+      // An indented line under an item belongs to it (« regle: … » under a rule): kept, on its own line.
+      const items: string[][] = [];
+      for (const l of prendre((l) => /^\s*[-*] /.test(l) || /^\s+\S/.test(l))) {
+        if (/^\s*[-*] /.test(l)) items.push([l.replace(/^\s*[-*] /, "")]);
+        else items[items.length - 1].push(l.trim());
+      }
+      blocs.push(<ul key={i}>{items.map(([tete, ...suite], k) => <li key={k}>{enLigne(tete)}{suite.map((l, j) => <code className="tour-md-suite" key={j}>{l}</code>)}</li>)}</ul>);
+    } else if (/^\d+\. /.test(ligne)) {
+      const items = prendre((l) => /^\d+\. /.test(l));
+      blocs.push(<ol key={i}>{items.map((l, k) => <li key={k}>{enLigne(l.replace(/^\d+\. /, ""))}</li>)}</ol>);
+    } else if (ligne.startsWith("|")) {
+      const rangs = prendre((l) => l.startsWith("|")).filter((l) => !/^\|[\s|:-]+\|$/.test(l)).map((l) => l.slice(1, l.endsWith("|") ? -1 : undefined).split("|").map((c) => c.trim()));
+      blocs.push(
+        <div className="tour-md-table" key={i}>
+          <table>
+            <tbody>{rangs.map((r, k) => <tr key={k}>{r.map((c, j) => (k === 0 ? <th key={j}>{enLigne(c)}</th> : <td key={j}>{enLigne(c)}</td>))}</tr>)}</tbody>
+          </table>
+        </div>,
+      );
+    } else {
+      const para = prendre((l) => !!l.trim() && !/^(```|#{1,6} |\s*[-*] |\d+\. |\|)/.test(l));
+      blocs.push(<p key={i}>{enLigne(para.join(" "))}</p>);
+    }
+  }
+  return <div className="tour-md">{blocs}</div>;
+}
+
+// After a write of 11.2 or 11.7 (#238, decision of 19/11): the service writes on the branch horama/vault, never on dev.
+export const RANGE_SUR_HORAMA_VAULT = "Rangé sur la branche horama/vault : le vault de dev ne le reçoit que par une PR relue.";
+
+// The error of a write of 11.2 or 11.7, in French; the 501 of /tour/doc as the service wrote it.
+export function erreurEcriture(statut: number, erreur: string | null, quoi: string): string {
+  if (statut === 0) return "Le service ne répond pas : réessayez dans un instant.";
+  if (statut === 401) return "Session expirée : reconnectez-vous.";
+  if (statut === 501) return `Le service répond 501 : ${erreur ?? "pas encore disponible."}`;
+  if (statut === 404) return `Le service ne trouve pas ${quoi}.`;
+  if (statut === 400) return "Le service a refusé la demande : champs invalides.";
+  if (statut === 429) return "Trop de demandes, réessayez dans une minute.";
+  return `Le service n'a pas pu écrire ${quoi}.`;
 }

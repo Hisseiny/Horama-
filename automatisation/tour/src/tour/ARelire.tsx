@@ -3,7 +3,8 @@
 // account, POST <service>/tour/decision (#238), which writes the decision in the index and a note in the vault; without
 // connection the buttons stay visible, disabled. A decision sent moves the case to « Déjà tranchés » at once, with who
 // and when, then the data are read again. An exploration by an address keeps the link to its report. What was decided
-// is shown with who and when, as the index of the passages carries it.
+// is shown with who and when, as the index of the passages carries it. A case decided « voulu » links to 11.7, as in the
+// prototype.
 import { useState } from "react";
 import "../../interface/screen-11-6/styles.css";
 import { oublierSession, trancher, type Chargement, type Constat, type Decision, type Passage } from "../donnees";
@@ -81,6 +82,7 @@ export default function ARelire({ route, data, onRecharger }: { route: Route; da
             ? <p className={`decision-pill is-${c.decision.choix === "bug" ? "bug" : "wanted"} tour-decision`}>{decisionLisible(c.decision)}{c.decision.le ? `, le ${dateCourte(c.decision.le)}` : ""}</p>
             : p.mode === "dev" && p.passage ? boutons(p, c) : <p className="tour-note">Pas encore tranché. {p.mode === "dev" ? "Ce passage n'a pas d'identifiant dans l'index : il ne se tranche pas ici." : "Il se tranche dans le rapport de l'exploration."}</p>}
           {messages[cleCas(p, c)] && <p className="tour-erreur-cas" role="alert">{messages[cleCas(p, c)]}</p>}
+          {c.decision?.choix === "voulu" && <a className="tour-lien" href="#doc">Corriger la documentation</a>}
           <a className="tour-lien" href={`#rapport/${encodeURIComponent(p.cle)}`}>Le rapport du passage</a>
           {p.reponse && <a className="tour-lien" href={p.reponse} target="_blank" rel="noopener">La réponse sur la PR</a>}
         </div>

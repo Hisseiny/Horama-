@@ -106,3 +106,102 @@
   .login-main { min-height: 0; padding: 24px 16px 40px; }
   .login-card { padding: 24px 20px 22px; }
 }
+/* The screens added from the prototype (11.1, 11.2, 11.3, 11.5, 11.7), on real data. */
+.tour-liens-ecrans { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.journal-heading { flex-wrap: wrap; gap: 8px 18px; }
+/* 11.1: the figures of a screen in three short lines, the last finding, and the rules between pages apart. */
+.tour-chiffres { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; color: var(--encre); font-size: 14px; }
+.tour-ecrans { margin-right: 0; }
+.tour-ecrans .screen-row { height: auto; min-height: 68px; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) 18px; padding: 12px 22px; }
+.tour-ecrans .tour-regles { grid-template-columns: minmax(0, 1.2fr) minmax(0, 2fr); }
+.tour-ecran-chiffres { display: grid; gap: 2px; color: var(--encre); font-family: var(--font-mono); font-size: 12px; }
+.tour-ecrans .screen-copy > span { white-space: normal; overflow-wrap: anywhere; }
+.tour-ecran-passage { color: var(--encre-secondaire); font-size: 13px; overflow-wrap: anywhere; }
+.coverage-line { flex-wrap: wrap; }
+.coverage-line > span { overflow-wrap: anywhere; }
+/* The Markdown of the notes of the vault. */
+.tour-md { display: grid; gap: 10px; min-width: 0; }
+.tour-md > * { margin: 0; }
+.tour-md h3, .tour-md h4, .tour-md h5, .tour-md h6 { font-family: var(--font-sans); font-weight: 700; color: var(--encre); }
+.tour-md h3 { font-size: 18px; }
+.tour-md h4 { font-size: 16px; }
+.tour-md h5, .tour-md h6 { font-size: 14px; }
+.tour-md ul, .tour-md ol { display: grid; gap: 4px; padding-left: 20px; }
+.tour-md ul { list-style: disc; }
+.tour-md ol { list-style: decimal; }
+.tour-md code { font-family: var(--font-mono); font-size: 0.92em; overflow-wrap: anywhere; }
+.tour-md pre { padding: 10px 12px; border-radius: 8px; background: var(--engobe-fonce); font: 500 12px/1.5 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.tour-md .tour-md-suite { display: block; margin-top: 2px; color: var(--encre-secondaire); }
+.tour-md-table { overflow-x: auto; }
+.tour-md table { border-collapse: collapse; font-size: 13px; }
+.tour-md th, .tour-md td { padding: 5px 8px; border: 1px solid var(--filet); text-align: left; vertical-align: top; }
+/* 11.2: the list of the tests, the test chosen, its blocks, the actions and what they answered. */
+.tour-tests { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+.tour-tests button { display: grid; gap: 2px; max-width: 100%; padding: 8px 14px; border: 2px solid var(--encre); border-radius: 12px; background: var(--papier); color: var(--encre); text-align: left; cursor: pointer; }
+.tour-tests button.is-active { background: var(--encre); color: var(--engobe); }
+.tour-tests strong { font-size: 14px; overflow-wrap: anywhere; }
+.tour-tests span { font-family: var(--font-mono); font-size: 12px; overflow-wrap: anywhere; }
+.vault-copy { gap: 0; margin-top: 18px; }
+.vault-copy .tour-md p, .vault-copy .tour-md li { font-size: 15px; line-height: 1.55; }
+.vault-open-link { display: inline-block; text-decoration: none; }
+.validation-path, .test-id, .test-title { overflow-wrap: anywhere; }
+.tour-statut-test { margin: 8px 0 0; padding: 6px 10px; border-left: 4px solid var(--olivier); background: var(--engobe-fonce); color: var(--encre); font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.tour-bloc { display: grid; gap: 4px; min-width: 0; }
+.test-blocks pre.test-rule { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: 12px; }
+.tour-actions { flex-wrap: wrap; align-items: center; }
+.tour-actions > p, .tour-actions > a { flex: 1 1 260px; margin: 0; }
+.validation-action { cursor: pointer; }
+.validation-action:disabled { opacity: 0.45; cursor: not-allowed; }
+.tour-ok { margin: 0; color: var(--olivier); font-size: 14px; font-weight: 600; }
+/* 11.3: the pages of the exploration, the image of the direct. */
+.tour-pages .live-step { grid-template-columns: 28px minmax(0, 1fr); min-height: 44px; cursor: default; }
+.tour-pages .live-step:hover { background: transparent; }
+.tour-pages .live-step-copy span:first-child { font-family: var(--font-mono); font-size: 13px; overflow-wrap: anywhere; }
+.tour-node-vide { border-color: var(--filet); }
+.tour-etat-page { color: var(--encre-secondaire); font-size: 12px; }
+.live-address { overflow-wrap: anywhere; }
+.tour-direct { display: block; width: 100%; height: auto; margin-top: 12px; border: 2px solid var(--filet); border-radius: 10px; background: var(--engobe-fonce); }
+.tour-choix { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+.tour-choix button { max-width: 100%; padding: 6px 14px; border: 2px solid var(--encre); border-radius: 999px; background: var(--papier); color: var(--encre); font-size: 13px; font-weight: 600; overflow-wrap: anywhere; cursor: pointer; }
+.tour-choix button.is-active { background: var(--encre); color: var(--engobe); }
+.tour-pr { margin-top: 18px; }
+/* 11.5: the lists that choose, the two sheets, the honest nothing. */
+.tour-selects { display: flex; flex-wrap: wrap; gap: 10px 16px; margin: 0 0 14px; }
+.tour-selects label { display: grid; gap: 4px; flex: 1 1 200px; min-width: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-secondaire); }
+.tour-selects select { width: 100%; min-height: 38px; padding: 0 10px; border: 2px solid var(--encre); border-radius: 10px; background: var(--papier); color: var(--encre); font: 600 14px var(--font-sans); letter-spacing: 0; text-transform: none; }
+.tour-feuille .sheet-heading { flex-wrap: wrap; padding: 8px 16px; }
+.tour-feuille-constat { display: grid; gap: 8px; margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--filet); }
+.tour-feuille-constat:last-child { border-bottom: 0; }
+.tour-feuille-constat figcaption { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 14px; color: var(--encre); }
+.tour-rien { display: grid; gap: 8px; }
+/* 11.7: one card per « voulu », the note in a scrolling panel, the correction written here. */
+.tour-corrections { display: grid; gap: 22px; }
+.proposal-banner { flex-wrap: wrap; padding: 12px 20px; }
+.proposal-banner strong { overflow-wrap: anywhere; min-width: 0; }
+.tour-note-vault { max-height: 420px; overflow-y: auto; padding: 14px 16px; }
+.markdown-panel .tour-md p { padding: 0; font-family: var(--font-sans); font-size: 14px; }
+.tour-champ { display: grid; gap: 6px; padding: 0 20px 16px; font-size: 14px; font-weight: 600; color: var(--encre); }
+.tour-champ textarea { width: 100%; padding: 8px 10px; border: 2px solid var(--encre); border-radius: 8px; background: var(--papier); color: var(--encre); font: 400 14px/1.5 var(--font-sans); resize: vertical; }
+.tour-message { padding: 0 20px 12px; }
+.proposal-actions { flex-wrap: wrap; }
+.proposal-actions button { cursor: pointer; }
+.proposal-actions button:disabled { opacity: 0.45; cursor: not-allowed; }
+.decision-reminder { overflow-wrap: anywhere; }
+@media (max-width: 1100px) {
+  .tour-ecrans .screen-row, .tour-ecrans .tour-regles { grid-template-columns: minmax(0, 1fr) 18px; grid-template-areas: none; gap: 6px 12px; }
+  .tour-ecrans .screen-row > :not(svg) { grid-area: auto / 1; }
+  .tour-ecrans .screen-row > svg { grid-area: 1 / 2; }
+  .overview-grid { grid-template-columns: 1fr; }
+  .validation-columns { grid-template-columns: 1fr; }
+  .vault-note { border-right: 0; border-bottom: 1px solid var(--filet); }
+  .live-grid { grid-template-columns: 1fr; }
+  .proposal-content { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
+  .comparison-frames { grid-template-columns: 1fr; }
+  .page-heading h1, .validation-heading h1, .live-heading h1, .comparison-heading h1 { font-size: 32px; }
+  .doc-heading h1 { font-size: 28px; }
+  .validation-columns > article { padding: 18px 16px; }
+  .validation-actions { padding: 14px 16px; }
+  .proposed-test-head { flex-wrap: wrap; }
+}

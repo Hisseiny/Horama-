@@ -1,6 +1,7 @@
 // 11.4 Rapport de passage, on real data only: the figures of one passage, the table of its findings, then each finding on
 // its capture with the sign of the charter. Links to the PR and to the answer of Horama (entry by a PR), or to the
-// page of report of the service (entry by an address).
+// page of report of the service (entry by an address). Links to 11.5 (compare a page with another passage, entry by a
+// PR) and to 11.3 (an exploration still running).
 import "../../interface/screen-11-4/styles.css";
 import type { Chargement } from "../donnees";
 import { usePrototype } from "../PrototypeContext";
@@ -39,6 +40,7 @@ export default function Rapport({ route, data }: { route: Route; data: Chargemen
                 <div className="tour-liens">
                   {p.lien && <a className="export-report" href={p.lien} target={p.mode === "dev" ? "_blank" : undefined} rel="noopener">{p.mode === "dev" ? "La PR" : "Le rapport complet"}</a>}
                   {p.reponse && <a className="export-report" href={p.reponse} target="_blank" rel="noopener">La réponse d'Horama sur la PR</a>}
+                  {p.mode === "public" && (p.etat === "en_cours" || p.etat === "en_file") && <a className="export-report" href="#direct">En direct</a>}
                 </div>
               </header>
               <div className="report-folds">
@@ -83,6 +85,7 @@ export default function Rapport({ route, data }: { route: Route; data: Chargemen
                     <Capture constat={c} />
                     {c.preuve && <p className="tour-preuve">{c.preuve}</p>}
                     <p className="tour-note">Décision : {decisionLisible(c.decision)}</p>
+                    {p.mode === "dev" && c.capture && <a className="tour-lien" href={`#comparer/${encodeURIComponent(c.page)}`}>Comparer cette page avec un autre passage</a>}
                   </article>
                 ))}
               </section>
