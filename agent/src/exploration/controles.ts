@@ -1,4 +1,6 @@
 import type { EcartVisuel } from "@horama/contrats";
+import { compareTranslation } from "./traduction.ts";
+import type { TranslationOptions } from "./traduction.ts";
 
 // Zone of `horama-exploration-1`, in document pixels (those of a full-page capture at DPR 1).
 export type Zone = EcartVisuel["zone"];
@@ -11,12 +13,13 @@ export interface CdpClient {
 export interface Defaut {
   // SUSPECTED: the measure is real but does not prove a defect for a visitor (raison says why); a human settles it.
   statut: "VERIFIED_FAIL" | "SUSPECTED";
-  sorte: "page_en_erreur" | "image_cassee" | "defilement_horizontal" | "debordement" | "texte_rogne" | "lien_casse" | "texte_erreur" | "erreur_console" | "texte_non_traduit";
+  sorte: "page_en_erreur" | "image_cassee" | "defilement_horizontal" | "debordement" | "debordement_traduction" | "texte_rogne" | "lien_casse" | "texte_erreur" | "erreur_console" | "texte_non_traduit";
   message: string;
   selecteur?: string;
   zone?: Zone;
   valeur?: string | number;
   raison?: string;
+  comparaison?: { url: string; image?: Buffer };
 }
 
 function inspectDocument() {
@@ -326,6 +329,7 @@ export interface ControleOptions {
   fetch?: typeof fetch;
   // Caller's connection: no Runtime.disable/enable, no listener replaced; console errors come from installerJournalConsole.
   connexionAppelant?: boolean;
+  traduction?: TranslationOptions;
   // Clicks the links answering an error as a visitor would; without it, or without "navigue", a link in error is only a doubt.
   verifierClic?: (urls: string[]) => Promise<Map<string, "navigue" | "intercepte" | "introuvable">>;
 }
@@ -353,8 +357,8 @@ export async function controlerPage(client: CdpClient, options: ControleOptions 
       const journal = await client.send("Runtime.evaluate", { expression: `(() => { const key = Symbol.for("horama.console"), out = []; const walk = view => { try { out.push(...(view[key] ?? [])); } catch {} for (let i = 0; i < view.frames.length; i++) walk(view.frames[i]); }; walk(globalThis); return out; })()`, returnByValue: true });
       for (const value of journal.result?.value ?? []) record(String(value));
     }
-    defects.push(...await checkLinks(links, options));
-    return [...defects, ...consoleDefects];
+    const compared = options.traduction ? await compareTranslation(client, defects, options.traduction) : defects;
+    return [...compared, ...await checkLinks(links, options), ...consoleDefects];
   } finally {
     if (!shared) {
       client.on("Runtime.exceptionThrown", () => {});

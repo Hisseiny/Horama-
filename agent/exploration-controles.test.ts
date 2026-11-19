@@ -13,11 +13,29 @@ import type { CdpClient } from "./src/exploration/controles.ts";
 const chrome = process.env.CHROME_BIN ?? (process.platform === "darwin" ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" : "google-chrome");
 const available = !spawnSync(chrome, ["--version"]).error;
 
+function translationPage(german: boolean, announce: boolean) {
+  return `<!doctype html><html lang="${german ? "de" : "fr"}"><head><meta charset="utf-8">
+    ${announce ? '<link rel="alternate" hreflang="fr" href="/traduction-fr">' : ""}
+    <style>.fixed { width: 90px; height: 24px; white-space: nowrap; }</style></head><body><main class="content">
+      <button data-testid="same">Candidater <strong>maintenant</strong></button>
+      <p class="single">Candidater</p>
+      <p id="number">123 456</p><p id="address">12 rue Victor Hugo</p><p id="name">Marie Dupont</p>
+      <p id="language" lang="fr">Texte volontaire</p><pre id="code">Une valeur</pre>
+      <span hidden>Ne pas montrer</span>
+      <button id="overflow-de" class="fixed">${german ? "Wissenschaftskommunikation" : "Science"}</button>
+      <button id="overflow-both" class="fixed">${german ? "Unternehmenskommunikation" : "Communicationinstitutionnelle"}</button>
+      ${german ? '<button id="missing" class="fixed">Internationalisierung</button>' : ""}
+    </main></body></html>`;
+}
+
 test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !available && `Chrome absent : ${chrome}`, timeout: 60_000 }, async t => {
   const requests: string[] = [];
   const server = createServer(async (request, response) => {
     requests.push(`${request.method} ${request.url}`);
-    if (request.url === "/healthy" || request.url === "/broken") {
+    if (["/traduction-fr", "/traduction-de", "/traduction-sans-lien"].includes(request.url ?? "")) {
+      response.setHeader("Content-Type", "text/html; charset=utf-8");
+      response.end(translationPage(request.url !== "/traduction-fr", request.url === "/traduction-de"));
+    } else if (request.url === "/healthy" || request.url === "/broken") {
       response.setHeader("Content-Type", "text/html; charset=utf-8");
       response.end(await readFile(new URL(`./scripts/exploration-pages-essai/${request.url.slice(1)}.html`, import.meta.url)));
     } else if (request.url === "/overflow-cases") {
@@ -111,6 +129,34 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
     await client.send("Page.navigate", { url: `${base}${path}` });
     await loaded;
   };
+  await t.test("compare les composants annoncés, avec une capture côte à côte pour le débordement DE uniquement", async () => {
+    await client.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 900, mobile: false, deviceScaleFactor: 1 });
+    const failures: string[] = [];
+    const options = { maxLiens: 0, traduction: { port: Number(port), unavailable: (reason: string) => failures.push(reason) } };
+    await navigate("/traduction-sans-lien");
+    const fallback = await controlerPage(client, options);
+    assert.deepEqual(fallback.filter(item => item.sorte === "texte_non_traduit" || item.sorte === "debordement_traduction"), []);
+    assert.equal(requests.filter(value => value === "GET /traduction-fr").length, 0);
+    await navigate("/traduction-de");
+    const findings = await controlerPage(client, options);
+    assert.deepEqual(failures, []);
+    assert.equal(requests.filter(value => value === "GET /traduction-fr").length, 1);
+    const text = findings.filter(item => item.sorte === "texte_non_traduit");
+    assert.deepEqual(text.map(item => [item.statut, item.valeur]), [
+      ["VERIFIED_FAIL", "« Candidater maintenant » (2 mots, fr / de)"],
+      ["SUSPECTED", "« Candidater » (1 mot, fr / de)"],
+    ]);
+    assert.deepEqual(findings.filter(item => item.sorte === "debordement").map(item => item.selecteur), ["#overflow-both", "#missing"]);
+    const compared = findings.filter(item => item.sorte === "debordement_traduction");
+    assert.equal(compared.length, 1);
+    assert.equal(compared[0].selecteur, "#overflow-de");
+    assert.equal(compared[0].statut, "VERIFIED_FAIL");
+    const image = compared[0].comparaison?.image;
+    assert.ok(image);
+    assert.equal(image.readUInt32BE(16), 2560);
+    assert.equal(image.readUInt32BE(20), 940);
+    assert.equal((await client.send("Runtime.evaluate", { expression: "location.pathname", returnByValue: true })).result.value, "/traduction-de");
+  });
   t.diagnostic("Chrome connecté ; navigation locale.");
   await navigate("/healthy");
   const french = "Les étudiants travaillent avec les entreprises pour apprendre et découvrir le monde.";

@@ -439,6 +439,23 @@ test("contrôle prouvé explique Holo, hors capture et sans zone comptés honnê
   assert.equal(c4.calcul, "Le texte dépasse. ; Un texte d'erreur est affiché."); assert.deepEqual(c4.ecarts_visuels, []);
 });
 
+test("le rapport sert la capture comparée avec la preuve et garde la zone sur la capture du relevé", async () => {
+  const url = "https://example.org/fr";
+  const zone = { x: 10, y: 10, largeur: 100, hauteur: 30 };
+  const { result } = await run({ deps: { controler: async (_client, options) => {
+    assert.equal(options?.traduction?.port, 9333);
+    return [{ statut: "VERIFIED_FAIL", sorte: "debordement_traduction", message: "Le texte déborde dans la traduction.",
+      selecteur: "#bouton", valeur: "200 > 100", zone, comparaison: { url, image: changed } }];
+  } } });
+  const item = result.constats.find(finding => finding.ecran === "accueil")!;
+  assert.equal(item.sorte, "debordement-traduction");
+  assert.equal(item.preuve.url, url);
+  assert.equal(item.capture, "captures/accueil.png");
+  assert.deepEqual(item.zone, zone);
+  assert.equal(item.preuve.capture_comparaison, "captures/accueil--controle--1-traduction.png");
+  assert.deepEqual(readFileSync(join(root, "out", item.preuve.capture_comparaison as string)), changed);
+});
+
 test("lien au clic non vérifié reste un doute et un même doute Holo répété sur chaque page compte une fois", async () => {
   const options: unknown[] = [];
   const { result, base } = await run({ deps: {

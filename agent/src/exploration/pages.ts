@@ -17,6 +17,16 @@ export function allowsRenderResource(target: string, page: string): boolean {
     || /^\[(?:::1|::|f[cd][\da-f]{2}:.*|fe[89ab][\da-f]:.*|::ffff:.*)\]$/.test(host));
 }
 
+export function allowsRobotsPath(text: string, address: URL): boolean {
+  return permittedByRobots(robots(text).rules, address);
+}
+
+function permittedByRobots(rules: RobotRule[], address: URL): boolean {
+  const path = robotPath(address.pathname + address.search);
+  const matches = rules.filter(rule => rule.pattern.test(path)).sort((a, b) => b.length - a.length || Number(b.allow) - Number(a.allow));
+  return matches[0]?.allow !== false;
+}
+
 export async function renderPage(port: number, url: string, allowed: (url: string) => boolean = () => true): Promise<{ body: string; url: string }> {
   const endpoint = `http://127.0.0.1:${port}`;
   let tab: { id: string } | undefined, client: ExplorationCdp | undefined;
@@ -188,14 +198,8 @@ export async function discoverPages(url: string, { max = 15, sectionMax = 2, fet
     return parsed;
   }
 
-  function blocked(address: URL): boolean {
-    const path = robotPath(address.pathname + address.search);
-    const matches = rules.filter((rule) => rule.pattern.test(path)).sort((a, b) => b.length - a.length || Number(b.allow) - Number(a.allow));
-    return matches[0]?.allow === false;
-  }
-
   function permitted(address: URL): boolean {
-    if (blocked(address)) { exclude(address.href, "robots"); return false; }
+    if (!permittedByRobots(rules, address)) { exclude(address.href, "robots"); return false; }
     return true;
   }
 
