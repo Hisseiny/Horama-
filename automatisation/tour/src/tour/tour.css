@@ -40,6 +40,8 @@
 .report-status.is-suspect, .review-status.is-suspect, .summary-pill.is-suspect { color: var(--encre); border-color: var(--ocre); }
 .passage-results .is-suspect, .report-proof.is-suspect { color: var(--encre-secondaire); }
 .report-fold > strong.is-suspect { text-decoration: underline dotted var(--ocre) 4px; text-underline-offset: 8px; }
+/* The logo leads back to the welcome page: same look as before, no underline. */
+a.brand { text-decoration: none; }
 /* The ring of focus in ink (sun on engobe reads at 1.4:1), inside the rows that span the whole card. */
 .is-light button:focus-visible, .is-light a:focus-visible { outline-color: var(--encre); }
 .passage-row:focus-visible, .decision-entry:focus-visible, .report-row:focus-visible { outline-offset: -3px; }

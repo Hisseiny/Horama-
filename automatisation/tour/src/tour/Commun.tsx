@@ -21,7 +21,7 @@ export function lireRoute(): Route {
 
 export function Logo() {
   return (
-    <div className="brand" aria-label="Horama">
+    <a className="brand" href="../" aria-label="Horama, retour à la page d'accueil">
       <span>H</span>
       <svg className="brand-eye" viewBox="26 26 44 44" aria-hidden="true">
         <circle cx="48" cy="48" r="20" fill="#fff" stroke="#1C1C1C" strokeWidth="3" />
@@ -30,7 +30,7 @@ export function Logo() {
         <circle cx="51.6" cy="44.4" r="2.2" fill="#fff" />
       </svg>
       <span>rama</span>
-    </div>
+    </a>
   );
 }
 
