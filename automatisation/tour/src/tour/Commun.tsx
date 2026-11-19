@@ -5,7 +5,7 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Icon } from "../../interface/screen-11-1/Icons";
 import { poserDoute, tracerDefaut } from "../trait.js";
-import { SESSION_EVENT, enAttente, oublierSession, sessionBrute, testsDuVault, type Chargement, type Constat, type Decision, type Passage, type Session } from "../donnees";
+import { SESSION_EVENT, enAttente, oublierSession, sessionBrute, testsDuVault, type Chargement, type Constat, type Decision, type Genre, type Passage, type Session, type Zone } from "../donnees";
 
 export type Route = { ecran: "passages" | "rapport" | "relire" | "connexion" | "couverture" | "tests" | "direct" | "comparer" | "doc"; cle?: string };
 
@@ -248,6 +248,24 @@ export const etatLisible = (p: Passage) => (estFini(p) ? "" : ETATS[p.etat ?? ""
 export const CHOIX = { bug: "Bug", voulu: "Voulu" };
 export const decisionLisible = (d: Decision | null) => (d ? `${CHOIX[d.choix]}${d.par ? `, par ${d.par}` : ""}` : "à trancher");
 
+// The sign of the charter on zones of a raw capture shown in host (a stroke of miltos for a defect, ochre dots for a doubt),
+// drawn in the pixels shown: « largeur » is the width of the capture in its own pixels, the unit of the zones.
+export function signer(host: HTMLElement, img: HTMLImageElement, largeur: number, signes: { genre: Genre; zone: Zone }[]) {
+  const scale = host.clientWidth / largeur;
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  // A viewBox: the sign follows the capture when its width changes (rotation, window resized; review of #222).
+  svg.setAttribute("viewBox", `0 0 ${host.clientWidth} ${img.clientHeight}`);
+  svg.setAttribute("width", "100%");
+  svg.setAttribute("height", "100%");
+  svg.style.cssText = "position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none";
+  host.append(svg);
+  for (const { genre, zone } of signes) {
+    const rect = { x: zone.x * scale, y: zone.y * scale, w: zone.largeur * scale, h: zone.hauteur * scale };
+    if (genre === "defaut") tracerDefaut(svg, rect);
+    else poserDoute(svg, rect);
+  }
+}
+
 // The capture of a finding, its zone in view. Entry by a PR: the capture was ringed by the scene. Entry by an address: the
 // raw capture, and the sign of the charter drawn here on its zone (a stroke of miltos, or ochre dots).
 export function Capture({ constat }: { constat: Constat }) {
@@ -261,17 +279,7 @@ export function Capture({ constat }: { constat: Constat }) {
     img.style.cssText = "display:block;width:100%;height:auto";
     img.onload = () => {
       if (constat.entouree || !constat.zone) return;
-      const scale = host.clientWidth / (constat.taille?.largeur ?? img.naturalWidth);
-      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      // A viewBox: the sign follows the capture when its width changes (rotation, window resized; review of #222).
-      svg.setAttribute("viewBox", `0 0 ${host.clientWidth} ${img.clientHeight}`);
-      svg.setAttribute("width", "100%");
-      svg.setAttribute("height", "100%");
-      svg.style.cssText = "position:absolute;left:0;top:0;overflow:visible";
-      host.append(svg);
-      const rect = { x: constat.zone.x * scale, y: constat.zone.y * scale, w: constat.zone.largeur * scale, h: constat.zone.hauteur * scale };
-      if (constat.genre === "defaut") tracerDefaut(svg, rect);
-      else poserDoute(svg, rect);
+      signer(host, img, constat.taille?.largeur ?? img.naturalWidth, [{ genre: constat.genre, zone: constat.zone }]);
     };
     img.src = constat.capture;
     host.append(img);

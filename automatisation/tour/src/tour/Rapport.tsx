@@ -85,7 +85,7 @@ export default function Rapport({ route, data }: { route: Route; data: Chargemen
                     <Capture constat={c} />
                     {c.preuve && <p className="tour-preuve">{c.preuve}</p>}
                     <p className="tour-note">Décision : {decisionLisible(c.decision)}</p>
-                    {p.mode === "dev" && c.capture && <a className="tour-lien" href={`#comparer/${encodeURIComponent(c.page)}`}>Comparer cette page avec un autre passage</a>}
+                    {p.mode === "dev" && (c.capture || p.vues.some((v) => v.page === c.page && v.capture)) && <a className="tour-lien" href={`#comparer/${encodeURIComponent(c.page)}`}>Comparer cette page avec un autre passage</a>}
                   </article>
                 ))}
               </section>

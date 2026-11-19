@@ -41,6 +41,9 @@ export type Constat = {
   entouree: boolean; // the capture already carries the stroke (entry by a PR) or not (entry by an address)
   decision: Decision | null;
 };
+// A page visited by a passage by a PR, with its raw capture (field « pages » of the index, since 19/11 evening; absent from
+// older entries). « capture » is null when GitHub refused it; the size, in pixels of the capture, null when not written.
+export type Vue = { ecran: string; page: string; adresse: string; capture: string | null; largeur: number | null; hauteur: number | null };
 export type Passage = {
   cle: string; // unique key, for the address of the report: dev:<passage> or public:<id>
   mode: "dev" | "public";
@@ -59,6 +62,7 @@ export type Passage = {
   cout_usd: number | null;
   etat: string | null;
   constats: Constat[];
+  vues: Vue[]; // the pages visited with their raw capture; empty for an older entry and for an address
 };
 export type Note = { chemin: string; contenu: string }; // a note of the vault, its path under vault-horama/eugenia-clone/
 export type Chargement = {
@@ -77,7 +81,7 @@ type IndexConstat = { id: string; statut: string; genre?: string; page?: string;
   decision?: { choix: "bug" | "voulu"; par?: string | null; le?: string | null } | null };
 type IndexPassage = { passage: string | null; date: string; site: string; previsualisation?: string; pr: { numero: number; adresse: string; titre?: string | null };
   commit: string; reponse: string | null; etat: string | null; duree_s?: number | null; cout_usd?: number | null; totaux?: { pages_visitees?: number; pages_trouvees?: number; defauts?: number; doutes?: number } | null;
-  constats: IndexConstat[] };
+  constats: IndexConstat[]; pages?: Vue[] };
 
 // The language check written by its measure in passages published before 19/11 (« 1 bloc en français ; … ; page
 // déclarée de »): said as a sentence, as automatisation/scene/recapitulatif.mjs does since.
@@ -104,6 +108,7 @@ function fromIndex(item: IndexPassage): Passage {
     pages: { visitees: item.totaux?.pages_visitees ?? null, trouvees: item.totaux?.pages_trouvees ?? null },
     defauts: constats.filter((c) => c.genre === "defaut").length, doutes: constats.filter((c) => c.genre === "doute").length,
     duree_s: item.duree_s ?? null, cout_usd: item.cout_usd ?? null, etat: item.etat, constats,
+    vues: Array.isArray(item.pages) ? item.pages.map((v) => ({ ecran: v.ecran, page: v.page, adresse: v.adresse, capture: v.capture ?? null, largeur: v.largeur ?? null, hauteur: v.hauteur ?? null })) : [],
   };
 }
 
@@ -149,7 +154,7 @@ function fromExploration(envoi: Envoi, report: Exploration): Passage {
     lien: `../rapport/?id=${encodeURIComponent(envoi.id)}&service=${encodeURIComponent(envoi.service)}`, reponse: null, commit: null,
     pages: { visitees: report.totaux?.pages_visitees ?? null, trouvees: report.totaux?.pages_trouvees ?? null },
     defauts: constats.filter((c) => c.genre === "defaut").length, doutes: constats.filter((c) => c.genre === "doute").length,
-    duree_s: report.duree_s ?? null, cout_usd: report.cout_usd ?? null, etat: report.etat, constats,
+    duree_s: report.duree_s ?? null, cout_usd: report.cout_usd ?? null, etat: report.etat, constats, vues: [],
   };
 }
 
