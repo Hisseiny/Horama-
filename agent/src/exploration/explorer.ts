@@ -50,8 +50,8 @@ export interface ExplorerDependencies {
 }
 
 const clickedCount = (pageCount: number, clicked: number) => Math.min(clicked, Math.max(0, pageCount - 1));
-export const explorationTimeBudget = (maxSteps: number) => Math.min(7200, Math.max(240, 8 * maxSteps));
-export const explorationStepBudget = (pageCount: number, clicked = 0) => 70 * pageCount + 13 + 3 * clickedCount(pageCount, clicked);
+export const explorationTimeBudget = (maxSteps: number) => Math.min(1800, Math.max(240, 8 * maxSteps));
+export const explorationStepBudget = (pageCount: number, clicked = 0) => 12 * pageCount + 13 + 3 * clickedCount(pageCount, clicked);
 
 export function explorationPassageId(date: Date): string {
   const parts = Object.fromEntries(new Intl.DateTimeFormat("fr-FR", {
@@ -64,7 +64,7 @@ export function explorationPassageId(date: Date): string {
 export const exclusionLabel = (reason: string) => reason === "section-limit" ? "limite de pages par rubrique atteinte" : reason;
 
 function readingInstruction(): string {
-  return "Après relever, sur CHAQUE page (départ, clic ou adresse, dernière page comprise), termine cette séquence AVANT de cliquer un lien ou de terminer le parcours : 1. Lis du haut jusqu'en bas avec scroll_web : direction down, num_pixels égal à environ une demi-hauteur de l'écran (450 pour 900 pixels), scroll_element null pour la page. Observe chaque petit pas, sans sauter de section. Les cartes de liens de fin d'article ne sont PAS le bas : descends aussi dans le pied de page jusqu'à ce que deux essais sans déplacement confirment le bas réel. Repère un contrôle de visiteur pendant la descente. 2. Fais ensuite UN geste de visiteur si la page en propose un : ouvrir un menu déroulant, un accordéon, un onglet ou une question FAQ, jamais un formulaire ni une connexion. S'il est plus haut, retrouve ce contrôle en petits pas pendant la remontée, puis active-le ; ne multiplie pas les gestes. 3. Remonte vers le menu avec les mêmes petits pas (direction up, num_pixels environ une demi-hauteur d'écran), jusqu'au tout début de la page : le titre initial doit être revenu à sa position de départ et deux essais sans déplacement confirment le haut. Un menu fixe déjà visible n'autorise PAS à sauter cette remontée. Ferme seulement le panneau ouvert s'il masque le lien suivant. 4. Vérifie avant de partir : bas réel atteint, un geste effectué ou aucun contrôle disponible, haut réel retrouvé. Ne répète pas la lecture déjà faite sur la page courante.";
+  return "Après relever, sur CHAQUE page (départ, clic ou adresse, dernière page comprise) : fais au plus 5 petits scroll_web vers le bas (direction down, num_pixels environ 450, soit une demi-hauteur d'écran, scroll_element null). Arrête ces petits pas dès le bas atteint ou si la page ne bouge plus. Si le bas reste hors vue, fais ensuite UN seul grand scroll_web jusqu'en bas (direction down, num_pixels 100000). Fais ensuite UN geste de visiteur facultatif si la page en propose un visible : menu déroulant, accordéon, onglet ou question FAQ, jamais un formulaire ni une connexion. N'ajoute pas de scrolls pour chercher un contrôle. Remonte vers le menu par UN seul grand scroll_web vers le haut (direction up, num_pixels 100000), jamais par petits pas. Aucun aller-retour supplémentaire, ni répétition à une extrémité sans déplacement. Ne répète pas la lecture déjà faite sur la page courante.";
 }
 
 function clickInstruction(pages: Array<{ ecran: string; url: string }>): string {
