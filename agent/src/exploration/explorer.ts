@@ -689,7 +689,6 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
         const findings: Finding[] = [];
         if (consentFailed) inconclusive(page, "controle", findings, "La revérification du consentement avant capture a échoué.");
         const controlZones = new Map<string, Zone>();
-        const recapturedControls: { item: Finding; message: string; selectors: Set<string> }[] = [];
         let http: number | null = null;
         const hookFetch: typeof fetch = (address, init) => (deps.fetch ?? fetch)(address, { ...init, ...(hookSignal ? { signal: init?.signal ? AbortSignal.any([hookSignal, init.signal]) : hookSignal } : {}) });
         const linkFetch: typeof fetch = (address, init) => siteFetch(address, { ...init, ...(hookSignal ? { signal: init?.signal ? AbortSignal.any([hookSignal, init.signal]) : hookSignal } : {}) });
@@ -727,17 +726,9 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
                     } catch { /* Repli sur la capture CDP. */ }
                   }
                   extra ??= await captureDefect(client, documentZone, capture.defilement, { doux: options.doux });
-                  const duplicate = extra.zone && recapturedControls.find(({ item: other }) =>
-                    other.sorte === item.sorte && other.preuve.mesure === measure && sameControlZone(other.zone, extra.zone));
-                  if (duplicate) {
-                    for (const selector of selectors) duplicate.selectors.add(selector);
-                    duplicate.item.description = controlDescription(duplicate.message, duplicate.selectors);
-                    continue;
-                  }
                   const file = `captures/${item.id}.png`;
                   writeFileSync(join(sortie, file), extra.png);
                   item.capture = file; item.zone = extra.zone;
-                  if (extra.zone) recapturedControls.push({ item, message: defect.message, selectors });
                 } catch { /* Le constat reste prouvé sans zone hors image. */ }
               }
               controlZones.set(item.id, zone);

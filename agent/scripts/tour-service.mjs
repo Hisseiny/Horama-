@@ -43,7 +43,7 @@ function validToken(authorization, secret, now) {
 const isIdentifier = value => typeof value === "string" && value.length > 0 && value.length <= 256;
 const isSection = value => typeof value === "string" && value.trim() && !/^\s*(?:##\s|\x60\x60\x60|~~~)/m.test(value);
 
-export function createTourService({ env = process.env, now, readJson, runtimeData, fetchGitHub }) {
+export function createTourService({ env = process.env, now, readJson, runtimeData, fetchGitHub, log = console.error }) {
   const account = credentials(env);
   const github = createTourGitHub({ token: env.GITHUB_TOKEN_TOUR, fetchGitHub, now });
   const attempts = new Map();
@@ -65,6 +65,11 @@ export function createTourService({ env = process.env, now, readJson, runtimeDat
   }
 
   return async function handleTour(path, request, send) {
+    const fail = error => {
+      const reason = error?.status ? `GitHub ${error.status}` : "";
+      log(`Tour ${path} : ${reason || "erreur"} : ${error?.message ?? error}`);
+      return send(503, reason ? { erreur: `${unavailable.erreur.slice(0, -1)} (${reason}).` } : unavailable);
+    };
     if (!routes.has(path)) return send(404, { erreur: "Route de la tour inconnue." });
     if (request.headers.origin && !tourOrigin(request.headers.origin)) return send(403, { erreur: "Origine refusée." });
     if (request.method === "OPTIONS") return send(204);
@@ -74,8 +79,8 @@ export function createTourService({ env = process.env, now, readJson, runtimeDat
       try {
         const [snapshot, live] = await Promise.all([github.data(), runtimeData()]);
         return send(200, { ...snapshot, ...live });
-      } catch {
-        return send(503, unavailable);
+      } catch (error) {
+        return fail(error);
       }
     }
     if (path === "/tour/session") {
@@ -116,8 +121,8 @@ export function createTourService({ env = process.env, now, readJson, runtimeDat
         const found = await github.updateVaultFile(`tests/${test}.md`, `Horama : mise à jour du test ${test}`,
           text => updateTestMarkdown(text, body, account.name, now));
         return found ? send(200, { ok: true }) : send(404, { erreur: "Test introuvable." });
-      } catch {
-        return send(503, unavailable);
+      } catch (error) {
+        return fail(error);
       }
     }
 
@@ -142,7 +147,7 @@ export function createTourService({ env = process.env, now, readJson, runtimeDat
         return send(200, { statut: status });
       } catch (error) {
         if (error.conflict) return send(409, { erreur: error.message });
-        return send(503, unavailable);
+        return fail(error);
       }
     }
 
@@ -153,8 +158,8 @@ export function createTourService({ env = process.env, now, readJson, runtimeDat
       if (result.status === 404) return send(404, { erreur: "Passage ou constat introuvable." });
       if (result.status === 409) return send(409, { erreur: "Ce constat a déjà été tranché." });
       return send(200, { decision: result.verdict.decision, par: result.verdict.par, le: result.verdict.le });
-    } catch {
-      return send(503, unavailable);
+    } catch (error) {
+      return fail(error);
     }
   };
 }
