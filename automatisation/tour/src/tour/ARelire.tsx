@@ -4,11 +4,13 @@
 import "../../interface/screen-11-6/styles.css";
 import type { Chargement } from "../donnees";
 import { usePrototype } from "../PrototypeContext";
-import { Capture, Erreurs, Mascot, Sidebar, dateCourte, decisionLisible, sansSource, type Route } from "./Commun";
+import { Capture, Erreurs, Mascot, Sidebar, dateCourte, decisionLisible, dureeCout, sansSource, type Route } from "./Commun";
 
 export default function ARelire({ route, data }: { route: Route; data: Chargement | null }) {
   const { lightMode } = usePrototype();
-  const cas = (data?.passages ?? []).flatMap((p) => p.constats.map((c) => ({ p, c })));
+  // #relire/<cle>: the cases of one passage only (the wake-up opens it at the end of a passage), the passage at the top.
+  const seul = route.cle ? data?.passages.find((p) => p.cle === route.cle) ?? null : null;
+  const cas = (route.cle ? (seul ? [seul] : []) : data?.passages ?? []).flatMap((p) => p.constats.map((c) => ({ p, c })));
   const ouverts = cas.filter(({ c }) => !c.decision);
   const tranches = cas.filter(({ c }) => c.decision);
   const muet = sansSource(data);
@@ -42,16 +44,24 @@ export default function ARelire({ route, data }: { route: Route; data: Chargemen
           <header className="review-heading">
             <h1>À relire</h1>
             <div className="review-summary">
-              <strong>{!data ? "Chargement…" : muet ? "Rien à afficher tant que l'index ne répond pas." : `${ouverts.length} cas à trancher`}</strong>
-              {data && !muet && <span className="summary-pill is-defect">{cas.filter(({ c }) => c.genre === "defaut").length} défauts prouvés</span>}
-              {data && !muet && <span className="summary-pill is-suspect">{cas.filter(({ c }) => c.genre === "doute").length} doutes</span>}
+              <strong>{!data ? "Chargement…" : muet ? "Rien à afficher tant que l'index ne répond pas." : route.cle && !seul ? "Passage introuvable" : `${ouverts.length} cas à trancher`}</strong>
+              {data && !muet && (!route.cle || seul) && <span className="summary-pill is-defect">{cas.filter(({ c }) => c.genre === "defaut").length} défauts prouvés</span>}
+              {data && !muet && (!route.cle || seul) && <span className="summary-pill is-suspect">{cas.filter(({ c }) => c.genre === "doute").length} doutes</span>}
             </div>
           </header>
           <p className="tour-note">Ici, on lit. Un doute se tranche sur le rapport de l'exploration ou au prochain passage sur la PR.</p>
+          {route.cle && (
+            <div className="tour-filtre">
+              {seul
+                ? <p><strong>{seul.titre}</strong> · {dateCourte(seul.date)}{dureeCout(seul.duree_s, seul.cout_usd) ? ` · ${dureeCout(seul.duree_s, seul.cout_usd)}` : ""}</p>
+                : data && !muet && <p>Ce passage n'est pas encore dans l'index des passages : rechargez la page dans un instant.</p>}
+              <a className="tour-lien" href="#relire">Tous les cas à relire</a>
+            </div>
+          )}
           <Erreurs data={data} />
           <div className="review-cases">
             {ouverts.map(carte)}
-            {data && !muet && !ouverts.length && <section className="all-resolved"><strong>Tout est tranché.</strong></section>}
+            {data && !muet && (!route.cle || seul) && !ouverts.length && <section className="all-resolved"><strong>Tout est tranché.</strong></section>}
           </div>
           {tranches.length > 0 && (
             <>

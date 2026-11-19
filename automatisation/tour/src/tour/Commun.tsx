@@ -11,7 +11,7 @@ export type Route = { ecran: "passages" | "rapport" | "relire"; cle?: string };
 export function lireRoute(): Route {
   const [ecran, ...reste] = window.location.hash.replace(/^#/, "").split("/");
   if (ecran === "rapport" && reste.length) return { ecran: "rapport", cle: decodeURIComponent(reste.join("/")) };
-  if (ecran === "relire") return { ecran: "relire" };
+  if (ecran === "relire") return reste.length ? { ecran: "relire", cle: decodeURIComponent(reste.join("/")) } : { ecran: "relire" };
   return { ecran: "passages" };
 }
 
@@ -84,6 +84,11 @@ export function Sidebar({ route, data }: { route: Route; data: Chargement | null
           ))}
         </nav>
       </div>
+      {data?.source && (
+        <div className="sidebar-bottom">
+          <p className="tour-source">Données : {data.source === "service" ? "service Horama" : "GitHub (service injoignable)"}</p>
+        </div>
+      )}
     </aside>
   );
 }
