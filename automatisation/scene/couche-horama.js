@@ -57,7 +57,8 @@
     [hidden] { display: none !important; }
     :host { --miltos: ${COLORS.defaut}; --ocre: ${COLORS.doute}; }
     .zones { position: absolute; left: 0; top: 0; }
-    .zone { position: absolute; }
+    .zone { position: absolute; transition: opacity 160ms ease-out; }
+    .zone.covered { opacity: 0; }
     .zone > svg, .shot .mark > svg { position: absolute; left: 0; top: 0; overflow: visible; }
     .zone.old { margin: -7px; padding: 7px; box-sizing: content-box; border: 3px dashed ${INK}; opacity: 0; transition: opacity 300ms ease-out; }
     .zone.old.done { opacity: 0.45; }
@@ -503,7 +504,7 @@
     const frameOf = element("div", `zone${zone.trait ? " old" : ""}`);
     frameOf.style.cssText = `left:${zone.x}px;top:${zone.y}px;width:${zone.largeur}px;height:${zone.hauteur}px`;
     zonesBox.append(frameOf);
-    const item = { zone, element: frameOf };
+    const item = { zone, element: frameOf, under: underOf(zone) };
     drawn.push(item);
     if (zone.trait) {
       void frameOf.offsetWidth;
@@ -520,6 +521,34 @@
   const follow = () => {
     zonesBox.style.transform = `translate(${-scrollX}px, ${-scrollY}px)`;
   };
+  // ---------- A stroke belongs to its page and to what it surrounds (S6, louvre.fr 19/11) ----------
+  // The element under the middle of a zone, when the zone is on the screen (page coordinates in, null out of it).
+  function underOf(zone) {
+    const x = zone.x + zone.largeur / 2 - scrollX, y = zone.y + zone.hauteur / 2 - scrollY;
+    return x >= 0 && y >= 0 && x < innerWidth && y < innerHeight ? document.elementFromPoint(x, y) : null;
+  }
+  // A site that changes page without a new document (its own router): the strokes of the address left go, those of the
+  // new address come. Something put over a zone (a menu that opens, a window, a sticky bar): its stroke hides while it is
+  // covered, and comes back once it is clear. Checked every 300 ms and after each scroll.
+  let drawnFor = here();
+  function watchStrokes() {
+    if (!started) return;
+    if (here() !== drawnFor) {
+      drawnFor = here();
+      for (const item of drawn.splice(0)) item.element.remove();
+      for (const zone of state.zones[drawnFor] ?? []) drawZone(zone, false);
+      return;
+    }
+    for (const item of drawn) {
+      const now = underOf(item.zone);
+      if (!now) continue; // out of the screen: nothing to tell
+      item.under ??= now;
+      const covered = !(item.under.isConnected && (item.under === now || item.under.contains(now) || now.contains(item.under)));
+      item.element.classList.toggle("covered", covered);
+    }
+  }
+  setInterval(watchStrokes, 300);
+  window.addEventListener("scrollend", watchStrokes, true);
 
   // ---------- The panel of the end: all the text, and the captures with their zone ringed ----------
   // A capture of the course (a data: address), cropped around its zones (pixels of the capture), shown w × h px, the zones
@@ -609,6 +638,7 @@
     if (started) return;
     // Once: what the page shows when it opens. The lines of a screen already annotated are there, not drawn again.
     started = true;
+    drawnFor = here();
     for (const zone of state.zones[here()] ?? []) drawZone(zone, false);
     if (state.bulle) renderBubble(false);
   };
