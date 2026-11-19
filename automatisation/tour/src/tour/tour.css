@@ -274,3 +274,8 @@ a.brand { text-decoration: none; }
 @media (prefers-reduced-motion: reduce) {
   .sidebar, .main-content, .mascot-regard { transition: none; }
 }
+/* 11.5: each finding of a passage on its own capture, under the capture of the page. */
+.tour-constats-feuille { display: grid; gap: 10px; margin-top: 10px; }
+.tour-constat-vignette { margin: 0; }
+.tour-constat-vignette img { display: block; width: 100%; height: auto; border: 2px solid #E2D6B8; border-radius: 10px; }
+.tour-constat-vignette figcaption { margin-top: 4px; font-size: 13px; color: var(--encre); }

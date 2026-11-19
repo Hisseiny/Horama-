@@ -6,9 +6,9 @@
 // #comparer/<page> chooses the page. When no page has a capture in two passages, the screen says why.
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import "../../interface/screen-11-5/styles.css";
-import type { Chargement, Constat, Passage, Zone } from "../donnees";
+import type { Chargement, Constat, Passage } from "../donnees";
 import { usePrototype } from "../PrototypeContext";
-import { Erreurs, Mascot, Sidebar, dateCourte, sansSource, signer, type Route } from "./Commun";
+import { Erreurs, Mascot, Sidebar, dateCourte, sansSource, type Route } from "./Commun";
 
 // The noise threshold of the engine (jugement/verification/images.ts, docs/decisions/2026-11-16-seuil-de-bruit.md): a pixel
 // differs when one channel (red, green, blue) is further apart than this, out of 255.
@@ -33,55 +33,22 @@ function clicheDe(p: Passage, page: string): Cliche | null {
 }
 
 const constatsDe = (p: Passage, page: string) => p.constats.filter((c) => c.page === page);
-const dansImage = (z: Zone, largeur: number, hauteur: number) => z.x >= 0 && z.y >= 0 && z.x + z.largeur <= largeur && z.y + z.hauteur <= hauteur;
-
-// The capture, and the findings of its passage drawn on it: only the zones that lie inside the capture.
-function Planche({ cliche, constats, alt }: { cliche: Cliche; constats: Constat[]; alt: string }) {
-  const box = useRef<HTMLDivElement>(null);
+// The capture of the page, as it is. The findings are not drawn on it: their zone is measured on their own capture,
+// taken where the defect is (scrolled to it), not on the capture of the top of the page; drawn here, a sign would fall
+// on the wrong text. Each finding is shown under it on its own capture, ringed by the scene.
+function Planche({ cliche, alt }: { cliche: Cliche; alt: string }) {
   const [illisible, setIllisible] = useState(false);
-  // Drawn again only when what is drawn changes, not at each move of the curtain.
-  const signes = JSON.stringify(constats.map((c) => [c.genre, c.zone]));
-  useEffect(() => {
-    const host = box.current;
-    if (!host) return;
-    setIllisible(false);
-    host.replaceChildren();
-    const img = new Image();
-    img.alt = alt;
-    img.style.cssText = "display:block;width:100%;height:auto";
-    img.onload = () => {
-      if (cliche.entouree) return;
-      const largeur = cliche.largeur ?? img.naturalWidth, hauteur = cliche.hauteur ?? img.naturalHeight;
-      const dedans = constats.filter((c) => c.zone && dansImage(c.zone, largeur, hauteur)).map((c) => ({ genre: c.genre, zone: c.zone! }));
-      if (dedans.length) signer(host, img, largeur, dedans);
-    };
-    img.onerror = () => setIllisible(true);
-    img.src = cliche.src;
-    host.append(img);
-  }, [cliche.src, cliche.largeur, cliche.hauteur, cliche.entouree, signes, alt]);
+  useEffect(() => setIllisible(false), [cliche.src]);
   return (
     <>
       {illisible && <p className="tour-sans-capture">Capture illisible : son serveur ne répond pas ou refuse la lecture depuis cette page.</p>}
-      <div className="tour-capture tour-planche" ref={box} />
+      <div className="tour-capture tour-planche"><img src={cliche.src} alt={alt} style={{ display: "block", width: "100%", height: "auto" }} onError={() => setIllisible(true)} /></div>
     </>
   );
 }
 
-// What is drawn on a capture, in words: the findings with a zone inside it, outside it, without a zone.
-function noteDessin(p: Passage, page: string, cliche: Cliche): string {
-  const constats = constatsDe(p, page);
-  if (cliche.entouree) return `Capture d'un constat, déjà entourée par la scène : cette entrée de l'index n'a pas la capture brute de ses pages.`;
-  if (!constats.length) return `Aucun constat de ${titreCourt(p)} sur cette page.`;
-  const avecZone = constats.filter((c) => c.zone);
-  const sansZone = constats.length - avecZone.length;
-  const fin = sansZone ? `, ${pluriel(sansZone, "sans zone", "sans zone")}` : "";
-  if (cliche.largeur === null || cliche.hauteur === null)
-    return `${pluriel(constats.length, "constat", "constats")} de ${titreCourt(p)} : taille de la capture absente de l'index, seules les zones qui tiennent dans l'image sont dessinées${fin}.`;
-  const dedans = avecZone.filter((c) => dansImage(c.zone!, cliche.largeur!, cliche.hauteur!)).length;
-  return `${pluriel(dedans, "constat dessiné", "constats dessinés")} de ${titreCourt(p)}, ${pluriel(avecZone.length - dedans, "hors de l'image", "hors de l'image")}${fin}.`;
-}
-
 function Feuille({ p, page, cliche, role }: { p: Passage; page: string; cliche: Cliche; role: string }) {
+  const constats = constatsDe(p, page);
   return (
     <section className="invoice-sheet tour-feuille">
       <header className="sheet-heading">
@@ -89,8 +56,20 @@ function Feuille({ p, page, cliche, role }: { p: Passage; page: string; cliche: 
         <span className="sheet-state">{role}</span>
       </header>
       <div className="tour-planche-corps">
-        <Planche cliche={cliche} constats={constatsDe(p, page)} alt={`Page ${page}, ${titreCourt(p)} (${role.toLowerCase()})`} />
-        <p className="tour-note">{noteDessin(p, page, cliche)}</p>
+        <Planche cliche={cliche} alt={`Page ${page}, ${titreCourt(p)} (${role.toLowerCase()})`} />
+        {cliche.entouree && <p className="tour-note">Capture d'un constat, déjà entourée par la scène : cette entrée de l'index n'a pas la capture brute de ses pages.</p>}
+        {!constats.length && <p className="tour-note">Aucun constat de {titreCourt(p)} sur cette page.</p>}
+        {constats.length > 0 && !cliche.entouree && (
+          <div className="tour-constats-feuille">
+            <p className="tour-note">{pluriel(constats.length, "constat", "constats")} de {titreCourt(p)} sur cette page, chacun sur sa capture prise à l'endroit du défaut :</p>
+            {constats.map((c) => (
+              <figure key={c.id} className="tour-constat-vignette">
+                {c.capture ? <img src={c.capture} alt={`${page} : ${c.texte}`} loading="lazy" /> : <span className="tour-note">Pas de capture pour ce constat.</span>}
+                <figcaption>{c.genre === "defaut" ? "[ ! ]" : "[ ? ]"} {c.texte}</figcaption>
+              </figure>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );
@@ -120,9 +99,9 @@ function Rideau({ a, b, page, avant, apres }: { a: Passage; b: Passage; page: st
         <div className="curtain-comparison tour-rideau" style={{ "--curtain-position": `${position}%` } as CSSProperties}
           onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); glisser(e.currentTarget, e.clientX); }}
           onPointerMove={(e) => { if (e.currentTarget.hasPointerCapture(e.pointerId)) glisser(e.currentTarget, e.clientX); }}>
-          <Planche cliche={apres} constats={constatsDe(b, page)} alt={`Page ${page}, ${titreCourt(b)} (après)`} />
+          <Planche cliche={apres} alt={`Page ${page}, ${titreCourt(b)} (après)`} />
           <div className="curtain-reference">
-            <Planche cliche={avant} constats={constatsDe(a, page)} alt={`Page ${page}, ${titreCourt(a)} (avant)`} />
+            <Planche cliche={avant} alt={`Page ${page}, ${titreCourt(a)} (avant)`} />
           </div>
           <span className="curtain-line" aria-hidden="true" />
           <span className="tour-rideau-etiquette is-avant" aria-hidden="true">Avant</span>
@@ -335,7 +314,7 @@ export default function Comparer({ route, data }: { route: Route; data: Chargeme
               )}
               <footer className="pixel-summary">
                 Sur {page} : {pluriel(constatsDe(a, page).length, "constat", "constats")} dans {titreCourt(a)}, {constatsDe(b, page).length} dans {titreCourt(b)}.
-                {avant.entouree || apres.entouree ? " Une entrée ancienne n'a que la capture d'un constat, entourée par la scène." : " Captures brutes de la page, publiées par le réveil ; les constats y sont dessinés ici."}
+                {avant.entouree || apres.entouree ? " Une entrée ancienne n'a que la capture d'un constat, entourée par la scène." : " Captures brutes du haut de la page, publiées par le réveil ; chaque constat est montré sur sa propre capture, entourée par la scène."}
               </footer>
             </>
           )}
