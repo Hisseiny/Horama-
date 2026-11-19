@@ -18,7 +18,7 @@ Source des deux cibles : Noé, 19/11. La persona du marketeur qui vibe-code n'a 
 
 ## L'unité facturée : le passage
 
-Un **passage**, c'est l'agent H qui parcourt un site ou une application, jusqu'à 15 pages, puis rend ses défauts prouvés et ses doutes. C'est l'unité qu'on a mesurée :
+Un **passage**, c'est l'agent H qui parcourt un site ou une application, jusqu'à 8 pages (le plafond actuel du service en ligne), puis rend ses défauts prouvés et ses doutes. C'est l'unité qu'on a mesurée :
 
 | Passage mesuré | Pages | Durée | Coût | Source |
 |---|---|---|---|---|
@@ -27,8 +27,13 @@ Un **passage**, c'est l'agent H qui parcourt un site ou une application, jusqu'�
 | Visite de 15 pages sur eugeniaschool.com, 2 passages | 15 | 174 à 237 s | 0,0712 à 0,0745 $ | [Mode visuel](../docs/tests/2026-11-18-mode-visuel.md) |
 | Visite par clics sur eugeniaschool.com | 8, dont 4 par clic | 211,6 s | 0,1030 $ | [Visite A91](../docs/tests/2026-11-18-a91-visite.md) |
 | Visite par clics sur albertschool.com, interrompue | 1 sur 8 | 521,1 s | 0,1148 $ | [Visite A91](../docs/tests/2026-11-18-a91-visite.md) |
+| Visite par clics sur eugeniaschool.com, première version du code | 8 | 317,5 s | 0,1875 $ | [Visite A91](../docs/tests/2026-11-18-a91-visite.md) |
+| Visite par clics sur albertschool.com/fr, 2 passages | 8 | 278,6 à 280,8 s | 0,1411 à 0,1454 $ | [Rester sur le site](../docs/tests/2026-11-19-rester-sur-le-site.md) |
+| Passage complet sur la PR #16 du clone d'Eugenia | 8 | 343 s | 0,2174 $ | [Langue et lecture](../docs/tests/2026-11-19-langue-et-lecture.md) |
+| Visite avec contrôle du texte non traduit, finie | 8 | 434,5 s | 0,2680 $ (H et Holo) | [Texte non traduit](../docs/tests/2026-11-19-texte-non-traduit.md) |
+| Même visite, interrompue | 4 sur 8 | 959,9 s | 0,5400 $ | [Texte non traduit](../docs/tests/2026-11-19-texte-non-traduit.md) |
 
-On retient **0,12 $ par passage** comme coût prudent : c'est un peu au-dessus du plus haut mesuré (0,1148 $, sur une visite qui a échoué). Un passage réussi a coûté entre 0,026 et 0,103 $. Au-delà de 15 pages : à mesurer.
+Les passages courts (Facturo, 15 pages par adresse sans clic) ne représentent pas un passage complet d'aujourd'hui : avec les visites par clic et le plafond relevé à 380 s, un passage complet de 8 pages coûte plutôt entre 0,20 et 0,25 $ (Nathan, revue de #227). On retient donc **0,25 $ par passage** comme coût prudent, et **0,30 $** comme pire cas : un peu au-dessus du plus haut passage réussi (0,268 $). Un passage interrompu a coûté jusqu'à 0,54 $. Au-delà de 8 pages : à mesurer.
 
 ## La grille
 
@@ -48,23 +53,25 @@ Même produit, trois paliers. Chaque palier inclut des passages ; au-delà, on p
 |---|---|---|
 | Momentic Scale | 500 $ par mois, 500 $ d'usage inclus | momentic.ai/pricing, lu le 19/11 |
 | TesterArmy | 99 $ par mois pour 250 passages | tester.army, lu le 19/11 |
-| Dr. Link Check | à partir de 13 $ par mois | drlinkcheck.com/pricing, lu le 19/11 (rapport marketing) |
+| Dr. Link Check | à partir de 13 $ par mois | drlinkcheck.com/pricing, cité par le rapport marketing de Noé (19/11), non relu sur la page |
 | QA Wolf en libre-service | 1 $ par passage web | testoptim.com, source secondaire, lue le 19/11 |
 
 ## Marge sur le coût de run
 
-Calcul avec 0,12 $ par passage, en comptant que tous les passages inclus sont consommés (le pire cas). L'écart entre dollar et euro est ignoré (ordre de grandeur proche de 1).
+Calcul en comptant que tous les passages inclus sont consommés, à 0,25 $ (coût prudent) et à 0,30 $ par passage (pire cas mesuré) ; marge = (prix − coût) / prix. L'écart entre dollar et euro est ignoré (ordre de grandeur proche de 1).
 
-| Palier | Prix | Coût de run maximal | Marge sur le run |
-|---|---|---|---|
-| Gratuit | 0 € | 0,36 $ par utilisateur et par mois | coût d'acquisition |
-| Solo | 49 € | 100 × 0,12 = 12 $ | environ 75 % |
-| Équipe | 199 € | 500 × 0,12 = 60 $ | environ 70 % |
-| Passage en plus | 0,40 à 0,50 € | 0,12 $ | environ 70 à 75 % |
+| Palier | Prix | Coût de run maximal à 0,25 $ | Marge à 0,25 $ | Coût de run maximal à 0,30 $ | Marge à 0,30 $ |
+|---|---|---|---|---|---|
+| Gratuit | 0 € | 0,75 $ par utilisateur et par mois | coût d'acquisition | 0,90 $ par utilisateur et par mois | coût d'acquisition |
+| Solo | 49 € | 100 × 0,25 = 25 $ | environ 49 % | 100 × 0,30 = 30 $ | environ 39 % |
+| Équipe | 199 € | 500 × 0,25 = 125 $ | environ 37 % | 500 × 0,30 = 150 $ | environ 25 % |
+| Passage en plus | 0,40 à 0,50 € | 0,25 $ | environ 38 à 50 % | 0,30 $ | environ 25 à 40 % |
 
-Avec le coût d'un passage réussi typique (0,07 $), la marge monte à environ 85 % sur Solo et 82 % sur Équipe.
+Avec un passage court à 0,07 $ (15 pages d'eugeniaschool.com par adresse), la marge monte à environ 86 % sur Solo et 82 % sur Équipe ; mais ce n'est plus le passage complet qu'on vend.
 
-Ces marges ne comptent que l'agent H et Holo. Restent à mesurer : l'hébergement du service, le support, le coût d'écriture d'un test par le modèle Hugging Face, et le prix de l'offre H payante (l'offre gratuite limite à 3 sessions simultanées).
+**La grille est à revoir.** À 0,25 $ par passage, le palier Équipe ne garde qu'environ 37 % de marge si tous ses passages sont consommés, avant même l'hébergement. Pistes : moins de passages inclus, un prix plus haut, ou un coût par passage qui baisse (pages limitées, moins d'étapes de l'agent). Décision de Noé, à prendre avant le deck.
+
+Ces marges ne comptent que l'agent H et Holo. Restent à mesurer : le service Railway (payant depuis le 19/11), le support, le coût d'écriture d'un test par le modèle Hugging Face, et le prix de l'offre H payante (l'offre gratuite limite à 3 sessions simultanées).
 
 ## Go-to-market : l'extension Chrome gratuite
 
@@ -82,7 +89,9 @@ Un seul canal pour vendredi :
 | Quoi | Pourquoi | Qui |
 |---|---|---|
 | Ce que le CTO de Troov paierait, et ce qui lui manque | Seul avis client possible avant vendredi | Noé |
-| Le coût d'un passage au-delà de 15 pages | Un vrai site en a souvent plus | Ali |
+| Le coût d'un passage au-delà de 8 pages, avec le code actuel de `dev` | Un vrai site en a souvent plus ; c'est lui qui fixe le vrai pire cas | Ali |
+| Le coût du service Railway | Payant depuis le 19/11 | Ali |
+| Comment compter les 3 passages gratuits sans compte | Sans compte, rien ne les compte : compte léger, ou limite par extension installée | Nathan, Noé |
 | Le coût d'écriture d'un test (Hugging Face) | Dernière case vide de la formule du coût de run | Leslie |
 | Le prix de l'offre H payante | Nécessaire au-delà de 3 sessions simultanées | Ali |
 | Le nombre de passages réellement consommés par un client | Les marges supposent le pire cas | Après le hackathon |
