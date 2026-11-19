@@ -346,7 +346,13 @@ Répéter la démo de l'entrée par une PR sur le site d'Eugenia en ligne, sans 
 bash automatisation/demo/repetition.sh
 ```
 
-Avec le vrai agent H, ajouter `--agent` (quelques centimes par parcours). Mode d'emploi, ce qu'on voit à chaque seconde et pièges : [répétition](docs/demo/2026-11-17-repetition.md). Tour complet du site en réel : commande dans le [rapport du tour](docs/tests/2026-11-17-tour-du-site-reel.md).
+Avec le vrai agent H, ajouter `--agent` (quelques centimes par parcours).
+
+L'entrée par une PR sur le clone du site d'Eugenia, telle qu'on la filme (machine de l'équipe : `gh` connecté, clé H, Chrome ; un passage H d'environ 6 minutes) : lancer le réveil, **puis** pousser un commit sur la PR. Avec `--nouvelles-seulement`, le commit déjà présent n'est pas rejoué ; seul le nouveau réveille Horama, qui joue la prévisualisation, passe la main à la tour pour trancher et répond sur la PR ([mode d'emploi](automatisation/reveil/README.md)).
+
+```sh
+node --env-file=.env.local automatisation/reveil/pr.mjs --depot Hisseiny/eugenia-school-website --logiciel eugenia-clone --vault .orchestrateur/jour/vault-final --sortie .orchestrateur/jour/reveil-tour --numero 16 --nouvelles-seulement --commenter --captures-sur-branche horama/captures --trancher-dans-la-tour -- --sans-base
+``` Mode d'emploi, ce qu'on voit à chaque seconde et pièges : [répétition](docs/demo/2026-11-17-repetition.md). Tour complet du site en réel : commande dans le [rapport du tour](docs/tests/2026-11-17-tour-du-site-reel.md).
 
 Voir la landing en local (les modules ES ne se chargent pas en `file://`), puis ouvrir http://127.0.0.1:4190/ :
 

@@ -9,7 +9,7 @@
 // Usage: node automatisation/reveil/pr.mjs --depot <propriétaire/dépôt> --logiciel <logiciel du vault> [--intervalle 20]
 //          [--une-fois] [--a-blanc] [--numero <PR>] [--vault vault-horama] [--sortie .orchestrateur/reveil-pr] [--faux-github <fichier.json>]
 //          [--max 8] [--pages-cliquees 8] [--sans-exploration] [--commenter] [--captures-sur-branche horama/captures]
-//          [--trancher-dans-la-tour [--tour https://horama-gold.vercel.app/tour/]]
+//          [--trancher-dans-la-tour [--tour https://horama-gold.vercel.app/tour/]] [--nouvelles-seulement]
 //          [-- options des deux scènes, par exemple --vitrine]
 // --commenter: one answer on the PR, once both scenes are done (the part of each scene).
 // --captures-sur-branche <branche>: with --commenter, the captures ringed of the exploration are put on this branch of
@@ -19,6 +19,8 @@
 // of the scene opens the tower of control on « À relire » of this passage (the index read at its commit, past the cache
 // of 5 min of the branch); the wake-up reads the index every 5 s, 10 min at most, until every case is settled there;
 // then the answer on the PR is posted with those decisions (a case still open after 10 min: « à trancher »).
+// --nouvelles-seulement: the PRs already open at their current commit when the wake-up starts are not played; only a
+// commit pushed afterwards is (to film a commit that wakes Horama up).
 // --max, --pages-cliquees: the exploration of the preview (pages at most, pages the agent reaches by a click: 8 by
 // default, every page after the page of departure, as the explorer caps it at the number of pages minus one; a page
 // opened by its address is a jump on the screen, a click is a gesture the audience follows);
@@ -122,6 +124,16 @@ export function lecteurFaux(fichier) {
 
 // The PRs to play now: open, last commit deployed with success to a preview address, not played yet (`faits` holds
 // « numéro@sha »). A PR whose preview is not ready yet is waited for, not skipped.
+// --nouvelles-seulement: every followed PR counts as played at the commit it has when the wake-up starts, so that only a
+// commit pushed afterwards is played, even when the preview of the current one is already ready (a commit filmed as it
+// wakes Horama up). Returns what to say.
+export function marquerExistantes(lecteur, faits) {
+  return lecteur.prs().map((pr) => {
+    faits.add(`${pr.numero}@${pr.tete}`);
+    return `réveil PR : #${pr.numero} (${pr.tete.slice(0, 7)}) déjà là au démarrage, pas rejouée ; seul un commit poussé ensuite le sera.`;
+  });
+}
+
 export function aJouer(lecteur, faits) {
   const prets = [];
   for (const pr of lecteur.prs()) {
@@ -549,6 +561,7 @@ async function main() {
     vault: { type: "string", default: "vault-horama" }, sortie: { type: "string", default: ".orchestrateur/reveil-pr" }, "faux-github": { type: "string" },
     max: { type: "string", default: "8" }, "pages-cliquees": { type: "string", default: "8" }, "sans-exploration": { type: "boolean" }, commenter: { type: "boolean" }, "captures-sur-branche": { type: "string" },
     "trancher-dans-la-tour": { type: "boolean" }, tour: { type: "string", default: "https://horama-gold.vercel.app/tour/" },
+    "nouvelles-seulement": { type: "boolean" },
   } });
   if (!values.logiciel || (!values.depot && !values["faux-github"])) throw new Error("--logiciel et --depot (ou --faux-github) sont requis");
   if (values.depot && !/^[\w.-]+\/[\w.-]+$/.test(values.depot)) throw new Error("--depot attend propriétaire/dépôt");
@@ -579,6 +592,7 @@ async function main() {
   if (values["a-blanc"]) {
     console.log(`réveil PR, à blanc : ${values.depot ?? values["faux-github"]}, vault ${values.logiciel}, rien n'est joué.`);
     for (const line of await aBlanc(lecteur, { vault, logiciel: values.logiciel, socle })) console.log(line);
+    if (values["nouvelles-seulement"]) for (const line of marquerExistantes(lecteur, new Set())) console.log(line);
     return;
   }
   // S1 (19/11): the Chrome of the scene opens now, on a page of waiting in the charter, instead of about:blank when the
@@ -586,6 +600,7 @@ async function main() {
   // (another port or profile).
   if (!sceneArgs.some((arg) => /^--(port|profil)\b/.test(arg))) await ouvrirAttente(values.depot ?? values["faux-github"]).catch((error) => console.log(`réveil PR : page d'attente non ouverte, ${error.message}.`));
   const faits = new Set();
+  if (values["nouvelles-seulement"]) for (const line of marquerExistantes(lecteur, faits)) console.log(line);
   const protegees = new Set(); // « numéro@sha » already said protected: said once, tried again at each round
   console.log(`réveil PR : surveillance de ${values.depot ?? values["faux-github"]} toutes les ${interval} s, vault ${values.logiciel}.`);
   for (;;) {
