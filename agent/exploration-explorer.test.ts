@@ -6,6 +6,7 @@ import { deflateSync } from "node:zlib";
 import { afterEach, beforeEach, test } from "node:test";
 import { ecrireDecision } from "@horama/memoire";
 import { BaseMemoire } from "./src/base.ts";
+import type { AccessibilityPage } from "./src/exploration/accessibility.ts";
 import { construireExploration, exclusionLabel, explorer, explorationPassageId, explorationStepBudget, explorationTimeBudget } from "./src/exploration/explorer.ts";
 import type { ExplorerDependencies } from "./src/exploration/explorer.ts";
 import { lireArguments } from "./src/exploration/cli.ts";
@@ -35,7 +36,7 @@ let root: string;
 beforeEach(() => { root = mkdtempSync(join(tmpdir(), "horama-explorer-")); });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-async function run({ png = original, skip = "", refuse = false, failure = false, lateError = false, earlyEnd = false, query = "", actual, retries = 1, defilement = [0, 0], deps = {}, site, doux }: { doux?: boolean; site?: string; actual?: (url: string) => string; retries?: number; defilement?: [number, number]; png?: Buffer; skip?: string; refuse?: boolean; failure?: boolean; lateError?: boolean; earlyEnd?: boolean; query?: string; deps?: Partial<ExplorerDependencies> } = {}) {
+async function run({ png = original, skip = "", refuse = false, failure = false, lateError = false, earlyEnd = false, query = "", actual, retries = 1, defilement = [0, 0], deps = {}, site, doux, accessibilite }: { doux?: boolean; site?: string; actual?: (url: string) => string; retries?: number; defilement?: [number, number]; png?: Buffer; skip?: string; refuse?: boolean; failure?: boolean; lateError?: boolean; earlyEnd?: boolean; query?: string; deps?: Partial<ExplorerDependencies>; accessibilite?: boolean } = {}) {
   let address = "https://example.org/";
   const base = new BaseMemoire();
   const responses: string[] = [];
@@ -71,7 +72,7 @@ async function run({ png = original, skip = "", refuse = false, failure = false,
     })();
     return { id: "session-1", fin };
   };
-  const result = await explorer({ url: "https://example.org", max: 15, vault: join(root, "vault"), sortie: join(root, "out"), port: 9333, site, doux }, {
+  const result = await explorer({ url: "https://example.org", max: 15, vault: join(root, "vault"), sortie: join(root, "out"), port: 9333, site, doux, accessibilite }, {
     base, session, urlCourante: async () => null, runtime: { relever: async () => ({ png, texte: "Page", url_page: address, largeur: 1280, hauteur: 900, defilement, phrase: "Capture enregistrée." }),
       navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
     fetch: async input => {
@@ -83,6 +84,20 @@ async function run({ png = original, skip = "", refuse = false, failure = false,
   });
   return { result, base, responses };
 }
+
+test("l’essai accessibilité écrit seulement un fichier séparé pour les relevés acceptés", async () => {
+  const file = join(root, "out", "accessibilite.json");
+  assert.equal(lireArguments(["--url", "https://example.org", "--accessibilite"])?.accessibilite, true);
+  const absent = await run();
+  assert.equal(existsSync(file), false);
+  const active = await run({ accessibilite: true, skip: "faq" }); // Le faux CDP ne sait pas créer de monde isolé.
+  const accessibility = JSON.parse(readFileSync(file, "utf8")) as { passage_id: string; pages: AccessibilityPage[] };
+  assert.equal(accessibility.passage_id, active.result.passage_id);
+  assert.deepEqual(accessibility.pages.map(({ url, statut }) => [url, statut]), [["https://example.org/", "INCONCLUSIVE"]]);
+  assert.ok(active.result.constats.every(item => item.source === "controle" && item.statut === "INCONCLUSIVE"));
+  assert.equal(active.result.totaux.defauts, absent.result.totaux.defauts);
+  assert.ok(!("accessibilite" in active.result));
+});
 
 for (const context of ["plusieurs", "vide", "indisponible"]) {
   test(`exception de relevé journalisée et page écartée : CDP ${context}`, async () => {

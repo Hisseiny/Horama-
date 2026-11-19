@@ -11,6 +11,8 @@ import type { Consigne } from "../consigne.ts";
 import { creerCoureur } from "../coureur.ts";
 import type { ReleveCapture } from "../coureur.ts";
 import type { ResultatSession, Session, SessionEnCours } from "../session.ts";
+import { auditAccessibility } from "./accessibility.ts";
+import type { AccessibilityPage } from "./accessibility.ts";
 import { captureDefect, connecterCdp, dismissCookies, prepareCapture, readLinks, verifierClics } from "./cdp.ts";
 import type { PageLink } from "./cdp.ts";
 import type { ExplorationCdp } from "./cdp.ts";
@@ -40,7 +42,7 @@ interface ExplorationPage {
   cookies?: "refusee" | "aucune"; url_finale?: string; raison?: string;
   arrivee?: "depart" | "clic" | "adresse";
 }
-export interface ExplorerOptions { url: string; max: number; sortie: string; vault: string; port: number; pagesCliquees?: number; reseauPublic?: boolean; site?: string; doux?: boolean }
+export interface ExplorerOptions { url: string; max: number; sortie: string; vault: string; port: number; pagesCliquees?: number; reseauPublic?: boolean; site?: string; doux?: boolean; accessibilite?: boolean }
 export interface ExplorerDependencies {
   base: BasePassages; runtime: BrowserRuntime; session: Session; signal?: AbortSignal;
   fetch?: typeof fetch; controler?: typeof controlerPage; holo?: typeof askHolo;
@@ -233,6 +235,11 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
     trouvees: { par: sitemap ? "sitemap" : "liens", plafond: max, nombre: pages.length, exclues: discovery.excluded.map(item => ({ url: item.url, raison: ({ form: "formulaire", file: "pdf", login: "connexion", robots: "robots.txt", external: "autre domaine", limit: "au-delà du plafond" } as Record<string, string>)[item.reason] ?? item.reason })) },
     agents: [agent], pages, constats: [] as Finding[], totaux: { pages_trouvees: pages.length, pages_visitees: 0, defauts: 0, doutes: 0, sans_conclusion: 0, par_sorte: {} as Record<string, number> } };
   mkdirSync(join(sortie, "captures"), { recursive: true });
+  const accessibility = new Map<string, AccessibilityPage>();
+  const saveAccessibility = () => {
+    writeFileSync(join(sortie, "accessibilite.json.tmp"), JSON.stringify({ passage_id: id, pages: [...accessibility.values()] }, null, 2));
+    renameSync(join(sortie, "accessibilite.json.tmp"), join(sortie, "accessibilite.json"));
+  };
   const save = () => {
     const counted = report.constats.filter(finding => !finding.explique_par);
     report.totaux = { pages_trouvees: pages.length, pages_visitees: pages.filter(page => page.etat === "visitee").length,
@@ -243,6 +250,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
     renameSync(join(sortie, "exploration.json.tmp"), join(sortie, "exploration.json"));
   };
   save();
+  if (options.accessibilite) saveAccessibility();
   log(`${pages.length} pages trouvées.`);
   const clickTarget = clickedCount(pages.length, options.pagesCliquees ?? 4);
   const consigne = pages.length ? construireExploration(pages, site, version, clickTarget) : null;
@@ -690,6 +698,20 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
             findings.push(item);
           }
         } catch { inconclusive(page, "controle", findings, "Les contrôles de la page n'ont pas pu se terminer."); }
+        try {
+          if (options.accessibilite && !accessibility.has(ecran) && !hookSignal?.aborted) {
+            let index = 0;
+            const result = await auditAccessibility(client, capture.url_page, png => {
+              const path = `captures/accessibilite-${ecran}-${++index}.png`;
+              writeFileSync(join(sortie, path), png);
+              return path;
+            }, hookSignal);
+            accessibility.set(ecran, result);
+            saveAccessibility();
+          }
+        } catch (error) {
+          log(`Accessibilité : preuve de ${ecran} non enregistrée (${error instanceof Error ? error.message : String(error)}).`);
+        }
         finally { hookSignal?.removeEventListener("abort", close); client?.close(); }
         hookSignal?.throwIfAborted();
         let holo: NonNullable<ExplorationPage["holo"]> = { etat: "non_lance", modele: null, duree_ms: 0, ecartes_sans_zone: 0, jetons: null, cout_usd: null };

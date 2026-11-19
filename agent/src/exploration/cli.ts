@@ -13,6 +13,7 @@ export const HELP = `Usage : pnpm --filter @horama/agent explorer -- --url adres
   --sortie chemin     Sortie (.orchestrateur/exploration du dépôt par défaut)
   --vault chemin      Vault (vault-horama du dépôt par défaut)
   --sans-base         Base en mémoire, aucune écriture Supabase
+  --accessibilite     Essai axe-core, écrit accessibilite.json dans la sortie
   --chrome-port 9333  Chrome dédié déjà lancé, 1280 × 900, DPR 1
   --reseau-public     Refuse robots, sitemaps, pages et liens vers une adresse privée,
                       même après résolution DNS (activé par le conteneur)
@@ -26,8 +27,8 @@ export function lireArguments(args: string[]): (ExplorerOptions & { sansBase: bo
   const values = new Map<string, string>();
   for (let index = 0; index < args.length; index++) {
     const name = args[index];
-    if (!["--url", "--site", "--max", "--pages-cliquees", "--sortie", "--vault", "--sans-base", "--chrome-port", "--reseau-public"].includes(name) || values.has(name)) throw new Error("Option inconnue ou répétée ; utiliser --help.");
-    if (name === "--sans-base" || name === "--reseau-public") { values.set(name, "true"); continue; }
+    if (!["--url", "--site", "--max", "--pages-cliquees", "--sortie", "--vault", "--sans-base", "--chrome-port", "--reseau-public", "--accessibilite"].includes(name) || values.has(name)) throw new Error("Option inconnue ou répétée ; utiliser --help.");
+    if (["--sans-base", "--reseau-public", "--accessibilite"].includes(name)) { values.set(name, "true"); continue; }
     const value = args[++index];
     if (!value || value.startsWith("--")) throw new Error(`Valeur requise pour ${name}.`);
     values.set(name, value);
@@ -44,7 +45,8 @@ export function lireArguments(args: string[]): (ExplorerOptions & { sansBase: bo
   const site = values.get("--site");
   if (site !== undefined && !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(site)) throw new Error("Site invalide : utiliser lettres, chiffres, tirets ou soulignements.");
   return { url: address, max, port, pagesCliquees, ...(site !== undefined ? { site } : {}), sortie: values.get("--sortie") ?? fileURLToPath(new URL("../../../.orchestrateur/exploration", import.meta.url)),
-    vault: values.get("--vault") ?? fileURLToPath(new URL("../../../vault-horama", import.meta.url)), sansBase: values.has("--sans-base"), reseauPublic: values.has("--reseau-public") };
+    vault: values.get("--vault") ?? fileURLToPath(new URL("../../../vault-horama", import.meta.url)), sansBase: values.has("--sans-base"), reseauPublic: values.has("--reseau-public"),
+    ...(values.has("--accessibilite") ? { accessibilite: true } : {}) };
 }
 
 export async function lancerExploration(options: ExplorerOptions & { sansBase: boolean }) {
