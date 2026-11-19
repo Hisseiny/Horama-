@@ -1,6 +1,6 @@
 # Horama : document de cadrage (V3)
 
-> **Mise à jour du 18/11.** Ce cadrage V3 reste la référence pour le cœur (la documentation devient les tests, la preuve par le calcul, l'humain qui tranche, la mémoire). Depuis : la scène en direct remplace les 7 écrans (16/11), le site d'Eugenia remplace le SaaS pilote et Facturo (17/11), et Horama a deux modes, grand public et dev, avec une scène épurée ([recadrage du 18/11](decisions/2026-11-18-recadrage-grand-public-et-dev.md), [feuille de route](feuille-de-route.md)). Là où ce document les contredit, ce sont eux qui font foi.
+> **Mise à jour du 18/11.** Ce cadrage V3 reste la référence pour le cœur (la documentation devient les tests, la preuve par le calcul, l'humain qui tranche, la mémoire). Depuis : la scène en direct remplace les 7 écrans (16/11), le site d'Eugenia remplace le SaaS pilote et Facturo (17/11), la scène est épurée ([recadrage du 18/11](decisions/2026-11-18-recadrage-grand-public-et-dev.md), [feuille de route](feuille-de-route.md)), et Horama est un seul produit à deux entrées, une adresse ou une PR avec la documentation, pour deux cibles prioritaires, le CTO d'un SaaS et le marketeur qui vibe-code ([décision du 19/11](decisions/2026-11-19-un-seul-produit.md)). Là où ce document les contredit, ce sont eux qui font foi.
 
 Hackathon Eugenia « Build The Future », du 16 au 20 novembre 2026. Équipe 11.
 
