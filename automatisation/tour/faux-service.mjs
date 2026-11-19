@@ -116,17 +116,41 @@ export function creerFauxService({ maintenant = Date.now, index, vault, explorat
 
     const jeton = jetonValide(req);
     if (!jeton) return repondre(res, 401, { erreur: "Connexion requise." });
-    if (pathname === "/tour/doc") return repondre(res, 501, { erreur: "Correction de documentation pas encore disponible." });
     const c = await lireCorps(req);
     if (!c || typeof c !== "object") return repondre(res, 400, { erreur: "Corps invalide." });
+
+    // /tour/doc as agent/scripts/tour-service.mjs: `correction` names a decision of decisions/ that carries a proposal
+    // (correction_de_note { fichier, avant, apres, statut: "proposee" }); accepted, the note is corrected.
+    if (pathname === "/tour/doc") {
+      if (typeof c.note !== "string" || typeof c.correction !== "string" || !/^[\w-][\w.-]*$/.test(c.correction) || !["accepter", "refuser"].includes(c.action)) return repondre(res, 400, { erreur: "Données de la tour invalides." });
+      const chemin = `decisions/${c.correction}.md`;
+      const texte = notes.get(chemin);
+      const bloc = texte ? /^```decision[ \t]*\n([\s\S]*?)^```[ \t]*$/m.exec(texte) : null;
+      const decision = bloc ? JSON.parse(bloc[1]) : null;
+      const proposition = decision?.correction_de_note;
+      if (proposition?.fichier !== c.note) return repondre(res, 404, { erreur: "Correction de note introuvable." });
+      if (proposition.statut !== "proposee") return repondre(res, 409, { erreur: "Cette correction a déjà été tranchée." });
+      if (c.action === "accepter") {
+        const cible = notes.get(c.note);
+        if (cible === undefined) return repondre(res, 404, { erreur: "Note introuvable." });
+        if (cible.split(proposition.avant).length - 1 !== 1) return repondre(res, 409, { erreur: "Le texte à remplacer n'apparaît pas une seule fois dans la note." });
+        notes.set(c.note, cible.replace(proposition.avant, () => proposition.apres));
+      }
+      const statut = c.action === "accepter" ? "acceptee" : "refusee";
+      decision.correction_de_note = { ...proposition, statut };
+      notes.set(chemin, texte.replace(bloc[0], () => `\`\`\`decision\n${JSON.stringify(decision, null, 2)}\n\`\`\``));
+      return repondre(res, 200, { statut });
+    }
 
     if (pathname === "/tour/decision") {
       if (typeof c.passage !== "string" || typeof c.constat !== "string" || !["bug", "voulu"].includes(c.decision)) return repondre(res, 400, { erreur: "Champs invalides." });
       const constat = index.passages.find((p) => p.passage === c.passage)?.constats?.find((x) => x.id === c.constat);
       if (!constat) return repondre(res, 404, { erreur: "Passage ou constat inconnu." });
       if (constat.decision) return repondre(res, 409, { erreur: "Constat déjà tranché." });
-      constat.decision = { choix: c.decision, par: jeton.nom, le: new Date(maintenant()).toISOString() };
-      return repondre(res, 200, { ok: true, decision: constat.decision });
+      // As recordDecision of agent/scripts/tour-vault.mjs: choix and decision, who, when, and the date of the index.
+      constat.decision = { choix: c.decision, decision: c.decision, par: jeton.nom, le: new Date(maintenant()).toISOString() };
+      index.maj = constat.decision.le;
+      return repondre(res, 200, { decision: c.decision, par: jeton.nom, le: constat.decision.le });
     }
 
     // /tour/test
@@ -138,8 +162,11 @@ export function creerFauxService({ maintenant = Date.now, index, vault, explorat
     if (c.action === "accepter") note = majFrontMatter(note, { statut: "accepte", accepte_par: jeton.nom, accepte_le: le });
     else if (c.action === "refuser") note = majFrontMatter(note, { statut: "refuse", refuse_par: jeton.nom, refuse_le: le });
     else {
-      if (typeof c.task !== "string" || typeof c.verification !== "string") return repondre(res, 400, { erreur: "Champs invalides." });
-      note = remplacerSection(remplacerSection(note, "Task", c.task), "Verification", c.verification);
+      // As the real service: task, verification or both.
+      if ((c.task === undefined && c.verification === undefined) || (c.task !== undefined && typeof c.task !== "string") || (c.verification !== undefined && typeof c.verification !== "string")) return repondre(res, 400, { erreur: "Champs invalides." });
+      if (c.task !== undefined) note = remplacerSection(note, "Task", c.task);
+      if (c.verification !== undefined) note = remplacerSection(note, "Verification", c.verification);
+      note = majFrontMatter(note, { statut: "accepte", accepte_par: jeton.nom, accepte_le: le });
     }
     notes.set(chemin, note);
     return repondre(res, 200, { ok: true });
