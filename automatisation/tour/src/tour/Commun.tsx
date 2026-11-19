@@ -194,7 +194,7 @@ export function Sidebar({ route, data }: { route: Route; data: Chargement | null
             <small>{!data ? "chargement…" : sansSource(data) ? "index muet" : `${data.passages.length} passage${data.passages.length > 1 ? "s" : ""}`}</small>
           </div>
         </div>
-        <a className="run-button" href="../">
+        <a className="run-button" href="../" title={replie ? "Envoyer Horama" : undefined} aria-label={replie ? "Envoyer Horama" : undefined}>
           <Icon name="play" />
           <span>Envoyer Horama</span>
         </a>
@@ -219,9 +219,10 @@ export function Sidebar({ route, data }: { route: Route; data: Chargement | null
                 <strong>{session.nom}</strong>
                 <button type="button" className="tour-deconnexion" onClick={oublierSession}>Se déconnecter</button>
               </span>
+              {replie && <button type="button" className="tour-deconnexion-icone" onClick={oublierSession} aria-label={`Se déconnecter (${session.nom})`} title={`Se déconnecter (${session.nom})`}><Icon name="logout" /></button>}
             </div>
           )
-          : <a className="theme-toggle tour-connexion" href="#connexion"><Icon name="arrow" /><span>Se connecter</span></a>}
+          : <a className="theme-toggle tour-connexion" href="#connexion" title={replie ? "Se connecter" : undefined} aria-label={replie ? "Se connecter" : undefined}><Icon name="arrow" /><span>Se connecter</span></a>}
         {data?.source && <p className="tour-source">Données : {data.source === "service" ? "service Horama" : "GitHub (service injoignable)"}</p>}
         {data && <p className="tour-source">Vault : {data.vaultSource ?? "illisible"}</p>}
       </div>

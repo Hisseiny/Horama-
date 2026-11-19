@@ -221,7 +221,10 @@ a.brand { text-decoration: none; }
 .tour-menu-tete { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .tour-menu-bouton { display: grid; place-items: center; flex: none; width: 38px; height: 38px; padding: 0; border: 1.5px solid transparent; border-radius: 10px; background: transparent; color: var(--sidebar-text); font-size: 20px; cursor: pointer; }
 .tour-menu-bouton:hover { background: var(--sidebar-track); }
-.sidebar.is-replie .product-select-wrap, .sidebar.is-replie .run-button, .sidebar.is-replie .sidebar-bottom { display: none; }
+.sidebar.is-replie .product-select-wrap { display: none; }
+/* Folded, the two main actions stay, as icons: send Horama, and sign in or out (label in aria-label and title). */
+.tour-deconnexion-icone { display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 1.5px solid transparent; border-radius: 10px; background: transparent; color: var(--sidebar-text); cursor: pointer; }
+.tour-deconnexion-icone:hover { background: var(--sidebar-track); }
 @media (min-width: 601px) {
   .sidebar, .main-content { transition: width 180ms ease, padding 180ms ease, margin-left 180ms ease; }
   .app-shell:has(> .sidebar.is-replie) .sidebar { width: 72px; padding-inline: 12px; }
@@ -232,10 +235,17 @@ a.brand { text-decoration: none; }
   .sidebar.is-replie .nav-item { position: relative; display: flex; justify-content: center; padding: 0; }
   .sidebar.is-replie .nav-item > span:not(.nav-count) { display: none; }
   .sidebar.is-replie .nav-count { position: absolute; top: 1px; right: 1px; min-width: 18px; height: 18px; padding-inline: 3px; border-width: 2px; font-size: 10px; }
+  .sidebar.is-replie .run-button { display: grid; place-items: center; width: 48px; min-height: 44px; margin-inline: auto; padding: 0; }
+  .sidebar.is-replie .run-button > span, .sidebar.is-replie .run-button::before, .sidebar.is-replie .run-button::after { display: none; }
+  .sidebar.is-replie .sidebar-bottom { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .sidebar.is-replie .tour-source, .sidebar.is-replie .profile-copy { display: none; }
+  .sidebar.is-replie .profile { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 0; border: 0; }
+  .sidebar.is-replie .tour-connexion { justify-content: center; width: 48px; padding: 0; }
+  .sidebar.is-replie .tour-connexion > span { display: none; }
 }
 @media (max-width: 600px) {
   .sidebar.is-replie { padding-block: 14px; }
-  .sidebar.is-replie nav { display: none; }
+  .sidebar.is-replie nav, .sidebar.is-replie .run-button, .sidebar.is-replie .sidebar-bottom { display: none; }
   .tour-menu-bouton svg { transform: rotate(90deg); } /* the bar is on top: its chevron points up to fold, down to unfold */
 }
 @media (prefers-reduced-motion: reduce) {
