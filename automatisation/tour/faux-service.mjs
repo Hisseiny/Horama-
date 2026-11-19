@@ -44,9 +44,10 @@ function majFrontMatter(contenu, champs) {
   return `---\n${lignes.join("\n")}\n---\n${m ? contenu.slice(m[0].length) : contenu}`;
 }
 
-// Replaces the body of a `## <titre>` section, up to the next `## ` or the end.
+// Replaces the body of a `## <titre>` section, up to the next `## `, the block of rules (kept, as the real service of
+// #238 keeps it) or the end.
 function remplacerSection(contenu, titre, texte) {
-  const re = new RegExp(`(^## ${titre}[^\\n]*\\n)[\\s\\S]*?(?=^## |(?![\\s\\S]))`, "m");
+  const re = new RegExp(`(^## ${titre}[^\\n]*\\n)[\\s\\S]*?(?=^## |^\`\`\`regles|(?![\\s\\S]))`, "m");
   return re.test(contenu) ? contenu.replace(re, (_, tete) => `${tete}${texte.trim()}\n\n`) : `${contenu.trimEnd()}\n\n## ${titre}\n${texte.trim()}\n`;
 }
 

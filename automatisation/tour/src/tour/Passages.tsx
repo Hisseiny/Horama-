@@ -1,6 +1,7 @@
 // 11.8 Passages et rapports, on real data only: the passages of the public index (entry by a PR, PR of the clone)
 // and the explorations sent from this browser (entry by an address), the latest first; then the journal of the decisions taken
-// by a human, as the index carries them. No journal of the agent step by step: no source gives it today.
+// by a human, as the index carries them. No journal of the agent step by step: no source gives it today. Links to 11.3
+// (the direct) and to 11.7 (a « voulu » of the journal, as the prototype does).
 import "../../interface/screen-11-8/styles.css";
 import type { Chargement } from "../donnees";
 import { usePrototype } from "../PrototypeContext";
@@ -18,6 +19,7 @@ export default function Passages({ route, data }: { route: Route; data: Chargeme
           <header className="history-page-heading">
             <h1>Passages et rapports</h1>
             <p>Chaque ligne est une visite d'Horama. Ouvrez-en une pour voir ce qu'il a prouvé, capture à l'appui.</p>
+            <p className="tour-liens-ecrans"><a className="tour-lien" href="#direct">En direct</a> <a className="tour-lien" href="#comparer">Comparer deux passages</a></p>
           </header>
           <Erreurs data={data} />
           <section className="history-card passages-card" aria-labelledby="passages-title">
@@ -62,10 +64,11 @@ export default function Passages({ route, data }: { route: Route; data: Chargeme
                 <h2 id="journal-title">Journal des décisions</h2>
                 <p className="tour-note">Chaque « bug » ou « voulu » tranché par un humain, tel qu'il est écrit dans l'index des passages.</p>
               </div>
+              <a className="tour-lien" href="#doc">Corrections de doc</a>
             </div>
             <div className="decision-list">
               {decisions.map(({ p, c }) => (
-                <button className="decision-entry" type="button" key={`${p.cle}-${c.id}`} onClick={() => (window.location.hash = `rapport/${encodeURIComponent(p.cle)}`)}>
+                <button className="decision-entry" type="button" key={`${p.cle}-${c.id}`} onClick={() => (window.location.hash = c.decision!.choix === "voulu" ? "doc" : `rapport/${encodeURIComponent(p.cle)}`)}>
                   <span className={`timeline-dot is-${c.decision!.choix === "bug" ? "bug" : "wanted"}`} aria-hidden="true" />
                   <span className="decision-date">{c.decision!.le ? dateCourte(c.decision!.le) : dateCourte(p.date)}</span>
                   <span className="decision-copy">

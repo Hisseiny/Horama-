@@ -7,7 +7,10 @@
 // - Fallback, when the service does not answer (or answers 404 while the route is not online yet): the index on
 //   raw.githubusercontent.com (at the commit ?index=<sha> when given, which escapes the cache of 5 min of the branch),
 //   and the vault by the list of its files written at build time (public/vault-manifeste.json, scripts/manifeste-vault.mjs)
-//   then each note on raw.
+//   then each note on raw, on the branch horama/vault first (where the service writes the tests and the notes, never on
+//   dev: decision of 19/11 in #238), then on dev when the note is not there.
+// - The list of the files of the vault (the same manifest) is read in both cases: it alone says which reference
+//   captures exist (the service gives the notes only).
 // - Entry by an address, in both cases: the explorations sent from the page of welcome, kept in this browser
 //   (localStorage « horama-explorations », written by accueil/envoye.js), plus those the service lists, without
 //   duplicate by id; each one read again from its service (horama-exploration-1).
@@ -42,6 +45,7 @@ export type Passage = {
   cle: string; // unique key, for the address of the report: dev:<passage> or public:<id>
   mode: "dev" | "public";
   passage: string | null; // the field « passage » of the entry of the index (what POST /tour/decision names); null for an address
+  service: string | null; // the service that keeps an exploration (entry by an address); null for a PR
   date: string; // ISO
   titre: string; // the PR (« PR #16 : … ») or the address explored
   site: string;
@@ -62,8 +66,12 @@ export type Chargement = {
   erreurs: string[];
   source: "service" | "github" | null; // where the index came from; null when nothing could be read
   vault: Note[] | null; // null: unreadable
-  agent: { disponible?: boolean; file?: number } | null; // as the service gives it; null without the service
+  vaultSource: string | null; // where the notes came from, in words; null when unreadable
+  manifeste: Manifeste | null; // the list of the files of the vault on dev, written at build time; null when unreadable
+  // As the service gives it (the fake service says « file », the real one « file_attente »); null without the service.
+  agent: { disponible?: boolean; file?: number; file_attente?: number } | null;
 };
+export type Manifeste = { depot: string; branche: string; commit: string; genere_le: string; fichiers: string[] };
 
 type IndexConstat = { id: string; statut: string; genre?: string; page?: string; texte?: string; preuve?: string | null; zone?: Zone | null; capture?: string | null;
   decision?: { choix: "bug" | "voulu"; par?: string | null; le?: string | null } | null };
@@ -91,7 +99,7 @@ function fromIndex(item: IndexPassage): Passage {
     decision: c.decision ? { choix: c.decision.choix, par: c.decision.par ?? null, le: c.decision.le ?? null } : null,
   }));
   return {
-    cle: `dev:${item.passage ?? `${item.pr.numero}-${item.commit}`}`, mode: "dev", passage: item.passage, date: item.date,
+    cle: `dev:${item.passage ?? `${item.pr.numero}-${item.commit}`}`, mode: "dev", passage: item.passage, service: null, date: item.date,
     titre: `PR #${item.pr.numero}${item.pr.titre ? ` : ${item.pr.titre}` : ""}`, site: item.site, lien: item.pr.adresse, reponse: item.reponse, commit: item.commit,
     pages: { visitees: item.totaux?.pages_visitees ?? null, trouvees: item.totaux?.pages_trouvees ?? null },
     defauts: constats.filter((c) => c.genre === "defaut").length, doutes: constats.filter((c) => c.genre === "doute").length,
@@ -137,7 +145,7 @@ function fromExploration(envoi: Envoi, report: Exploration): Passage {
       };
     });
   return {
-    cle: `public:${envoi.id}`, mode: "public", passage: null, date: report.debut ?? envoi.date, titre: report.adresse ?? envoi.adresse, site: report.site ?? "",
+    cle: `public:${envoi.id}`, mode: "public", passage: null, service: envoi.service, date: report.debut ?? envoi.date, titre: report.adresse ?? envoi.adresse, site: report.site ?? "",
     lien: `../rapport/?id=${encodeURIComponent(envoi.id)}&service=${encodeURIComponent(envoi.service)}`, reponse: null, commit: null,
     pages: { visitees: report.totaux?.pages_visitees ?? null, trouvees: report.totaux?.pages_trouvees ?? null },
     defauts: constats.filter((c) => c.genre === "defaut").length, doutes: constats.filter((c) => c.genre === "doute").length,
@@ -158,18 +166,34 @@ async function lireService(): Promise<Donnees | null> {
   }
 }
 
-// The fallback of the vault: its list of files written at build time, then each note on raw (no limit per hour there).
-async function lireVaultGithub(): Promise<Note[] | null> {
+// The list of the files of the vault on dev, written at build time; null when it cannot be read.
+async function lireManifeste(): Promise<Manifeste | null> {
   try {
     const response = await fetch("vault-manifeste.json", { cache: "no-store" });
     if (!response.ok) return null;
-    const { depot, branche, fichiers } = await response.json();
-    const notes = await Promise.all((fichiers as string[]).filter((f) => f.endsWith(".md")).map(async (f) => {
-      const note = await fetch(`https://raw.githubusercontent.com/${depot}/${branche}/${f}`, { cache: "no-store" });
+    const body = await response.json();
+    return Array.isArray(body?.fichiers) ? body : null;
+  } catch {
+    return null;
+  }
+}
+
+// The fallback of the vault: each note of the manifest on raw (no limit per hour there), on horama/vault first, then on
+// dev when it is not there (404: the branch does not exist yet, or the note came after it). Says which branches served.
+async function lireVaultGithub(manifeste: Manifeste | null): Promise<{ notes: Note[]; branches: Set<string> } | null> {
+  if (!manifeste) return null;
+  const branches = new Set<string>();
+  const lire = async (branche: string, f: string) => fetch(`https://raw.githubusercontent.com/${manifeste.depot}/${branche}/${f}`, { cache: "no-store" });
+  try {
+    const notes = await Promise.all(manifeste.fichiers.filter((f) => f.endsWith(".md")).map(async (f) => {
+      let branche = "horama/vault";
+      let note = await lire(branche, f);
+      if (note.status === 404) note = await lire((branche = manifeste.branche), f);
       if (!note.ok) throw new Error(`HTTP ${note.status}`);
+      branches.add(branche);
       return { chemin: f.slice(VAULT_PREFIX.length), contenu: await note.text() };
     }));
-    return notes;
+    return { notes, branches };
   } catch {
     return null;
   }
@@ -179,23 +203,27 @@ export async function charger(): Promise<Chargement> {
   const erreurs: string[] = [];
   const passages: Passage[] = [];
   if (serviceDemande !== null && !serviceAccepte) erreurs.push(`Service ${serviceDemande} refusé : seuls une adresse locale et le service Horama sont acceptés. Le service Horama est lu à sa place.`);
-  const donnees = await lireService();
+  const [donnees, manifeste] = await Promise.all([lireService(), lireManifeste()]);
   let source: Chargement["source"] = null;
   let vault: Note[] | null = null;
+  let vaultSource: string | null = null;
   if (donnees) {
     source = "service";
     passages.push(...(donnees.index.passages ?? []).map(fromIndex));
     // The contract does not say whether « chemin » keeps the folder of the vault: it is taken off when present.
     vault = Array.isArray(donnees.vault) ? donnees.vault.map((n) => ({ chemin: n.chemin.replace(VAULT_PREFIX, ""), contenu: n.contenu })) : null;
+    // The service does not say which branch it read: the contract (#238) says horama/vault when it exists, else dev.
+    if (vault) vaultSource = "service Horama (branche horama/vault, ou dev si elle n'existe pas)";
   } else {
-    const [index, notes] = await Promise.all([
+    const [index, lu] = await Promise.all([
       fetch(INDEX_URL, { cache: "no-store" }).then((response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return response.json();
       }).catch(() => null),
-      lireVaultGithub(),
+      lireVaultGithub(manifeste),
     ]);
-    vault = notes;
+    vault = lu?.notes ?? null;
+    if (lu && manifeste) vaultSource = `branche${lu.branches.size > 1 ? "s" : ""} ${[...lu.branches].join(" et ")} (liste des fichiers de ${manifeste.branche} au ${new Date(manifeste.genere_le).toLocaleDateString("fr-FR")})`;
     if (index) {
       source = "github";
       passages.push(...(index.passages ?? []).map(fromIndex));
@@ -214,7 +242,8 @@ export async function charger(): Promise<Chargement> {
       const response = await fetch(`${envoi.service}/explorations/${encodeURIComponent(envoi.id)}`, { cache: "no-store" });
       if (response.status === 404) return null; // the service no longer keeps it
       const body = await response.json();
-      if (body.format === "horama-exploration-1") return fromExploration(envoi, body);
+      // Waiting in the queue, the service answers { id, etat: "en_file", place } without the format yet.
+      if (body.format === "horama-exploration-1" || body.etat === "en_file") return fromExploration(envoi, body);
     } catch {}
     injoignables++;
     return undefined;
@@ -231,7 +260,7 @@ export async function charger(): Promise<Chargement> {
   if (injoignables) erreurs.push(`${injoignables} exploration${injoignables > 1 ? "s" : ""} illisible${injoignables > 1 ? "s" : ""} : le service ne répond pas, réessayez dans un instant.`);
   passages.push(...lus.filter((item): item is Passage => !!item));
   passages.sort((a, b) => String(b.date).localeCompare(String(a.date)));
-  return { passages, erreurs, source, vault, agent: donnees?.agent ?? null };
+  return { passages, erreurs, source, vault, vaultSource, manifeste, agent: donnees?.agent ?? null };
 }
 
 // The connection of the team account (#238): POST <service>/tour/session gives a token of 12 h, kept in sessionStorage
@@ -278,6 +307,19 @@ export async function connecter(email: string, motDePasse: string): Promise<"ok"
   return "ok";
 }
 
+// POST <service>/tour/test or /tour/doc: the HTTP status (0 when the service does not answer) and the « erreur » of its
+// answer, as the service wrote it (the 501 of /tour/doc is shown so).
+export async function ecrire(session: Session, route: "test" | "doc", corps: Record<string, string>): Promise<{ statut: number; erreur: string | null }> {
+  try {
+    const response = await fetch(`${SERVICE}/tour/${route}`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.jeton}` },
+      body: JSON.stringify(corps) });
+    const reponse = await response.json().catch(() => null);
+    return { statut: response.status, erreur: typeof reponse?.erreur === "string" ? reponse.erreur : null };
+  } catch {
+    return { statut: 0, erreur: null };
+  }
+}
+
 // POST <service>/tour/decision: the HTTP status, or 0 when the service does not answer.
 export async function trancher(session: Session, passage: string, constat: string, decision: "bug" | "voulu"): Promise<number> {
   try {
@@ -288,3 +330,36 @@ export async function trancher(session: Session, passage: string, constat: strin
     return 0;
   }
 }
+
+// A note of the vault read: the fields of its front matter as written (comments skipped, quotes of a quoted value taken
+// off), its body, and its title (its first « # » line).
+export type NoteLue = { chemin: string; champs: Record<string, string>; corps: string; titre: string };
+export function lireNote(note: Note): NoteLue {
+  const texte = note.contenu.replace(/\r\n/g, "\n");
+  const tete = /^---\n([\s\S]*?)\n---\n?/.exec(texte);
+  const champs: Record<string, string> = {};
+  for (const ligne of tete ? tete[1].split("\n") : []) {
+    const i = ligne.indexOf(":");
+    if (/^\s*#/.test(ligne) || i < 1 || /^\s/.test(ligne)) continue;
+    const valeur = ligne.slice(i + 1).trim();
+    champs[ligne.slice(0, i).trim()] = /^"(.*)"$/.exec(valeur)?.[1] ?? /^'(.*)'$/.exec(valeur)?.[1] ?? valeur;
+  }
+  const corps = tete ? texte.slice(tete[0].length) : texte;
+  return { chemin: note.chemin, champs, corps, titre: /^# (.+)$/m.exec(corps)?.[1].trim() ?? note.chemin };
+}
+
+// The sections « ## <titre> » of a body, in order, each with its text.
+export function sections(corps: string): { titre: string; texte: string }[] {
+  return corps.split(/^## /m).slice(1).map((bloc) => {
+    const fin = bloc.indexOf("\n");
+    return { titre: (fin < 0 ? bloc : bloc.slice(0, fin)).trim(), texte: fin < 0 ? "" : bloc.slice(fin + 1).trim() };
+  });
+}
+
+// The tests of the vault (tests/*.md), and the notes of its product (produit/*.md), read.
+export const testsDuVault = (vault: Note[] | null) => (vault ?? []).filter((n) => /^tests\/[^/]+\.md$/.test(n.chemin)).map(lireNote);
+export const notesProduit = (vault: Note[] | null) => (vault ?? []).filter((n) => /^produit\/[^/]+\.md$/.test(n.chemin)).map(lireNote);
+// The screens a test reads (« releves: [{ ecran: accueil, vue: defaut }, …] »).
+export const ecransReleves = (test: NoteLue) => [...(test.champs.releves ?? "").matchAll(/ecran:\s*([\w-]+)/g)].map((m) => m[1]);
+// A test waits for a human while it is neither accepted nor refused (statut « propose », contrats/types.ts).
+export const enAttente = (test: NoteLue) => test.champs.statut !== "accepte" && test.champs.statut !== "refuse";
