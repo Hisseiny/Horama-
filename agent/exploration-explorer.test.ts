@@ -404,6 +404,9 @@ test("lien au clic non vérifié reste un doute et un même doute Holo répété
   assert.equal(result.totaux.defauts, 0); assert.equal(result.totaux.doutes, 3);
   assert.ok(base.resultats.every(c4 => c4.statut === "SUSPECTED" && c4.niveau_de_preuve === "aucun"));
   assert.ok(base.resultats.every(c4 => c4.ecarts_visuels.some(ecart => ecart.description.startsWith("Le lien interne"))));
+  const holoOnly = await run({ deps: { controler: async () => [], holo: async () => ({ status: "SUSPECTED", model: "holo4-27b", durationMs: 2, usage: null, cost_usd: null, findings: [
+    { status: "SUSPECTED", kind: "cut-off-text", sentence: "Logo.", zone: { x: 500, y: 400, largeur: 60, hauteur: 30 } }] }) } });
+  assert.ok(holoOnly.result.pages.every(page => page.statut === "SUSPECTED"), "un doute rattaché à une autre page n'est pas une réussite");
 });
 
 test("contrôle en échec, Holo hors délai et session interrompue", async () => {

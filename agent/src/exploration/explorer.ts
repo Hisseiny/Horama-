@@ -94,7 +94,7 @@ function overlap(a: Zone, b: Zone): boolean {
   return 2 * width * height > Math.min(a.largeur * a.hauteur, b.largeur * b.hauteur);
 }
 function pageStatus(findings: Finding[]): Statut {
-  return (["VERIFIED_FAIL", "SUSPECTED", "INCONCLUSIVE"] as Statut[]).find(status => findings.some(finding => !finding.explique_par && finding.statut === status)) ?? "PASS";
+  return (["VERIFIED_FAIL", "SUSPECTED", "INCONCLUSIVE"] as Statut[]).find(status => findings.some(finding => finding.statut === status && !findings.some(other => other.id === finding.explique_par))) ?? "PASS";
 }
 const kinds = { "cut-off-text": "texte-coupe", "overlapping-text": "chevauchement", "misaligned-element": "decalage", "distorted-image": "image-deformee", "unreadable-contrast": "contraste-illisible" };
 const descriptions = { "cut-off-text": "Un texte semble coupé.", "overlapping-text": "Des textes semblent se chevaucher.", "misaligned-element": "Un élément semble décalé.", "distorted-image": "Une image semble déformée.", "unreadable-contrast": "Un texte semble difficile à lire." };
