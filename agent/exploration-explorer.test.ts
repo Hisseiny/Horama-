@@ -84,6 +84,12 @@ async function run({ png = original, skip = "", refuse = false, failure = false,
   return { result, base, responses };
 }
 
+test("les redirections vers l’alias www restent sur le site", async () => {
+  const { result, responses } = await run({ actual: address => address.replace("://example.org", "://www.example.org") });
+  assert.equal(result.pages.filter(page => page.etat === "visitee").length, 2);
+  assert.ok(!responses.some(response => /autre site|refusé/.test(response)));
+});
+
 for (const context of ["plusieurs", "vide", "indisponible"]) {
   test(`exception de relevé journalisée et page écartée : CDP ${context}`, async () => {
     const messages: string[] = [];
