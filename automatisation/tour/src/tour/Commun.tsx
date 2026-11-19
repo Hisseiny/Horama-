@@ -1,17 +1,18 @@
 // What the three screens of the tower share: the shell of the prototype of Axil (logo, sidebar, mascot), stripped of
-// everything that was an example (no account, no plan, no « agent disponible »), and the capture of a finding with the
-// sign of the charter on its zone.
-import { useEffect, useRef } from "react";
+// everything that was an example (no example account, no plan, no « agent disponible »), with the team account of the
+// service at its foot (#238), and the capture of a finding with the sign of the charter on its zone.
+import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { Icon } from "../../interface/screen-11-1/Icons";
 import { poserDoute, tracerDefaut } from "../trait.js";
-import type { Chargement, Constat, Decision, Passage } from "../donnees";
+import { SESSION_EVENT, oublierSession, sessionBrute, type Chargement, type Constat, type Decision, type Passage, type Session } from "../donnees";
 
-export type Route = { ecran: "passages" | "rapport" | "relire"; cle?: string };
+export type Route = { ecran: "passages" | "rapport" | "relire" | "connexion"; cle?: string };
 
 export function lireRoute(): Route {
   const [ecran, ...reste] = window.location.hash.replace(/^#/, "").split("/");
   if (ecran === "rapport" && reste.length) return { ecran: "rapport", cle: decodeURIComponent(reste.join("/")) };
-  if (ecran === "relire") return { ecran: "relire" };
+  if (ecran === "connexion") return { ecran: "connexion" };
+  if (ecran === "relire") return reste.length ? { ecran: "relire", cle: decodeURIComponent(reste.join("/")) } : { ecran: "relire" };
   return { ecran: "passages" };
 }
 
@@ -51,9 +52,20 @@ export function Mascot({ etat }: { etat?: keyof typeof IRIS }) {
   );
 }
 
+// The session of the team account (#238), null when not connected; follows the connection and the disconnection.
+const ecouter = (f: () => void) => {
+  window.addEventListener(SESSION_EVENT, f);
+  return () => window.removeEventListener(SESSION_EVENT, f);
+};
+export function useSession(): Session | null {
+  const brute = useSyncExternalStore(ecouter, sessionBrute);
+  return useMemo(() => (brute ? JSON.parse(brute) : null), [brute]);
+}
+
 const aRelire = (data: Chargement | null) => (data ? data.passages.flatMap((p) => p.constats).filter((c) => !c.decision).length : 0);
 
 export function Sidebar({ route, data }: { route: Route; data: Chargement | null }) {
+  const session = useSession();
   const sites = data ? [...new Set(data.passages.map((p) => p.site).filter(Boolean))] : [];
   const items = [
     { icon: "clock" as const, label: "Passages et rapports", hash: "", active: route.ecran !== "relire" },
@@ -83,6 +95,20 @@ export function Sidebar({ route, data }: { route: Route; data: Chargement | null
             </button>
           ))}
         </nav>
+      </div>
+      <div className="sidebar-bottom">
+        {session
+          ? (
+            <div className="profile">
+              <span className="avatar" aria-hidden="true">{session.nom.trim().charAt(0).toUpperCase()}</span>
+              <span className="profile-copy">
+                <strong>{session.nom}</strong>
+                <button type="button" className="tour-deconnexion" onClick={oublierSession}>Se déconnecter</button>
+              </span>
+            </div>
+          )
+          : <a className="theme-toggle tour-connexion" href="#connexion"><Icon name="arrow" /><span>Se connecter</span></a>}
+        {data?.source && <p className="tour-source">Données : {data.source === "service" ? "service Horama" : "GitHub (service injoignable)"}</p>}
       </div>
     </aside>
   );
