@@ -45,6 +45,13 @@ test("l'expression vient avant le trait, la mascotte se pose près de la zone, l
     assert.equal(onZone, false, "jamais sur la zone");
     await sleep(800);
     assert.equal((await stored(page)).etat, "trouve", "l'expression reste sans geste de H");
+    // Once the stroke is drawn, no text under the mascot (the permission to cover a nearby text ends with the stroke).
+    const onText = await evaluate(page, `(() => { const m = JSON.parse(sessionStorage.getItem("horama")).mascot; const range = document.createRange();
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT); const hits = [];
+      for (let n; (n = walker.nextNode()); ) { if (!n.nodeValue.trim()) continue; range.selectNodeContents(n);
+        for (const b of range.getClientRects()) if (Math.min(m.x + 96, b.right) > Math.max(m.x, b.left) && Math.min(m.y + 96, b.bottom) > Math.max(m.y, b.top)) hits.push(n.nodeValue.trim().slice(0, 20)); }
+      return hits; })()`);
+    assert.deepEqual(onText, [], "après le trait, la mascotte ne couvre aucun texte");
     await clickAt(page, { x: 900, y: 120 }); // the next gesture of H, before the 3 s
     await sleep(400);
     assert.equal((await stored(page)).etat, "trouve", "gardée 3 s au moins");

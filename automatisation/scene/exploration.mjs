@@ -22,7 +22,7 @@ import { ecrireDecision, lireDecisions } from "../../memoire/index.ts";
 import { findHolo, startBridge, stopIfMissing } from "./agent-h.mjs";
 import { creerEcrivainMemoire, creerEcrivainSupabase } from "./decisions.mjs";
 import { completerNote } from "./note-passage.mjs";
-import { bilanExploration, dejaVoulu, revoir, sizeOf } from "./recapitulatif.mjs";
+import { bilanExploration, dejaVoulu, lisible, revoir, selecteursDe, sizeOf } from "./recapitulatif.mjs";
 import { ecrireSectionExploration, publierCommentaire } from "../pr-doc/commentaire.mjs";
 import { ouvrirVitrine } from "./vitrine.mjs";
 import { HEIGHT, WIDTH, capture, captureZone, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, layer, navigate, openChrome, option, say, sleep } from "./scene.mjs";
@@ -186,6 +186,7 @@ const GENRE = { VERIFIED_FAIL: "defaut", SUSPECTED: "doute" };
 const LOOK = { VERIFIED_FAIL: "trouve", SUSPECTED: "doute", INCONCLUSIVE: "observe", PASS: "observe" };
 const shown = new Set(); // pages whose findings were handed to the mascot
 const drawnOn = new Map(); // finding id -> drawn on the live page
+const visibleTexts = new Map(); // finding id -> visible texts of the elements it groups, read on the live page
 let queue = Promise.resolve();
 const sameAddress = (a, b) => {
   const [x, y] = [new URL(a), new URL(b)];
@@ -216,6 +217,11 @@ function showPage(pageEntry, constats) {
     const live = await evaluate(page, "location.href").catch(() => "");
     if (live && sameAddress(live, pageEntry.url)) {
       const address = await evaluate(page, "location.pathname + location.search");
+      // The visible texts of the elements a grouped finding cites, while their page is on the screen (for the end).
+      for (const constat of mine) {
+        const selectors = selecteursDe(constat.description);
+        if (selectors.length) visibleTexts.set(constat.id, await Promise.all(selectors.map((selector) => mascot("texte", selector).catch(() => ""))));
+      }
       for (const constat of mine.filter((candidate) => GENRE[candidate.statut])) {
         // Never around nothing: a zone under 4 px in one dimension is not drawn (S7, Louvre 19/11: rings around 1 px).
         const rects = (await rectsOf(constat, pageEntry)).filter((rect) => rect.largeur >= 4 && rect.hauteur >= 4);
@@ -306,9 +312,10 @@ if (report?.format === "horama-exploration-1") {
     : constat.source === "holo" ? "Doute du regard de Holo, le modèle visuel de H : rien n'est prouvé." : "Écart d'image avec la capture du passage précédent.");
   const items = toDecide.map((constat) => {
     const png = readFileSync(join(OUT, constat.capture));
-    return { id: constat.id, genre: GENRE[constat.statut], etat: LOOK[constat.statut], texte: `${pathOf(constat.ecran)} : ${constat.description}`, png, zones: constat.zone ? [constat.zone] : [], page: constat.page ?? sizeOf(png),
+    const said = lisible(constat.description, visibleTexts.get(constat.id));
+    return { id: constat.id, genre: GENRE[constat.statut], etat: LOOK[constat.statut], texte: `${pathOf(constat.ecran)} : ${said}`, png, zones: constat.zone ? [constat.zone] : [], page: constat.page ?? sizeOf(png),
       mesure: constat.source === "controle" && constat.preuve?.mesure ? `mesuré : ${constat.preuve.mesure}` : null,
-      textes: [`Page ${pathOf(constat.ecran)}${arrivalOf(constat.ecran) ? ` (${arrivalOf(constat.ecran)})` : ""} : ${constat.description}`, proof(constat)], question: "C'est un bug, ou c'est voulu ?" };
+      textes: [`Page ${pathOf(constat.ecran)}${arrivalOf(constat.ecran) ? ` (${arrivalOf(constat.ecran)})` : ""} : ${said}`, proof(constat)], question: "C'est un bug, ou c'est voulu ?" };
   });
   const excluded = Object.entries(trouvees.exclues.reduce((all, { raison }) => ({ ...all, [raison]: (all[raison] ?? 0) + 1 }), {})).map(([raison, n]) => `${exclusionLabel(raison)} (${n})`);
   const bilan = bilanExploration(report);

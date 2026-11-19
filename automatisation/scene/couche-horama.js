@@ -729,6 +729,15 @@
         })
         .filter((rect) => rect.largeur > 0 && rect.hauteur > 0);
     },
+    // The visible text of the first element the CSS selector finds, for the questions of the end ("" when there is none or
+    // it is not seen): a selector is never shown on the screen.
+    texte(selecteur) {
+      let found = null;
+      try {
+        found = document.querySelector(selecteur);
+      } catch {}
+      return found?.checkVisibility?.({ opacityProperty: true, visibilityProperty: true }) ? norm(found.innerText) : "";
+    },
     // The rectangle of the first element the CSS selector finds, in page coordinates; [] when there is none.
     element(selecteur) {
       let found = null;
@@ -815,6 +824,13 @@
       await Promise.all(zones.filter((zone) => !zone.trait).map((zone) => drawZone(zone, true)));
       for (const zone of zones.filter((candidate) => candidate.trait)) await drawZone(zone, true);
       mascot.style.opacity = "";
+      // The stroke is drawn: the permission to cover a nearby text ends with it (passage on albertschool.com, 19/11: the
+      // mascot stayed 9 s on a title next to a doubt of the menu). On a text, it goes to a place without one, near the
+      // zone, keeping its expression.
+      if (TITLE && lookAt && !state.bulle) {
+        const now = busy();
+        if (hidden(goal.x, goal.y, M, M, now.filter(({ weight }) => weight === 10)) > 0) goTo(nearSpot(lookAt, now, null, true));
+      }
     },
     // A doubt that became a proven defect (or the reverse): its line changes colour and shape, on every page.
     requalifier(id, genre) {
