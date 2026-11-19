@@ -2,7 +2,7 @@
 // no network. Run from this folder: node --test recapitulatif.test.mjs
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { bilanExploration, dejaVoulu } from "./recapitulatif.mjs";
+import { bilanExploration, dejaVoulu, revoir } from "./recapitulatif.mjs";
 
 // The site blocked by its anti-robot (as in docs/tests/2026-11-18-a67-anti-robot.md, skema.edu): no page, no H session.
 const bloquee = {
@@ -63,4 +63,31 @@ test("déjà voulu : même page, même description, zones qui se recoupent ; une
   assert.equal(dejaVoulu(constat, [{ ...voulu, ecran: "accueil" }]), null);
   assert.equal(dejaVoulu(constat, [{ ...voulu, ecart: "Le bouton déborde." }]), null);
   assert.equal(dejaVoulu(constat, [{ ...voulu, zone: { x: 900, y: 100, largeur: 50, hauteur: 20 } }]), null);
+});
+
+// --choix and the questions without an answer (S9, review of #192). Without --repeter-choix, a question beyond the
+// answers waits for a real click (here a human answers « bug » after 300 ms); with it (filmed passage on a temporary
+// vault), the answers are taken again from the start: voulu, bug, voulu. A mascot that reports each choice as the layer.
+test("revoir : --choix sans répétition laisse la question en trop à l'humain ; --repeter-choix reprend les réponses", async () => {
+  const item = (id) => ({ id, genre: "doute", etat: "doute", texte: id, png: Buffer.from("png"), zones: [], page: null, textes: ["Un texte."], question: "Bug, ou voulu ?" });
+  const run = async (repeter) => {
+    let report = null;
+    const asked = [];
+    const mascot = async (command, value) => {
+      // The human answers this question (its own resolver), 300 ms later; an answer already given makes it a no-op.
+      if (command === "examen") {
+        const mine = report;
+        setTimeout(() => mine({ choix: "bug" }), 300);
+      }
+      if (command === "choisir") {
+        asked.push(value);
+        report?.({ choix: value });
+      }
+    };
+    const made = await revoir({ mascot, recap: {}, items: ["a", "b", "c"].map(item), choix: ["voulu", "bug"], repeter, presentation: false, witness: async () => {}, say: () => {} },
+      () => new Promise((resolve) => (report = resolve)));
+    return { asked, made: made.map(({ choix }) => choix) };
+  };
+  assert.deepEqual(await run(false), { asked: ["voulu", "bug"], made: ["voulu", "bug", "bug"] }, "la troisième question attend l'humain");
+  assert.deepEqual(await run(true), { asked: ["voulu", "bug", "voulu"], made: ["voulu", "bug", "voulu"] }, "--repeter-choix reprend les réponses");
 });

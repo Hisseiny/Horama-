@@ -7,7 +7,7 @@
 // in the memory of the site. Nothing here is particular to a site.
 //
 // Usage: node [--env-file=<.env.local>] automatisation/scene/exploration.mjs --url <adresse> [--site <dossier du vault>] [--max 15] [--pages-cliquees 4] [--sans-agent]
-//          [--sans-holo] [--sans-base | --avec-base] [--choix bug,voulu,...] [--sans-fin] [--par <nom>] [--rythme <s>]
+//          [--sans-holo] [--sans-base | --avec-base] [--choix bug,voulu,...] [--repeter-choix] [--sans-fin] [--par <nom>] [--rythme <s>]
 //          [--vault <dir>] [--sortie <dir>] [--temoins <dir>] [--port 9333] [--profil <dir>] [--fermer-chrome]
 // Env: HAI_API_KEY (H and Holo), SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, CHROME_BIN, HOLO_BIN.
 // Exit: 0 the exploration ended « fini » and nothing failed, 1 otherwise, 2 something is missing, 130 Ctrl+C.
@@ -43,6 +43,9 @@ const ID = `${new Date().toLocaleString("sv-SE").slice(0, 16).replace(" ", "-").
 const OUT = resolve(option("sortie", `/Users/nathan/Code/projet/horama/.orchestrateur/exploration/${ID}`));
 const WITNESSES = option("temoins") ? resolve(option("temoins")) : null;
 const CHOICES = flag("choix") ? option("choix").split(",") : [];
+// --repeter-choix: --choix taken again from the start (S9, filmed passages). It writes as many decisions as there are
+// questions, chosen in advance: on a temporary vault and without the shared base only.
+const REPEAT = flag("repeter-choix");
 const PAR = option("par", "Nathan");
 const RYTHME = Number(option("rythme", 2));
 const CHROME_BIN = process.env.CHROME_BIN || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
@@ -58,6 +61,10 @@ if (flag("site") && !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(SITE)) missing.push("--s
 if (!Number.isSafeInteger(MAX) || MAX < 1) missing.push("--max attend un entier positif.");
 if (!Number.isSafeInteger(CLICKED) || CLICKED < 0) missing.push("--pages-cliquees attend un entier positif ou nul.");
 if (CHOICES.some((choix) => choix !== "bug" && choix !== "voulu")) missing.push("--choix attend une liste de « bug » et de « voulu », séparés par des virgules.");
+const REPO_VAULT = resolve(HERE, "../../vault-horama");
+if (REPEAT && (VAULT === REPO_VAULT || VAULT.startsWith(`${REPO_VAULT}/`))) missing.push("--repeter-choix demande un vault temporaire (--vault), jamais vault-horama/ du dépôt.");
+if (REPEAT && !flag("sans-base")) missing.push("--repeter-choix demande --sans-base (aucune décision choisie d'avance dans la base partagée).");
+if (REPEAT && !CHOICES.length) missing.push("--repeter-choix demande --choix.");
 if (flag("temoins") && !option("temoins")) missing.push("--temoins demande un dossier.");
 if (flag("sans-base") && flag("avec-base")) missing.push("--sans-base et --avec-base s'excluent.");
 if (!flag("sans-holo") && !process.env.HAI_API_KEY) missing.push("Holo demande HAI_API_KEY (sans Holo : --sans-holo).");
@@ -333,7 +340,7 @@ if (report?.format === "horama-exploration-1") {
   // The course stopped for a reason (site that blocks robots, address not found): the mascot says it, the summary keeps it.
   if (bilan.aucune) await mascot("etat", "bloquee").catch(() => {});
   try {
-    const made = await revoir({ mascot, recap, items: items.filter((item) => review.some((constat) => constat.id === item.id)), choix: CHOICES, presentation: true, witness, say }, () => new Promise((resolve) => (chosen = resolve)));
+    const made = await revoir({ mascot, recap, items: items.filter((item) => review.some((constat) => constat.id === item.id)), choix: CHOICES, repeter: REPEAT, presentation: true, witness, say }, () => new Promise((resolve) => (chosen = resolve)));
     const le = new Date().toISOString();
     for (const { item, choix } of made) {
       const constat = review.find((candidate) => candidate.id === item.id);
@@ -391,6 +398,9 @@ if (report?.format === "horama-exploration-1") {
   }
 } else errors.push(`${FILE} absent ou illisible.`);
 
+// The end stays on the screen before Chrome and the showcase close (S9: a filmed passage sees the summary or « C'est
+// rangé »); before the showcase stops, which closes its window with --fermer-chrome.
+if (flag("fermer-chrome")) await sleep(8000);
 const showcase = vitrine?.mesures() ?? null;
 if (showcase) say(`Vitrine : ${showcase.images_recues} images reçues, ${showcase.images_affichees} affichées, ${showcase.images_par_seconde} par seconde ; délai de l'image dessinée à l'image affichée : médiane ${showcase.delai_total_ms.mediane} ms, p95 ${showcase.delai_total_ms.p95} ms.`);
 await vitrine?.stop({ fermer: flag("fermer-chrome") });
