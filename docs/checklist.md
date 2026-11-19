@@ -1,5 +1,7 @@
 # Tableau d’avancement
 
+> **Archive du 19/11 : à jour jusqu'à cette date ; l'état actuel est dans le [README](../README.md).**
+
 Une ligne par tâche du plan de travail. États : à faire, en cours, codé non testé, testé, bloqué. « Testé » = une autre personne a vu marcher la chose ; la preuve (lien de pull request, de replay ou de résultat) est obligatoire.
 
 Chacun met à jour ses propres lignes, dans la pull request de la tâche.

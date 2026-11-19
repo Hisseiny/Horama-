@@ -1,0 +1,712 @@
+{
+  "format": "horama-exploration-1",
+  "etat": "fini",
+  "passage_id": "2026-11-19-22h40-c739",
+  "adresse": "https://hcompany.ai/",
+  "site": "hcompany-ai",
+  "version": "1",
+  "version_reference": null,
+  "le": "2026-11-19T21:40:01.272Z",
+  "fin": "2026-11-19T21:45:03.559Z",
+  "duree_s": 302.287,
+  "cout_usd": null,
+  "trouvees": {
+    "par": "sitemap",
+    "plafond": 8,
+    "nombre": 8,
+    "exclues": [
+      {
+        "url": "https://hub.hcompany.ai/",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://showcase.hcompany.ai/",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://hub.hcompany.ai/models-api/local-inference",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://hub.hcompany.ai/models-api/document-ocr",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://hub.hcompany.ai/models-api/element-localization",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://trust.hcompany.ai/",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://hcompany.ai/cookie-preferences",
+        "raison": "robots.txt"
+      },
+      {
+        "url": "https://x.com/hcompany_ai",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.linkedin.com/company/h-company-ai",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://discord.gg/gAWcDZgx4s",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/holo3.1",
+        "raison": "pdf"
+      },
+      {
+        "url": "https://platform.hcompany.ai/auth/signup",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://chromewebstore.google.com/detail/holotab/hlaoiikljjgcjdhkakedfngifaopbcop",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://huggingface.co/Hcompany",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://jobs.ashbyhq.com/hcompany",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://hub.hcompany.ai/agents-api/introduction",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://hub.hcompany.ai/models-api/introduction",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://github.com/hcompai/hai-agents-python",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://hub.hcompany.ai/agents-api/coding-skills",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "mailto:privacy@hcompany.ai",
+        "raison": "scheme"
+      },
+      {
+        "url": "mailto:dpo@hcompany.ai",
+        "raison": "scheme"
+      },
+      {
+        "url": "https://www.cnil.fr/",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://trust.hcompany.ai/subprocessors",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://hcompany.ai/pricing",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/solutions/systems/solidworks",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/contact",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/research/models",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/agents-api",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/team",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/terms-of-use",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/research/publications",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/press",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/models-api",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/careers",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/cgv",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/insights",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/cookie-policy",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/holotab",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/cgu",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/dpa",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/holo4",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/bot-estate-audit",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/exception-queue-sprint",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/bot-run-cost-calculator",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/exception-queue-scorecard",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/guidelines-for-safe-holotab-use",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/holotab/privacy-policy",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/holotab/terms-of-use",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/h-company-aws-european-sovereign-cloud-press-release",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/before-you-renew-automation-questions",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/ciso-questions-computer-use-agents",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/same-screen-two-approaches",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/solidworks-design-office-hours",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/keep-the-bots-add-agents",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/rpa-maintenance-cost",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/lab-notes-nemotron-3.5-super-vl",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/computer-use-agents-api",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/booting-fast-and-slow",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/vram-ghost-busting-who-you-gonna-close",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/holodesktop-cli",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/h-joins-nemotron-coalition",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/handicap-international",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/holotron3",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/meet-holotab",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/holotab-tutorial",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/holo3",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/unlocking-online-rl-skypilot",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/h-company-vision",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/holotron-12b",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/geo-using-computer-use-agents-vs-api-limitations",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/holo2-235b-a22b-preview",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/h-company-and-fdj-united-to-collaborate-on-deploying-agentic-ai",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/holo2",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/surfer-2",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/holo1-5-open-foundation-models-for-computer-use-agents",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/governance-update",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/charting-a-new-route-the-tech-behind-runner-hs-state-of-the-art-results",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://hcompany.ai/newsroom/put-ai-to-work-for-you-with-runner-h",
+        "raison": "au-delà du plafond"
+      }
+    ]
+  },
+  "agents": [
+    {
+      "agent": 1,
+      "session_id": "6c51463e-92bc-4fa2-83cf-ef63699d2b14",
+      "etat": "fini",
+      "pages": [
+        "accueil",
+        "research",
+        "h-platform",
+        "enterprise",
+        "use-cases",
+        "about",
+        "privacy-policy",
+        "technical-blog"
+      ],
+      "replay_url": "https://agp.eu.hcompany.ai/share/api/v1/trajectories/6c51463e-92bc-4fa2-83cf-ef63699d2b14",
+      "duree_s": 301.442,
+      "cout_usd": null,
+      "raison": null
+    }
+  ],
+  "pages": [
+    {
+      "ecran": "accueil",
+      "url": "https://hcompany.ai/",
+      "ordre": 1,
+      "trouvee_par": "adresse",
+      "agent": 1,
+      "etat": "visitee",
+      "http": 200,
+      "debut": "2026-11-19T21:40:20.963Z",
+      "fin": "2026-11-19T21:40:25.319Z",
+      "capture": {
+        "fichier": "captures/accueil.png",
+        "url": "http://localhost/storage/v1/object/public/captures/2026-11-19-22h40-c739/exploration--accueil/accueil--defaut.png",
+        "largeur": 1280,
+        "hauteur": 900,
+        "defilement": [
+          0,
+          0
+        ]
+      },
+      "reference": null,
+      "holo": {
+        "etat": "fait",
+        "modele": "holo4-27b",
+        "duree_ms": 3355,
+        "ecartes_sans_zone": 0,
+        "jetons": {
+          "entree": 1377,
+          "sortie": 18
+        },
+        "cout_usd": 0.0006048000000000001
+      },
+      "statut": "PASS",
+      "cookies": "aucune",
+      "arrivee": "depart"
+    },
+    {
+      "ecran": "research",
+      "url": "https://hcompany.ai/research",
+      "ordre": 2,
+      "trouvee_par": "sitemap",
+      "agent": 1,
+      "etat": "visitee",
+      "http": 200,
+      "debut": "2026-11-19T21:41:04.171Z",
+      "fin": "2026-11-19T21:41:06.355Z",
+      "capture": {
+        "fichier": "captures/research.png",
+        "url": "http://localhost/storage/v1/object/public/captures/2026-11-19-22h40-c739/exploration--research/research--defaut.png",
+        "largeur": 1280,
+        "hauteur": 900,
+        "defilement": [
+          0,
+          0
+        ]
+      },
+      "reference": null,
+      "holo": {
+        "etat": "fait",
+        "modele": "holo4-27b",
+        "duree_ms": 1351,
+        "ecartes_sans_zone": 0,
+        "jetons": {
+          "entree": 1379,
+          "sortie": 18
+        },
+        "cout_usd": 0.0006056
+      },
+      "statut": "PASS",
+      "cookies": "aucune",
+      "arrivee": "clic"
+    },
+    {
+      "ecran": "h-platform",
+      "url": "https://hcompany.ai/h-platform",
+      "ordre": 3,
+      "trouvee_par": "sitemap",
+      "agent": 1,
+      "etat": "visitee",
+      "http": 200,
+      "debut": "2026-11-19T21:41:48.938Z",
+      "fin": "2026-11-19T21:41:51.425Z",
+      "capture": {
+        "fichier": "captures/h-platform.png",
+        "url": "http://localhost/storage/v1/object/public/captures/2026-11-19-22h40-c739/exploration--h-platform/h-platform--defaut.png",
+        "largeur": 1280,
+        "hauteur": 900,
+        "defilement": [
+          0,
+          0
+        ]
+      },
+      "reference": null,
+      "holo": {
+        "etat": "fait",
+        "modele": "holo4-27b",
+        "duree_ms": 1140,
+        "ecartes_sans_zone": 0,
+        "jetons": {
+          "entree": 1379,
+          "sortie": 18
+        },
+        "cout_usd": 0.0006056
+      },
+      "statut": "PASS",
+      "cookies": "aucune",
+      "arrivee": "adresse"
+    },
+    {
+      "ecran": "enterprise",
+      "url": "https://hcompany.ai/enterprise",
+      "ordre": 4,
+      "trouvee_par": "sitemap",
+      "agent": 1,
+      "etat": "visitee",
+      "http": 200,
+      "debut": "2026-11-19T21:42:43.509Z",
+      "fin": "2026-11-19T21:42:45.562Z",
+      "capture": {
+        "fichier": "captures/enterprise.png",
+        "url": "http://localhost/storage/v1/object/public/captures/2026-11-19-22h40-c739/exploration--enterprise/enterprise--defaut.png",
+        "largeur": 1280,
+        "hauteur": 900,
+        "defilement": [
+          0,
+          0
+        ]
+      },
+      "reference": null,
+      "holo": {
+        "etat": "fait",
+        "modele": "holo4-27b",
+        "duree_ms": 1312,
+        "ecartes_sans_zone": 0,
+        "jetons": {
+          "entree": 1379,
+          "sortie": 51
+        },
+        "cout_usd": 0.0007046
+      },
+      "statut": "PASS",
+      "cookies": "aucune",
+      "arrivee": "clic"
+    },
+    {
+      "ecran": "use-cases",
+      "url": "https://hcompany.ai/use-cases",
+      "ordre": 5,
+      "trouvee_par": "sitemap",
+      "agent": 1,
+      "etat": "visitee",
+      "http": 200,
+      "debut": "2026-11-19T21:43:26.533Z",
+      "fin": "2026-11-19T21:43:28.488Z",
+      "capture": {
+        "fichier": "captures/use-cases.png",
+        "url": "http://localhost/storage/v1/object/public/captures/2026-11-19-22h40-c739/exploration--use-cases/use-cases--defaut.png",
+        "largeur": 1280,
+        "hauteur": 900,
+        "defilement": [
+          0,
+          0
+        ]
+      },
+      "reference": null,
+      "holo": {
+        "etat": "fait",
+        "modele": "holo4-27b",
+        "duree_ms": 1147,
+        "ecartes_sans_zone": 0,
+        "jetons": {
+          "entree": 1380,
+          "sortie": 18
+        },
+        "cout_usd": 0.000606
+      },
+      "statut": "PASS",
+      "cookies": "aucune",
+      "arrivee": "clic"
+    },
+    {
+      "ecran": "about",
+      "url": "https://hcompany.ai/about",
+      "ordre": 6,
+      "trouvee_par": "sitemap",
+      "agent": 1,
+      "etat": "visitee",
+      "http": 200,
+      "debut": "2026-11-19T21:43:45.756Z",
+      "fin": "2026-11-19T21:43:48.095Z",
+      "capture": {
+        "fichier": "captures/about.png",
+        "url": "http://localhost/storage/v1/object/public/captures/2026-11-19-22h40-c739/exploration--about/about--defaut.png",
+        "largeur": 1280,
+        "hauteur": 900,
+        "defilement": [
+          0,
+          0
+        ]
+      },
+      "reference": null,
+      "holo": {
+        "etat": "fait",
+        "modele": "holo4-27b",
+        "duree_ms": 1369,
+        "ecartes_sans_zone": 0,
+        "jetons": {
+          "entree": 1378,
+          "sortie": 95
+        },
+        "cout_usd": 0.0008362
+      },
+      "statut": "SUSPECTED",
+      "cookies": "aucune",
+      "arrivee": "clic"
+    },
+    {
+      "ecran": "privacy-policy",
+      "url": "https://hcompany.ai/privacy-policy",
+      "ordre": 7,
+      "trouvee_par": "sitemap",
+      "agent": 1,
+      "etat": "visitee",
+      "http": 200,
+      "debut": "2026-11-19T21:44:23.777Z",
+      "fin": "2026-11-19T21:44:25.716Z",
+      "capture": {
+        "fichier": "captures/privacy-policy.png",
+        "url": "http://localhost/storage/v1/object/public/captures/2026-11-19-22h40-c739/exploration--privacy-policy/privacy-policy--defaut.png",
+        "largeur": 1280,
+        "hauteur": 900,
+        "defilement": [
+          0,
+          0
+        ]
+      },
+      "reference": null,
+      "holo": {
+        "etat": "fait",
+        "modele": "holo4-27b",
+        "duree_ms": 1176,
+        "ecartes_sans_zone": 0,
+        "jetons": {
+          "entree": 1380,
+          "sortie": 18
+        },
+        "cout_usd": 0.000606
+      },
+      "statut": "PASS",
+      "cookies": "aucune",
+      "arrivee": "adresse"
+    },
+    {
+      "ecran": "technical-blog",
+      "url": "https://hcompany.ai/technical-blog",
+      "ordre": 8,
+      "trouvee_par": "sitemap",
+      "agent": 1,
+      "etat": "visitee",
+      "http": 200,
+      "debut": "2026-11-19T21:44:59.687Z",
+      "fin": "2026-11-19T21:45:01.915Z",
+      "capture": {
+        "fichier": "captures/technical-blog.png",
+        "url": "http://localhost/storage/v1/object/public/captures/2026-11-19-22h40-c739/exploration--technical-blog/technical-blog--defaut.png",
+        "largeur": 1280,
+        "hauteur": 900,
+        "defilement": [
+          0,
+          0
+        ]
+      },
+      "reference": null,
+      "holo": {
+        "etat": "fait",
+        "modele": "holo4-27b",
+        "duree_ms": 1476,
+        "ecartes_sans_zone": 0,
+        "jetons": {
+          "entree": 1380,
+          "sortie": 18
+        },
+        "cout_usd": 0.000606
+      },
+      "statut": "PASS",
+      "cookies": "aucune",
+      "arrivee": "adresse"
+    }
+  ],
+  "constats": [
+    {
+      "id": "about--holo--1",
+      "ecran": "about",
+      "vue": "defaut",
+      "source": "holo",
+      "sorte": "texte-coupe",
+      "statut": "SUSPECTED",
+      "description": "Un texte semble coupé.",
+      "textes_a_surligner": [],
+      "preuve": {
+        "modele": "holo4-27b",
+        "phrase": "Le premier logo de la section « Backed by » est partiellement coupé sur le bord gauche."
+      },
+      "capture": "captures/about.png",
+      "agent": 1,
+      "page": {
+        "largeur": 1280,
+        "hauteur": 900
+      },
+      "zone": {
+        "x": 77,
+        "y": 653,
+        "largeur": 115,
+        "hauteur": 49
+      }
+    },
+    {
+      "id": "about--holo--2",
+      "ecran": "about",
+      "vue": "defaut",
+      "source": "holo",
+      "sorte": "texte-coupe",
+      "statut": "SUSPECTED",
+      "description": "Un texte semble coupé.",
+      "textes_a_surligner": [],
+      "preuve": {
+        "modele": "holo4-27b",
+        "phrase": "Le logo « FIRSTMA » est coupé sur le bord droit de la page."
+      },
+      "capture": "captures/about.png",
+      "agent": 1,
+      "page": {
+        "largeur": 1280,
+        "hauteur": 900
+      },
+      "zone": {
+        "x": 954,
+        "y": 653,
+        "largeur": 230,
+        "hauteur": 49
+      }
+    }
+  ],
+  "totaux": {
+    "pages_trouvees": 8,
+    "pages_visitees": 8,
+    "defauts": 0,
+    "doutes": 2,
+    "sans_conclusion": 0,
+    "par_sorte": {
+      "texte-coupe": 2
+    }
+  },
+  "direct": true
+}

@@ -1,5 +1,7 @@
 # Feuille de route d'Horama
 
+> **Archive du 19/11 : à jour jusqu'à cette date ; l'état actuel est dans le [README](../README.md).**
+
 Mise à jour le mercredi 18 novembre 2026 au matin, après le recadrage de Nathan ([décision](decisions/2026-11-18-recadrage-grand-public-et-dev.md)) ; vocabulaire aligné le 19/11 sur le produit unique ([décision](decisions/2026-11-19-un-seul-produit.md)). Ce document répond aussi au livrable du brief « roadmap jusqu'à jeudi ». Chaque ligne a son issue GitHub : c'est là que se suivent l'avancement et les preuves.
 
 ## Le cap en trois phrases

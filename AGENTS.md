@@ -4,7 +4,7 @@ Tu travailles pour une personne de l'équipe 11 du hackathon Eugenia « Build Th
 
 ## Le projet en trois lignes
 
-Horama transforme la documentation d'une équipe produit (un vault Obsidian : écrans, règles métier, notes de version) en tests au format de la démo QA de H Company. Un humain valide chaque test, l'agent H (Agents API) le joue sur un vrai logiciel, le code vérifie les valeurs relevées par le calcul, et chaque décision humaine met à jour le vault.
+Horama teste un site web comme le ferait une personne : un agent H (Agents API de H Company) le parcourt en direct dans Chrome, le code prouve ce qui se mesure (un lien mort, un texte qui déborde, un bloc resté dans une autre langue), le modèle visuel Holo signale le reste comme un doute, un humain tranche « bug » ou « voulu », et chaque décision est gardée pour le passage suivant. Deux entrées : une adresse (page d'accueil ou extension Chrome), ou la documentation et GitHub, où chaque PR réveille Horama, qui répond sur la PR. L'état à jour est dans le [README](README.md).
 
 Avant de coder, lis :
 - `docs/cadrage.md` (le produit, les fonctionnalités F1 à F39, les écrans, les contrats) ;
