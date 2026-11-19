@@ -79,7 +79,7 @@ Options :
 | `--ecrire-references` | range chaque capture par `ecrireReference` |
 | `--temoins <dossier>` | captures avec la couche visible, nommées par ce qu'elles montrent (`curseur-a-mi-trajet`, `trait-pendant-agent` : un trait au tiers de son dessin, après la réponse du relevé à l'agent, le délai est dit dans le terminal ; `trait-defaut`, `trait-doute-deplacement`, `mascotte-defaut-sans-bulle`, `recapitulatif`, `examen-1`, `reponse-1`, `rangement`, `correction-proposee`, `correction-acceptee`, `correction-refusee`, `correction-absente`, `correction-impossible`, `fin`…) |
 | `--film <dossier>` | une capture avec la couche toutes les 200 ms, du début à l'écran de fin (`<n>-<ms depuis le début>ms.jpg`) |
-| `--sortie <dossier>` | défaut `/Users/nathan/Code/projet/horama/.orchestrateur/passages/<identifiant>/` |
+| `--sortie <dossier>` | défaut `.orchestrateur/passages/<identifiant>/` à la racine du dépôt |
 | `--port 9333`, `--profil <dossier>`, `--fermer-chrome` | le Chrome dédié ; sans `--fermer-chrome` il reste ouvert à la fin |
 
 `--plafond` est retiré : l'agent n'attend plus la mascotte. Passé quand même, il est ignoré.
