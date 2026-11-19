@@ -19,15 +19,36 @@ export function lireRoute(): Route {
   return { ecran: "passages" };
 }
 
+// The iris and the pupil of the logo shift a few pixels toward the cursor, as the mascot of the welcome page looks around
+// (accueil/mascotte.js, regarder). One pointermove listener on the window; mouse and pen only, so a touch screen keeps
+// the eye centred (pointerType, and hover: none), and nothing moves under prefers-reduced-motion.
+const OEIL_MAX = 6;
 export function Logo() {
+  const oeil = useRef<SVGSVGElement>(null);
+  const regard = useRef<SVGGElement>(null);
+  useEffect(() => {
+    const reduit = window.matchMedia("(prefers-reduced-motion: reduce), (hover: none)");
+    const suivre = (e: PointerEvent) => {
+      if (!oeil.current || !regard.current) return;
+      if (reduit.matches || e.pointerType === "touch") return regard.current.removeAttribute("transform");
+      const r = oeil.current.getBoundingClientRect();
+      const dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+      const k = Math.min(1, Math.hypot(dx, dy) / 150) * OEIL_MAX / (Math.hypot(dx, dy) || 1);
+      regard.current.setAttribute("transform", `translate(${(dx * k).toFixed(2)} ${(dy * k).toFixed(2)})`);
+    };
+    window.addEventListener("pointermove", suivre);
+    return () => window.removeEventListener("pointermove", suivre);
+  }, []);
   return (
     <a className="brand" href="../" aria-label="Horama, retour à la page d'accueil">
       <span>H</span>
-      <svg className="brand-eye" viewBox="26 26 44 44" aria-hidden="true">
+      <svg ref={oeil} className="brand-eye" viewBox="26 26 44 44" aria-hidden="true">
         <circle cx="48" cy="48" r="20" fill="#fff" stroke="#1C1C1C" strokeWidth="3" />
-        <circle cx="48" cy="48" r="10.5" fill="#7F77DD" />
-        <circle cx="48" cy="48" r="4.6" fill="#1C1C1C" />
-        <circle cx="51.6" cy="44.4" r="2.2" fill="#fff" />
+        <g ref={regard}>
+          <circle cx="48" cy="48" r="10.5" fill="#7F77DD" />
+          <circle cx="48" cy="48" r="4.6" fill="#1C1C1C" />
+          <circle cx="51.6" cy="44.4" r="2.2" fill="#fff" />
+        </g>
       </svg>
       <span>rama</span>
     </a>
