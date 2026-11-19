@@ -66,7 +66,7 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
     async function h(method: string, path: string, body?: unknown, cleanup = false): Promise<any> {
       for (let attempt = 1; ; attempt++) {
         const { response, text } = await withTimeout(async (deadline) => {
-          const signal = AbortSignal.any([deadline, ...(!cleanup && input.signal ? [input.signal] : []), ...(path.includes("/changes?") ? [localStop.signal] : [])]);
+          const signal = AbortSignal.any([deadline, ...(!cleanup && input.signal ? [input.signal] : []), ...(!cleanup && path.includes("/changes?") ? [localStop.signal] : [])]);
           signal.throwIfAborted();
           let response: Response;
           try {
@@ -141,6 +141,7 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
     const fin = (async (): Promise<ResultatSession> => {
       let metrics: { total_cost?: number } | null = null;
       let metricsComplete = false;
+      let readFinalCost = false;
       let etapes = 0;
       let next = 0;
       let muted = false;
@@ -197,9 +198,18 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
       } catch { if (!stopping) erreur = "La session H est interrompue (erreur réseau ou outil)."; }
       finally {
         input.signal?.removeEventListener("abort", onAbort);
+        readFinalCost = !!stopping && !metricsComplete;
         await stop();
       }
       if (status === "failed") erreur ??= "La session H a échoué.";
+      if (readFinalCost) {
+        try {
+          const final = await h("GET", `/sessions/${id}/changes?from_index=${next}&wait_for_seconds=0`, undefined, true);
+          const cost = final?.metrics?.total_cost;
+          metrics = typeof cost === "number" && Number.isFinite(cost) && cost >= 0 ? { total_cost: cost } : null;
+          metricsComplete = true;
+        } catch { metrics = null; }
+      }
       let replay_url: string | undefined;
       try {
         input.signal?.throwIfAborted();
