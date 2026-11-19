@@ -839,6 +839,8 @@ test("consigne : lecture bornée, liens sur place, remontée moyenne facultative
   assert.match(consigne.instructions, /ne remplis et ne soumets aucun formulaire, ne te connecte jamais/);
   assert.match(consigne.instructions, /Refuser \/ Tout refuser \/ Continuer sans accepter \/ Reject all \/ Ablehnen/);
   assert.match(consigne.instructions, /REFUSE les cookies, ne les accepte jamais/);
+  assert.match(consigne.instructions, /No, thanks \/ No thanks \/ Non merci \/ Nein danke/);
+  assert.match(consigne.instructions, /Ne clique jamais sur OK, Accept ni Let me choose/);
   const schema = consigne.tools[0].input_schema as { required: string[]; properties: Record<string, unknown> };
   assert.deepEqual(schema.required, ["ecran", "vue"]);
   assert.ok("raison_go_to" in schema.properties);

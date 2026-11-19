@@ -3,15 +3,17 @@ import type { CdpClient } from "./controles.ts";
 export interface ExplorationCdp extends CdpClient { close(): void }
 
 export function maskConsentBanners() {
+  const descendants = (root: Document | ShadowRoot | Element): HTMLElement[] => [...("shadowRoot" in root && root.shadowRoot ? descendants(root.shadowRoot) : []), ...[...root.querySelectorAll<HTMLElement>("*")].flatMap(element => [element, ...(element.shadowRoot ? descendants(element.shadowRoot) : [])])];
   const saved: Array<{ element: HTMLElement; value: string; priority: string }> = [];
-  for (const element of document.querySelectorAll<HTMLElement>("body *")) {
+  for (const element of descendants(document.body)) {
     const style = getComputedStyle(element), rect = element.getBoundingClientRect();
     if (!["fixed", "sticky"].includes(style.position) || style.visibility !== "visible" || Number(style.opacity) === 0
       || rect.width <= 0 || rect.height <= 0 || rect.height > innerHeight * 0.6 || rect.right <= 0 || rect.left >= innerWidth
-      || rect.bottom <= 0 || rect.top >= innerHeight || Math.abs(rect.top) > 12 && Math.abs(rect.bottom - innerHeight) > 12) continue;
-    if (!/cookie|consent|privacy|confidentialit|datenschutz|einwilligung/i.test(element.innerText || element.textContent || "")) continue;
-    const controls = element.querySelectorAll<HTMLElement>('button, [role="button"], a');
-    if (![...controls].some(control => /\b(?:accepter|refuser|parametrer|personnaliser|autoriser|j['’]accepte|accept|reject|decline|manage|customize|preferences|allow|agree|akzeptieren|ablehnen|einstellungen|zustimmen|erlauben)\b/i.test(
+      || rect.bottom <= 0 || rect.top >= innerHeight || Math.abs(rect.top) > 48 && Math.abs(rect.bottom - innerHeight) > 48) continue;
+    const children = descendants(element);
+    if (!/cookie|consent|privacy|confidentialit|datenschutz|einwilligung/i.test([element, ...children].map(node => [node.textContent, node.shadowRoot?.textContent].join(" ")).join(" "))) continue;
+    const controls = children.filter(child => child.matches('button, [role="button"]'));
+    if (![...controls].some(control => /\b(?:accepter|refuser|parametrer|personnaliser|autoriser|j['’]accepte|accept|reject|decline|manage|customize|preferences|allow|agree|let\s+me\s+choose|laissez-moi\s+choisir|cookie\s+settings|parametres\s+des\s+cookies|gerer\s+les\s+cookies|no,?\s+thanks|non\s+merci|nein\s+danke|akzeptieren|ablehnen|einstellungen|zustimmen|erlauben)\b/i.test(
       [control.innerText || control.textContent, control.getAttribute("aria-label"), control.getAttribute("title")].join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "")))) continue;
     saved.push({ element, value: element.style.getPropertyValue("visibility"), priority: element.style.getPropertyPriority("visibility") });
     element.style.setProperty("visibility", "hidden", "important");
@@ -45,9 +47,11 @@ export async function hideCaptureOverlays(client: ExplorationCdp, log: (message:
 }
 
 export function refuseCookies(): boolean {
+  const descendants = (root: Document | ShadowRoot | Element): HTMLElement[] => [...("shadowRoot" in root && root.shadowRoot ? descendants(root.shadowRoot) : []), ...[...root.querySelectorAll<HTMLElement>("*")].flatMap(element => [element, ...(element.shadowRoot ? descendants(element.shadowRoot) : [])])];
+  const parentOf = (element: Element): Element | null => element.parentElement ?? (element.getRootNode() instanceof ShadowRoot ? (element.getRootNode() as ShadowRoot).host : null);
   const normalize = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase().replace(/\s+/g, " ");
-  const refusals = new Set(["tout refuser", "refuser", "refuser tout", "continuer sans accepter", "reject all", "reject", "decline", "deny", "only necessary", "necessary only", "necessaires uniquement", "uniquement les necessaires", "reject all cookies", "refuser tous les cookies", "ablehnen", "alle ablehnen", "nur notwendige", "nur notwendige cookies"]);
-  for (const element of document.querySelectorAll<HTMLElement>('button, [role="button"], a')) {
+  const refusals = new Set(["tout refuser", "refuser", "refuser tout", "continuer sans accepter", "reject all", "reject", "decline", "deny", "no, thanks", "no thanks", "non merci", "nein danke", "only necessary", "necessary only", "necessaires uniquement", "uniquement les necessaires", "reject all cookies", "refuser tous les cookies", "ablehnen", "alle ablehnen", "nur notwendige", "nur notwendige cookies"]);
+  for (const element of descendants(document).filter(node => node.matches('button, [role="button"], a'))) {
     const text = normalize(element.innerText || element.textContent || "");
     const labels = [text, normalize(element.getAttribute("aria-label") ?? ""), normalize(element.getAttribute("title") ?? "")];
     if (labels.some(label => /accept|autoriser|allow|agree|akzeptier|zustimm/.test(label.replace("continuer sans accepter", "")))) continue;
@@ -55,19 +59,30 @@ export function refuseCookies(): boolean {
     const rect = element.getBoundingClientRect(), style = getComputedStyle(element);
     if (!rect.width || !rect.height || rect.bottom <= 0 || rect.top >= innerHeight || rect.right <= 0 || rect.left >= innerWidth || style.visibility !== "visible" || style.display === "none") continue;
     let visible = true;
-    for (let ancestor: Element | null = element; ancestor; ancestor = ancestor.parentElement) {
+    for (let ancestor: Element | null = element; ancestor; ancestor = parentOf(ancestor)) {
       if (Number(getComputedStyle(ancestor).opacity) === 0) visible = false;
     }
     if (!visible) continue;
     if (element.matches('[type="submit"]') && "form" in element && element.form) continue;
     if (element instanceof HTMLButtonElement && element.type === "submit" && element.form) continue;
-    let parent = element.parentElement;
+    const ambiguous = labels.filter(label => refusals.has(label)).every(label => ["no, thanks", "no thanks", "non merci", "nein danke"].includes(label));
+    let parent = parentOf(element);
+    if (ambiguous) {
+      for (let ancestor = parent; ancestor && ancestor !== document.body && ancestor !== document.documentElement; ancestor = parentOf(ancestor)) {
+        if (["fixed", "sticky"].includes(getComputedStyle(ancestor).position) || ancestor.matches('[role="dialog"], [role="alertdialog"]')) {
+          parent = ancestor;
+          break;
+        }
+      }
+    }
     while (parent && parent !== document.body && parent !== document.documentElement) {
-      if (/cookie|consent|rgpd|gdpr|privacy|confidentialit|datenschutz|einwilligung/.test(normalize([parent.textContent, parent.id, parent.className, parent.getAttribute("aria-label")].join(" ")))) {
+      const vocabulary = ambiguous ? /cookie|consent|einwilligung/ : /cookie|consent|rgpd|gdpr|privacy|confidentialit|datenschutz|einwilligung/;
+      if (vocabulary.test(normalize([parent.id, parent.className, parent.getAttribute("aria-label"), ...[parent, ...descendants(parent)].map(node => [node.textContent, node.shadowRoot?.textContent].join(" "))].join(" ")))) {
         element.click();
         return true;
       }
-      parent = parent.parentElement;
+      if (ambiguous) break;
+      parent = parentOf(parent);
     }
   }
   return false;
