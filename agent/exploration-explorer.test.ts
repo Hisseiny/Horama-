@@ -443,13 +443,14 @@ test("lien au clic non vérifié reste un doute et un même doute Holo répété
   const options: unknown[] = [];
   const { result, base } = await run({ deps: {
     controler: async (_client, option) => { options.push(option); return [{ statut: "SUSPECTED", sorte: "lien_casse", message: "Le lien interne renvoie HTTP 404.", selecteur: "a", valeur: "https://example.org/popin : 404",
-      zone: { x: 10, y: 10, largeur: 100, hauteur: 30 }, raison: "Un script prend en charge le clic : un visiteur qui clique n'est pas envoyé vers cette adresse." }]; },
+      libelle: "Ouvrir la fenêtre", zone: { x: 10, y: 10, largeur: 100, hauteur: 30 }, raison: "Un script prend en charge le clic : un visiteur qui clique n'est pas envoyé vers cette adresse." }]; },
     holo: async () => ({ status: "SUSPECTED", model: "holo4-27b", durationMs: 2, usage: null, cost_usd: null, findings: [
       { status: "SUSPECTED", kind: "cut-off-text", sentence: "Logo.", zone: { x: 500, y: 400, largeur: 60, hauteur: 30 } }] }),
   } });
   assert.ok(options.every(option => typeof (option as { verifierClic?: unknown }).verifierClic === "function"));
   const links = result.constats.filter(item => item.sorte === "lien-casse");
   assert.equal(links.length, 2);
+  assert.ok(links.every(item => item.preuve.libelle === "Ouvrir la fenêtre" && item.preuve.url === "https://example.org/popin"));
   assert.ok(links.every(item => item.statut === "SUSPECTED" && /script/.test(item.raison ?? "")));
   const visuals = result.constats.filter(item => item.source === "holo");
   assert.equal(visuals.length, 2);

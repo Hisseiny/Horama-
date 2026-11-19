@@ -651,6 +651,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
             const item = finding(page, "controle", findings, { sorte: sorts[defect.sorte], statut: defect.statut, description: controlDescription(defect.message, selectors), ...(defect.raison ? { raison: defect.raison } : {}),
               preuve: { ...(defect.selecteur ? { element: defect.selecteur } : {}), mesure: measure, attendu: expectedText(defect.sorte),
                 ...(["image_cassee", "lien_casse"].includes(defect.sorte) ? { url: String(defect.valeur).replace(/ : \d+$/, "") } : {}),
+                ...(defect.libelle ? { libelle: defect.libelle } : {}),
                 ...(defect.sorte === "erreur_console" ? { console: String(defect.valeur).slice(0, 300) } : {}) },
               textes_a_surligner: defect.sorte === "texte_erreur" ? [String(defect.valeur)] : [],
               ...(!["page_en_erreur", "erreur_console", "defilement_horizontal"].includes(defect.sorte) && defect.zone ? { zone: defect.zone } : {}) });

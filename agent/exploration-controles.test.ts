@@ -313,6 +313,9 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
   t.diagnostic(`Clics : ${clicked.map(defect => `${defect.valeur} ${defect.statut}`).join(", ")}`);
   assert.deepEqual(clicked.map(defect => [defect.valeur, defect.statut]), [[`${base}/popin-gone : 404`, "SUSPECTED"], [`${base}/gone : 404`, "VERIFIED_FAIL"],
     [`${base}/new-gone : 404`, "VERIFIED_FAIL"], [`${base}/delegated-gone : 404`, "SUSPECTED"]]);
+  assert.equal(clicked[0].libelle, "Ouvrir la fenêtre");
+  assert.equal(clicked[1].libelle, "Page supprimée");
+  assert.match(clicked[1].message, /« Page supprimée ».*HTTP 404/);
   assert.match(clicked[0].raison ?? "", /script/);
   assert.ok(!requests.some(value => value.startsWith("GET ") && value.endsWith("-gone") && requests.filter(other => other === value).length > 1), "le clic ne quitte pas Chrome");
   assert.equal((await client.send("Runtime.evaluate", { expression: "location.pathname", returnByValue: true })).result.value, "/intercepted", "l'onglet du visiteur ne bouge pas");
