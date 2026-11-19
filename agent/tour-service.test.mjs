@@ -13,7 +13,16 @@ const githubIndex = "/repos/Hisseiny/eugenia-school-website/contents/index.json"
 const githubVault = "/repos/Hisseiny/Horama-";
 const testId = "accueil-vers-programmes";
 const testPath = `${githubVault}/contents/vault-horama/eugenia-clone/tests/${testId}.md`;
-const notePath = `${githubVault}/contents/vault-horama/eugenia-clone/decisions/`;
+const vaultPath = file => `${githubVault}/contents/vault-horama/eugenia-clone/${file}`;
+const correctionId = "2026-11-19-accueil--doc--1";
+const decisionPath = vaultPath(`decisions/${correctionId}.md`);
+const screenPath = vaultPath("ecrans/accueil.md");
+const proposal = { fichier: "ecrans/accueil.md", avant: "Le bouton est bleu.", apres: "Le bouton est vert.", statut: "proposee" };
+const decisionMarkdown = correction => [
+  "---", "decision: voulu", "---", "", "Écart : bouton vert.",
+  `Documentation : correction de ${correction.fichier} proposée, en attente de réponse.`, "",
+  "```decision", JSON.stringify({ id: correctionId, decision: "voulu", correction_de_note: correction }, null, 2), "```", "",
+].join("\n");
 const email = "equipe@example.test";
 const password = "mot de passe factice";
 const name = "Équipe Horama";
@@ -37,7 +46,7 @@ async function setup(t, { variables = env, run = async () => {} } = {}) {
     index: { format: "horama-passages-1", passages: [{ passage: "passage-essai", commit: "base", constats: [finding()] }] },
     indexSha: "initial-index", testSha: "initial-test", treeSha: "initial-tree",
     markdown: await readFile(new URL(`../vault-horama/eugenia-clone/tests/${testId}.md`, import.meta.url), "utf8"),
-    calls: [], notes: new Map(), writes: [], beforeWrite: () => undefined, vaultBranch: false, writtenBranches: [],
+    calls: [], files: new Map(), writes: [], beforeWrite: () => undefined, vaultBranch: false, writtenBranches: [],
   };
   async function fetchGitHub(input, init) {
     const url = new URL(input);
@@ -73,10 +82,9 @@ async function setup(t, { variables = env, run = async () => {} } = {}) {
           state.markdown = content;
           state.testSha += "-new";
         } else {
-          assert.ok(route.startsWith(notePath));
-          assert.equal(request.sha, undefined);
-          if (state.notes.has(route)) return response({}, 422);
-          state.notes.set(route, content);
+          const file = state.files.get(route);
+          if (!file || request.sha !== file.sha) return response({}, 409);
+          state.files.set(route, { content, sha: `${file.sha}-new` });
         }
         state.treeSha += "-new";
       }
@@ -95,7 +103,11 @@ async function setup(t, { variables = env, run = async () => {} } = {}) {
       assert.equal(url.searchParams.get("ref"), "horama/vault");
       return response(encoded(state.markdown, state.testSha));
     }
-    if (route.startsWith(notePath) && state.notes.has(route)) return response(encoded(state.notes.get(route), "note"));
+    if (state.files.has(route)) {
+      assert.equal(url.searchParams.get("ref"), "horama/vault");
+      const file = state.files.get(route);
+      return response(encoded(file.content, file.sha));
+    }
     if (route === `${githubVault}/contents/vault-horama`) {
       const ref = url.searchParams.get("ref");
       assert.ok(ref === "horama/vault" || ref === "dev");
@@ -161,7 +173,7 @@ test("CORS is restricted to the Vercel tour and loopback, while existing explora
   assert.equal((await request("/explorations", { method: "OPTIONS" })).headers.get("access-control-allow-origin"), "*");
 });
 
-test("all writes reject missing, forged and expired tokens, and doc exposes the documented 501", async t => {
+test("all writes reject missing, forged and expired tokens", async t => {
   const { post, session, advance, state } = await setup(t);
   for (const path of ["/tour/decision", "/tour/test", "/tour/doc"]) {
     assert.equal((await post(path, payload)).status, 401);
@@ -169,7 +181,7 @@ test("all writes reject missing, forged and expired tokens, and doc exposes the 
   const token = await session();
   const forged = { Authorization: token.Authorization.replace(/\.[^.]+$/, "." + "A".repeat(43)) };
   assert.equal((await post("/tour/decision", payload, forged)).status, 401);
-  assert.equal((await post("/tour/doc", {}, token)).status, 501);
+  assert.equal((await post("/tour/doc", {}, forged)).status, 401);
   advance(12 * hour);
   assert.equal((await post("/tour/decision", payload, token)).status, 401);
   assert.deepEqual(state.calls, []);
@@ -238,7 +250,6 @@ test("decisions retry a changed SHA, preserve concurrent index updates and write
   assert.equal(snapshot.index.maj, "2026-11-19T16:00:00.000Z");
   assert.equal((await post("/tour/decision", { ...payload, decision: "bug" }, token)).status, 409);
   assert.deepEqual(state.writes, [githubIndex]);
-  assert.equal(state.notes.size, 0);
   assert.ok(state.calls.every(([method, route]) => method === "GET" || route === githubIndex));
 });
 
@@ -334,4 +345,60 @@ test("the service never writes to dev or main, only to its two data branches", a
   assert.ok(state.writtenBranches.every(branch => ["horama/captures", "horama/vault", "refs/heads/horama/vault"].includes(branch)));
   assert.ok(state.calls.every(([method, route]) => method === "GET" || route === githubIndex ||
     route === testPath || route === `${githubVault}/git/refs`));
+});
+
+function withCorrection(state, correction = proposal, screen = "# Accueil\n\nLe bouton est bleu.\n") {
+  state.vaultBranch = true;
+  state.files.set(decisionPath, { content: decisionMarkdown(correction), sha: "decision" });
+  state.files.set(screenPath, { content: screen, sha: "screen" });
+}
+const closedStatus = state => JSON.parse(/```decision\n([\s\S]*?)```/.exec(state.files.get(decisionPath).content)[1]).correction_de_note.statut;
+
+test("accepting a doc correction edits the note then closes the proposal, on horama/vault only", async t => {
+  const { post, session, state } = await setup(t);
+  withCorrection(state);
+  const token = await session();
+  const answer = { note: proposal.fichier, correction: correctionId, action: "accepter" };
+  const reply = await post("/tour/doc", answer, token);
+  assert.equal(reply.status, 200);
+  assert.deepEqual(await reply.json(), { statut: "acceptee" });
+  assert.equal(state.files.get(screenPath).content, "# Accueil\n\nLe bouton est vert.\n");
+  assert.equal(closedStatus(state), "acceptee");
+  assert.match(state.files.get(decisionPath).content, /^Documentation : ecrans\/accueil\.md corrigée \(proposition acceptée\)\.$/m);
+  assert.deepEqual(state.writes, [screenPath, decisionPath]);
+  assert.deepEqual(state.writtenBranches, ["horama/vault", "horama/vault"]);
+  assert.equal((await post("/tour/doc", answer, token)).status, 409);
+  assert.equal(state.writes.length, 2);
+});
+
+test("refusing a doc correction leaves the note untouched", async t => {
+  const { post, session, state } = await setup(t);
+  withCorrection(state);
+  const token = await session();
+  const reply = await post("/tour/doc", { note: proposal.fichier, correction: correctionId, action: "refuser" }, token);
+  assert.equal(reply.status, 200);
+  assert.deepEqual(await reply.json(), { statut: "refusee" });
+  assert.equal(state.files.get(screenPath).content, "# Accueil\n\nLe bouton est bleu.\n");
+  assert.equal(closedStatus(state), "refusee");
+  assert.deepEqual(state.writes, [decisionPath]);
+});
+
+test("a doc correction is refused when ambiguous, unknown or outside the vault, and resumes after a partial write", async t => {
+  const { post, session, state } = await setup(t);
+  withCorrection(state, proposal, "Le bouton est bleu. Le bouton est bleu.");
+  const token = await session();
+  const send = changes => post("/tour/doc", { note: proposal.fichier, correction: correctionId, action: "accepter", ...changes }, token);
+  const ambiguous = await send();
+  assert.equal(ambiguous.status, 409);
+  assert.match((await ambiguous.json()).erreur, /2 fois/);
+  assert.equal((await send({ note: "ecrans/autre.md" })).status, 404);
+  assert.equal((await send({ correction: "inconnue" })).status, 404);
+  for (const note of ["../../AGENTS.md", "/etc/passwd.md", "ecrans/accueil.txt"]) assert.equal((await send({ note })).status, 400);
+  assert.equal((await send({ correction: "../tests/x" })).status, 400);
+  assert.equal((await send({ action: "modifier" })).status, 400);
+  assert.deepEqual(state.writes, []);
+  withCorrection(state, proposal, "Le bouton est vert.");
+  assert.equal((await send()).status, 200);
+  assert.deepEqual(state.writes, [decisionPath]);
+  assert.equal(closedStatus(state), "acceptee");
 });

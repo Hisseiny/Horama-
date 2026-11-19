@@ -13,6 +13,39 @@ export function recordDecision(index, { passage: key, constat, decision }, name,
   return { changed: true, value: { status: 200, verdict } };
 }
 
+const decisionBlock = /^```decision[ \t]*\n([\s\S]*?)^```[ \t]*$/m;
+const conflict = message => Object.assign(new Error(message), { conflict: true });
+const documentationLine = ({ fichier, statut }) => statut === "acceptee"
+  ? `${fichier} corrigée (proposition acceptée).` : `${fichier} laissée telle quelle (proposition refusée).`;
+
+export function readCorrection(text) {
+  if (!text) return null;
+  const block = decisionBlock.exec(text.replace(/\r\n/g, "\n"));
+  const correction = block ? JSON.parse(block[1]).correction_de_note : null;
+  return typeof correction?.fichier === "string" && typeof correction.avant === "string" &&
+    typeof correction.apres === "string" ? correction : null;
+}
+
+export function applyCorrection(text, { fichier, avant, apres }) {
+  const count = avant ? text.split(avant).length - 1 : 0;
+  // A retry after a failed second write finds the note already corrected.
+  if (count === 0 && apres && text.includes(apres)) return text;
+  if (count !== 1) throw conflict(`Le texte à remplacer apparaît ${count} fois dans ${fichier} (une seule attendue).`);
+  return text.replace(avant, () => apres);
+}
+
+export function closeCorrection(text, statut, note) {
+  const markdown = text.replace(/\r\n/g, "\n");
+  const block = decisionBlock.exec(markdown);
+  const decision = JSON.parse(block[1]);
+  const correction = decision.correction_de_note;
+  if (correction?.fichier !== note || correction.statut !== "proposee") throw conflict("Cette correction a déjà été tranchée.");
+  decision.correction_de_note = { ...correction, statut };
+  return markdown
+    .replace(/^Documentation : .*$/m, () => `Documentation : ${documentationLine(decision.correction_de_note)}`)
+    .replace(decisionBlock, () => `\`\`\`decision\n${JSON.stringify(decision, null, 2)}\n\`\`\``);
+}
+
 const taskSection = /^## Task[ \t]*\n[\s\S]*?(?=^## Expected Result[ \t]*$)/m;
 const verificationSection = /^## Verification[ \t]*\n[\s\S]*?(?=^```regles[ \t]*$)/m;
 const acceptanceFields = /^(?:statut|accepte_par|accepte_le|refuse_par|refuse_le):/;

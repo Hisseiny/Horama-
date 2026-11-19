@@ -2,7 +2,7 @@ import { createHmac, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 import { isIP } from "node:net";
 import { promisify } from "node:util";
 import { createTourGitHub, missingToken } from "./tour-github.mjs";
-import { recordDecision, updateTestMarkdown } from "./tour-vault.mjs";
+import { applyCorrection, closeCorrection, readCorrection, recordDecision, updateTestMarkdown } from "./tour-vault.mjs";
 
 const deriveKey = promisify(scrypt);
 const minute = 60_000;
@@ -101,7 +101,6 @@ export function createTourService({ env = process.env, now, readJson, runtimeDat
     }
     if (!account) return send(503, missingAccount);
     if (!validToken(request.headers.authorization, account.secret, now)) return send(401, authError);
-    if (path === "/tour/doc") return send(501, { erreur: "La correction des notes n’est pas encore disponible." });
 
     const body = await readJson(request, 16_384).catch(() => null);
     if (!body || typeof body !== "object" || Array.isArray(body)) return send(400, badBody);
@@ -114,9 +113,35 @@ export function createTourService({ env = process.env, now, readJson, runtimeDat
         return send(400, badBody);
       }
       try {
-        const found = await github.updateTest(test, text => updateTestMarkdown(text, body, account.name, now));
+        const found = await github.updateVaultFile(`tests/${test}.md`, `Horama : mise à jour du test ${test}`,
+          text => updateTestMarkdown(text, body, account.name, now));
         return found ? send(200, { ok: true }) : send(404, { erreur: "Test introuvable." });
       } catch {
+        return send(503, unavailable);
+      }
+    }
+
+    if (path === "/tour/doc") {
+      const { note, correction, action } = body;
+      if (typeof note !== "string" || note.length > 256 || !/^(?:[\w-]+\/)*[\w-]+\.md$/.test(note) ||
+          !isIdentifier(correction) || !/^[\w-][\w.-]*$/.test(correction) || !["accepter", "refuser"].includes(action)) {
+        return send(400, badBody);
+      }
+      const decisionPath = `decisions/${correction}.md`;
+      const status = action === "accepter" ? "acceptee" : "refusee";
+      try {
+        const proposal = readCorrection(await github.readVaultFile(decisionPath));
+        if (proposal?.fichier !== note) return send(404, { erreur: "Correction de note introuvable." });
+        if (proposal.statut !== "proposee") return send(409, { erreur: "Cette correction a déjà été tranchée." });
+        if (action === "accepter" && !await github.updateVaultFile(note, `Horama : correction de ${note} acceptée dans la tour`,
+          text => applyCorrection(text, proposal))) {
+          return send(404, { erreur: "Note introuvable." });
+        }
+        await github.updateVaultFile(decisionPath, `Horama : correction de ${note} ${status} dans la tour`,
+          text => closeCorrection(text, status, note));
+        return send(200, { statut: status });
+      } catch (error) {
+        if (error.conflict) return send(409, { erreur: error.message });
         return send(503, unavailable);
       }
     }

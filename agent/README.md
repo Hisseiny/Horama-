@@ -144,4 +144,13 @@ deux dépôts spécifiés dans [#238](https://github.com/Hisseiny/Horama-/issues
 - Le service refuse toute écriture hors de `horama/captures` (clone) et
   `horama/vault` (Horama-) : jamais `dev` ni `main`. Les changements arrivent
   dans `dev` seulement par une PR relue.
-- `POST /tour/doc` renvoie `501` après authentification.
+- `POST /tour/doc` prend `{note, correction, action: "accepter" | "refuser"}` :
+  `note` est le chemin de la note dans `eugenia-clone/` (par exemple
+  `ecrans/accueil.md`), `correction` l'identifiant de la décision
+  `decisions/<correction>.md` qui porte la `correction_de_note` proposée.
+  Accepter remplace `avant` par `apres` dans la note (une seule occurrence
+  attendue, sinon `409`), puis passe la correction à `acceptee` ; refuser la
+  passe à `refusee` sans toucher la note. Les deux écritures vont sur
+  `horama/vault`. `404` si la correction ou la note est inconnue, `409` si
+  elle est déjà tranchée. Rejouée après un échec entre les deux écritures,
+  l'acceptation reconnaît la note déjà corrigée et ferme la proposition.

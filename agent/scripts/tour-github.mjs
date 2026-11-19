@@ -136,13 +136,18 @@ export function createTourGitHub({ token, fetchGitHub = fetch, now }) {
         return { content: `${JSON.stringify(index, null, 2)}\n`, sha, value };
       });
     },
-    async updateTest(id, edit) {
+    async readVaultFile(path) {
       await ensureVaultBranch();
-      const file = { ...vault, path: `${vaultRoot}/tests/${id}.md` };
-      return update(file, `Horama : mise à jour du test ${id}`, async () => {
+      const file = await readFile({ ...vault, path: `${vaultRoot}/${path}` }, true);
+      return file ? fromBase64(file) : null;
+    },
+    async updateVaultFile(path, message, edit) {
+      await ensureVaultBranch();
+      const file = { ...vault, path: `${vaultRoot}/${path}` };
+      return update(file, message, async () => {
         const existing = await readFile(file, true);
         if (!existing) return { value: false };
-        if (!existing.sha) throw new Error("Version du test introuvable.");
+        if (!existing.sha) throw new Error("Version de la note introuvable.");
         const prior = fromBase64(existing);
         const content = edit(prior);
         return { content: content === prior ? undefined : content, sha: existing.sha, value: true };
