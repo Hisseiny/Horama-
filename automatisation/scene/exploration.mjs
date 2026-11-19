@@ -360,7 +360,7 @@ if (report?.format === "horama-exploration-1") {
       await witness("recapitulatif");
       if (items.length) {
         await sleep(Math.min(4000 + 1500 * items.length, 12000));
-        await mascot("fin", { titre: "À vous de trancher.", compte: `${count(items.length, "cas à trancher", "cas à trancher")} : bug, ou voulu ?`, legende: "Je passe la main à la tour de contrôle :", fichiers: [TOWER.replace(/^https?:\/\//, "")] });
+        await mascot("fin", { titre: "À vous de trancher.", compte: `${count(items.length, "cas à trancher", "cas à trancher")} : bug, ou voulu ?`, legende: "Je passe la main à la tour de contrôle, écran :", fichiers: ["À relire"] });
         await sleep(3000);
         await witness("vers-la-tour");
         say(`Fin dans la tour : ${count(items.length, "cas à trancher", "cas à trancher")}, la main passe à ${TOWER}.`);
