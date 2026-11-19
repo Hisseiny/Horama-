@@ -1,0 +1,556 @@
+.comparison-screen {
+  --soleil-clair: #ffe39a;
+  color: var(--ink);
+}
+
+.comparison-screen .sidebar {
+  width: 240px;
+  border-right: 2.5px solid var(--encre);
+  background: var(--papier);
+  color: var(--encre);
+}
+
+.comparison-screen .main-content {
+  margin-left: 240px;
+  padding-top: 32px;
+  background: var(--engobe);
+}
+
+.comparison-screen .comparison-brand {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0;
+  color: var(--encre);
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.comparison-screen .brand-eye {
+  width: 0.7em;
+  height: 0.7em;
+  flex: 0 0 0.7em;
+  margin: 0;
+}
+
+.comparison-screen .product-select {
+  border: 2.5px solid var(--encre);
+  background: var(--engobe);
+  color: var(--encre);
+}
+
+.comparison-screen .product-select small {
+  color: var(--encre-secondaire);
+}
+
+.comparison-screen .nav-item {
+  color: var(--encre-secondaire);
+}
+
+.comparison-screen .nav-item.is-active {
+  border-color: var(--encre);
+  background: var(--encre);
+  color: var(--engobe);
+}
+
+.comparison-screen .nav-count {
+  border: 2.5px solid var(--encre);
+  color: var(--encre);
+}
+
+.comparison-screen .nav-count.is-alert {
+  border-color: var(--miltos);
+  background: var(--miltos);
+  color: var(--engobe);
+}
+
+.comparison-screen .sidebar-bottom {
+  border-top-color: var(--filet);
+}
+
+.comparison-screen .theme-toggle,
+.comparison-screen .agent-status strong,
+.comparison-screen .profile-copy strong,
+.comparison-screen .logout-button,
+.comparison-subscription {
+  color: var(--encre);
+}
+
+.comparison-screen .agent-status span:last-child,
+.comparison-screen .profile-copy span {
+  color: var(--encre-secondaire);
+}
+
+.comparison-subscription {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.comparison-screen .avatar {
+  border-color: var(--encre);
+  background: var(--engobe);
+  color: var(--encre);
+}
+
+.comparison-screen:not(.is-light) .sidebar {
+  background: var(--encre);
+}
+
+.comparison-screen:not(.is-light) .comparison-brand,
+.comparison-screen:not(.is-light) .theme-toggle,
+.comparison-screen:not(.is-light) .agent-status strong,
+.comparison-screen:not(.is-light) .profile-copy strong,
+.comparison-screen:not(.is-light) .logout-button,
+.comparison-screen:not(.is-light) .comparison-subscription {
+  color: var(--engobe);
+}
+
+.comparison-screen:not(.is-light) .nav-item {
+  color: var(--filet);
+}
+
+.comparison-screen:not(.is-light) .nav-item.is-active {
+  color: var(--engobe);
+}
+
+.comparison-screen:not(.is-light) .agent-status span:last-child,
+.comparison-screen:not(.is-light) .profile-copy span {
+  color: var(--filet);
+}
+
+.comparison-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 16px;
+}
+
+.comparison-heading h1 {
+  margin: 0;
+  color: var(--encre);
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 400;
+  letter-spacing: -0.012em;
+  line-height: 1;
+}
+
+.comparison-heading p {
+  margin: 7px 0 0;
+  color: var(--encre-secondaire);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.mode-control {
+  display: inline-flex;
+  padding: 3px;
+  border: 2.5px solid var(--encre);
+  border-radius: 999px;
+  background: var(--papier);
+}
+
+.mode-control button {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--encre);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mode-control button.is-active {
+  background: var(--encre);
+  color: var(--engobe);
+}
+
+.comparison-frames {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.invoice-sheet {
+  min-width: 0;
+  overflow: hidden;
+  border: 2.5px solid var(--encre);
+  border-radius: 14px;
+  background: var(--papier);
+}
+
+.sheet-heading {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--filet);
+  color: var(--encre);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sheet-state {
+  font-family: var(--font-sans);
+  font-weight: 700;
+}
+
+.sheet-state.is-reference {
+  color: var(--olivier);
+}
+
+.sheet-state.is-tested {
+  color: var(--ocre);
+}
+
+.invoice-toolbar {
+  min-height: 55px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--filet);
+  background: var(--engobe-fonce);
+}
+
+.invoice-toolbar strong {
+  color: var(--encre);
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 400;
+}
+
+.capture-export {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  border: 2px solid var(--encre);
+  border-radius: 999px;
+  background: var(--papier);
+  color: var(--encre);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.export-marker {
+  position: relative;
+  padding-bottom: 9px;
+}
+
+.ocre-dots {
+  position: absolute;
+  right: 5px;
+  bottom: 0;
+  left: 5px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.ocre-dots > span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--ocre);
+}
+
+.invoice-table-head,
+.invoice-row {
+  display: grid;
+  grid-template-columns: 0.8fr 1fr 1.1fr 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+}
+
+.invoice-table-head {
+  min-height: 36px;
+  border-bottom: 1px solid var(--filet);
+  color: var(--encre-secondaire);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.invoice-row {
+  min-height: 42px;
+  border-bottom: 1px solid var(--filet);
+  color: var(--encre-secondaire);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.invoice-sheet-footer {
+  min-height: 61px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 16px;
+}
+
+.invoice-total {
+  position: relative;
+  color: var(--encre);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.invoice-total.is-defect {
+  color: var(--miltos);
+}
+
+.invoice-total svg {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 50%;
+  width: 125%;
+  height: 48px;
+  overflow: visible;
+  fill: none;
+  stroke: var(--miltos);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.difference-summary {
+  margin-top: 14px;
+  overflow: hidden;
+  border: 2.5px solid var(--encre);
+  border-radius: 14px;
+  background: var(--papier);
+}
+
+.difference-summary > button {
+  width: 100%;
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 8px 16px;
+  border-top: 0;
+  border-right: 0;
+  border-left: 0;
+  border-bottom: 1px solid var(--filet);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.difference-summary > button:last-child {
+  border-bottom: 0;
+}
+
+.difference-copy {
+  color: var(--encre);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.difference-copy.is-measure {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.difference-status {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  border: 2.5px solid currentColor;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.difference-status.is-suspect {
+  color: var(--ocre);
+}
+
+.difference-status.is-defect {
+  color: var(--miltos);
+}
+
+.measured-values {
+  margin-top: 14px;
+  overflow: hidden;
+  border: 2.5px solid var(--encre);
+  border-radius: 14px;
+  background: var(--papier);
+}
+
+.measured-values-title {
+  margin: 0;
+  padding: 14px 16px 11px;
+  border-bottom: 1px solid var(--filet);
+  color: var(--encre-secondaire);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.measured-values-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.measured-values table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  color: var(--encre);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.measured-values th,
+.measured-values td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--filet);
+  font-weight: 400;
+  text-align: left;
+}
+
+.measured-values thead th {
+  color: var(--encre-secondaire);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.measured-values tbody th {
+  font-weight: 600;
+}
+
+.measured-values tbody tr:last-child th,
+.measured-values tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.measured-values tr.is-defect th,
+.measured-values tr.is-defect td {
+  color: var(--miltos);
+}
+
+.measured-values tr.is-defect th {
+  border-left: 4px solid var(--miltos);
+}
+
+.pixel-summary {
+  margin-top: 14px;
+  padding: 13px 16px;
+  border: 1px solid var(--filet);
+  border-radius: 12px;
+  background: var(--engobe-fonce);
+  color: var(--encre);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.curtain-comparison {
+  position: relative;
+  min-height: 326px;
+}
+
+.curtain-comparison > .invoice-sheet {
+  position: absolute;
+  inset: 0;
+}
+
+.curtain-reference {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  overflow: hidden;
+  clip-path: inset(0 calc(100% - var(--curtain-position)) 0 0);
+}
+
+.curtain-reference .invoice-sheet {
+  width: 100%;
+  height: 100%;
+}
+
+.curtain-line {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  bottom: 0;
+  left: var(--curtain-position);
+  width: 3px;
+  background: var(--encre);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.curtain-comparison input {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: ew-resize;
+  opacity: 0;
+}
+
+.comparison-frames.is-pixels .invoice-sheet {
+  border-style: dashed;
+}
+
+.comparison-mascot {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  width: 75px;
+}
+
+.comparison-mascot > svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+@media (max-width: 600px) {
+  .comparison-screen .sidebar {
+    width: 100%;
+  }
+
+  .comparison-screen .main-content {
+    margin-left: 0;
+  }
+
+  .comparison-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .mode-control {
+    width: 100%;
+  }
+
+  .mode-control button {
+    flex: 1;
+    padding-inline: 7px;
+  }
+
+  .comparison-frames {
+    grid-template-columns: 1fr;
+  }
+
+  .difference-summary > button {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 9px;
+  }
+}

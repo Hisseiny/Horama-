@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { askHolo, filterFindings, type HoloFinding } from "./src/exploration/holo.ts";
+import { askHolo, filterFindings, inspectHoloElement, isCutFinding, sameHeaderElement, type HoloFinding } from "./src/exploration/holo.ts";
 
 const empty = { d0: "", d1: "", d2: "", d3: "", d4: "" };
 const png = Buffer.alloc(33);
@@ -11,6 +11,43 @@ png.writeUInt32BE(1280, 16);
 png.writeUInt32BE(900, 20);
 const options = { url: "https://example.org", apiKey: "test-key" };
 const reply = (content: string) => Response.json({ choices: [{ message: { content } }] });
+
+test("header identity uses selector or normalized text, never coordinates or a body element", () => {
+  const element = { selector: "header > img", text: "logo", header: true, visible: false };
+  assert.ok(!sameHeaderElement(element, { ...element, text: "other" }));
+  assert.ok(sameHeaderElement(element, { ...element, selector: "header > a > img" }));
+  assert.ok(!sameHeaderElement(element, { ...element, header: false }));
+  assert.ok(!sameHeaderElement(element, { ...element, text: "menu", selector: "header > nav" }));
+  assert.ok(!sameHeaderElement({ ...element, selector: "", text: "" }, { ...element, selector: "", text: "" }));
+});
+
+test("header labels disambiguate a reused selector; selector fallback requires missing text", () => {
+  const element = { selector: "header > a", text: "campus", header: true, visible: false };
+  assert.equal(sameHeaderElement(element, { ...element, text: "programmes" }), false);
+  assert.equal(sameHeaderElement(element, { ...element, selector: "header > nav > a" }), true);
+  assert.equal(sameHeaderElement(element, { ...element, text: "" }), true);
+  assert.equal(sameHeaderElement({ ...element, text: "" }, element), true);
+  assert.equal(sameHeaderElement({ ...element, text: "" }, { ...element, text: "" }), true);
+  assert.equal(sameHeaderElement(element, { ...element, selector: "header > nav > a", text: "" }), false);
+});
+
+test("only cut or hidden doubts can be dismissed, and missing DOM evidence preserves them", async () => {
+  const finding: HoloFinding = { status: "SUSPECTED", kind: "cut-off-text", sentence: "Logo.", zone: { x: 0, y: 0, largeur: 90, hauteur: 90 } };
+  assert.ok(isCutFinding(finding));
+  assert.ok(isCutFinding({ ...finding, kind: "misaligned-element", sentence: "Le premier lien est partiellement masqué." }));
+  assert.ok(!isCutFinding({ ...finding, kind: "misaligned-element", sentence: "Le titre est décalé." }));
+  const capture = { url: options.url, width: 1280, height: 900, scroll: [0, 0] as [number, number] };
+  for (const send of [async () => { throw new Error("CDP"); }, async () => ({ result: { value: null } }), async () => ({ exceptionDetails: {} })]) {
+    assert.equal(await inspectHoloElement({ send, on() {} }, finding, capture), null);
+  }
+  assert.equal(await inspectHoloElement({ send: async () => { throw new Error("unused"); }, on() {} }, { ...finding, status: "INCONCLUSIVE", zone: null, message: "No box" }, capture), null);
+});
+
+test("overlapping text is never dismissed even when described as hidden or cut", () => {
+  for (const sentence of ["Le texte est masqué.", "Le texte est coupé.", "The text is hidden.", "The text is clipped."]) {
+    assert.equal(isCutFinding({ status: "SUSPECTED", kind: "overlapping-text", sentence, zone: { x: 40, y: 40, largeur: 90, hauteur: 30 } }), false);
+  }
+});
 
 test("filters bottom and right edges, preserves interior text and different kinds, and keeps the first duplicate", () => {
   const interior: HoloFinding = { status: "SUSPECTED", kind: "cut-off-text", sentence: "Clipped word.", zone: { x: 40, y: 738, largeur: 884, hauteur: 60 } };
@@ -46,7 +83,9 @@ test("visible findings remain suspected and the request disables thinking withou
     assert.equal(body.model, "holo4-27b");
     assert.equal(body.temperature, 0);
     assert.equal(body.chat_template_kwargs.enable_thinking, false);
-    assert.equal(body.messages[0].content[1].image_url.url, `data:image/png;base64,${png.toString("base64")}`);
+    assert.equal(body.messages[0].content[2].image_url.url, `data:image/png;base64,${png.toString("base64")}`);
+    assert.match(body.messages[0].content[1].text, /open menu or dropdown/);
+    assert.match(body.messages[0].content[1].text, /selected\/active tab/);
     assert.ok(!JSON.stringify(body.response_format).includes("["));
     assert.match(body.messages[0].content[0].text, /1280x900/);
     assert.match(body.messages[0].content[0].text, /one short sentence in plain French for a non-technical visitor/);

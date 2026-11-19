@@ -2,7 +2,7 @@
 // no network. Run from this folder: node --test recapitulatif.test.mjs
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { attenteLecture, bilanExploration, dejaVoulu, lisible, revoir, selecteursDe } from "./recapitulatif.mjs";
+import { attenteLecture, bilanExploration, dejaVoulu, lisible, phraseDe, revoir, selecteursDe } from "./recapitulatif.mjs";
 
 // The site blocked by its anti-robot (as in docs/tests/2026-11-18-a67-anti-robot.md, skema.edu): no page, no H session.
 const bloquee = {
@@ -105,4 +105,15 @@ test("lisible : un constat groupé dit le nombre d'éléments et leurs textes vi
   assert.equal(lisible("Un texte semble coupé.", []), "Un texte semble coupé.");
   assert.equal(attenteLecture("x".repeat(700)), 6000);
   assert.equal(attenteLecture("x".repeat(20)), 3500);
+});
+
+// The language check in a sentence (passage published on PR #16 of the clone, 19/11: « 1 bloc en français ; le plus
+// long : 28 mots… page déclarée de Mesuré : 1 bloc en français… »): readable, ended by a full stop, the measure apart.
+test("phraseDe : le constat de langue dit une phrase, les autres finissent par un point", () => {
+  const langue = { sorte: "texte-non-traduit", description: "1 bloc en français ; le plus long : 28 mots, 6 mots outils français, 0 allemands ; page déclarée de" };
+  assert.equal(phraseDe(langue), "Un bloc est resté en français sur une page déclarée en allemand.");
+  assert.equal(phraseDe({ ...langue, description: "3 blocs en anglais ; le plus long : 12 mots ; page déclarée fr" }), "3 blocs sont restés en anglais sur une page déclarée en français.");
+  assert.equal(phraseDe({ sorte: "debordement", description: "Le texte dépasse la boîte de son conteneur" }), "Le texte dépasse la boîte de son conteneur.");
+  assert.equal(phraseDe({ sorte: "debordement", description: "Le texte dépasse la boîte de son conteneur." }), "Le texte dépasse la boîte de son conteneur.");
+  assert.equal(lisible(phraseDe({ sorte: "debordement", description: "Le texte dépasse. Éléments : html > a, html > b." }), ["x"]), "Le texte dépasse. 2 éléments : « x ».");
 });

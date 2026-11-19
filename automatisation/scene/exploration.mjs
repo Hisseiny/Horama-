@@ -7,8 +7,11 @@
 // in the memory of the site. Nothing here is particular to a site.
 //
 // Usage: node [--env-file=<.env.local>] automatisation/scene/exploration.mjs --url <adresse> [--site <dossier du vault>] [--max 15] [--pages-cliquees 4] [--sans-agent]
-//          [--sans-holo] [--sans-base | --avec-base] [--choix bug,voulu,...] [--repeter-choix] [--sans-fin] [--par <nom>] [--rythme <s>]
+//          [--sans-holo] [--sans-base | --avec-base] [--choix bug,voulu,...] [--repeter-choix] [--sans-fin] [--fin-dans-la-tour [--tour <adresse>]] [--par <nom>] [--rythme <s>]
 //          [--vault <dir>] [--sortie <dir>] [--temoins <dir>] [--port 9333] [--profil <dir>] [--fermer-chrome]
+//          [--captures-instantanees]
+// The captures of proof of the explorer scroll smoothly to their zone (option doux of #179): the scene is on the screen,
+// a jump would be seen. --captures-instantanees goes back to the instant scroll.
 // Env: HAI_API_KEY (H and Holo), SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, CHROME_BIN, HOLO_BIN.
 // Exit: 0 the exploration ended « fini » and nothing failed, 1 otherwise, 2 something is missing, 130 Ctrl+C.
 import { randomUUID } from "node:crypto";
@@ -22,7 +25,7 @@ import { ecrireDecision, lireDecisions } from "../../memoire/index.ts";
 import { findHolo, startBridge, stopIfMissing } from "./agent-h.mjs";
 import { creerEcrivainMemoire, creerEcrivainSupabase } from "./decisions.mjs";
 import { completerNote } from "./note-passage.mjs";
-import { bilanExploration, dejaVoulu, lisible, revoir, selecteursDe, sizeOf } from "./recapitulatif.mjs";
+import { bilanExploration, dejaVoulu, lisible, phraseDe, revoir, selecteursDe, sizeOf } from "./recapitulatif.mjs";
 import { ecrireSectionExploration, publierCommentaire } from "../pr-doc/commentaire.mjs";
 import { ouvrirVitrine } from "./vitrine.mjs";
 import { HEIGHT, WIDTH, capture, captureZone, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, layer, navigate, openChrome, option, say, sleep } from "./scene.mjs";
@@ -48,6 +51,10 @@ const CHOICES = flag("choix") ? option("choix").split(",") : [];
 const REPEAT = flag("repeter-choix");
 const PAR = option("par", "Nathan");
 const RYTHME = Number(option("rythme", 2));
+// --fin-dans-la-tour (#238): no question in the scene; the summary with its findings, then the mascot hands over to the
+// tower of control, where a human settles each case (the wake-up opens it on « À relire » of this passage).
+const IN_TOWER = flag("fin-dans-la-tour");
+const TOWER = option("tour", "https://horama-gold.vercel.app/tour/");
 const CHROME_BIN = process.env.CHROME_BIN || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const FILE = join(OUT, "exploration.json");
 
@@ -265,7 +272,7 @@ process.on("SIGINT", () => {
 const errors = [];
 let report = null;
 try {
-  report = await explorer({ url: URL_SITE, max: MAX, pagesCliquees: CLICKED, sortie: OUT, vault: VAULT, port: PORT, ...(SITE ? { site: SITE } : {}) }, { base, runtime, session, signal: arret.signal, log: say, ...(flag("sans-holo") ? { holo: noHolo } : {}) });
+  report = await explorer({ url: URL_SITE, max: MAX, pagesCliquees: CLICKED, sortie: OUT, vault: VAULT, port: PORT, ...(SITE ? { site: SITE } : {}), doux: !flag("captures-instantanees") }, { base, runtime, session, signal: arret.signal, log: say, ...(flag("sans-holo") ? { holo: noHolo } : {}) });
 } catch (error) {
   errors.push(error.message);
   say(`Échec : ${error.message}`);
@@ -295,7 +302,7 @@ if (report?.format === "horama-exploration-1") {
   const toDecide = [...constats.filter((constat) => constat.statut === "VERIFIED_FAIL"), ...constats.filter((constat) => constat.statut === "SUSPECTED" && !constat.explique_par)]
     .filter((constat) => (dejaVoulu(constat, past) ? (accepted.push(constat), false) : true));
   if (accepted.length) say(`Déjà déclarés voulus, non redemandés : ${accepted.map((constat) => constat.id).join(", ")}.`);
-  const review = flag("sans-fin") ? [] : toDecide;
+  const review = flag("sans-fin") || IN_TOWER ? [] : toDecide;
   const pathOf = (ecran) => {
     const entry = report.pages.find((candidate) => candidate.ecran === ecran);
     return entry ? new URL(entry.url).pathname : ecran;
@@ -312,7 +319,7 @@ if (report?.format === "horama-exploration-1") {
     : constat.source === "holo" ? "Doute du regard de Holo, le modèle visuel de H : rien n'est prouvé." : "Écart d'image avec la capture du passage précédent.");
   const items = toDecide.map((constat) => {
     const png = readFileSync(join(OUT, constat.capture));
-    const said = lisible(constat.description, visibleTexts.get(constat.id));
+    const said = lisible(phraseDe(constat), visibleTexts.get(constat.id));
     return { id: constat.id, genre: GENRE[constat.statut], etat: LOOK[constat.statut], texte: `${pathOf(constat.ecran)} : ${said}`, selecteurs: selecteursDe(constat.description), png, zones: constat.zone ? [constat.zone] : [], page: constat.page ?? sizeOf(png),
       mesure: constat.source === "controle" && constat.preuve?.mesure ? `mesuré : ${constat.preuve.mesure}` : null,
       textes: [`Page ${pathOf(constat.ecran)}${arrivalOf(constat.ecran) ? ` (${arrivalOf(constat.ecran)})` : ""} : ${said}`, proof(constat)], question: "C'est un bug, ou c'est voulu ?" };
@@ -347,7 +354,19 @@ if (report?.format === "horama-exploration-1") {
   // The course stopped for a reason (site that blocks robots, address not found): the mascot says it, the summary keeps it.
   if (bilan.aucune) await mascot("etat", "bloquee").catch(() => {});
   try {
-    const made = await revoir({ mascot, recap, items: items.filter((item) => review.some((constat) => constat.id === item.id)), choix: CHOICES, repeter: REPEAT, presentation: true, witness, say }, () => new Promise((resolve) => (chosen = resolve)));
+    if (IN_TOWER) {
+      // The summary keeps its lines (nothing is asked here), the time to read it, then the hand-over.
+      await mascot("recap", { ...recap, items: items.map(({ id, genre, texte, mesure }) => ({ id, genre, texte, mesure })) });
+      await witness("recapitulatif");
+      if (items.length) {
+        await sleep(Math.min(4000 + 1500 * items.length, 12000));
+        await mascot("fin", { titre: "À vous de trancher.", compte: `${count(items.length, "cas à trancher", "cas à trancher")} : bug, ou voulu ?`, legende: "Je passe la main à la tour de contrôle, écran :", fichiers: ["À relire"] });
+        await sleep(3000);
+        await witness("vers-la-tour");
+        say(`Fin dans la tour : ${count(items.length, "cas à trancher", "cas à trancher")}, la main passe à ${TOWER}.`);
+      }
+    }
+    const made = IN_TOWER ? [] : await revoir({ mascot, recap, items: items.filter((item) => review.some((constat) => constat.id === item.id)), choix: CHOICES, repeter: REPEAT, presentation: true, witness, say }, () => new Promise((resolve) => (chosen = resolve)));
     const le = new Date().toISOString();
     for (const { item, choix } of made) {
       const constat = review.find((candidate) => candidate.id === item.id);
@@ -380,7 +399,7 @@ if (report?.format === "horama-exploration-1") {
   // The part of the answer on the PR (text only: page, zone, proof; the captures ringed stay in the note).
   if (PR) {
     // The comment on the PR (read by the jury): the readable text first; the selectors of a grouped finding folded.
-    const entry = (constat) => ({ id: constat.id, chemin: pathOf(constat.ecran), texte: lisible(constat.description, visibleTexts.get(constat.id)), selecteurs: selecteursDe(constat.description), zone: constat.zone ?? null, capture: constat.capture ?? null,
+    const entry = (constat) => ({ id: constat.id, chemin: pathOf(constat.ecran), texte: lisible(phraseDe(constat), visibleTexts.get(constat.id)), selecteurs: selecteursDe(constat.description), zone: constat.zone ?? null, capture: constat.capture ?? null,
       preuve: constat.source === "controle" && constat.preuve?.mesure ? `Mesuré : ${String(constat.preuve.mesure).replace(/\.+$/, "")}. Attendu : ${String(constat.preuve.attendu).replace(/\.+$/, "")}.` : null });
     const corps = ecrireSectionExploration({ adresse: report.adresse, bilan: bilanExploration(report), totaux, decisions: decisions.map(({ decision }) => decision),
       prouves: toDecide.filter((constat) => constat.statut === "VERIFIED_FAIL").map(entry), doutes: toDecide.filter((constat) => constat.statut === "SUSPECTED").map(entry),
@@ -388,7 +407,7 @@ if (report?.format === "horama-exploration-1") {
     // The elements too, with the capture ringed of each finding (written by completerNote), for the wake-up: it can put
     // them on a branch of the target repository and write the part again with the images (--captures-sur-branche).
     const ringedOf = (item) => ({ ...item, anneau: notePath && existsSync(join(VAULT, report.site, "passages", report.passage_id, `${item.id}.png`)) ? `${report.site}/passages/${report.passage_id}/${item.id}.png` : null });
-    const elements = { adresse: report.adresse, bilan: bilanExploration(report), totaux, decisions: decisions.map(({ decision }) => decision),
+    const elements = { adresse: report.adresse, bilan: bilanExploration(report), totaux, duree_s: report.duree_s ?? null, cout_usd: report.cout_usd ?? null, decisions: decisions.map(({ decision }) => decision),
       prouves: toDecide.filter((constat) => constat.statut === "VERIFIED_FAIL").map(entry).map(ringedOf), doutes: toDecide.filter((constat) => constat.statut === "SUSPECTED").map(entry).map(ringedOf),
       dejaVoulus: accepted.map(entry), note: `vault-horama/${notePath ?? `${report.site}/passages/${report.passage_id}.md`}` };
     commentaire = { corps, elements, publication: null };

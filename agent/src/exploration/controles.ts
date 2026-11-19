@@ -44,10 +44,21 @@ function inspectDocument() {
     return parts.join(" > ");
   };
   const proof = (element: Element) => {
-    const rect = element.getBoundingClientRect();
+    const boxes = Array.from(element.getClientRects()).filter(rect => rect.width > 0 && rect.height > 0);
+    const rect = boxes[0];
+    if (!visible(element) || !rect) return { selecteur: selector(element) };
     return { selecteur: selector(element), zone: { x: rect.x + scrollX, y: rect.y + scrollY, largeur: rect.width, hauteur: rect.height } };
   };
   const add = (sorte: Defaut["sorte"], message: string, valeur: string | number, element?: Element, raison?: string) => {
+    if (sorte === "texte_rogne") raison ??= "Le rognage par le conteneur peut être voulu : à confirmer par un humain.";
+    if (sorte === "texte_rogne" && element) {
+      for (let node: Element | null = element; node; node = node.parentElement) {
+        if (node.matches('[aria-hidden="true"],[role="img"],[role="presentation"],svg,figure,picture,[inert]') || getComputedStyle(node).pointerEvents === "none") {
+          raison = "Le texte appartient à une illustration ou une zone décorative : le rognage peut être voulu.";
+          break;
+        }
+      }
+    }
     defects.push({ statut: raison ? "SUSPECTED" : "VERIFIED_FAIL", sorte, message, valeur, ...(element ? proof(element) : {}), ...(raison ? { raison } : {}) });
   };
   // Text a visitor cannot see on purpose: screen-reader only, clipped, or inside a box of one pixel that hides its overflow.
@@ -374,14 +385,18 @@ async function checkLinks(links: ReturnType<typeof inspectDocument>["links"], op
     for (let hops = 0; hops <= maxHops; hops++) {
       const remaining = deadline - Date.now();
       if (remaining <= 0) return undefined;
-      const response = await request(address, { method, redirect: "manual", signal: AbortSignal.timeout(Math.min(10_000, remaining)) });
+      const response = await request(address, { method, redirect: "manual", headers: {
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+      }, signal: AbortSignal.timeout(Math.min(10_000, remaining)) });
       await response.body?.cancel();
       const location = response.headers.get("location");
       if (response.status < 300 || response.status >= 400 || !location) return { status: response.status, url: address, hops };
       if (!URL.canParse(location, address)) return undefined;
       const next = new URL(location, address);
       // Only the inspected site's host is requested: a redirect elsewhere proves nothing and could reach a private network.
-      if (next.hostname !== new URL(start).hostname) return undefined;
+      if (next.hostname.replace(/^www\./, "") !== new URL(start).hostname.replace(/^www\./, "")) return undefined;
       address = next.href;
     }
     return undefined;

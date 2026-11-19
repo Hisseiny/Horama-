@@ -1,0 +1,13 @@
+{
+  "title": "Horama · Tour de contrôle",
+  "description": "Les passages d'Horama et leurs constats, sur données réelles : passages déclenchés par une PR du clone et explorations envoyées par adresse.",
+  "language": "fr",
+  "icons": { "icon": "/favicon.svg" },
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

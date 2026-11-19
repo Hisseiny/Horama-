@@ -1,0 +1,108 @@
+/* La tour de contrôle (#149) : ce que les écrans du prototype n'avaient pas, dans ses couleurs. */
+.tour-erreurs { margin: 0 0 18px; padding: 12px 16px; border: 2px solid #C48A1E; border-radius: 12px; background: #FFF6DF; color: #5C5546; font-size: 14px; }
+.tour-erreurs p { margin: 0; overflow-wrap: anywhere; }
+.tour-vide, .tour-note { color: #5C5546; font-size: 14px; }
+.tour-titre { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tour-titre strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tour-titre small { color: #5C5546; }
+.tour-titre small, .decision-rule { font-size: 11px; }
+.tour-liens { display: flex; flex-wrap: wrap; gap: 10px; }
+.tour-liens a { display: inline-flex; align-items: center; text-decoration: none; white-space: nowrap; }
+.report-heading > div:first-child { min-width: 0; }
+.report-heading p { overflow-wrap: anywhere; }
+.tour-captures { display: grid; gap: 22px; margin-top: 26px; }
+.tour-constat { padding: 16px; border: 2px solid #1C1C1C; border-radius: 14px; background: #FFFDF6; }
+.tour-constat header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+.tour-constat .tour-note { margin: 10px 0 0; }
+.tour-capture img { border: 2px solid #E2D6B8; border-radius: 10px; }
+.tour-preuve { margin: 10px 0 0; font: 500 13px/1.45 var(--font-mono); color: #1C1C1C; overflow-wrap: anywhere; }
+.tour-cas { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 18px; align-items: start; }
+.tour-cas-texte { display: flex; flex-direction: column; gap: 10px; }
+.tour-lien { color: #1C1C1C; font-weight: 600; }
+.tour-decision { align-self: flex-start; }
+.tour-sous-titre { margin: 34px 0 12px; font: 400 24px/1.1 var(--font-display); color: var(--encre); }
+.is-light .tour-erreurs { background: #FFF6DF; }
+/* The passage column holds a PR title or an address: wider than the « Version » of the prototype. */
+.tour-passages .passages-head, .tour-passages .passage-row { grid-template-columns: 120px minmax(0, 1fr) 70px 150px 170px; }
+.tour-passages .passage-line .passage-row { padding-left: 18px; }
+.tour-passages .passage-row > span:last-child { white-space: nowrap; }
+/* The result in words, one per line: « 3 défauts prouvés » over « 2 doutes ». */
+.tour-passages .passage-results { flex-direction: column; align-items: flex-start; gap: 2px; }
+.passage-results .tour-etat { color: var(--encre-secondaire); }
+.history-page-heading p { font-family: var(--font-sans); font-size: 14px; }
+.history-card .tour-vide, .report-table .tour-vide { margin: 0; padding: 14px 18px; }
+/* The report: as many folds as there are figures, five columns for five cells (no sixth of the prototype). */
+.report-folds { grid-template-columns: repeat(auto-fit, minmax(170px, 210px)); }
+.report-fold > strong { white-space: nowrap; }
+.tour-table { min-width: 910px; }
+.tour-table .report-table-head, .tour-table .report-row { grid-template-columns: 142px minmax(190px, 1.3fr) minmax(110px, 0.7fr) minmax(235px, 1.6fr) 150px; }
+/* Ochre as text on paper reads at 2.95:1: the doubt keeps ochre as a border or as dots, its text goes to ink. */
+.report-status.is-suspect, .review-status.is-suspect, .summary-pill.is-suspect { color: var(--encre); border-color: var(--ocre); }
+.passage-results .is-suspect, .report-proof.is-suspect { color: var(--encre-secondaire); }
+.report-fold > strong.is-suspect { text-decoration: underline dotted var(--ocre) 4px; text-underline-offset: 8px; }
+/* The ring of focus in ink (sun on engobe reads at 1.4:1), inside the rows that span the whole card. */
+.is-light button:focus-visible, .is-light a:focus-visible { outline-color: var(--encre); }
+.passage-row:focus-visible, .decision-entry:focus-visible, .report-row:focus-visible { outline-offset: -3px; }
+/* The shell of the prototype is a fixed 1440×900 frame: here it fills the window, whatever its size. */
+@media (min-width: 601px) {
+  html, body { width: auto; min-width: 0; height: 100%; min-height: 0; }
+  .app-shell { width: 100%; height: 100dvh; }
+  .sidebar { height: 100%; min-height: 0; }
+  .main-content { height: 100dvh; }
+}
+/* The mascot flies behind the cards: on a narrow window it would cover the last column. */
+.mascot { z-index: 0; }
+/* Under 1100 px the column beside the sidebar is too narrow for the tables of the prototype (their minimum is about
+   740 px): rows become cards, and the report keeps only its cards, which carry the same findings, decision included. */
+@media (max-width: 1100px) {
+  .tour-cas { grid-template-columns: 1fr; }
+  .tour-passages .passages-head { display: none; }
+  .tour-passages .passage-row { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px 18px; }
+  .tour-passages .passage-row > span:nth-child(3)::before { content: "Pages : "; }
+  .tour-titre strong { white-space: normal; overflow-wrap: anywhere; }
+  .decision-entry { display: flex !important; flex-wrap: wrap; gap: 6px 10px; }
+  .decision-copy { flex: 1 1 100%; min-width: 0; overflow-wrap: anywhere; }
+  .decision-list::before { display: none; }
+  .report-table-card { display: none; }
+}
+@media (max-width: 720px) {
+  .mascot { display: none; }
+  .report-folds { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .back-to-passages { margin: -10px 0 2px; padding: 10px 0; border-bottom: 0; text-decoration: underline dotted; text-underline-offset: 4px; }
+  .product-select-wrap { display: none; }
+  .sidebar .run-button { margin-top: 18px; }
+}
+/* #238: where the data came from, at the foot of the sidebar; the passage alone in « À relire » (#relire/<cle>). */
+.tour-source { margin: 0; font-size: 12px; color: var(--encre-secondaire); }
+.tour-filtre { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; margin: 0 0 18px; padding: 12px 16px; border: 2px solid var(--encre); border-radius: 12px; background: #FFFDF6; }
+.tour-filtre p { margin: 0; overflow-wrap: anywhere; }
+/* #238: connected, the name and « Se déconnecter »; otherwise « Se connecter ». */
+.tour-connexion { text-decoration: none; }
+.tour-deconnexion { justify-self: start; padding: 0; border: 0; border-bottom: 1.5px solid currentColor; background: transparent; color: var(--encre-secondaire); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.profile { grid-template-columns: 36px minmax(0, 1fr); }
+.profile-copy strong { overflow-wrap: anywhere; }
+/* The buttons of the prototype in 11.6: disabled while not connected or while a decision is sent. */
+.tour-boutons { flex-direction: row; flex-wrap: wrap; justify-content: flex-start; }
+.tour-boutons button { flex: 1 1 140px; cursor: pointer; }
+.tour-boutons button:disabled { opacity: 0.45; cursor: not-allowed; }
+.tour-erreur-cas { margin: 0; color: var(--miltos); font-size: 14px; font-weight: 600; }
+/* The login of the prototype is a fixed 1440×900 frame too: here it fills the window, and stacks on a narrow one. */
+.login-screen { overflow-y: auto; }
+.login-aside .brand { align-self: flex-start; padding-inline: 0; font-size: 40px; color: var(--encre); }
+.login-aside, .login-main { height: auto; min-height: 100%; }
+.login-card { width: min(440px, 100%); }
+.login-footer .login-link { text-decoration: none; }
+@media (max-width: 1100px) {
+  .login-screen { grid-template-columns: 360px minmax(0, 1fr); }
+  .login-aside { padding: 32px; }
+  .login-pitch h1 { font-size: 34px; }
+  .login-main { padding: 32px; }
+}
+@media (max-width: 760px) {
+  .login-screen { display: block; height: auto; min-height: 100dvh; }
+  .login-aside { min-height: 0; gap: 20px; padding: 22px 16px; border-right: 0; border-bottom: 2.5px solid var(--encre); }
+  .login-pitch h1 { font-size: 28px; }
+  .login-pitch p { font-size: 15px; }
+  .login-main { min-height: 0; padding: 24px 16px 40px; }
+  .login-card { padding: 24px 20px 22px; }
+}

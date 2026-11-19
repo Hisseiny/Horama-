@@ -65,7 +65,7 @@ La mascotte fait le travail, elle ne décore pas : elle est toujours dans un ét
 | Soleil clair | `#FFE39A` | Le mode de jour |
 | Aile | `#AFA9EC` | Les ailes, celles du bouton aussi |
 | Ciel | `#E3E0F9` | Là où l'envoyé vole (fonds de section) |
-| Nuit | `#2A2647` | Les déploiements (mode développeur) |
+| Nuit | `#2A2647` | Les déploiements (entrée par une PR) |
 | Miltos | `#B8321F` | Ocre rouge : défaut prouvé |
 | Ocre | `#C48A1E` | Le doute, à trancher |
 | Olivier | `#2E7D55` | Conforme, rangé |

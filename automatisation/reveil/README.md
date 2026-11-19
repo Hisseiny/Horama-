@@ -50,8 +50,8 @@ node automatisation/reveil/pr.mjs --depot <propriétaire/dépôt> --logiciel <lo
 - **Quoi** : les fichiers modifiés par la PR (`pulls/<n>/files`) choisissent les tests par `choisirTests` d'`impact.mjs`, sur le vault de ce dépôt : les écrans dont la note déclare un fichier modifié dans son champ `code:`, plus le socle d'`impact/socle.json`. Le fichier `impact.json` (format `horama-impact-1`, avec `depuis` = base de la PR, `vers` = son dernier commit, `fichiers`, et l'adresse de la PR dans `pr`) part à la scène.
 - **La langue** : une note peut déclarer la langue de sa page (`langue: fr` dans son en-tête). Le réveil demande à la prévisualisation le `<html lang>` de chaque page dont un test retenu dépend. Si la langue diffère (une traduction, #122), ce test est écarté avec la raison « langue du site changée (fr → de) : tests de la documentation non joués », et seule l'exploration tourne. Une note sans `langue`, ou une page qui ne dit pas la sienne, n'écarte rien. Le mode à blanc l'affiche, et `reveil.json` le garde dans `langue`.
 - **La page d'attente** (S1, 19/11) : au lancement (hors `--a-blanc`), le réveil ouvre le Chrome de la scène (port 9333, profil de la scène) sur `automatisation/scene/attente.html` : le ciel de la charte, la mascotte, « Horama attend la prochaine pull request. » et le dépôt surveillé. Quand une PR arrive, la scène reprend cet onglet et y ouvre la prévisualisation : plus d'onglet vide à l'écran. Pas avec une option de scène qui change le Chrome (`--port`, `--profil`).
-- **Les scènes** : d'abord les tests du vault touchés par la PR, `parcours.mjs --impact <fichier> --base-url <prévisualisation> --logiciel <logiciel> --vault <vault> --pr <adresse de la PR> --sortie <dossier>/scene` (sautés si la PR ne touche aucune note). Puis l'exploration de tout le site de la prévisualisation, celle du mode grand public (issue #122) : `exploration.mjs --url <prévisualisation> --max 8 --pages-cliquees 8 --vault <vault> --site <logiciel> --sortie <dossier>/exploration`, avec les contrôles mécaniques et Holo. `--site <logiciel>` range chaque passage dans le dossier du logiciel du vault (par exemple `eugenia-clone`), quel que soit le nom d'hôte de la prévisualisation : les décisions « voulu » d'une PR valent pour la suivante. `--max` et `--pages-cliquees` du réveil la règlent (8 et 8 par défaut : toutes les pages après la page de départ sont atteintes par un clic de l'agent, l'explorateur plafonnant les clics au nombre de pages moins un ; une page ouverte par son adresse est un saut à l'écran), `--sans-exploration` la retire. Les options données après `--` vont aux deux scènes (par exemple `--vitrine`, ou `--sans-agent --sans-holo` pour un essai). La sélection, la cible, le vault, la sortie, la PR, `--site`, `--url`, `--max` et `--pages-cliquees` sont réservés au réveil. Une scène qui échoue est notée dans `reveil.json`, l'autre tourne quand même, et le réveil passe à la PR suivante.
-- **Le vault** : `--vault vault-horama` par défaut. Les décisions, la note du passage et les corrections de note s'y écrivent : c'est la mémoire du mode dev. Pour un essai, donner une copie.
+- **Les scènes** : d'abord les tests du vault touchés par la PR, `parcours.mjs --impact <fichier> --base-url <prévisualisation> --logiciel <logiciel> --vault <vault> --pr <adresse de la PR> --sortie <dossier>/scene` (sautés si la PR ne touche aucune note). Puis l'exploration de tout le site de la prévisualisation, celle de l'entrée par une adresse (issue #122) : `exploration.mjs --url <prévisualisation> --max 8 --pages-cliquees 8 --vault <vault> --site <logiciel> --sortie <dossier>/exploration`, avec les contrôles mécaniques et Holo. `--site <logiciel>` range chaque passage dans le dossier du logiciel du vault (par exemple `eugenia-clone`), quel que soit le nom d'hôte de la prévisualisation : les décisions « voulu » d'une PR valent pour la suivante. `--max` et `--pages-cliquees` du réveil la règlent (8 et 8 par défaut : toutes les pages après la page de départ sont atteintes par un clic de l'agent, l'explorateur plafonnant les clics au nombre de pages moins un ; une page ouverte par son adresse est un saut à l'écran), `--sans-exploration` la retire. Les options données après `--` vont aux deux scènes (par exemple `--vitrine`, ou `--sans-agent --sans-holo` pour un essai). La sélection, la cible, le vault, la sortie, la PR, `--site`, `--url`, `--max` et `--pages-cliquees` sont réservés au réveil. Une scène qui échoue est notée dans `reveil.json`, l'autre tourne quand même, et le réveil passe à la PR suivante.
+- **Le vault** : `--vault vault-horama` par défaut. Les décisions, la note du passage et les corrections de note s'y écrivent : c'est la mémoire de l'entrée par une PR. Pour un essai, donner une copie.
 - **La réponse sur la PR** (`--commenter`) : une fois les deux scènes finies, le réveil publie une seule réponse, avec `gh pr comment`. Elle contient la partie des tests du vault (`scene/passage.json`, `commentaire_corps`) puis celle de l'exploration (`exploration/scene.json`, `commentaire.corps`) :
   - chaque défaut prouvé avec sa page, sa zone en pixels de la capture, sa preuve et la décision de l'humain ;
   - les doutes de Holo à part ;
@@ -84,3 +84,47 @@ pnpm install && pnpm -r --if-present run check
 ```
 
 La preuve chronométrée et les limites de la scène réelle sont dans `docs/tests/2026-11-17-reveil-local.md`.
+
+## Une seule PR
+
+`--numero <n>` limite le réveil à la PR n du dépôt, quelles que soient les autres PR ouvertes : avec `--une-fois`, il joue cette PR et s'arrête. Utile pour un passage publié (`--commenter`) sur une PR précise, alors que le réveil prend sinon la plus récente d'abord (19/11 : trois PR ouvertes sur le clone, #18, #17 et #16).
+
+## L'index des passages (tour de contrôle, #149)
+
+Avec `--commenter --captures-sur-branche <branche>`, après chaque réponse publiée, le réveil met à jour `index.json` à la racine de cette branche du dépôt cible (la même que les captures, publique pour le clone). Il se lit sans connexion : `https://raw.githubusercontent.com/<dépôt>/<branche>/index.json` (par exemple `https://raw.githubusercontent.com/Hisseiny/eugenia-school-website/horama/captures/index.json`, mis en cache quelques minutes par GitHub).
+
+```json
+{
+  "format": "horama-passages-1", "depot": "Hisseiny/eugenia-school-website", "maj": "2026-11-19T15:00:00.000Z",
+  "passages": [{
+    "passage": "2026-11-19-10h55-4163", "date": "2026-11-19T10:55:10.000Z", "site": "eugenia-clone",
+    "previsualisation": "https://…vercel.app", "pr": { "numero": 16, "adresse": "https://github.com/…/pull/16", "titre": "…" }, "commit": "998767b…",
+    "reponse": "https://github.com/…/pull/16#issuecomment-…", "etat": "termine", "totaux": { "defauts": 2, "doutes": 2, "pages_visitees": 8, "…": "…" },
+    "duree_s": 325.5, "cout_usd": 0.1967,
+    "constats": [{ "id": "accueil--controle--1", "statut": "VERIFIED_FAIL", "genre": "defaut", "page": "/", "texte": "Le texte dépasse la boîte de son conteneur.",
+      "preuve": "Mesuré : 158×35 > 120×35. Attendu : …", "zone": { "x": 32, "y": 432, "largeur": 120, "hauteur": 35 },
+      "capture": "https://raw.githubusercontent.com/…/accueil--controle--1.png", "decision": { "choix": "bug", "par": "Nathan", "le": "…" } }]
+  }]
+}
+```
+
+Une entrée par PR et par commit (rejouer le même commit la remplace), la plus récente d'abord. `capture` est la capture entourée poussée sur la branche (ou `null`), `decision` est `null` tant que personne n'a tranché. Un refus de GitHub ne bloque pas le réveil : `reveil.json` garde la raison (`index.raison`).
+
+
+`duree_s` et `cout_usd` (durée et coût H de l'exploration, depuis le 19/11 au soir) valent `null` dans les entrées plus anciennes.
+
+## Trancher dans la tour (`--trancher-dans-la-tour`, #238)
+
+Pour le pitch : la scène ne pose plus la question « bug ou voulu ? », on tranche dans la tour de contrôle.
+
+```sh
+node automatisation/reveil/pr.mjs --depot Hisseiny/eugenia-school-website --logiciel eugenia-clone --commenter --captures-sur-branche horama/captures --trancher-dans-la-tour
+```
+
+1. La scène d'exploration joue avec `--fin-dans-la-tour` : à la fin, le récapitulatif avec ses constats, le temps de le lire (12 s au plus), puis la mascotte annonce « À vous de trancher. », « Je passe la main à la tour de contrôle ». Aucune question, aucune décision écrite par la scène.
+2. Le réveil pousse les captures entourées et publie l'entrée de l'index **d'abord**, avec `duree_s` et `cout_usd`, sans décision et sans réponse.
+3. Le Chrome de la scène (port 9333) s'ouvre sur la tour, écran « À relire » de ce passage : `…/tour/?index=<commit de l'index>#relire/dev%3A<passage>`. Le paramètre `index` fait lire à la tour l'index à ce commit, ce qui échappe au cache de 5 min de la branche.
+4. Le réveil relit l'entrée toutes les 5 s, par l'API de GitHub (fraîche), 10 min au plus, jusqu'à ce que chaque constat ait sa décision, écrite par la tour (service Railway, `POST /tour/decision`).
+5. Il publie la réponse sur la PR avec ces décisions. Un constat encore ouvert au bout de 10 min y est marqué « à trancher ». Enfin, il ajoute l'adresse de la réponse à l'entrée de l'index, sans toucher aux décisions écrites entre-temps.
+
+`--tour <adresse>` change l'adresse de la tour (par défaut https://horama-gold.vercel.app/tour/). Sans constat à trancher, la tour ne s'ouvre pas et la réponse part tout de suite. `reveil.json` garde le détail : `tour` (adresse, tout tranché ou non, nombre de décisions, attente) et `index_reponse`.

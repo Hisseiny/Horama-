@@ -44,6 +44,23 @@ export function selecteursDe(description) {
   const [, tail] = String(description ?? "").split(" Éléments : ");
   return tail ? tail.replace(/\.\s*$/, "").split(/, (?=html\b)/).map((selector) => selector.trim()).filter(Boolean) : [];
 }
+// What a finding says on the screen and in the answer on the PR. The language check (#179, sorte texte-non-traduit)
+// writes its measure as its description (« 1 bloc en français ; … ; page déclarée de »): a sentence instead (« Un bloc
+// est resté en français sur une page déclarée en allemand. »), the measure stays in « Mesuré ». Any other finding: its
+// description, ended by a full stop.
+const LANGUES = { de: "allemand", fr: "français", en: "anglais", es: "espagnol", it: "italien", nl: "néerlandais", pt: "portugais" };
+export function phraseDe(constat) {
+  const description = String(constat?.description ?? "").trim();
+  if (constat?.sorte === "texte-non-traduit") {
+    const blocs = Number(/^(\d+) blocs?/.exec(description)?.[1] ?? 1);
+    const langue = /blocs? en ([a-zàâçéèêëîïôûùüÿœ]+)/i.exec(description)?.[1] ?? null;
+    const code = /page déclarée ([a-z]{2})\b/i.exec(description)?.[1]?.toLowerCase();
+    const declaree = code ? LANGUES[code] ?? code : null;
+    const sujet = blocs > 1 ? `${blocs} blocs sont restés` : "Un bloc est resté";
+    return `${sujet}${langue ? ` en ${langue}` : " dans une autre langue"}${declaree ? ` sur une page déclarée en ${declaree}` : ""}.`;
+  }
+  return /[.!?…»]$/.test(description) ? description : `${description}.`;
+}
 export function lisible(description, textes = []) {
   const [message, tail] = String(description ?? "").split(" Éléments : ");
   if (!tail) return message;
