@@ -124,9 +124,9 @@ function inspectDocument() {
     if (!visible(element) || element.matches("script,style,noscript,template")) continue;
     const text = Array.from(element.childNodes).filter(node => node.nodeType === Node.TEXT_NODE).map(node => node.textContent).join(" ").trim();
     const match = element.closest("code,pre,kbd,samp,var") ? null : text.match(pattern);
-    // A technical word inside a written sentence ("the behaviour is undefined") is prose, not a value left empty.
-    const prose = match && !/lorem|\{\{/i.test(match[0]) && text.replace(match[0], " ").split(/\s+/).filter(word => /\p{L}{2,}/u.test(word)).length >= 4;
-    if (match) add("texte_erreur", "Un texte d’erreur est affiché.", match[0], element, prose ? "Le mot technique est dans une phrase rédigée : il peut s'agir du texte voulu." : undefined);
+    // Proven only where a value is shown (alone, or after ":" or "="); inside written text ("The Null Object", "the behaviour is undefined") it may be meant.
+    const value = match && (/lorem|\{\{/i.test(match[0]) || text === match[0] || /[:=]\s*$/.test(text.slice(0, match.index)));
+    if (match) add("texte_erreur", "Un texte d’erreur est affiché.", match[0], element, value ? undefined : "Le mot technique est dans un texte rédigé (phrase ou titre) : il peut s'agir du texte voulu.");
     if (!(element.textContent ?? "").trim()) continue;
     const style = getComputedStyle(element);
     const clippedX = ["hidden", "clip"].includes(style.overflowX) && element.scrollWidth > element.clientWidth + 1;

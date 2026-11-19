@@ -118,9 +118,9 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
   assert.ok(!(await controlerPage(client, { maxLiens: 0 })).some(defect => defect.sorte === "texte_erreur"));
   await client.send("Runtime.evaluate", { expression: `document.querySelector('main').insertAdjacentHTML('beforeend', '<p id="error">Erreur : undefined</p>')` });
   assert.deepEqual((await controlerPage(client, { maxLiens: 0 })).filter(defect => defect.sorte === "texte_erreur").map(defect => [defect.selecteur, defect.valeur]), [["#error", "undefined"]]);
-  await client.send("Runtime.evaluate", { expression: `document.querySelector('main').insertAdjacentHTML('beforeend', '<p id="prose">The behaviour is undefined when the pointer is NULL.</p><p id="price">Prix : NaN €</p>')` });
+  await client.send("Runtime.evaluate", { expression: `document.querySelector('main').insertAdjacentHTML('beforeend', '<p id="prose">The behaviour is undefined when the pointer is NULL.</p><p id="price">Prix : NaN €</p><a id="title" href="#n">The Null Object</a>')` });
   const technical = (await controlerPage(client, { maxLiens: 0 })).filter(defect => defect.sorte === "texte_erreur");
-  assert.deepEqual(technical.map(defect => [defect.selecteur, defect.valeur, defect.statut]), [["#error", "undefined", "VERIFIED_FAIL"], ["#prose", "undefined", "SUSPECTED"], ["#price", "NaN", "VERIFIED_FAIL"]]);
+  assert.deepEqual(technical.map(defect => [defect.selecteur, defect.valeur, defect.statut]), [["#error", "undefined", "VERIFIED_FAIL"], ["#prose", "undefined", "SUSPECTED"], ["#price", "NaN", "VERIFIED_FAIL"], ["#title", "Null", "SUSPECTED"]]);
   assert.match(technical[1].raison ?? "", /phrase/);
   await client.send("Runtime.evaluate", { expression: "document.querySelectorAll('#prose,#price').forEach(element => element.remove())" });
   await client.send("Runtime.evaluate", { expression: "document.body.innerHTML = ''" });
