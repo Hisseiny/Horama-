@@ -211,3 +211,27 @@ a.brand { text-decoration: none; }
 .run-button::before, .run-button::after { top: 3px; width: 26px; height: 30px; border: 0; background: center / 100% 100% no-repeat; transform: none; }
 .run-button::before { left: -21px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 22 34 38' fill='%23AFA9EC' stroke='%231C1C1C' stroke-width='2.5' stroke-linejoin='round'%3E%3Cpath d='M30 46C24 30 10 24 2 28c6 3 7 7 5 10 5 1 7 5 5 8 5 1 8 5 7 9 5-1 9-4 11-9Z'/%3E%3C/svg%3E"); }
 .run-button::after { right: -21px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='62 22 34 38' fill='%23AFA9EC' stroke='%231C1C1C' stroke-width='2.5' stroke-linejoin='round'%3E%3Cpath d='M66 46C72 30 86 24 94 28c-6 3-7 7-5 10-5 1-7 5-5 8-5 1-8 5-7 9-5-1-9-4-11-9Z'/%3E%3C/svg%3E"); }
+/* The sidebar folds (Sidebar, Commun.tsx): a strip of icons beside the content, a single line on top of it on a phone. */
+.tour-menu-tete { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tour-menu-bouton { display: grid; place-items: center; flex: none; width: 38px; height: 38px; padding: 0; border: 1.5px solid transparent; border-radius: 10px; background: transparent; color: var(--sidebar-text); font-size: 20px; cursor: pointer; }
+.tour-menu-bouton:hover { background: var(--sidebar-track); }
+.sidebar.is-replie .product-select-wrap, .sidebar.is-replie .run-button, .sidebar.is-replie .sidebar-bottom { display: none; }
+@media (min-width: 601px) {
+  .sidebar, .main-content { transition: width 180ms ease, padding 180ms ease, margin-left 180ms ease; }
+  .app-shell:has(> .sidebar.is-replie) .sidebar { width: 72px; padding-inline: 12px; }
+  .app-shell:has(> .sidebar.is-replie) .main-content { margin-left: 72px; }
+  .sidebar.is-replie .tour-menu-tete { flex-direction: column; gap: 14px; }
+  .sidebar.is-replie .brand { padding-inline: 0; font-size: 40px; }
+  .sidebar.is-replie .brand > span { display: none; }
+  .sidebar.is-replie .nav-item { position: relative; display: flex; justify-content: center; padding: 0; }
+  .sidebar.is-replie .nav-item > span:not(.nav-count) { display: none; }
+  .sidebar.is-replie .nav-count { position: absolute; top: 1px; right: 1px; min-width: 18px; height: 18px; padding-inline: 3px; border-width: 2px; font-size: 10px; }
+}
+@media (max-width: 600px) {
+  .sidebar.is-replie { padding-block: 14px; }
+  .sidebar.is-replie nav { display: none; }
+  .tour-menu-bouton svg { transform: rotate(90deg); } /* the bar is on top: its chevron points up to fold, down to unfold */
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar, .main-content { transition: none; }
+}

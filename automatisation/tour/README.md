@@ -45,7 +45,7 @@ puis la tour construite, servie en local (`python3 -m http.server 8765 --bind 12
 
 Le manifeste du vault se régénère après `git fetch origin dev`, avant le build : `node automatisation/tour/scripts/manifeste-vault.mjs`.
 
-Les écrans de la tour sont dans `src/tour/` (ils reprennent les feuilles de style, la barre latérale, le logo et la mascotte du prototype) ; `interface/` reste le prototype d'origine, dont seuls les styles et les icônes sont utilisés.
+Les écrans de la tour sont dans `src/tour/` (ils reprennent les feuilles de style, la barre latérale, le logo et la mascotte du prototype) ; `interface/` reste le prototype d'origine, dont seuls les styles et les icônes sont utilisés. La barre latérale se replie par le bouton à côté du logo : une bande d'icônes à côté du contenu, ou, sur téléphone, la seule ligne du logo en haut de page. Ce choix est gardé dans le `localStorage` du navigateur (clé `horama-tour-menu-replie`) ; sans stockage, il tient jusqu'au rechargement.
 
 ## Construire
 

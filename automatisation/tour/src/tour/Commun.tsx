@@ -2,7 +2,7 @@
 // everything that was an example (no example account, no plan, no « agent disponible »), with the team account of the
 // service at its foot (#238), the capture of a finding with the sign of the charter on its zone, and a minimal reading
 // of the Markdown of the notes of the vault.
-import { Fragment, useEffect, useMemo, useRef, useSyncExternalStore, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Icon } from "../../interface/screen-11-1/Icons";
 import { poserDoute, tracerDefaut } from "../trait.js";
 import { SESSION_EVENT, enAttente, oublierSession, sessionBrute, testsDuVault, type Chargement, type Constat, type Decision, type Passage, type Session } from "../donnees";
@@ -88,8 +88,27 @@ export function useSession(): Session | null {
 
 const aRelire = (data: Chargement | null) => (data ? data.passages.flatMap((p) => p.constats).filter((c) => !c.decision).length : 0);
 
+// The sidebar folds to a strip of icons (a line under the logo on a phone). The choice is kept in this browser; without
+// storage it lasts until the page is reloaded (each screen mounts its own sidebar, hence the module variable).
+const REPLIE = "horama-tour-menu-replie";
+let replieAuDepart = (() => {
+  try {
+    return localStorage.getItem(REPLIE) === "1";
+  } catch {
+    return false;
+  }
+})();
+
 export function Sidebar({ route, data }: { route: Route; data: Chargement | null }) {
   const session = useSession();
+  const [replie, setReplie] = useState(replieAuDepart);
+  const basculer = () => {
+    replieAuDepart = !replie;
+    setReplie(replieAuDepart);
+    try {
+      localStorage.setItem(REPLIE, replieAuDepart ? "1" : "0");
+    } catch {}
+  };
   const sites = data ? [...new Set(data.passages.map((p) => p.site).filter(Boolean))] : [];
   // The order of the prototype. The screens it reaches by a link (11.3, 11.5 from the passages; 11.7 from « À relire »)
   // light the item they come from.
@@ -100,9 +119,19 @@ export function Sidebar({ route, data }: { route: Route; data: Chargement | null
     { icon: "document" as const, label: "À relire", hash: "relire", active: route.ecran === "relire" || route.ecran === "doc", count: aRelire(data), alert: true },
   ];
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${replie ? " is-replie" : ""}`} id="tour-menu">
       <div className="sidebar-top">
-        <Logo />
+        <div className="tour-menu-tete">
+          <Logo />
+          <button type="button" className="tour-menu-bouton" aria-expanded={!replie} aria-controls="tour-menu"
+            aria-label={replie ? "Déplier le menu" : "Replier le menu"} title={replie ? "Déplier le menu" : "Replier le menu"} onClick={basculer}>
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="16" rx="2.5" />
+              <path d="M9 4v16" />
+              <path d={replie ? "m13.5 9.5 2.5 2.5-2.5 2.5" : "m16 9.5-2.5 2.5 2.5 2.5"} />
+            </svg>
+          </button>
+        </div>
         <div className="product-select-wrap">
           <div className="product-select" aria-label="Sites suivis">
             <span>{sites.length > 1 ? `${sites.length} sites suivis` : sites[0] ?? "Tour de contrôle"}</span>
@@ -116,6 +145,7 @@ export function Sidebar({ route, data }: { route: Route; data: Chargement | null
         <nav aria-label="Navigation principale">
           {items.map((item) => (
             <button className={`nav-item${item.active ? " is-active" : ""}`} type="button" key={item.label} aria-current={item.active ? "page" : undefined}
+              title={replie ? item.label : undefined} aria-label={replie ? (item.count ? `${item.label} (${item.count})` : item.label) : undefined}
               onClick={() => (window.location.hash = item.hash)}>
               <Icon name={item.icon} />
               <span>{item.label}</span>
