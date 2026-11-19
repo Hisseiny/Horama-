@@ -77,6 +77,9 @@ test("refus des cookies sur de vraies pages Chrome locales", { skip: !available 
   const cases = [
     { html: '<section aria-label="Cookies"><button type="button"> TOUT REFUSER </button><button>Accepter</button></section>', clicked: true },
     { html: '<section class="privacy"><button>Continuer sans accepter</button></section>', clicked: true },
+    { html: '<section><p>Privacy</p><button aria-label="Reject all">No, thanks</button></section>', clicked: true },
+    { html: '<section><p>Privacy</p><button title="Reject all">No, thanks</button></section>', clicked: true },
+    { html: '<section><p>Privacy</p><button aria-label="No, thanks">Reject all</button></section>', clicked: true },
     { html: '<section id="consent"><button>Nécessaires uniquement</button></section>', clicked: true },
     { html: '<section class="gdpr"><a href="#refused">Reject all</a></section>', clicked: true },
     { html: '<section id="cookies"><button>Accept all</button></section>', clicked: false },

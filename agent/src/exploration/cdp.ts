@@ -65,7 +65,7 @@ export function refuseCookies(): boolean {
     if (!visible) continue;
     if (element.matches('[type="submit"]') && "form" in element && element.form) continue;
     if (element instanceof HTMLButtonElement && element.type === "submit" && element.form) continue;
-    const ambiguous = labels.some(label => ["no, thanks", "no thanks", "non merci", "nein danke"].includes(label));
+    const ambiguous = labels.filter(label => refusals.has(label)).every(label => ["no, thanks", "no thanks", "non merci", "nein danke"].includes(label));
     let parent = parentOf(element);
     if (ambiguous) {
       for (let ancestor = parent; ancestor && ancestor !== document.body && ancestor !== document.documentElement; ancestor = parentOf(ancestor)) {
