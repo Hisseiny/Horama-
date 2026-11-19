@@ -76,7 +76,7 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | 4.8 | Écran 11.6 : file de relecture, « C'est un bug » ou « C'est voulu » (C5) | Axil | à faire |  |
 | 4.9 | Mémoire limitée à un écart, référence mise à jour seulement quand tout est tranché, retest | Inès | à faire |  |
 | 4.10 | Faux SaaS en deux versions (12 et 13) et régressions activables selon la liste du banc | Nathan | à faire |  |
-| 4.11 | Deck de vendredi : plan des 8 à 12 slides dans l'ordre imposé (problème, solution, démo, business model, go-to-market, architecture, limites et roadmap, coût de run) | Noé, Axil | en cours | Plan de 12 slides sourcé : `pitch/deck/plan.md` ; business model et grille de prix : `pitch/business-model.md` (#227, marges à revoir) ; design (Axil) et test en allemand à venir |
+| 4.11 | Deck de vendredi : plan des 8 à 12 slides dans l'ordre imposé (problème, solution, démo, business model, go-to-market, architecture, limites et roadmap, coût de run) | Noé, Axil | en cours | Plan de 12 slides sourcé : `pitch/deck/plan.md` ; business model et grille de prix : `pitch/business-model.md` (#227) ; design (Axil) et test en allemand à venir |
 | 4.12 | Premier passage du banc : rappel et précision bruts | Inès | à faire |  |
 | 4.13 | Peer review du soir | Tous | à faire |  |
 | A57.2 | Moteur visuel à un agent, commande explorer, C4 et mémoire du site | Ali | codé non testé | Tests hors ligne, passages H réels et revue humaine : [rapport](tests/2026-11-18-mode-visuel.md), 2 vrais constats et 6 faux sur 8. Lecture par la scène et parallélisme à mesurer. |

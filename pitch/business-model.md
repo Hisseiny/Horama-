@@ -43,7 +43,7 @@ Même produit, trois paliers. Chaque palier inclut des passages ; au-delà, on p
 |---|---|---|---|
 | Prix | 0 € | 49 € par mois | 199 € par mois |
 | Pour qui | Tout le monde, via l'extension Chrome | Le marketeur qui vibe-code | Le CTO d'un SaaS |
-| Passages inclus | 3 par mois | 100 par mois | 500 par mois |
+| Passages inclus | 3 par mois | 100 par mois | 200 par mois |
 | Passage en plus | non | 0,50 € | 0,40 € |
 | Ce qu'on a | Défauts prouvés et doutes à trancher, sur l'adresse donnée | En plus : la mémoire des décisions « bug ou voulu », une alerte après chaque publication | En plus : la documentation qui devient des tests, la réponse sur la PR GitHub, plusieurs projets et plusieurs personnes |
 
@@ -64,12 +64,12 @@ Calcul en comptant que tous les passages inclus sont consommés, à 0,25 $ (coû
 |---|---|---|---|---|---|
 | Gratuit | 0 € | 0,75 $ par utilisateur et par mois | coût d'acquisition | 0,90 $ par utilisateur et par mois | coût d'acquisition |
 | Solo | 49 € | 100 × 0,25 = 25 $ | environ 49 % | 100 × 0,30 = 30 $ | environ 39 % |
-| Équipe | 199 € | 500 × 0,25 = 125 $ | environ 37 % | 500 × 0,30 = 150 $ | environ 25 % |
+| Équipe | 199 € | 200 × 0,25 = 50 $ | environ 75 % | 200 × 0,30 = 60 $ | environ 70 % |
 | Passage en plus | 0,40 à 0,50 € | 0,25 $ | environ 38 à 50 % | 0,30 $ | environ 25 à 40 % |
 
-Avec un passage court à 0,07 $ (15 pages d'eugeniaschool.com par adresse), la marge monte à environ 86 % sur Solo et 82 % sur Équipe ; mais ce n'est plus le passage complet qu'on vend.
+Avec un passage court à 0,07 $ (15 pages d'eugeniaschool.com par adresse), la marge monte à environ 86 % sur Solo et 93 % sur Équipe ; mais ce n'est plus le passage complet qu'on vend.
 
-**La grille est à revoir.** À 0,25 $ par passage, le palier Équipe ne garde qu'environ 37 % de marge si tous ses passages sont consommés, avant même l'hébergement. Pistes : moins de passages inclus, un prix plus haut, ou un coût par passage qui baisse (pages limitées, moins d'étapes de l'agent). Décision de Noé, à prendre avant le deck.
+**Pourquoi 200 passages pour Équipe.** Avec 500 passages inclus, le palier Équipe ne gardait qu'environ 37 % de marge à 0,25 $ par passage, et 25 % au pire cas. Noé a choisi le 19/11 de réduire les passages inclus à 200 par mois plutôt que de monter le prix : la marge revient à environ 75 %, et 70 % au pire cas. Le Solo reste le palier le plus serré (49 % à 0,25 $), tout comme le passage en plus.
 
 Ces marges ne comptent que l'agent H et Holo. Restent à mesurer : le service Railway (payant depuis le 19/11), le support, le coût d'écriture d'un test par le modèle Hugging Face, et le prix de l'offre H payante (l'offre gratuite limite à 3 sessions simultanées).
 
