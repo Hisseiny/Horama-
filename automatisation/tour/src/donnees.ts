@@ -292,16 +292,16 @@ export async function connecter(email: string, motDePasse: string): Promise<"ok"
   try {
     response = await fetch(`${SERVICE}/tour/session`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, mot_de_passe: motDePasse }) });
   } catch {
-    return "Le service ne répond pas.";
+    return "Le service ne répond pas, réessayez dans un instant.";
   }
   if (response.status === 401) return "Adresse ou mot de passe incorrect.";
   if (response.status === 429) return "Trop d'essais, réessayez dans une minute.";
   const corps = await response.json().catch(() => null);
-  if (!response.ok || typeof corps?.jeton !== "string") return "Le service n'a pas pu ouvrir la session.";
+  if (!response.ok || typeof corps?.jeton !== "string") return "Le service n'a pas pu ouvrir la session, réessayez dans un instant.";
   try {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify({ jeton: corps.jeton, expire_le: corps.expire_le, nom: corps.nom }));
   } catch {
-    return "Ce navigateur refuse de garder la session.";
+    return "Ce navigateur refuse de garder la session : autorisez le stockage du site puis réessayez.";
   }
   window.dispatchEvent(new Event(SESSION_EVENT));
   return "ok";

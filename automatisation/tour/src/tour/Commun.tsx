@@ -255,9 +255,9 @@ export const RANGE_SUR_HORAMA_VAULT = "Rangé sur la branche horama/vault : le v
 export function erreurEcriture(statut: number, erreur: string | null, quoi: string): string {
   if (statut === 0) return "Le service ne répond pas : réessayez dans un instant.";
   if (statut === 401) return "Session expirée : reconnectez-vous.";
-  if (statut === 501) return `Le service répond 501 : ${erreur ?? "pas encore disponible."}`;
+  if (statut === 501) return erreur ?? "Cette fonction n'est pas encore disponible sur le service.";
   if (statut === 404) return `Le service ne trouve pas ${quoi}.`;
-  if (statut === 400) return "Le service a refusé la demande : champs invalides.";
+  if (statut === 400) return "Le service a refusé la demande : vérifiez les champs et réessayez.";
   if (statut === 429) return "Trop de demandes, réessayez dans une minute.";
-  return `Le service n'a pas pu écrire ${quoi}.`;
+  return `Le service n'a pas pu écrire ${quoi} : réessayez dans un instant.`;
 }
