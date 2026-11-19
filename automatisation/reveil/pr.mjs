@@ -7,7 +7,7 @@
 // Several pushes in a row: only the last commit of the PR is played, once its own preview is ready.
 //
 // Usage: node automatisation/reveil/pr.mjs --depot <propriétaire/dépôt> --logiciel <logiciel du vault> [--intervalle 20]
-//          [--une-fois] [--a-blanc] [--vault vault-horama] [--sortie .orchestrateur/reveil-pr] [--faux-github <fichier.json>]
+//          [--une-fois] [--a-blanc] [--numero <PR>] [--vault vault-horama] [--sortie .orchestrateur/reveil-pr] [--faux-github <fichier.json>]
 //          [--max 8] [--pages-cliquees 8] [--sans-exploration] [--commenter] [--captures-sur-branche horama/captures]
 //          [-- options des deux scènes, par exemple --vitrine]
 // --commenter: one answer on the PR, once both scenes are done (the part of each scene).
@@ -242,6 +242,50 @@ export async function televerserCapture({ depot, branche, chemin, fichier, messa
   }
 }
 
+// The index of the passages (#149, tower of control), index.json at the root of the branch of the captures, public and
+// read through raw.githubusercontent.com: one entry per PR and commit played, the latest first. entreeIndex composes the
+// entry of a passage from what the scene wrote (scene.json: passage, decisions, elements of the answer) and what the
+// wake-up knows (PR, commit, preview, address of the answer, captures pushed).
+export function entreeIndex({ pr, logiciel, report, scene, images = {} }) {
+  const elements = scene?.commentaire?.elements ?? {};
+  const decided = (id) => scene?.decisions?.find(({ decision }) => decision.ecart_id === id)?.decision ?? null;
+  const constat = (statut, genre) => (entry) => {
+    const decision = decided(entry.id);
+    return { id: entry.id, statut, genre, page: entry.chemin, texte: entry.texte, preuve: entry.preuve ?? null, zone: entry.zone ?? null,
+      capture: images[entry.id] ?? null, decision: decision ? { choix: decision.decision, par: decision.par ?? null, le: decision.le ?? null } : null };
+  };
+  return {
+    passage: scene?.passage_id ?? null, date: report.recu_le, site: logiciel, previsualisation: pr.previsualisation,
+    pr: { numero: pr.numero, adresse: pr.adresse, titre: pr.titre ?? null }, commit: pr.tete,
+    reponse: report.commentaire?.url ?? null, etat: report.exploration?.etat ?? null, totaux: elements.totaux ?? null,
+    constats: [...(elements.prouves ?? []).map(constat("VERIFIED_FAIL", "defaut")), ...(elements.doutes ?? []).map(constat("SUSPECTED", "doute"))],
+  };
+}
+export async function publierIndex({ depot, branche, entree }, api = ghApi) {
+  const chemin = "index.json";
+  try {
+    const existing = await api(["GET", `repos/${depot}/contents/${chemin}?ref=${encodeURIComponent(branche)}`]).catch(() => null);
+    let index = { format: "horama-passages-1", depot, passages: [] };
+    // An index there but unreadable (corrupt JSON, or over 1 MB: the contents API then gives an empty content): no
+    // writing, else the history would be erased without a word (review of #211).
+    if (existing?.sha) {
+      try {
+        index = JSON.parse(Buffer.from(existing.content ?? "", "base64").toString("utf8"));
+        if (!Array.isArray(index.passages)) throw new Error("pas de liste de passages");
+      } catch (error) {
+        return { raison: `index.json illisible (${existing.content ? error.message : "contenu vide, fichier de plus de 1 Mo ?"}) : écriture refusée pour ne pas effacer l'historique` };
+      }
+    }
+    const others = (index.passages ?? []).filter((item) => !(item.pr?.numero === entree.pr.numero && item.commit === entree.commit));
+    index = { ...index, format: "horama-passages-1", depot, maj: new Date().toISOString(), passages: [entree, ...others].sort((a, b) => String(b.date).localeCompare(String(a.date))) };
+    const content = Buffer.from(`${JSON.stringify(index, null, 2)}\n`).toString("base64");
+    const done = await api(["PUT", `repos/${depot}/contents/${chemin}`], { message: `Horama : index des passages (PR #${entree.pr.numero}, ${String(entree.commit).slice(0, 7)})`, branch: branche, content, ...(existing?.sha ? { sha: existing.sha } : {}) });
+    return { url: `https://raw.githubusercontent.com/${depot}/${encodeURIComponent(branche).replace(/%2F/g, "/")}/${chemin}`, commit: done.commit.sha, passages: index.passages.length };
+  } catch (error) {
+    return { raison: String(error.message).trim().split("\n").at(-1) };
+  }
+}
+
 // gh api with a JSON body given through a file (a capture in base64 is too long for the command line).
 async function ghApi([method, path], body) {
   const folder = body ? mkdtempSync(join(tmpdir(), "horama-gh-")) : null;
@@ -271,7 +315,7 @@ function runNode(args) {
 // `exploration` is null. Everything in <sortie>/pr-<numéro>-<sha court>/. A scene that fails is written in the report,
 // never thrown: the other one still runs, and the wake-up goes on with the next PR.
 export async function jouerPr({ pr, fichiers, vault, logiciel, socle, sortie, sceneArgs = [], exploration = { max: 8, pagesCliquees: 8 }, langue = langueDePage, commenter = false, publier = publierCommentaire,
-  captures = null, televerser = televerserCapture }, run = runNode) {
+  captures = null, televerser = televerserCapture, indexer = publierIndex }, run = runNode) {
   const started = performance.now();
   const folder = join(sortie, `pr-${pr.numero}-${pr.tete.slice(0, 7)}`);
   mkdirSync(folder, { recursive: true });
@@ -336,6 +380,18 @@ export async function jouerPr({ pr, fichiers, vault, logiciel, socle, sortie, sc
       const corps = reponseSurPr({ pr, impact, report, folder, images });
       report.commentaire = corps ? await publier(pr.adresse, corps) : { status: "INCONCLUSIVE", reason: "aucune scène n'a écrit sa partie" };
       console.log(report.commentaire.status === "publie" ? `réveil PR : réponse publiée, ${report.commentaire.url}` : `réveil PR : réponse non publiée, ${report.commentaire.reason}`);
+      // The index of the passages on the same public branch as the captures (#149), with the address of the answer.
+      if (captures) {
+        const scene = (() => {
+          try {
+            return JSON.parse(readFileSync(join(folder, "exploration", "scene.json"), "utf8"));
+          } catch {
+            return null;
+          }
+        })();
+        report.index = await indexer({ depot: captures.depot, branche: captures.branche, entree: entreeIndex({ pr, logiciel, report, scene, images: images ?? {} }) });
+        console.log(report.index.url ? `réveil PR : index des passages à jour (${report.index.passages} passage(s)), ${report.index.url}` : `réveil PR : index non publié, ${report.index.raison}`);
+      }
     }
     const ran = [report.parcours, report.exploration].filter((item) => item && item.etat !== "aucun-test");
     report.etat = !ran.length ? "aucun-test" : ran.some((item) => item.etat === "echec") ? "echec" : "termine";
@@ -367,7 +423,7 @@ async function main() {
   const separator = process.argv.indexOf("--");
   const sceneArgs = separator < 0 ? [] : process.argv.slice(separator + 1);
   const { values } = parseArgs({ args: process.argv.slice(2, separator < 0 ? undefined : separator), options: {
-    depot: { type: "string" }, logiciel: { type: "string" }, intervalle: { type: "string", default: "20" }, "une-fois": { type: "boolean" }, "a-blanc": { type: "boolean" },
+    depot: { type: "string" }, logiciel: { type: "string" }, intervalle: { type: "string", default: "20" }, "une-fois": { type: "boolean" }, "a-blanc": { type: "boolean" }, numero: { type: "string" },
     vault: { type: "string", default: "vault-horama" }, sortie: { type: "string", default: ".orchestrateur/reveil-pr" }, "faux-github": { type: "string" },
     max: { type: "string", default: "8" }, "pages-cliquees": { type: "string", default: "8" }, "sans-exploration": { type: "boolean" }, commenter: { type: "boolean" }, "captures-sur-branche": { type: "string" },
   } });
@@ -388,7 +444,12 @@ async function main() {
   const vault = resolve(ROOT, values.vault);
   if (!existsSync(join(vault, values.logiciel))) throw new Error(`pas de dossier ${values.logiciel} dans le vault ${vault}`);
   const sortie = resolve(ROOT, values.sortie);
-  const lecteur = values["faux-github"] ? lecteurFaux(resolve(values["faux-github"])) : lecteurGithub(values.depot);
+  const lu = values["faux-github"] ? lecteurFaux(resolve(values["faux-github"])) : lecteurGithub(values.depot);
+  // --numero <n>: this PR only, whatever the other open PRs of the repository (a passage published on one PR must not
+  // play, nor answer on, a newer PR first).
+  const numero = values.numero === undefined ? null : Number(values.numero);
+  if (numero !== null && !(Number.isInteger(numero) && numero > 0)) throw new Error("--numero attend le numéro d'une PR");
+  const lecteur = numero === null ? lu : { ...lu, prs: () => lu.prs().filter((pr) => pr.numero === numero) };
   const socle = JSON.parse(readFileSync(join(ROOT, "automatisation/impact/socle.json"), "utf8"))[values.logiciel] ?? [];
   if (values["a-blanc"]) {
     console.log(`réveil PR, à blanc : ${values.depot ?? values["faux-github"]}, vault ${values.logiciel}, rien n'est joué.`);

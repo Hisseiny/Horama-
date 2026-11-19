@@ -18,7 +18,7 @@ import type { PageLink } from "./cdp.ts";
 import type { ExplorationCdp } from "./cdp.ts";
 import { controlerPage } from "./controles.ts";
 import type { Defaut } from "./controles.ts";
-import { askHolo } from "./holo.ts";
+import { askHolo, inspectHoloElement, isCutFinding, sameHeaderElement, type HoloElement } from "./holo.ts";
 import { discoverPages, normalizePageQuery, renderPage } from "./pages.ts";
 import { fetchPublic } from "./reseau.ts";
 import { detecterBlocage } from "./blocage.ts";
@@ -85,7 +85,7 @@ export function construireExploration(pages: Array<{ ecran: string; url: string 
   return { tests, course, dropped: [], start: pages[0].url,
     instructions: [...COURSE_RULES, "Si une bannière de cookies apparaît, refuse-la (Refuser / Tout refuser / Continuer sans accepter / Reject all), ne l’accepte jamais.", "Simple visiteur : ne remplis et ne soumets aucun formulaire, ne te connecte jamais. N'ouvre aucun onglet ni fenêtre.",
       "N'utilise jamais la commande retour du navigateur (back). Pour changer de page, clique toujours un lien visible ; go_to reste le dernier recours prévu par la consigne. Ne clique jamais vers une page déjà relevée dans ce passage, même pour retrouver le menu.",
-      `Reste sur le site ${new URL(pages[0].url).origin} : ne suis aucun lien vers un autre domaine ou sous-domaine. Si tu y arrives quand même, tu es ramené sur le site.`].join("\n"),
+      `Reste sur le site ${new URL(pages[0].url).origin} : ne suis aucun lien vers un autre domaine ou sous-domaine. Les adresses avec et sans www. sont le même site et leurs redirections sont autorisées. Si tu arrives sur un autre site, tu es ramené sur le site.`].join("\n"),
     task: ["Nouveau passage : aucune page n'a encore été relevée dans cette session. La page déjà ouverte ne prouve aucun avancement. Commence à la partie 1, même si le navigateur affiche une partie ultérieure.", ...pages.map((page, index) => `Partie ${index + 1} : ${index === 0
       ? `si l'onglet n'affiche pas ${page.url}, ouvre cette adresse avec go_to et note raison_go_to="page de départ absente de l'onglet" au relevé. Appelle relever(ecran="${page.ecran}", vue="defaut"). ${readingInstruction()}`
       : index <= clicked ? clickInstruction(pages.slice(1))
@@ -94,8 +94,6 @@ export function construireExploration(pages: Array<{ ecran: string; url: string 
     tools: [{ name: "relever", description: "Enregistre la page chargée.", input_schema: { type: "object", properties: { ecran: { type: "string", enum: pages.map(page => page.ecran) }, vue: { type: "string", enum: ["defaut"] }, raison_go_to: { type: "string", description: "Seulement après go_to : raison concrète du recours à une adresse plutôt qu'à un lien." } }, required: ["ecran", "vue"] } }, END_TOOL] };
 }
 
-// Same box within a few pixels: a header or menu element repeated on every page of the site.
-const samePlace = (a: Zone, b: Zone) => [a.x - b.x, a.y - b.y, a.largeur - b.largeur, a.hauteur - b.hauteur].every(delta => Math.abs(delta) <= 8);
 // Rendering noise: a box under 4 px in either dimension shows nothing a visitor can judge.
 const tiny = (zone?: Zone) => !!zone && (zone.largeur < 4 || zone.hauteur < 4);
 
@@ -165,6 +163,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
   };
   const normalized = (address: string, query = false) => {
     const parsed = new URL(address);
+    parsed.hostname = parsed.hostname.replace(/^www\./, "");
     normalizePageQuery(parsed);
     return parsed.origin + parsed.pathname.replace(/\/$/, "") + (query ? parsed.search : "");
   };
@@ -260,12 +259,12 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
     if (!finalUrls.has(page.url)) {
       try {
         const response = await siteFetch(page.url, { redirect: "follow", signal: requestSignal });
-        finalUrls.set(page.url, response.url && new URL(response.url).origin === new URL(page.url).origin ? response.url : null);
+        finalUrls.set(page.url, response.url && originOf(response.url) === originOf(page.url) ? response.url : null);
       } catch { finalUrls.set(page.url, null); }
     }
     return finalUrls.get(page.url);
   };
-  const originOf = (address: string) => { try { const parsed = new URL(address); return /^https?:$/.test(parsed.protocol) ? parsed.origin : null; } catch { return null; } };
+  const originOf = (address: string) => { try { const parsed = new URL(address); parsed.hostname = parsed.hostname.replace(/^www\./, ""); return /^https?:$/.test(parsed.protocol) ? parsed.origin : null; } catch { return null; } };
   const offSite = (address: string) => {
     const origin = originOf(address);
     return !!origin && ![url, ...pages.flatMap(page => [page.url, page.url_finale ?? page.url])].some(item => originOf(item) === origin);
@@ -604,7 +603,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
         const matches = (address: string) => {
           try {
             const actual = new URL(capture.url_page), expected = new URL(address);
-            return actual.origin === expected.origin && actual.pathname.replace(/\/+$/, "") === expected.pathname.replace(/\/+$/, "")
+            return originOf(actual.href) === originOf(expected.href) && actual.pathname.replace(/\/+$/, "") === expected.pathname.replace(/\/+$/, "")
               && [...expected.searchParams].every(([key, value]) => actual.searchParams.get(key) === value)
               && actual.searchParams.get("filtre") === expected.searchParams.get("filtre");
           } catch { return false; }
@@ -614,7 +613,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
         try {
           const actual = new URL(capture.url_page);
           if (!/^https?:$/.test(actual.protocol)) reason = "La page n'a pas pu être chargée.";
-          else if (actual.origin !== new URL(page.url).origin) {
+          else if (originOf(actual.href) !== originOf(page.url)) {
             if (offSite(capture.url_page) && await resolveFinal(page, hookSignal)) await bringBack(capture.url_page);
             else reason = `La page redirige vers un autre site : ${capture.url_page}`;
           }
@@ -723,15 +722,29 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
           holo = { etat: result.status === "INCONCLUSIVE" ? /timeout|timed|délai/i.test(result.message) ? "hors_delai" : "echec" : "fait", modele: result.model, duree_ms: result.durationMs, ecartes_sans_zone: 0,
             jetons: result.usage ? { entree: result.usage.prompt_tokens, sortie: result.usage.completion_tokens } : null, cout_usd: result.cost_usd };
           if (result.status === "INCONCLUSIVE") inconclusive(page, "holo", findings, `Le regard visuel n'a pas abouti : ${result.message}`);
-          for (const visual of result.findings) {
-            if (!visual.zone) { holo.ecartes_sans_zone++; continue; }
-            const zone = visual.zone;
-            const explained = findings.find(item => item.source === "controle" && item.statut === "VERIFIED_FAIL" && controlZones.has(item.id) && overlap(zone, controlZones.get(item.id) ?? zone))
-              ?? [...report.constats, ...[...pending.entries()].flatMap(([other, data]) => other === ecran ? [] : data.findings)]
-                .find(item => item.source === "holo" && !item.explique_par && item.ecran !== ecran && item.sorte === kinds[visual.kind] && item.zone && samePlace(zone, item.zone));
-            findings.push(finding(page, "holo", findings, { sorte: kinds[visual.kind], statut: "SUSPECTED", description: descriptions[visual.kind], zone,
-              preuve: { modele: result.model, phrase: visual.sentence }, ...(explained ? { explique_par: explained.id } : {}) }));
-          }
+          let inspectionClient: ExplorationCdp | undefined;
+          try {
+            if (result.findings.some(visual => visual.zone)) {
+              try { inspectionClient = await (deps.connecter ?? connecterCdp)(options.port, capture.url_page); }
+              catch { deps.log?.(`${ecran} : inspection DOM Holo indisponible ; doutes conservés.`); }
+            }
+            for (const visual of result.findings) {
+              if (!visual.zone) { holo.ecartes_sans_zone++; continue; }
+              const zone = visual.zone;
+              const element = inspectionClient ? await inspectHoloElement(inspectionClient, visual,
+                { url: capture.url_page, width: capture.largeur, height: capture.hauteur, scroll: capture.defilement }) : null;
+              if (element?.visible && isCutFinding(visual)) {
+                deps.log?.(`${ecran} : doute Holo écarté (${element.selector}) : élément entièrement dans le viewport, non couvert aux points contrôlés et sans débordement DOM.`);
+                continue;
+              }
+              const explained = findings.find(item => item.source === "controle" && item.statut === "VERIFIED_FAIL" && controlZones.has(item.id) && overlap(zone, controlZones.get(item.id) ?? zone))
+                ?? [...report.constats, ...[...pending.entries()].flatMap(([other, data]) => other === ecran ? [] : data.findings)]
+                  .find(item => item.source === "holo" && !item.explique_par && item.ecran !== ecran && item.sorte === kinds[visual.kind]
+                    && element && item.preuve.element_holo && sameHeaderElement(element, item.preuve.element_holo as HoloElement));
+              findings.push(finding(page, "holo", findings, { sorte: kinds[visual.kind], statut: "SUSPECTED", description: descriptions[visual.kind], zone,
+                preuve: { modele: result.model, phrase: visual.sentence, ...(element ? { element_holo: element } : {}) }, ...(explained ? { explique_par: explained.id } : {}) }));
+            }
+          } finally { inspectionClient?.close(); }
         } catch { holo.etat = "echec"; inconclusive(page, "holo", findings, "Le regard visuel n'a pas pu se faire."); }
         pending.set(ecran, { findings, http, holo });
         return capture;

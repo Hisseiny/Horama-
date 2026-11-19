@@ -9,6 +9,9 @@
 // Usage: node [--env-file=<.env.local>] automatisation/scene/exploration.mjs --url <adresse> [--site <dossier du vault>] [--max 15] [--pages-cliquees 4] [--sans-agent]
 //          [--sans-holo] [--sans-base | --avec-base] [--choix bug,voulu,...] [--repeter-choix] [--sans-fin] [--par <nom>] [--rythme <s>]
 //          [--vault <dir>] [--sortie <dir>] [--temoins <dir>] [--port 9333] [--profil <dir>] [--fermer-chrome]
+//          [--captures-instantanees]
+// The captures of proof of the explorer scroll smoothly to their zone (option doux of #179): the scene is on the screen,
+// a jump would be seen. --captures-instantanees goes back to the instant scroll.
 // Env: HAI_API_KEY (H and Holo), SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, CHROME_BIN, HOLO_BIN.
 // Exit: 0 the exploration ended « fini » and nothing failed, 1 otherwise, 2 something is missing, 130 Ctrl+C.
 import { randomUUID } from "node:crypto";
@@ -22,7 +25,7 @@ import { ecrireDecision, lireDecisions } from "../../memoire/index.ts";
 import { findHolo, startBridge, stopIfMissing } from "./agent-h.mjs";
 import { creerEcrivainMemoire, creerEcrivainSupabase } from "./decisions.mjs";
 import { completerNote } from "./note-passage.mjs";
-import { bilanExploration, dejaVoulu, lisible, revoir, selecteursDe, sizeOf } from "./recapitulatif.mjs";
+import { bilanExploration, dejaVoulu, lisible, phraseDe, revoir, selecteursDe, sizeOf } from "./recapitulatif.mjs";
 import { ecrireSectionExploration, publierCommentaire } from "../pr-doc/commentaire.mjs";
 import { ouvrirVitrine } from "./vitrine.mjs";
 import { HEIGHT, WIDTH, capture, captureZone, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, layer, navigate, openChrome, option, say, sleep } from "./scene.mjs";
@@ -265,7 +268,7 @@ process.on("SIGINT", () => {
 const errors = [];
 let report = null;
 try {
-  report = await explorer({ url: URL_SITE, max: MAX, pagesCliquees: CLICKED, sortie: OUT, vault: VAULT, port: PORT, ...(SITE ? { site: SITE } : {}) }, { base, runtime, session, signal: arret.signal, log: say, ...(flag("sans-holo") ? { holo: noHolo } : {}) });
+  report = await explorer({ url: URL_SITE, max: MAX, pagesCliquees: CLICKED, sortie: OUT, vault: VAULT, port: PORT, ...(SITE ? { site: SITE } : {}), doux: !flag("captures-instantanees") }, { base, runtime, session, signal: arret.signal, log: say, ...(flag("sans-holo") ? { holo: noHolo } : {}) });
 } catch (error) {
   errors.push(error.message);
   say(`Échec : ${error.message}`);
@@ -312,7 +315,7 @@ if (report?.format === "horama-exploration-1") {
     : constat.source === "holo" ? "Doute du regard de Holo, le modèle visuel de H : rien n'est prouvé." : "Écart d'image avec la capture du passage précédent.");
   const items = toDecide.map((constat) => {
     const png = readFileSync(join(OUT, constat.capture));
-    const said = lisible(constat.description, visibleTexts.get(constat.id));
+    const said = lisible(phraseDe(constat), visibleTexts.get(constat.id));
     return { id: constat.id, genre: GENRE[constat.statut], etat: LOOK[constat.statut], texte: `${pathOf(constat.ecran)} : ${said}`, selecteurs: selecteursDe(constat.description), png, zones: constat.zone ? [constat.zone] : [], page: constat.page ?? sizeOf(png),
       mesure: constat.source === "controle" && constat.preuve?.mesure ? `mesuré : ${constat.preuve.mesure}` : null,
       textes: [`Page ${pathOf(constat.ecran)}${arrivalOf(constat.ecran) ? ` (${arrivalOf(constat.ecran)})` : ""} : ${said}`, proof(constat)], question: "C'est un bug, ou c'est voulu ?" };
@@ -380,7 +383,7 @@ if (report?.format === "horama-exploration-1") {
   // The part of the answer on the PR (text only: page, zone, proof; the captures ringed stay in the note).
   if (PR) {
     // The comment on the PR (read by the jury): the readable text first; the selectors of a grouped finding folded.
-    const entry = (constat) => ({ id: constat.id, chemin: pathOf(constat.ecran), texte: lisible(constat.description, visibleTexts.get(constat.id)), selecteurs: selecteursDe(constat.description), zone: constat.zone ?? null, capture: constat.capture ?? null,
+    const entry = (constat) => ({ id: constat.id, chemin: pathOf(constat.ecran), texte: lisible(phraseDe(constat), visibleTexts.get(constat.id)), selecteurs: selecteursDe(constat.description), zone: constat.zone ?? null, capture: constat.capture ?? null,
       preuve: constat.source === "controle" && constat.preuve?.mesure ? `Mesuré : ${String(constat.preuve.mesure).replace(/\.+$/, "")}. Attendu : ${String(constat.preuve.attendu).replace(/\.+$/, "")}.` : null });
     const corps = ecrireSectionExploration({ adresse: report.adresse, bilan: bilanExploration(report), totaux, decisions: decisions.map(({ decision }) => decision),
       prouves: toDecide.filter((constat) => constat.statut === "VERIFIED_FAIL").map(entry), doutes: toDecide.filter((constat) => constat.statut === "SUSPECTED").map(entry),

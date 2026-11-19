@@ -84,3 +84,28 @@ pnpm install && pnpm -r --if-present run check
 ```
 
 La preuve chronométrée et les limites de la scène réelle sont dans `docs/tests/2026-11-17-reveil-local.md`.
+
+## Une seule PR
+
+`--numero <n>` limite le réveil à la PR n du dépôt, quelles que soient les autres PR ouvertes : avec `--une-fois`, il joue cette PR et s'arrête. Utile pour un passage publié (`--commenter`) sur une PR précise, alors que le réveil prend sinon la plus récente d'abord (19/11 : trois PR ouvertes sur le clone, #18, #17 et #16).
+
+## L'index des passages (tour de contrôle, #149)
+
+Avec `--commenter --captures-sur-branche <branche>`, après chaque réponse publiée, le réveil met à jour `index.json` à la racine de cette branche du dépôt cible (la même que les captures, publique pour le clone). Il se lit sans connexion : `https://raw.githubusercontent.com/<dépôt>/<branche>/index.json` (par exemple `https://raw.githubusercontent.com/Hisseiny/eugenia-school-website/horama/captures/index.json`, mis en cache quelques minutes par GitHub).
+
+```json
+{
+  "format": "horama-passages-1", "depot": "Hisseiny/eugenia-school-website", "maj": "2026-11-19T15:00:00.000Z",
+  "passages": [{
+    "passage": "2026-11-19-10h55-4163", "date": "2026-11-19T10:55:10.000Z", "site": "eugenia-clone",
+    "previsualisation": "https://…vercel.app", "pr": { "numero": 16, "adresse": "https://github.com/…/pull/16", "titre": "…" }, "commit": "998767b…",
+    "reponse": "https://github.com/…/pull/16#issuecomment-…", "etat": "termine", "totaux": { "defauts": 2, "doutes": 2, "pages_visitees": 8, "…": "…" },
+    "constats": [{ "id": "accueil--controle--1", "statut": "VERIFIED_FAIL", "genre": "defaut", "page": "/", "texte": "Le texte dépasse la boîte de son conteneur.",
+      "preuve": "Mesuré : 158×35 > 120×35. Attendu : …", "zone": { "x": 32, "y": 432, "largeur": 120, "hauteur": 35 },
+      "capture": "https://raw.githubusercontent.com/…/accueil--controle--1.png", "decision": { "choix": "bug", "par": "Nathan", "le": "…" } }]
+  }]
+}
+```
+
+Une entrée par PR et par commit (rejouer le même commit la remplace), la plus récente d'abord. `capture` est la capture entourée poussée sur la branche (ou `null`), `decision` est `null` tant que personne n'a tranché. Un refus de GitHub ne bloque pas le réveil : `reveil.json` garde la raison (`index.raison`).
+
