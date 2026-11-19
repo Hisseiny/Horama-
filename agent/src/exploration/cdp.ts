@@ -61,12 +61,22 @@ export function refuseCookies(): boolean {
     if (!visible) continue;
     if (element.matches('[type="submit"]') && "form" in element && element.form) continue;
     if (element instanceof HTMLButtonElement && element.type === "submit" && element.form) continue;
+    const ambiguous = labels.some(label => ["no, thanks", "no thanks", "non merci", "nein danke"].includes(label));
     let parent = element.parentElement;
+    if (ambiguous) {
+      for (let ancestor = parent; ancestor && ancestor !== document.body && ancestor !== document.documentElement; ancestor = ancestor.parentElement) {
+        if (["fixed", "sticky"].includes(getComputedStyle(ancestor).position) || ancestor.matches('[role="dialog"], [role="alertdialog"]')) {
+          parent = ancestor;
+          break;
+        }
+      }
+    }
     while (parent && parent !== document.body && parent !== document.documentElement) {
       if (/cookie|consent|rgpd|gdpr|privacy|confidentialit|datenschutz|einwilligung/.test(normalize([parent.textContent, parent.id, parent.className, parent.getAttribute("aria-label")].join(" ")))) {
         element.click();
         return true;
       }
+      if (ambiguous) break;
       parent = parent.parentElement;
     }
   }
