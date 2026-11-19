@@ -1,7 +1,7 @@
 // The real data of the tower of control (#149), and nothing else: no example, no figure written here.
-// - Mode développeur: the public index of the passages, published by the wake-up on the branch of the captures of the
+// - Entry by a PR: the public index of the passages, published by the wake-up on the branch of the captures of the
 //   clone (automatisation/reveil/README.md, « L'index des passages »).
-// - Mode grand public: the explorations sent from the page of welcome, kept in this browser (localStorage
+// - Entry by an address: the explorations sent from the page of welcome, kept in this browser (localStorage
 //   « horama-explorations », written by accueil/envoye.js), each read again from its service (horama-exploration-1).
 // Both become one list of passages, the latest first. A source that does not answer says so; it never fills in.
 
@@ -20,7 +20,7 @@ export type Constat = {
   zone: Zone | null;
   taille: { largeur: number; hauteur: number } | null; // size of the capture, when known
   capture: string | null; // address of the image
-  entouree: boolean; // the capture already carries the stroke (mode développeur) or not (grand public)
+  entouree: boolean; // the capture already carries the stroke (entry by a PR) or not (entry by an address)
   decision: Decision | null;
 };
 export type Passage = {
@@ -57,10 +57,13 @@ export function phrase(texte: string): string {
   const [, blocs, langue, code] = mesure;
   return `${Number(blocs) > 1 ? `${blocs} blocs sont restés` : "Un bloc est resté"} en ${langue} sur une page déclarée en ${LANGUES[code.toLowerCase()] ?? code}.`;
 }
+// The same measure, kept as the proof (« Mesuré : … ; page déclarée de. Attendu : … »): the code of language at its end
+// said as a word.
+const preuveLisible = (preuve: string) => preuve.replace(/page déclarée ([a-z]{2})(?=\.|$)/, (_, code: string) => `page déclarée en ${LANGUES[code] ?? code}`);
 
 function fromIndex(item: IndexPassage): Passage {
   const constats: Constat[] = (item.constats ?? []).map((c) => ({
-    id: c.id, genre: c.statut === "VERIFIED_FAIL" ? "defaut" : "doute", page: c.page ?? "", texte: phrase(c.texte ?? ""), preuve: c.preuve ?? null,
+    id: c.id, genre: c.statut === "VERIFIED_FAIL" ? "defaut" : "doute", page: c.page ?? "", texte: phrase(c.texte ?? ""), preuve: c.preuve ? preuveLisible(c.preuve) : null,
     zone: c.zone ?? null, taille: null, capture: c.capture ?? null, entouree: true,
     decision: c.decision ? { choix: c.decision.choix, par: c.decision.par ?? null, le: c.decision.le ?? null } : null,
   }));
@@ -105,7 +108,7 @@ function fromExploration(envoi: Envoi, report: Exploration): Passage {
       const page = pageOf(c.ecran);
       return {
         id: c.id, genre: c.statut === "VERIFIED_FAIL" ? "defaut" : "doute", page: page ? pathOf(page.url) : c.ecran, texte: c.description ?? "",
-        preuve: c.source === "controle" && c.preuve?.mesure ? `Mesuré : ${c.preuve.mesure}. Attendu : ${c.preuve.attendu ?? ""}` : c.source === "holo" ? "Doute du regard de Holo : rien n'est prouvé." : null,
+        preuve: c.source === "controle" && c.preuve?.mesure ? `Mesuré : ${c.preuve.mesure}.${c.preuve.attendu ? ` Attendu : ${c.preuve.attendu}` : ""}` : c.source === "holo" ? "Doute du regard de Holo : rien n'est prouvé." : null,
         zone: c.zone ?? null, taille: c.page ?? (page?.capture ? { largeur: page.capture.largeur, hauteur: page.capture.hauteur } : null),
         capture: c.capture ? `${envoi.service}/explorations/${encodeURIComponent(envoi.id)}/${c.capture}` : null, entouree: false, decision: null,
       };
@@ -127,8 +130,8 @@ export async function charger(): Promise<Chargement> {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const index = await response.json();
     passages.push(...(index.passages ?? []).map(fromIndex));
-  } catch (error) {
-    erreurs.push(`Index des passages du mode développeur illisible (${(error as Error).message}).`);
+  } catch {
+    erreurs.push("Index des passages déclenchés par une PR illisible : le dépôt ne répond pas, rechargez la page.");
   }
   const envois = historique();
   // Only a 404 means the service no longer keeps an exploration; a service asleep, in error or answering something
@@ -144,8 +147,15 @@ export async function charger(): Promise<Chargement> {
     injoignables++;
     return undefined;
   }));
-  const perdues = lus.filter((item) => item === null).length;
-  if (perdues) erreurs.push(`${perdues} exploration${perdues > 1 ? "s" : ""} envoyée${perdues > 1 ? "s" : ""} depuis ce navigateur ${perdues > 1 ? "ne sont plus gardées" : "n'est plus gardée"} par le service.`);
+  // A lost exploration is named once, then leaves the history of this browser: the next visit no longer repeats it.
+  const perdues = envois.filter((_, i) => lus[i] === null);
+  if (perdues.length) {
+    const s = perdues.length > 1;
+    erreurs.push(`${s ? "Les explorations" : "L'exploration"} de ${perdues.map((e) => e.adresse).join(", ")}, envoyée${s ? "s" : ""} depuis ce navigateur, ${s ? "ne sont plus gardées" : "n'est plus gardée"} par le service : ${s ? "elles ne seront plus listées" : "elle ne sera plus listée"} ici.`);
+    try {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(historique().filter((e) => !perdues.some((perdue) => perdue.id === e.id))));
+    } catch {}
+  }
   if (injoignables) erreurs.push(`${injoignables} exploration${injoignables > 1 ? "s" : ""} illisible${injoignables > 1 ? "s" : ""} : le service ne répond pas, réessayez dans un instant.`);
   passages.push(...lus.filter((item): item is Passage => !!item));
   passages.sort((a, b) => String(b.date).localeCompare(String(a.date)));

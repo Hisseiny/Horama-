@@ -4,8 +4,8 @@
 
 ## Répartition du 18/11 après-midi (fait foi)
 
-- **Ali : le mode grand public.** Quelle que soit l'adresse, Horama va au bout (#67 : sites en JavaScript, anti-robots, banc de 15 sites en local et en conteneur), le champ `arrivee` (#91), le service Railway (#68), puis les 4 notes du vault (#72). Il donne aussi les accès du mode dev (#78, point 1).
-- **Couloir Nathan : le mode dev sur le clone d'Ali** (`Hisseiny/eugenia-school-website`, #71) : vault du clone, réveil par la PR et Vercel, réponse sur la PR, commits de démo. Plus la direction artistique appliquée à la scène, à l'extension et à la page d'accueil. `automatisation/reveil/` et `automatisation/pr-doc/` passent au couloir Nathan.
+- **Ali : l'entrée par une adresse.** Quelle que soit l'adresse, Horama va au bout (#67 : sites en JavaScript, anti-robots, banc de 15 sites en local et en conteneur), le champ `arrivee` (#91), le service Railway (#68), puis les 4 notes du vault (#72). Il donne aussi les accès de l'entrée par une PR (#78, point 1).
+- **Couloir Nathan : l'entrée par une PR sur le clone d'Ali** (`Hisseiny/eugenia-school-website`, #71) : vault du clone, réveil par la PR et Vercel, réponse sur la PR, commits de démo. Plus la direction artistique appliquée à la scène, à l'extension et à la page d'accueil. `automatisation/reveil/` et `automatisation/pr-doc/` passent au couloir Nathan.
 - Les tableaux ci-dessous datent du matin : en cas d'écart, cette section fait foi.
 
 ## Règle de partage
@@ -19,9 +19,9 @@
 
 | Ordre | Quoi | Issue | Dossiers |
 |---|---|---|---|
-| 1 | Mode grand public sur n'importe quel site : corrections de #63, contrôle des liens (redirections, plafond), faux constats de Holo (PR #66), banc de 7 sites | #67 | `agent/` |
+| 1 | Entrée par une adresse sur n'importe quel site : corrections de #63, contrôle des liens (redirections, plafond), faux constats de Holo (PR #66), banc de 7 sites | #67 | `agent/` |
 | 2 | Service en ligne que le jury essaie seul, après la décision d'architecture de Nathan | #68 | à définir dans #68 |
-| 3 | Mode dev : réveil par un vrai déploiement Vercel, commentaire sur la PR du développeur | #71 points 1 et 3 | `automatisation/reveil/`, `automatisation/pr-doc/` |
+| 3 | Entrée par une PR : réveil par un vrai déploiement Vercel, commentaire sur la PR du développeur | #71 points 1 et 3 | `automatisation/reveil/`, `automatisation/pr-doc/` |
 | 4 | Lecteur de valeurs : ligne vide, chiffre dans l'étiquette | #76 | `jugement/verification/` |
 
 Pas avant la fin du hackathon : #55 (accessibilité), #77 (sélection élargie), #57 étape 3 (trois agents), #54 et PR #56.
@@ -33,7 +33,7 @@ Pas avant la fin du hackathon : #55 (accessibilité), #77 (sélection élargie),
 | 1 | Scène épurée, squelette sans couleur : pendant le parcours, seulement le curseur, la mascotte et un trait à la main ; tout le texte au récapitulatif. Montrée à Nathan avant toute couleur | #69 | Orchestrateur |
 | 2 | Note du passage dans le vault (« l'agent réexplique à Obsidian où sont les erreurs ») | #71 point 2 | Orchestrateur |
 | 3 | Direction artistique (méthode `/taste`), page d'accueil, extension Chrome | #69, #70, #68 | Nathan, dans une session à part |
-| | Décisions : architecture du service (#68), cible du mode dev si l'école ne donne pas le dépôt (#71), quatre sites du banc (#67), prévenir l'école des deux défauts trouvés | | Nathan |
+| | Décisions : architecture du service (#68), cible de l'entrée par une PR si l'école ne donne pas le dépôt (#71), quatre sites du banc (#67), prévenir l'école des deux défauts trouvés | | Nathan |
 
 Fusion des PR, push sur `dev` ou `main`, dépenses : Nathan seul.
 

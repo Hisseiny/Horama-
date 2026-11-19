@@ -1,6 +1,6 @@
 # Extension Chrome Horama
 
-L'entrée du mode grand public (issue #68, étape 3). On ouvre un site, on clique sur le bouton Horama : l'adresse de l'onglet est déjà remplie, on peut la changer, on clique « Envoyer Horama ». Le service Horama explore le site avec l'agent H. L'extension montre la progression page par page, puis le récapitulatif : trois chiffres, chaque **défaut prouvé** avec sa capture marquée du trait de la charte et sa mesure en clair (« mesuré : … », « attendu : … »), et, à part sous « À trancher », les doutes de Holo, qui ne prouvent rien.
+L'entrée par une adresse (issue #68, étape 3). On ouvre un site, on clique sur le bouton Horama : l'adresse de l'onglet est déjà remplie, on peut la changer, on clique « Envoyer Horama ». Le service Horama explore le site avec l'agent H. L'extension montre la progression page par page, puis le récapitulatif : trois chiffres, chaque **défaut prouvé** avec sa capture marquée du trait de la charte et sa mesure en clair (« mesuré : … », « attendu : … »), et, à part sous « À trancher », les doutes de Holo, qui ne prouvent rien.
 
 L'extension ne navigue pas à la place de l'utilisateur : c'est le service qui explore. Ce qu'elle montre, ce sont des défauts prouvés par le code, avec leur preuve.
 
