@@ -98,6 +98,7 @@ test("lisible : un constat groupé dit le nombre d'éléments et leurs textes vi
   const description = "Le texte dépasse la boîte de son conteneur. Éléments : html > body:nth-child(3) > main > ol > li:nth-child(1) > span, html > body:nth-child(3) > main > ol > li:nth-child(2) > span, html > body:nth-child(3) > main > ol > li:nth-child(3) > span.";
   assert.equal(selecteursDe(description).length, 3);
   assert.equal(lisible(description, ["Studienjahr", "Studienjahr", " Studienjahr\n"]), "Le texte dépasse la boîte de son conteneur. 3 éléments : « Studienjahr ».");
+  assert.equal(lisible(description, ["1.\nStudienjahr", "2. Studienjahr", "3) Studienjahr"]), "Le texte dépasse la boîte de son conteneur. 3 éléments : « Studienjahr ».");
   assert.equal(lisible(description, []), "Le texte dépasse la boîte de son conteneur. 3 éléments.");
   assert.equal(lisible(description, ["a", "b", "c", "d"]), "Le texte dépasse la boîte de son conteneur. 3 éléments : « a », « b », « c », ….");
   assert.doesNotMatch(lisible(description, ["x".repeat(80)]), /html|nth-child/);

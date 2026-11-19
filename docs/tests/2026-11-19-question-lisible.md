@@ -15,7 +15,7 @@ Retours de la relecture des passages filmés du jour.
 
 - `recapitulatif.test.mjs`, nouveau cas : trois sélecteurs, textes « Studienjahr » répétés → « 3 éléments : « Studienjahr » » ; sans texte → « 3 éléments » ; jamais « html » ni « nth-child » ; attente de 6 s pour 700 caractères, 3,5 s pour 20. 6 sur 6.
 - `trait-expression.test.mjs`, nouvelle étape : après le trait, la mascotte ne couvre aucun texte ; sans le changement de la couche, le test échoue (« après le trait, la mascotte ne couvre aucun texte »).
-- Fin rejouée sans H, sur la même prévisualisation allemande (exploration sans agent ni Holo, `--choix voulu,bug --repeter-choix`, témoins) : récapitulatif à 31 s, 2 questions répondues en 14 et 9 s, la question du constat groupé dit « Le texte dépasse la boîte de son conteneur. 3 éléments : « 1. Studienjahr », « 2. Studienjahr », « 3. Studienjahr ». », sans sélecteur (`captures/2026-11-19-question-lisible/questions-rejouees.png`).
+- Fin rejouée sans H, sur la même prévisualisation allemande (exploration sans agent ni Holo, `--choix voulu,bug --repeter-choix`, témoins) : récapitulatif à 31 s, 2 questions répondues en 14 et 9 s, la question du constat groupé dit « Le texte dépasse la boîte de son conteneur. 3 éléments : « 1. Studienjahr », « 2. Studienjahr », « 3. Studienjahr ». », sans sélecteur ; depuis, la numérotation de liste est retirée et les textes dédoublonnés (« 3 éléments : « Studienjahr » », cas ajouté au test) (`captures/2026-11-19-question-lisible/questions-rejouees.png`).
 - Tests de la scène et du réveil : 0 échec (le test de la mascotte a échoué une fois, puis 3 fois de suite sans échec : l'instabilité connue, présente aussi sur `dev`).
 
 ## Ce qui n'est pas testé

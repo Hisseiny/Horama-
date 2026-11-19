@@ -48,7 +48,8 @@ export function lisible(description, textes = []) {
   const [message, tail] = String(description ?? "").split(" Éléments : ");
   if (!tail) return message;
   const count = selecteursDe(description).length;
-  const short = [...new Set(textes.map((text) => String(text ?? "").replace(/\s+/g, " ").trim()).filter(Boolean))]
+  // The number of a list item (« 1. », « 2) ») goes: « 1. Studienjahr » and « 2. Studienjahr » are one text.
+  const short = [...new Set(textes.map((text) => String(text ?? "").replace(/\s+/g, " ").trim().replace(/^(\d+|[a-z])[.)]\s+/i, "")).filter(Boolean))]
     .map((text) => (text.length > 40 ? `${text.slice(0, 39)}…` : text));
   const shown = short.slice(0, 3).map((text) => `« ${text} »`).join(", ");
   return `${message} ${count} éléments${shown ? ` : ${shown}${short.length > 3 ? ", …" : ""}` : ""}.`;
