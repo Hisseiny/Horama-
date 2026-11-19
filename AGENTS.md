@@ -41,7 +41,7 @@ Avant de coder, lis :
 
 ## Commandes
 
-Le [README](README.md#comment-tester) présente l’architecture, le lancement factice et les prérequis d’un passage réel.
+Le [README](README.md#comment-lancer) présente l’architecture, le lancement factice et les prérequis d’un passage réel.
 
 - Installer : `pnpm install`
 - Lancer en local : `pnpm dev` (mode factice `USE_MOCKS=1`, interface sur http://localhost:3000 et faux SaaS sur http://localhost:3100 ; ne lance pas l'agent H ; shell POSIX).
@@ -50,9 +50,9 @@ Le [README](README.md#comment-tester) présente l’architecture, le lancement f
 ## Git
 
 - Ne pousse jamais sur `main`, ne force jamais une poussée, ne réécris jamais l'historique partagé.
-- Une branche par ticket, depuis `main` à jour, nommée par le numéro du plan : `3.4-orchestrateur`.
+- Une branche par ticket, depuis `dev` à jour, nommée par le numéro du plan : `3.4-orchestrateur`. Les pull requests vont vers `dev`.
 - Une pull request par ticket. Sa description dit : ce qui est fait, comment c'est testé, ce qui ne l'est pas. Elle met à jour la ligne du ticket dans `docs/checklist.md`.
-- Avant d'ouvrir la pull request : récupère `main` dans ta branche et relance la vérification.
+- Avant d'ouvrir la pull request : récupère `dev` dans ta branche et relance la vérification.
 - Une nouvelle dépendance se signale dans la description de la pull request, avec la raison. N'en ajoute pas pour une chose que quelques lignes font.
 
 ## Secrets
