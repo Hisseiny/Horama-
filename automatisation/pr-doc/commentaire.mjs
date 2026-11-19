@@ -33,7 +33,8 @@ export function ecrireCommentaire({ passage, rejoues, ecartes, prouves, doutes, 
 // bilan: bilanExploration (scene/recapitulatif.mjs). prouves, doutes, dejaVoulus: [{ id, chemin, texte, preuve,
 // zone, capture }]; decisions: [{ ecart_id, decision }].
 export function ecrireSectionExploration({ adresse, bilan, totaux, prouves, doutes, dejaVoulus = [], decisions, note }) {
-  const decided = (id) => DECIDED[decisions.find((decision) => decision.ecart_id === id)?.decision] ?? "pas tranché";
+  // « à trancher », the word of the tower of control (#238), where a case left open is settled.
+  const decided = (id) => DECIDED[decisions.find((decision) => decision.ecart_id === id)?.decision] ?? "à trancher";
   const zone = ({ zone: box }) => (box ? `zone x ${Math.round(box.x)}, y ${Math.round(box.y)}, ${Math.round(box.largeur)} × ${Math.round(box.hauteur)} px sur la capture` : "zone non mesurée");
   // With --captures-sur-branche (option a), an entry carries `image`: the address of its capture ringed, shown under it.
   // A grouped finding (#180): its CSS selectors folded under the line, for the developer; the jury reads the line.

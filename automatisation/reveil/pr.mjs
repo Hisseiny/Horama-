@@ -9,10 +9,16 @@
 // Usage: node automatisation/reveil/pr.mjs --depot <propriétaire/dépôt> --logiciel <logiciel du vault> [--intervalle 20]
 //          [--une-fois] [--a-blanc] [--numero <PR>] [--vault vault-horama] [--sortie .orchestrateur/reveil-pr] [--faux-github <fichier.json>]
 //          [--max 8] [--pages-cliquees 8] [--sans-exploration] [--commenter] [--captures-sur-branche horama/captures]
+//          [--trancher-dans-la-tour [--tour https://horama-gold.vercel.app/tour/]]
 //          [-- options des deux scènes, par exemple --vitrine]
 // --commenter: one answer on the PR, once both scenes are done (the part of each scene).
 // --captures-sur-branche <branche>: with --commenter, the captures ringed of the exploration are put on this branch of
 // the target repository (created if needed, never merged) and shown in the answer.
+// --trancher-dans-la-tour (#238), with --commenter and --captures-sur-branche: no question at the end of the exploration
+// scene. The captures and the entry of the index are published first (with duree_s and cout_usd, no decision); the Chrome
+// of the scene opens the tower of control on « À relire » of this passage (the index read at its commit, past the cache
+// of 5 min of the branch); the wake-up reads the index every 5 s, 10 min at most, until every case is settled there;
+// then the answer on the PR is posted with those decisions (a case still open after 10 min: « à trancher »).
 // --max, --pages-cliquees: the exploration of the preview (pages at most, pages the agent reaches by a click: 8 by
 // default, every page after the page of departure, as the explorer caps it at the number of pages minus one; a page
 // opened by its address is a jump on the screen, a click is a gesture the audience follows);
@@ -202,7 +208,7 @@ export async function aBlanc(lecteur, { vault, logiciel, socle = [], ouverte = o
 
 // The answer on the PR: the part of the vault tests (passage.json of the scene, commentaire_corps), then the part of the
 // exploration (scene.json, commentaire.corps). Without the first, a heading says why the vault tests did not run.
-export function reponseSurPr({ pr, impact, report, folder, images = null }) {
+export function reponseSurPr({ pr, impact, report, folder, images = null, decisions = null }) {
   const read = (file) => {
     try {
       return JSON.parse(readFileSync(join(folder, file), "utf8"));
@@ -214,8 +220,9 @@ export function reponseSurPr({ pr, impact, report, folder, images = null }) {
   const part = read("exploration/scene.json")?.commentaire ?? null;
   // With images: the part of the exploration written again from its elements, each finding with its capture.
   const withImage = (item) => ({ ...item, image: images?.[item.id] ?? null });
-  const site = images && part?.elements
-    ? ecrireSectionExploration({ ...part.elements, prouves: part.elements.prouves.map(withImage), doutes: part.elements.doutes.map(withImage) })
+  // With decisions (taken in the tower of control, --trancher-dans-la-tour): the part written again with them.
+  const site = (images || decisions) && part?.elements
+    ? ecrireSectionExploration({ ...part.elements, ...(decisions ? { decisions } : {}), prouves: part.elements.prouves.map(withImage), doutes: part.elements.doutes.map(withImage) })
     : part?.corps ?? null;
   if (!tests && !site) return null;
   const heading = tests ? [] : [`## Horama : PR #${pr.numero} (${pr.tete.slice(0, 7)})`, "",
@@ -258,6 +265,7 @@ export function entreeIndex({ pr, logiciel, report, scene, images = {} }) {
     passage: scene?.passage_id ?? null, date: report.recu_le, site: logiciel, previsualisation: pr.previsualisation,
     pr: { numero: pr.numero, adresse: pr.adresse, titre: pr.titre ?? null }, commit: pr.tete,
     reponse: report.commentaire?.url ?? null, etat: report.exploration?.etat ?? null, totaux: elements.totaux ?? null,
+    duree_s: elements.duree_s ?? null, cout_usd: elements.cout_usd ?? null,
     constats: [...(elements.prouves ?? []).map(constat("VERIFIED_FAIL", "defaut")), ...(elements.doutes ?? []).map(constat("SUSPECTED", "doute"))],
   };
 }
@@ -285,6 +293,61 @@ export async function publierIndex({ depot, branche, entree }, api = ghApi) {
     return { raison: String(error.message).trim().split("\n").at(-1) };
   }
 }
+
+// The entry of a PR and commit in the index of the passages, read by the contents API (fresh, unlike raw and its cache
+// of 5 min). Never throws: the entry, or null.
+export async function lireEntreeIndex({ depot, branche, numero, commit }, api = ghApi) {
+  try {
+    const file = await api(["GET", `repos/${depot}/contents/index.json?ref=${encodeURIComponent(branche)}`]);
+    const index = JSON.parse(Buffer.from(file.content ?? "", "base64").toString("utf8"));
+    return (index.passages ?? []).find((item) => item.pr?.numero === numero && item.commit === commit) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// Changes some fields of one entry of the index (the address of the answer, once posted), the rest kept as it is there
+// now: the decisions written by the tower of control in the meantime are not lost. Never throws.
+export async function majEntreeIndex({ depot, branche, numero, commit, champs }, api = ghApi) {
+  try {
+    const file = await api(["GET", `repos/${depot}/contents/index.json?ref=${encodeURIComponent(branche)}`]);
+    const index = JSON.parse(Buffer.from(file.content ?? "", "base64").toString("utf8"));
+    const entry = (index.passages ?? []).find((item) => item.pr?.numero === numero && item.commit === commit);
+    if (!entry) return { raison: "entrée absente de l'index" };
+    Object.assign(entry, champs);
+    const content = Buffer.from(`${JSON.stringify({ ...index, maj: new Date().toISOString() }, null, 2)}\n`).toString("base64");
+    const done = await api(["PUT", `repos/${depot}/contents/index.json`], { message: `Horama : index des passages (PR #${numero}, ${String(commit).slice(0, 7)}, réponse)`, branch: branche, content, sha: file.sha });
+    return { commit: done.commit.sha };
+  } catch (error) {
+    return { raison: String(error.message).trim().split("\n").at(-1) };
+  }
+}
+
+// Waits until every case of the entry is settled in the tower of control: the index read every 5 s, 10 min at most.
+// Returns the last entry read, whether all is settled, and how long it took.
+export async function attendreDecisions({ lire, intervalleMs = 5000, maxMs = 600_000, pause = sleep, maintenant = Date.now }) {
+  const start = maintenant();
+  let entry = null;
+  for (;;) {
+    entry = (await lire()) ?? entry;
+    const open = (entry?.constats ?? []).filter((constat) => !constat.decision);
+    if (entry && !open.length) return { entree: entry, complet: true, attendu_ms: maintenant() - start };
+    if (maintenant() - start >= maxMs) return { entree: entry, complet: false, attendu_ms: maintenant() - start };
+    await pause(intervalleMs);
+  }
+}
+
+// The decisions of an entry of the index, in the shape the answer on the PR reads ({ ecart_id, decision, par, le }).
+export const decisionsDeLEntree = (entry) => (entry?.constats ?? []).filter((constat) => constat.decision)
+  .map((constat) => ({ ecart_id: constat.id, decision: constat.decision.choix, par: constat.decision.par ?? null, le: constat.decision.le ?? null }));
+
+// The address of the tower on « À relire » of this passage, the index read at the commit that wrote the entry.
+export const adresseTour = (tour, passage, commit) => {
+  const url = new URL(tour);
+  if (commit) url.searchParams.set("index", commit);
+  url.hash = `relire/${encodeURIComponent(`dev:${passage}`)}`;
+  return url.href;
+};
 
 // gh api with a JSON body given through a file (a capture in base64 is too long for the command line).
 async function ghApi([method, path], body) {
@@ -315,7 +378,7 @@ function runNode(args) {
 // `exploration` is null. Everything in <sortie>/pr-<numéro>-<sha court>/. A scene that fails is written in the report,
 // never thrown: the other one still runs, and the wake-up goes on with the next PR.
 export async function jouerPr({ pr, fichiers, vault, logiciel, socle, sortie, sceneArgs = [], exploration = { max: 8, pagesCliquees: 8 }, langue = langueDePage, commenter = false, publier = publierCommentaire,
-  captures = null, televerser = televerserCapture, indexer = publierIndex }, run = runNode) {
+  captures = null, televerser = televerserCapture, indexer = publierIndex, tour = null, ouvrir = ouvrirTour, attendre = attendreDecisions, lireEntree = lireEntreeIndex, majIndex = majEntreeIndex }, run = runNode) {
   const started = performance.now();
   const folder = join(sortie, `pr-${pr.numero}-${pr.tete.slice(0, 7)}`);
   mkdirSync(folder, { recursive: true });
@@ -354,7 +417,7 @@ export async function jouerPr({ pr, fichiers, vault, logiciel, socle, sortie, sc
     }
     if (exploration) {
       await step("exploration", ["automatisation/scene/exploration.mjs", "--url", pr.previsualisation, "--max", String(exploration.max), "--pages-cliquees", String(exploration.pagesCliquees),
-        "--vault", vault, "--site", logiciel, "--sortie", join(folder, "exploration"), "--pr", pr.adresse, ...sceneArgs]);
+        "--vault", vault, "--site", logiciel, "--sortie", join(folder, "exploration"), "--pr", pr.adresse, ...(tour ? ["--fin-dans-la-tour", "--tour", tour] : []), ...sceneArgs]);
     }
     // One answer on the PR for both scenes (--commenter): what each wrote, put together.
     if (commenter) {
@@ -377,20 +440,42 @@ export async function jouerPr({ pr, fichiers, vault, logiciel, socle, sortie, sc
         }
         report.captures = { branche: captures.branche, poussees: Object.keys(images).length };
       }
-      const corps = reponseSurPr({ pr, impact, report, folder, images });
-      report.commentaire = corps ? await publier(pr.adresse, corps) : { status: "INCONCLUSIVE", reason: "aucune scène n'a écrit sa partie" };
-      console.log(report.commentaire.status === "publie" ? `réveil PR : réponse publiée, ${report.commentaire.url}` : `réveil PR : réponse non publiée, ${report.commentaire.reason}`);
-      // The index of the passages on the same public branch as the captures (#149), with the address of the answer.
-      if (captures) {
-        const scene = (() => {
-          try {
-            return JSON.parse(readFileSync(join(folder, "exploration", "scene.json"), "utf8"));
-          } catch {
-            return null;
-          }
-        })();
+      const scene = (() => {
+        try {
+          return JSON.parse(readFileSync(join(folder, "exploration", "scene.json"), "utf8"));
+        } catch {
+          return null;
+        }
+      })();
+      const publishIndex = async () => {
         report.index = await indexer({ depot: captures.depot, branche: captures.branche, entree: entreeIndex({ pr, logiciel, report, scene, images: images ?? {} }) });
         console.log(report.index.url ? `réveil PR : index des passages à jour (${report.index.passages} passage(s)), ${report.index.url}` : `réveil PR : index non publié, ${report.index.raison}`);
+      };
+      // --trancher-dans-la-tour: the entry first, without decision; the tower on « À relire » of this passage; the
+      // decisions taken there, read back from the index, go into the answer.
+      let decisions = null;
+      if (tour && captures) {
+        await publishIndex();
+        const cases = (scene?.commentaire?.elements?.prouves?.length ?? 0) + (scene?.commentaire?.elements?.doutes?.length ?? 0);
+        if (report.index.url && scene?.passage_id && cases) {
+          const adresse = adresseTour(tour, scene.passage_id, report.index.commit);
+          await ouvrir(adresse).then(() => console.log(`réveil PR : tour de contrôle ouverte, ${adresse}`), (error) => console.log(`réveil PR : tour non ouverte, ${error.message}`));
+          const where = { depot: captures.depot, branche: captures.branche, numero: pr.numero, commit: pr.tete };
+          const waited = await attendre({ lire: () => lireEntree(where) });
+          decisions = decisionsDeLEntree(waited.entree);
+          report.tour = { adresse, complet: waited.complet, tranches: decisions.length, cas: cases, attendu_ms: waited.attendu_ms };
+          console.log(`réveil PR : ${waited.complet ? "tout est tranché" : `${cases - decisions.length} cas encore à trancher après 10 min`} dans la tour (${decisions.length} sur ${cases}).`);
+        }
+      }
+      const corps = reponseSurPr({ pr, impact, report, folder, images, decisions });
+      report.commentaire = corps ? await publier(pr.adresse, corps) : { status: "INCONCLUSIVE", reason: "aucune scène n'a écrit sa partie" };
+      console.log(report.commentaire.status === "publie" ? `réveil PR : réponse publiée, ${report.commentaire.url}` : `réveil PR : réponse non publiée, ${report.commentaire.reason}`);
+      // The index of the passages on the same public branch as the captures (#149), with the address of the answer:
+      // written whole the first time; with the tower, only the address is added, the decisions taken there kept.
+      if (captures && !(tour && report.index?.url)) await publishIndex();
+      else if (captures && report.commentaire.url) {
+        report.index_reponse = await majIndex({ depot: captures.depot, branche: captures.branche, numero: pr.numero, commit: pr.tete, champs: { reponse: report.commentaire.url } });
+        if (report.index_reponse.raison) console.log(`réveil PR : adresse de la réponse non ajoutée à l'index, ${report.index_reponse.raison}`);
       }
     }
     const ran = [report.parcours, report.exploration].filter((item) => item && item.etat !== "aucun-test");
@@ -419,6 +504,15 @@ async function ouvrirAttente(depot) {
   console.log(`réveil PR : Chrome de la scène ${chrome.started ? "ouvert" : "déjà ouvert"} sur la page d'attente (port ${port}).`);
 }
 
+// The Chrome of the scene, left open by the exploration, on the tower of control (#238).
+async function ouvrirTour(adresse) {
+  const port = 9333;
+  await openChrome({ bin: process.env.CHROME_BIN || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", port, profile: join(ROOT, ".orchestrateur/chrome-agent") });
+  const tab = await connectTab(port);
+  await navigate(tab, adresse);
+  tab.close();
+}
+
 async function main() {
   const separator = process.argv.indexOf("--");
   const sceneArgs = separator < 0 ? [] : process.argv.slice(separator + 1);
@@ -426,6 +520,7 @@ async function main() {
     depot: { type: "string" }, logiciel: { type: "string" }, intervalle: { type: "string", default: "20" }, "une-fois": { type: "boolean" }, "a-blanc": { type: "boolean" }, numero: { type: "string" },
     vault: { type: "string", default: "vault-horama" }, sortie: { type: "string", default: ".orchestrateur/reveil-pr" }, "faux-github": { type: "string" },
     max: { type: "string", default: "8" }, "pages-cliquees": { type: "string", default: "8" }, "sans-exploration": { type: "boolean" }, commenter: { type: "boolean" }, "captures-sur-branche": { type: "string" },
+    "trancher-dans-la-tour": { type: "boolean" }, tour: { type: "string", default: "https://horama-gold.vercel.app/tour/" },
   } });
   if (!values.logiciel || (!values.depot && !values["faux-github"])) throw new Error("--logiciel et --depot (ou --faux-github) sont requis");
   if (values.depot && !/^[\w.-]+\/[\w.-]+$/.test(values.depot)) throw new Error("--depot attend propriétaire/dépôt");
@@ -433,13 +528,15 @@ async function main() {
   if (!(interval >= 1)) throw new Error("--intervalle attend un nombre de secondes, 1 au moins");
   if (values["captures-sur-branche"] && (!values.depot || !values.commenter)) throw new Error("--captures-sur-branche demande --depot et --commenter");
   if (values["captures-sur-branche"] && !/^[\w./-]+$/.test(values["captures-sur-branche"])) throw new Error("--captures-sur-branche attend un nom de branche");
+  if (values["trancher-dans-la-tour"] && !values["captures-sur-branche"]) throw new Error("--trancher-dans-la-tour demande --commenter et --captures-sur-branche");
+  if (values["trancher-dans-la-tour"] && !/^https?:\/\//.test(values.tour)) throw new Error("--tour attend une adresse http(s)");
   const exploration = values["sans-exploration"] ? null : { max: Number(values.max), pagesCliquees: Number(values["pages-cliquees"]) };
   if (exploration && !(Number.isInteger(exploration.max) && exploration.max >= 1 && Number.isInteger(exploration.pagesCliquees) && exploration.pagesCliquees >= 0)) {
     throw new Error("--max attend un entier, 1 au moins, et --pages-cliquees un entier, 0 au moins");
   }
   // Selection, target, vault and output belong to the wake-up, not to the forwarded scene options.
   for (const arg of sceneArgs) {
-    if (["tests", "impact", "base-url", "logiciel", "vault", "sortie", "pr", "url", "max", "pages-cliquees", "commenter"].includes(arg.replace(/^--/, "").split("=")[0])) throw new Error(`option de scène réservée au réveil : ${arg}`);
+    if (["tests", "impact", "base-url", "logiciel", "vault", "sortie", "pr", "url", "max", "pages-cliquees", "commenter", "fin-dans-la-tour", "tour"].includes(arg.replace(/^--/, "").split("=")[0])) throw new Error(`option de scène réservée au réveil : ${arg}`);
   }
   const vault = resolve(ROOT, values.vault);
   if (!existsSync(join(vault, values.logiciel))) throw new Error(`pas de dossier ${values.logiciel} dans le vault ${vault}`);
@@ -474,7 +571,7 @@ async function main() {
       }
       faits.add(`${pr.numero}@${pr.tete}`);
       await jouerPr({ pr, fichiers: lecteur.fichiers(pr.numero), vault, logiciel: values.logiciel, socle, sortie, sceneArgs, exploration, commenter: Boolean(values.commenter),
-        captures: values["captures-sur-branche"] ? { depot: values.depot, branche: values["captures-sur-branche"] } : null });
+        captures: values["captures-sur-branche"] ? { depot: values.depot, branche: values["captures-sur-branche"] } : null, tour: values["trancher-dans-la-tour"] ? values.tour : null });
       if (values["une-fois"]) return;
     }
     await sleep(interval * 1000);

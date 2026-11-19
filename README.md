@@ -236,13 +236,15 @@ curl -sS http://127.0.0.1:8787/explorations -H 'Content-Type: application/json' 
 - `HORAMA_MAX_PAGES` (1 à 8, défaut 8) et `HORAMA_MAX_SECONDS` (1 à 420, défaut 240, réglé à 380 sur Railway, puis jusqu'à 5 s pour arrêter le moteur) fixent les plafonds, non modifiables par la requête. Le proxy Chrome et les fetchs du moteur refusent les destinations privées après résolution. Le parcours H n'envoie aucun formulaire : il visite le site en simple visiteur.
 - Le mode CLI est conservé : `docker run --rm horama-explorations --help`.
 
-#### Préparer Railway (pas encore déployé)
+#### Le service sur Railway (déployé)
 
-Dans Railway, relier le dépôt **Hisseiny/Horama-** après fusion sur `main`, conserver la commande par défaut du Dockerfile, indiquer `/sante` comme chemin de santé, et ajouter `HAI_API_KEY` comme variable secrète propre au service. Le serveur écoute sur `0.0.0.0:$PORT` (8787 sans variable `PORT`) ; ne pas publier le port CDP. Utiliser une seule réplique : la file et les quotas sont en mémoire.
+Le service est en ligne depuis le 19/11 : https://explorations-production-70bf5b38.up.railway.app (`/sante` répond `{"ok":true}`). Projet `horama` sur le compte d'Ali, offre Hobby, déployé depuis la branche `dev`, 4 Go, une seule réplique, 8 pages et 380 s au plus par exploration ([banc du 19/11](docs/tests/2026-11-19-banc-railway-380.md), [#208](https://github.com/Hisseiny/Horama-/issues/208)).
+
+Pour le redéployer ailleurs : relier le dépôt **Hisseiny/Horama-**, conserver la commande par défaut du Dockerfile, indiquer `/sante` comme chemin de santé, et ajouter `HAI_API_KEY` comme variable secrète propre au service. Le serveur écoute sur `0.0.0.0:$PORT` (8787 sans variable `PORT`) ; ne pas publier le port CDP. Utiliser une seule réplique : la file et les quotas sont en mémoire.
 
 Les sorties sont sous `/data` et expirent une heure après la fin (nettoyage lors des demandes). Les identifiants ne survivent pas au redémarrage, même avec un volume ; un volume est nécessaire pour conserver les fichiers bruts au-delà de la vie du conteneur, et il faut alors gérer le nettoyage après arrêt brutal.
 
-L'image exécute Chromium sous `horama-chrome` et le moteur sous `node`. Le compte Chrome n'a accès ni à l'environnement du moteur ni à `/data`. Si un volume est monté, conserver `/data` accessible en écriture uniquement par `node` (mode `0700`). Avant de publier le domaine, vérifier ces conditions et la mémoire dans Railway ; voir [le rapport de test du service](docs/tests/2026-11-18-service-explorations.md) pour l'essai Docker local. Pas de passage sur une offre payante sans accord de Nathan.
+L'image exécute Chromium sous `horama-chrome` et le moteur sous `node`. Le compte Chrome n'a accès ni à l'environnement du moteur ni à `/data`. Si un volume est monté, conserver `/data` accessible en écriture uniquement par `node` (mode `0700`). Avant de publier le domaine, vérifier ces conditions et la mémoire dans Railway ; voir [le rapport de test du service](docs/tests/2026-11-18-service-explorations.md) pour l'essai Docker local. Le passage à l'offre payante (Hobby) a été décidé par Nathan le 19/11 (#208).
 
 ## Chiffres mesurés
 

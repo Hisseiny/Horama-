@@ -100,6 +100,7 @@ Avec `--commenter --captures-sur-branche <branche>`, après chaque réponse publ
     "passage": "2026-11-19-10h55-4163", "date": "2026-11-19T10:55:10.000Z", "site": "eugenia-clone",
     "previsualisation": "https://…vercel.app", "pr": { "numero": 16, "adresse": "https://github.com/…/pull/16", "titre": "…" }, "commit": "998767b…",
     "reponse": "https://github.com/…/pull/16#issuecomment-…", "etat": "termine", "totaux": { "defauts": 2, "doutes": 2, "pages_visitees": 8, "…": "…" },
+    "duree_s": 325.5, "cout_usd": 0.1967,
     "constats": [{ "id": "accueil--controle--1", "statut": "VERIFIED_FAIL", "genre": "defaut", "page": "/", "texte": "Le texte dépasse la boîte de son conteneur.",
       "preuve": "Mesuré : 158×35 > 120×35. Attendu : …", "zone": { "x": 32, "y": 432, "largeur": 120, "hauteur": 35 },
       "capture": "https://raw.githubusercontent.com/…/accueil--controle--1.png", "decision": { "choix": "bug", "par": "Nathan", "le": "…" } }]
@@ -109,3 +110,21 @@ Avec `--commenter --captures-sur-branche <branche>`, après chaque réponse publ
 
 Une entrée par PR et par commit (rejouer le même commit la remplace), la plus récente d'abord. `capture` est la capture entourée poussée sur la branche (ou `null`), `decision` est `null` tant que personne n'a tranché. Un refus de GitHub ne bloque pas le réveil : `reveil.json` garde la raison (`index.raison`).
 
+
+`duree_s` et `cout_usd` (durée et coût H de l'exploration, depuis le 19/11 au soir) valent `null` dans les entrées plus anciennes.
+
+## Trancher dans la tour (`--trancher-dans-la-tour`, #238)
+
+Pour le pitch : la scène ne pose plus la question « bug ou voulu ? », on tranche dans la tour de contrôle.
+
+```sh
+node automatisation/reveil/pr.mjs --depot Hisseiny/eugenia-school-website --logiciel eugenia-clone --commenter --captures-sur-branche horama/captures --trancher-dans-la-tour
+```
+
+1. La scène d'exploration joue avec `--fin-dans-la-tour` : à la fin, le récapitulatif avec ses constats, le temps de le lire (12 s au plus), puis la mascotte annonce « À vous de trancher. », « Je passe la main à la tour de contrôle ». Aucune question, aucune décision écrite par la scène.
+2. Le réveil pousse les captures entourées et publie l'entrée de l'index **d'abord**, avec `duree_s` et `cout_usd`, sans décision et sans réponse.
+3. Le Chrome de la scène (port 9333) s'ouvre sur la tour, écran « À relire » de ce passage : `…/tour/?index=<commit de l'index>#relire/dev%3A<passage>`. Le paramètre `index` fait lire à la tour l'index à ce commit, ce qui échappe au cache de 5 min de la branche.
+4. Le réveil relit l'entrée toutes les 5 s, par l'API de GitHub (fraîche), 10 min au plus, jusqu'à ce que chaque constat ait sa décision, écrite par la tour (service Railway, `POST /tour/decision`).
+5. Il publie la réponse sur la PR avec ces décisions. Un constat encore ouvert au bout de 10 min y est marqué « à trancher ». Enfin, il ajoute l'adresse de la réponse à l'entrée de l'index, sans toucher aux décisions écrites entre-temps.
+
+`--tour <adresse>` change l'adresse de la tour (par défaut https://horama-gold.vercel.app/tour/). Sans constat à trancher, la tour ne s'ouvre pas et la réponse part tout de suite. `reveil.json` garde le détail : `tour` (adresse, tout tranché ou non, nombre de décisions, attente) et `index_reponse`.
