@@ -25,7 +25,7 @@ import { ecrireDecision, lireDecisions } from "../../memoire/index.ts";
 import { findHolo, startBridge, stopIfMissing } from "./agent-h.mjs";
 import { creerEcrivainMemoire, creerEcrivainSupabase } from "./decisions.mjs";
 import { completerNote } from "./note-passage.mjs";
-import { bilanExploration, dejaVoulu, lisible, revoir, selecteursDe, sizeOf } from "./recapitulatif.mjs";
+import { bilanExploration, dejaVoulu, lisible, phraseDe, revoir, selecteursDe, sizeOf } from "./recapitulatif.mjs";
 import { ecrireSectionExploration, publierCommentaire } from "../pr-doc/commentaire.mjs";
 import { ouvrirVitrine } from "./vitrine.mjs";
 import { HEIGHT, WIDTH, capture, captureZone, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, layer, navigate, openChrome, option, say, sleep } from "./scene.mjs";
@@ -315,7 +315,7 @@ if (report?.format === "horama-exploration-1") {
     : constat.source === "holo" ? "Doute du regard de Holo, le modèle visuel de H : rien n'est prouvé." : "Écart d'image avec la capture du passage précédent.");
   const items = toDecide.map((constat) => {
     const png = readFileSync(join(OUT, constat.capture));
-    const said = lisible(constat.description, visibleTexts.get(constat.id));
+    const said = lisible(phraseDe(constat), visibleTexts.get(constat.id));
     return { id: constat.id, genre: GENRE[constat.statut], etat: LOOK[constat.statut], texte: `${pathOf(constat.ecran)} : ${said}`, selecteurs: selecteursDe(constat.description), png, zones: constat.zone ? [constat.zone] : [], page: constat.page ?? sizeOf(png),
       mesure: constat.source === "controle" && constat.preuve?.mesure ? `mesuré : ${constat.preuve.mesure}` : null,
       textes: [`Page ${pathOf(constat.ecran)}${arrivalOf(constat.ecran) ? ` (${arrivalOf(constat.ecran)})` : ""} : ${said}`, proof(constat)], question: "C'est un bug, ou c'est voulu ?" };
@@ -383,7 +383,7 @@ if (report?.format === "horama-exploration-1") {
   // The part of the answer on the PR (text only: page, zone, proof; the captures ringed stay in the note).
   if (PR) {
     // The comment on the PR (read by the jury): the readable text first; the selectors of a grouped finding folded.
-    const entry = (constat) => ({ id: constat.id, chemin: pathOf(constat.ecran), texte: lisible(constat.description, visibleTexts.get(constat.id)), selecteurs: selecteursDe(constat.description), zone: constat.zone ?? null, capture: constat.capture ?? null,
+    const entry = (constat) => ({ id: constat.id, chemin: pathOf(constat.ecran), texte: lisible(phraseDe(constat), visibleTexts.get(constat.id)), selecteurs: selecteursDe(constat.description), zone: constat.zone ?? null, capture: constat.capture ?? null,
       preuve: constat.source === "controle" && constat.preuve?.mesure ? `Mesuré : ${String(constat.preuve.mesure).replace(/\.+$/, "")}. Attendu : ${String(constat.preuve.attendu).replace(/\.+$/, "")}.` : null });
     const corps = ecrireSectionExploration({ adresse: report.adresse, bilan: bilanExploration(report), totaux, decisions: decisions.map(({ decision }) => decision),
       prouves: toDecide.filter((constat) => constat.statut === "VERIFIED_FAIL").map(entry), doutes: toDecide.filter((constat) => constat.statut === "SUSPECTED").map(entry),
