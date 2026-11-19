@@ -242,6 +242,43 @@ export async function televerserCapture({ depot, branche, chemin, fichier, messa
   }
 }
 
+// The index of the passages (#149, tower of control), index.json at the root of the branch of the captures, public and
+// read through raw.githubusercontent.com: one entry per PR and commit played, the latest first. entreeIndex composes the
+// entry of a passage from what the scene wrote (scene.json: passage, decisions, elements of the answer) and what the
+// wake-up knows (PR, commit, preview, address of the answer, captures pushed).
+export function entreeIndex({ pr, logiciel, report, scene, images = {} }) {
+  const elements = scene?.commentaire?.elements ?? {};
+  const decided = (id) => scene?.decisions?.find(({ decision }) => decision.ecart_id === id)?.decision ?? null;
+  const constat = (statut, genre) => (entry) => {
+    const decision = decided(entry.id);
+    return { id: entry.id, statut, genre, page: entry.chemin, texte: entry.texte, preuve: entry.preuve ?? null, zone: entry.zone ?? null,
+      capture: images[entry.id] ?? null, decision: decision ? { choix: decision.decision, par: decision.par ?? null, le: decision.le ?? null } : null };
+  };
+  return {
+    passage: scene?.passage_id ?? null, date: report.recu_le, site: logiciel, previsualisation: pr.previsualisation,
+    pr: { numero: pr.numero, adresse: pr.adresse, titre: pr.titre ?? null }, commit: pr.tete,
+    reponse: report.commentaire?.url ?? null, etat: report.exploration?.etat ?? null, totaux: elements.totaux ?? null,
+    constats: [...(elements.prouves ?? []).map(constat("VERIFIED_FAIL", "defaut")), ...(elements.doutes ?? []).map(constat("SUSPECTED", "doute"))],
+  };
+}
+export async function publierIndex({ depot, branche, entree }, api = ghApi) {
+  const chemin = "index.json";
+  try {
+    const existing = await api(["GET", `repos/${depot}/contents/${chemin}?ref=${encodeURIComponent(branche)}`]).catch(() => null);
+    let index = { format: "horama-passages-1", depot, passages: [] };
+    try {
+      if (existing?.content) index = JSON.parse(Buffer.from(existing.content, "base64").toString("utf8"));
+    } catch {}
+    const others = (index.passages ?? []).filter((item) => !(item.pr?.numero === entree.pr.numero && item.commit === entree.commit));
+    index = { ...index, format: "horama-passages-1", depot, maj: new Date().toISOString(), passages: [entree, ...others].sort((a, b) => String(b.date).localeCompare(String(a.date))) };
+    const content = Buffer.from(`${JSON.stringify(index, null, 2)}\n`).toString("base64");
+    const done = await api(["PUT", `repos/${depot}/contents/${chemin}`], { message: `Horama : index des passages (PR #${entree.pr.numero}, ${String(entree.commit).slice(0, 7)})`, branch: branche, content, ...(existing?.sha ? { sha: existing.sha } : {}) });
+    return { url: `https://raw.githubusercontent.com/${depot}/${encodeURIComponent(branche).replace(/%2F/g, "/")}/${chemin}`, commit: done.commit.sha, passages: index.passages.length };
+  } catch (error) {
+    return { raison: String(error.message).trim().split("\n").at(-1) };
+  }
+}
+
 // gh api with a JSON body given through a file (a capture in base64 is too long for the command line).
 async function ghApi([method, path], body) {
   const folder = body ? mkdtempSync(join(tmpdir(), "horama-gh-")) : null;
@@ -271,7 +308,7 @@ function runNode(args) {
 // `exploration` is null. Everything in <sortie>/pr-<numéro>-<sha court>/. A scene that fails is written in the report,
 // never thrown: the other one still runs, and the wake-up goes on with the next PR.
 export async function jouerPr({ pr, fichiers, vault, logiciel, socle, sortie, sceneArgs = [], exploration = { max: 8, pagesCliquees: 8 }, langue = langueDePage, commenter = false, publier = publierCommentaire,
-  captures = null, televerser = televerserCapture }, run = runNode) {
+  captures = null, televerser = televerserCapture, indexer = publierIndex }, run = runNode) {
   const started = performance.now();
   const folder = join(sortie, `pr-${pr.numero}-${pr.tete.slice(0, 7)}`);
   mkdirSync(folder, { recursive: true });
@@ -336,6 +373,18 @@ export async function jouerPr({ pr, fichiers, vault, logiciel, socle, sortie, sc
       const corps = reponseSurPr({ pr, impact, report, folder, images });
       report.commentaire = corps ? await publier(pr.adresse, corps) : { status: "INCONCLUSIVE", reason: "aucune scène n'a écrit sa partie" };
       console.log(report.commentaire.status === "publie" ? `réveil PR : réponse publiée, ${report.commentaire.url}` : `réveil PR : réponse non publiée, ${report.commentaire.reason}`);
+      // The index of the passages on the same public branch as the captures (#149), with the address of the answer.
+      if (captures) {
+        const scene = (() => {
+          try {
+            return JSON.parse(readFileSync(join(folder, "exploration", "scene.json"), "utf8"));
+          } catch {
+            return null;
+          }
+        })();
+        report.index = await indexer({ depot: captures.depot, branche: captures.branche, entree: entreeIndex({ pr, logiciel, report, scene, images: images ?? {} }) });
+        console.log(report.index.url ? `réveil PR : index des passages à jour (${report.index.passages} passage(s)), ${report.index.url}` : `réveil PR : index non publié, ${report.index.raison}`);
+      }
     }
     const ran = [report.parcours, report.exploration].filter((item) => item && item.etat !== "aucun-test");
     report.etat = !ran.length ? "aucun-test" : ran.some((item) => item.etat === "echec") ? "echec" : "termine";

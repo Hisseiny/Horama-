@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { aBlanc, aJouer, adresseCommentaireVercel, adresseControleVercel, ecarterLangue, impactDePr, jouerPr, langueDePage, lecteurGithub, ouverteSansConnexion, televerserCapture } from "./pr.mjs";
+import { aBlanc, aJouer, adresseCommentaireVercel, adresseControleVercel, ecarterLangue, impactDePr, jouerPr, langueDePage, lecteurGithub, ouverteSansConnexion, televerserCapture, entreeIndex, publierIndex } from "./pr.mjs";
 
 // A vault of trial: two screens of a site whose code we have, one test per screen.
 function vaultEssai(t) {
@@ -294,12 +294,55 @@ test("--captures-sur-branche : les captures entourées de l'exploration poussée
   const sent = [];
   const televerser = async (args) => (sent.push(args), { url: `https://raw.githubusercontent.com/o/clone/c0mmit/${args.chemin}` });
   const posted = [];
+  const indexed = [];
   const report = await jouerPr({ pr: { numero: 14, adresse: "https://github.com/o/clone/pull/14", base: "b", tete: "0b4112f0000", previsualisation: "https://p.vercel.app" }, fichiers: ["README.md"], vault, logiciel: "site-essai", sortie,
-    commenter: true, publier: async (adresse, corps) => (posted.push(corps), { status: "publie", url: "u" }), captures: { depot: "o/clone", branche: "horama/captures" }, televerser }, scenes);
+    commenter: true, publier: async (adresse, corps) => (posted.push(corps), { status: "publie", url: "u" }), captures: { depot: "o/clone", branche: "horama/captures" }, televerser,
+    indexer: async (args) => (indexed.push(args), { url: "https://raw.githubusercontent.com/o/clone/horama/captures/index.json", passages: 1 }) }, scenes);
   assert.deepEqual(sent.map(({ depot, branche, chemin, fichier }) => [depot, branche, chemin, fichier]), [["o/clone", "horama/captures", "pr-14/0b4112f/accueil--controle--1.png", join(vault, anneau)]]);
   assert.deepEqual(report.captures, { branche: "horama/captures", poussees: 1 });
   assert.match(posted[0], /- \/ : Le texte dépasse la boîte de son conteneur\. .*décision : bug\)\n\n  !\[\/ : Le texte dépasse la boîte de son conteneur\.\]\(https:\/\/raw\.githubusercontent\.com\/o\/clone\/c0mmit\/pr-14\/0b4112f\/accueil--controle--1\.png\)/);
   // The finding without a capture ringed stays in text.
   assert.equal((posted[0].match(/!\[/g) ?? []).length, 1);
   assert.doesNotMatch(posted[0], /texte seul/);
+  // The index of the passages, after the answer: on the branch of the captures, with the address of the answer.
+  assert.deepEqual(indexed.map(({ depot, branche, entree }) => [depot, branche, entree.pr.numero, entree.reponse, entree.constats.length]), [["o/clone", "horama/captures", 14, "u", 2]]);
+  assert.equal(report.index.passages, 1);
+});
+
+// The index of the passages (#149): one entry per PR and commit, built from scene.json and the wake-up; published as
+// index.json on the public branch of the captures, the same PR and commit replaced, the latest first.
+test("index des passages : entrée d'un passage, publiée sur la branche des captures", async () => {
+  const pr = { numero: 16, adresse: "https://github.com/o/clone/pull/16", titre: "Allemand", tete: "998767b0000", previsualisation: "https://p.vercel.app" };
+  const scene = { passage_id: "2026-11-19-10h55-4163",
+    decisions: [{ fichier: "x", decision: { ecart_id: "accueil--controle--1", decision: "bug", par: "Nathan", le: "2026-11-19T10:00:00Z" } }],
+    commentaire: { elements: { totaux: { defauts: 1, doutes: 1, pages_visitees: 8 },
+      prouves: [{ id: "accueil--controle--1", chemin: "/", texte: "Le texte dépasse la boîte de son conteneur.", preuve: "Mesuré : 158×35 > 120×35.", zone: { x: 32, y: 432, largeur: 120, hauteur: 35 } }],
+      doutes: [{ id: "admissions--holo--1", chemin: "/admissions", texte: "Un texte semble coupé.", zone: null }] } } };
+  const report = { recu_le: "2026-11-19T10:55:10Z", commentaire: { status: "publie", url: "https://github.com/o/clone/pull/16#issuecomment-1" }, exploration: { etat: "termine" } };
+  const entree = entreeIndex({ pr, logiciel: "eugenia-clone", report, scene, images: { "accueil--controle--1": "https://raw.githubusercontent.com/o/clone/c1/pr-16/998767b/accueil--controle--1.png" } });
+  assert.equal(entree.passage, "2026-11-19-10h55-4163");
+  assert.deepEqual(entree.pr, { numero: 16, adresse: pr.adresse, titre: "Allemand" });
+  assert.equal(entree.reponse, report.commentaire.url);
+  assert.deepEqual(entree.constats.map(({ id, statut, capture, decision }) => [id, statut, Boolean(capture), decision?.choix ?? null]),
+    [["accueil--controle--1", "VERIFIED_FAIL", true, "bug"], ["admissions--holo--1", "SUSPECTED", false, null]]);
+
+  // An index already there with an older passage and the same PR and commit played before: replaced, the latest first.
+  const old = { format: "horama-passages-1", depot: "o/clone", passages: [{ pr: { numero: 16 }, commit: "998767b0000", date: "2026-11-19T09:00:00Z" }, { pr: { numero: 14 }, commit: "aaa", date: "2026-11-18T09:00:00Z" }] };
+  const calls = [];
+  const fake = async ([method, path], body) => {
+    calls.push([method, path, body]);
+    if (method === "GET") return { sha: "s0", content: Buffer.from(JSON.stringify(old)).toString("base64") };
+    return { commit: { sha: "c2" } };
+  };
+  const sent = await publierIndex({ depot: "o/clone", branche: "horama/captures", entree }, fake);
+  assert.deepEqual(sent, { url: "https://raw.githubusercontent.com/o/clone/horama/captures/index.json", commit: "c2", passages: 2 });
+  assert.deepEqual(calls.map(([method, path]) => `${method} ${path}`), ["GET repos/o/clone/contents/index.json?ref=horama%2Fcaptures", "PUT repos/o/clone/contents/index.json"]);
+  const written = JSON.parse(Buffer.from(calls[1][2].content, "base64").toString("utf8"));
+  assert.equal(calls[1][2].sha, "s0");
+  assert.deepEqual(written.passages.map(({ pr: { numero }, date }) => [numero, date]), [[16, "2026-11-19T10:55:10Z"], [14, "2026-11-18T09:00:00Z"]]);
+  // No index yet: a new one.
+  const fresh = await publierIndex({ depot: "o/clone", branche: "horama/captures", entree }, async ([method]) => (method === "GET" ? null : { commit: { sha: "c3" } }));
+  assert.equal(fresh.passages, 1);
+  // GitHub refuses: a reason, never a throw.
+  assert.ok((await publierIndex({ depot: "o/clone", branche: "b", entree }, async () => { throw new Error("HTTP 403"); })).raison);
 });
