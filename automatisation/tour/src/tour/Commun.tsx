@@ -99,7 +99,7 @@ export const dateCourte = (iso: string) => {
 export const dureeCout = (duree: number | null, cout: number | null) =>
   [duree !== null ? `${Math.floor(duree / 60)} min ${String(Math.round(duree % 60)).padStart(2, "0")} s` : null, cout !== null ? `${cout.toFixed(2).replace(".", ",")} $` : null].filter(Boolean).join(" · ") || "non publiés";
 
-// The capture of a finding, its zone in view. Entry by a PR: the capture was ringed by the scene. Entry by an address: the
+// The capture of a finding, its zone in view. Mode développeur: the capture was ringed by the scene. Grand public: the
 // raw capture, and the sign of the charter drawn here on its zone (a stroke of miltos, or ochre dots).
 export function Capture({ constat }: { constat: Constat }) {
   const box = useRef<HTMLDivElement>(null);

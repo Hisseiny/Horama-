@@ -1,6 +1,6 @@
 // 11.4 Rapport de passage, on real data only: the figures of one passage, the table of its findings, then each finding on
-// its capture with the sign of the charter. Links to the PR and to the answer of Horama (entry by a PR), or to the
-// page of report of the service (entry by an address).
+// its capture with the sign of the charter. Links to the PR and to the answer of Horama (mode développeur), or to the
+// page of report of the service (grand public).
 import "../../interface/screen-11-4/styles.css";
 import "./tour.css";
 import type { Chargement } from "../donnees";
