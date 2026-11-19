@@ -69,7 +69,7 @@ function readingInstruction(dimensions?: { page: number; viewport: number }): st
   const distance = dimensions ? dimensions.page - dimensions.viewport : null;
   const count = distance === null ? null : distance < 100 ? 0 : Math.min(5, Math.ceil(distance / 450));
   if (count === 0) return "Sur cette page : 0 défilement utile, ne défile pas. Fais un geste de visiteur facultatif si un contrôle est visible, jamais un formulaire ni une connexion. Pour changer de page, clique un lien utile visible ; sinon utilise le recours go_to prévu. Ne répète pas la lecture déjà faite sur la page courante.";
-  return (count === null ? "" : `Sur cette page : fais exactement ${count} petits défilements utiles de 450 px vers le bas. `) + `Après relever, sur CHAQUE page (départ, clic ou adresse), seulement s'il reste des pages à relever : ${count === null ? "fais au plus 5" : `fais ${count}`} petits scroll_web vers le bas (direction down, num_pixels environ 450, soit une demi-hauteur d'écran, scroll_element null). Arrête ces petits pas dès le bas atteint ou si la page ne bouge plus. Si le bas reste hors vue, fais ensuite UN seul grand scroll_web jusqu'en bas (direction down, num_pixels 100000). Fais ensuite UN geste de visiteur facultatif si la page en propose un visible : menu déroulant, accordéon, onglet ou question FAQ, jamais un formulaire ni une connexion. N'ajoute pas de scrolls pour chercher un contrôle. Pour changer de page, cherche d'abord un lien utile visible là où tu es (menu fixe, corps ou pied de page). Seulement si aucun lien utile n'est visible, remonte en 2 ou 3 scroll_web moyens au plus (direction up, num_pixels environ 900, scroll_element null). Jamais de grand scroll vers le haut pour retrouver le menu. Aucun aller-retour supplémentaire, ni répétition à une extrémité sans déplacement. Ne répète pas la lecture déjà faite sur la page courante.`;
+  return (count === null ? "" : `Sur cette page : fais exactement ${count} ${count === 1 ? "petit défilement utile" : "petits défilements utiles"} de 450 px vers le bas. `) + `Après relever, sur CHAQUE page (départ, clic ou adresse), seulement s'il reste des pages à relever : ${count === null ? "fais au plus 5" : `fais ${count}`} ${count === 1 ? "petit" : "petits"} scroll_web vers le bas (direction down, num_pixels environ 450, soit une demi-hauteur d'écran, scroll_element null). Arrête ces petits pas dès le bas atteint ou si la page ne bouge plus. Si le bas reste hors vue, fais ensuite UN seul grand scroll_web jusqu'en bas (direction down, num_pixels 100000). Fais ensuite UN geste de visiteur facultatif si la page en propose un visible : menu déroulant, accordéon, onglet ou question FAQ, jamais un formulaire ni une connexion. N'ajoute pas de scrolls pour chercher un contrôle. Pour changer de page, cherche d'abord un lien utile visible là où tu es (menu fixe, corps ou pied de page). Seulement si aucun lien utile n'est visible, remonte en 2 ou 3 scroll_web moyens au plus (direction up, num_pixels environ 900, scroll_element null). Jamais de grand scroll vers le haut pour retrouver le menu. Aucun aller-retour supplémentaire, ni répétition à une extrémité sans déplacement. Ne répète pas la lecture déjà faite sur la page courante.`;
 }
 
 const pathOf = (address: string) => { const parsed = new URL(address); return parsed.pathname + parsed.search; };
@@ -535,7 +535,11 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
               result = { id: running?.id ?? "", muted: false, cout_usd: null, etapes: 0, erreur: "La session a été interrompue." };
             } finally {
               try { await stopActive(); await running?.confirmStopped?.(); }
-              catch { closeFailed = true; finalizationFailure = "La fermeture de la session n'a pas pu être confirmée."; agent.raison = finalizationFailure; }
+              catch {
+                closeFailed = true;
+                agent.raison = "La fermeture de la session n'a pas pu être confirmée.";
+                if (!autoCompleted || pages.some(page => page.etat !== "visitee")) finalizationFailure = agent.raison;
+              }
             }
             totalCost = totalCost === null || result.cout_usd === null ? null : totalCost + result.cout_usd;
             steps += result.etapes;
@@ -549,7 +553,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
               for (const page of remaining) page.raison ??= signal?.aborted ? "Le passage a été annulé."
                 : closeFailed ? "Page non atteinte : la fermeture de la session précédente n'est pas confirmée."
                 : "Page non atteinte après deux sessions (budget d'étapes ou erreur).";
-              if (!remaining.length && !closeFailed) {
+              if (!remaining.length && (!closeFailed || (autoCompleted && pages.every(page => page.etat === "visitee")))) {
                 const { erreur: _erreur, ...visited } = result;
                 return { ...visited, muted: false, cout_usd: totalCost, etapes: steps };
               }

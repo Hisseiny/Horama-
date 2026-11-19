@@ -84,7 +84,7 @@ async function run({ png = original, skip = "", refuse = false, failure = false,
   return { result, base, responses };
 }
 
-for (const measurement of [{ page: 966, viewport: 900 }, { page: 3000, viewport: 900 }, null, "error"]) {
+for (const measurement of [{ page: 966, viewport: 900 }, { page: 1200, viewport: 900 }, { page: 3000, viewport: 900 }, null, "error"]) {
   test(`lecture ajustée aux dimensions CDP : ${JSON.stringify(measurement)}`, async () => {
     const { responses } = await run({ deps: {
       connecter: async () => ({ on() {}, close() {}, send: async (_method, params) => {
@@ -96,7 +96,8 @@ for (const measurement of [{ page: 966, viewport: 900 }, { page: 3000, viewport:
       } }),
     } });
     if (measurement && typeof measurement === "object") {
-      assert.match(responses[0], measurement.page === 966 ? /0 défilement utile, ne défile pas/ : /exactement 5 petits défilements utiles/);
+      assert.match(responses[0], measurement.page === 966 ? /0 défilement utile, ne défile pas/ : measurement.page === 1200 ? /exactement 1 petit défilement utile/ : /exactement 5 petits défilements utiles/);
+      if (measurement.page === 1200) assert.match(responses[0], /fais 1 petit scroll_web/);
       if (measurement.page === 966) assert.doesNotMatch(responses[0], /fais ensuite UN seul grand scroll_web|remonte en 2 ou 3/);
     } else assert.match(responses[0], /au plus 5 petits scroll_web/);
   });
@@ -123,11 +124,14 @@ for (const failClose of [false, true]) {
       runtime: { relever: async ecran => ({ png: original, texte: "Page", url_page: ecran === "accueil" ? "https://example.org/" : "https://example.org/faq", largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture" }), navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
     } });
     assert.equal(closed, true);
-    assert.equal(result.etat, failClose ? "interrompu" : "fini");
-    assert.equal(result.agents[0].etat, failClose ? "tombe" : "fini");
+    assert.equal(result.etat, "fini");
+    assert.equal(result.agents[0].etat, "fini");
+    assert.ok(result.pages.every(page => page.etat === "visitee"));
+    if (failClose) assert.match(result.agents[0].raison!, /fermeture.*confirmée/);
     const saved = JSON.parse(readFileSync(join(root, "out", "exploration.json"), "utf8"));
     assert.equal(saved.etat, result.etat);
     assert.equal(saved.agents[0].etat, result.agents[0].etat);
+    if (failClose) assert.match(saved.agents[0].raison, /fermeture.*confirmée/);
   });
 }
 
