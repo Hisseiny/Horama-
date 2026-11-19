@@ -40,7 +40,7 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
 <script>const few = document.getElementById("few"), range = document.createRange(); range.selectNodeContents(few); few.style.width = (range.getBoundingClientRect().width - 2) + "px"; const border = document.getElementById("border"); range.selectNodeContents(border); border.style.width = (range.getBoundingClientRect().width - 7) + "px";</script></body>`);
     } else if (request.url === "/intercepted") {
       response.setHeader("Content-Type", "text/html; charset=utf-8");
-      response.end(`<!doctype html><meta charset="utf-8"><main><a href="/popin-gone" onclick="event.preventDefault()">Ouvrir la fenêtre</a><a href="/gone">Page supprimée</a><a href="/new-gone" target="_blank">Nouvel onglet</a></main>
+      response.end(`<!doctype html><meta charset="utf-8"><main><a href="/popin-gone" style="display:none">Lien masqué</a><a href="/popin-gone" onclick="event.preventDefault()">Ouvrir la fenêtre</a><a href="/gone">Page supprimée</a><a href="/new-gone" target="_blank">Nouvel onglet</a></main>
 <script>document.addEventListener("click", event => { if (event.target.closest('a[href="/delegated-gone"]')) event.preventDefault(); });</script><main><a href="/delegated-gone">Délégué</a></main>`);
     } else if (request.url === "/many") {
       const links = (from: number, to: number) => Array.from({ length: to - from }, (_, i) => `<a href="/ok-${from + i}">Lien ${from + i}</a>`).join("");

@@ -222,17 +222,25 @@ export async function verifierClics(port: number, pageUrl: string, urls: string[
     await tab("Fetch.enable", { patterns: [{ urlPattern: "*", resourceType: "Document", requestStage: "Request" }] });
     for (const url of urls) {
       if (deadline - Date.now() < attenteMs) break;
-      requested.length = 0;
-      const clicked = await tab("Runtime.evaluate", { returnByValue: true, expression: `(() => {
-        const strip = address => { const url = new URL(address, location.href); url.hash = ""; return url.href; };
-        const link = [...document.querySelectorAll("a[href]")].find(link => URL.canParse(link.href) && strip(link.href) === ${JSON.stringify(url)});
-        link?.click();
-        return !!link;
-      })()` });
-      if (clicked.result?.value !== true) { results.set(url, "introuvable"); continue; }
-      const end = Math.min(deadline, Date.now() + attenteMs);
-      while (Date.now() < end && !requested.length) await wait(100);
-      results.set(url, requested.some(address => strip(address) === url) ? "navigue" : "intercepte");
+      // Every visible link to the address must lead there: a hidden twin that navigates proves nothing for the link a visitor sees.
+      const count = await tab("Runtime.evaluate", { returnByValue: true, expression: `(globalThis.__horamaLinks = [...document.querySelectorAll("a[href]")].filter(link => {
+        if (!URL.canParse(link.href)) return false;
+        const url = new URL(link.href); url.hash = "";
+        const style = getComputedStyle(link);
+        return url.href === ${JSON.stringify(url)} && link.getClientRects().length > 0 && style.visibility !== "hidden" && style.display !== "none";
+      }).slice(0, 5)).length` });
+      const links = Number(count.result?.value) || 0;
+      if (!links) { results.set(url, "introuvable"); continue; }
+      let outcome: IssueClic = "navigue";
+      for (let index = 0; index < links && outcome === "navigue"; index++) {
+        if (deadline - Date.now() < attenteMs) { outcome = "introuvable"; break; }
+        requested.length = 0;
+        await tab("Runtime.evaluate", { expression: `globalThis.__horamaLinks[${index}]?.click()` });
+        const end = Math.min(deadline, Date.now() + attenteMs);
+        while (Date.now() < end && !requested.length) await wait(100);
+        if (!requested.some(address => strip(address) === url)) outcome = "intercepte";
+      }
+      results.set(url, outcome);
     }
     await send("Target.disposeBrowserContext", { browserContextId }).catch(() => {});
   } finally { socket.close(); }
