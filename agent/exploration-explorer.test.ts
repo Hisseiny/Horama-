@@ -519,6 +519,10 @@ test("URL courante : réécriture, refus hors liste et repli illisible", async (
   const logs: string[] = [];
   const { result } = await run({ deps: {
     urlCourante: async () => address,
+    connecter: async () => ({ on() {}, close() {}, async send(method) {
+      if (method === "Page.navigate") throw new Error("CDP fermé");
+      return { result: { value: 200 } };
+    } }),
     log: message => logs.push(message),
     runtime: { relever: async () => ({ png: original, texte: "Page", url_page: address ?? "https://example.org/", largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture" }), navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
     session: async input => {
@@ -540,6 +544,8 @@ test("URL courante : réécriture, refus hors liste et repli illisible", async (
   assert.match(messages[0], /1\/2 pages relevées/);
   assert.match(messages[1], /n'est pas dans la liste.*go_to/);
   assert.match(messages[2], /^Tu étais sorti du site \(https:\/\/outside.example\/\) : cette page n'est ni relevée ni contrôlée/);
+  assert.match(messages[2], /Ouvre https:\/\/example.org\/faq\/\?x=1 avec go_to ; reste sur https:\/\/example.org\./);
+  assert.doesNotMatch(messages[2], /Tu es ramené/);
   assert.ok(logs.some(line => line.includes("Sortie du site : https://outside.example/")));
   assert.equal(result.navigation.sorties, 1);
   assert.equal(result.pages[1].capture !== null, true);
@@ -1080,7 +1086,7 @@ test("lien de menu vers une autre origine : H ramené sur le site, rien relevé 
   assert.match(messages[0], /faq \(\/faq\) : « Questions », « Aide » \(menu replié\)/);
   assert.doesNotMatch(messages[0], /FAQ partenaires/);
   assert.deepEqual(navigations, [["https://partners.example.org/", "https://example.org/"]]);
-  assert.match(messages[1], /^Tu étais sorti du site \(https:\/\/partners.example.org\/\) : cette page n'est ni relevée ni contrôlée. Tu es ramené sur https:\/\/example.org\/ ; reste sur https:\/\/example.org\./);
+  assert.match(messages[1], /^Tu étais sorti du site \(https:\/\/partners.example.org\/\) : cette page n'est ni relevée ni contrôlée. Tu es ramené sur https:\/\/example.org\/ : appelle wait_web pour voir la page avant d'agir ; reste sur https:\/\/example.org\./);
   assert.match(messages[2], /Tous les relevés/);
   assert.ok(logs.includes("Sortie du site : https://partners.example.org/ ; retour sur https://example.org/."));
   assert.equal(result.etat, "fini");

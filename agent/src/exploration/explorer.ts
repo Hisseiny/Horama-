@@ -230,11 +230,13 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
     const target = lastOnSite ?? pages[0].url;
     navigation.sorties++;
     log(`Sortie du site : ${address} ; retour sur ${target}.`);
-    let client: ExplorationCdp | undefined;
-    try { client = await (deps.connecter ?? connecterCdp)(port, address); await client.send("Page.navigate", { url: target }); }
+    let client: ExplorationCdp | undefined, back = false;
+    try { client = await (deps.connecter ?? connecterCdp)(port, address); await client.send("Page.navigate", { url: target }); back = true; }
     catch { log(`Retour sur le site impossible depuis ${address}.`); }
     finally { client?.close(); }
-    offSiteNote = `Tu étais sorti du site (${address}) : cette page n'est ni relevée ni contrôlée. Tu es ramené sur ${target} ; reste sur ${new URL(pages[0].url).origin}.`;
+    offSiteNote = `Tu étais sorti du site (${address}) : cette page n'est ni relevée ni contrôlée. ${back
+      ? `Tu es ramené sur ${target} : appelle wait_web pour voir la page avant d'agir`
+      : `Ouvre ${target} avec go_to`} ; reste sur ${new URL(pages[0].url).origin}.`;
   };
   const linkHints = (targets: ExplorationPage[]) => {
     const lines = targets.flatMap(page => {
