@@ -135,6 +135,49 @@ for (const failClose of [false, true]) {
   });
 }
 
+for (const failure of ["base", "rapport"]) {
+  test(`fin autonome : échec de sauvegarde finale ${failure} après le dernier relevé`, async () => {
+    const base = new BaseMemoire();
+    let closed = false, writes = 0;
+    base.terminerPassage = async report => {
+      writes++;
+      if (failure === "base") throw new Error("Base indisponible");
+      base.rapports.set(report.passage.id, structuredClone(report));
+    };
+    const { result } = await run({ site: "persistence", deps: {
+      base,
+      session: async input => {
+        await input.onCreated("persistence");
+        let resolveStop!: () => void;
+        const stopped = new Promise<void>(resolve => { resolveStop = resolve; });
+        return { id: "persistence", stop: async () => { closed = true; resolveStop(); },
+          confirmStopped: async () => {
+            if (failure === "rapport") {
+              const folder = join(root, "vault", "persistence");
+              mkdirSync(folder, { recursive: true });
+              writeFileSync(join(folder, "passages"), "Écriture du rapport bloquée");
+            }
+          },
+          fin: (async () => {
+            for (const step of input.consigne.course) await input.onTool("relever", { ecran: step.ecran, vue: "defaut" });
+            await stopped;
+            return { id: "persistence", muted: false, cout_usd: 0, etapes: 2 };
+          })() };
+      },
+      runtime: { relever: async ecran => ({ png: original, texte: "Page", url_page: ecran === "accueil" ? "https://example.org/" : "https://example.org/faq", largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture" }), navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
+    } });
+    assert.equal(closed, true);
+    assert.equal(writes, 1);
+    assert.ok(result.pages.every(page => page.etat === "visitee"));
+    assert.equal(result.etat, "interrompu");
+    assert.equal(result.agents[0].etat, "tombe");
+    assert.match(result.agents[0].raison!, failure === "base" ? /sauvegarde finale/ : /rapport final/);
+    const saved = JSON.parse(readFileSync(join(root, "out", "exploration.json"), "utf8"));
+    assert.equal(saved.etat, "interrompu");
+    assert.equal(saved.agents[0].etat, "tombe");
+  });
+}
+
 test("fin autonome : plafond pendant la fermeture sans résolution de fin au stop", async () => {
   const controller = new AbortController();
   let stopped = false;

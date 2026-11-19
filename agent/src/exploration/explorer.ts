@@ -325,6 +325,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
       ecarts_visuels: findings.flatMap(item => (item.source !== "controle" || (item.statut === "SUSPECTED" && item.capture === `captures/${page.ecran}.png`)) && !item.explique_par && item.zone && (item.statut === "PASS" || item.statut === "SUSPECTED") ? [{ id: item.id, ecran: item.ecran, vue: item.vue, description: item.description, zone: item.zone, statut: item.statut, ...(item.decision_id ? { decision_id: item.decision_id } : {}) }] : []),
       captures: page.capture?.url ? [page.capture.url] : [], ...(replayUrl ? { replay_url: replayUrl } : {}), ...(reason ? { raison: reason } : {}) };
   };
+  let finalizationFailure: string | null = null;
   const wrapped: BasePassages = {
     async insererPassage(passage) { await base.insererPassage(passage); save(); },
     async insererEvenement(event) { agent.session_id = event.session_id; agent.etat = "en_cours"; save(); await base.insererEvenement(event); },
@@ -346,14 +347,18 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
     },
     async enregistrerResultat(result) { await base.enregistrerResultat(result); save(); },
     async terminerPassage(result) {
-      await base.terminerPassage(result);
-      const costs = [...report.agents.flatMap(item => item.cout_usd === null ? [] : [item.cout_usd]),
-        ...report.pages.flatMap(page => page.holo?.cout_usd == null ? [] : [page.holo.cout_usd])];
-      report.cout_usd = report.agents.some(item => item.cout_usd === null) ? null : costs.length ? costs.reduce((sum, cost) => sum + cost, 0) : null; save();
+      try {
+        await base.terminerPassage(result);
+        const costs = [...report.agents.flatMap(item => item.cout_usd === null ? [] : [item.cout_usd]),
+          ...report.pages.flatMap(page => page.holo?.cout_usd == null ? [] : [page.holo.cout_usd])];
+        report.cout_usd = report.agents.some(item => item.cout_usd === null) ? null : costs.length ? costs.reduce((sum, cost) => sum + cost, 0) : null; save();
+      } catch (error) {
+        finalizationFailure = "La sauvegarde finale du passage a échoué.";
+        throw error;
+      }
     },
   };
   const returned = { ...report, navigation };
-  let finalizationFailure: string | null = null;
   let autoCompleted = false;
   try {
     if (blocage) {
@@ -584,7 +589,11 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
             if (owner.replay_url) test.replay_url = owner.replay_url;
           }
         }
-        return ecrireRapportPassage(target, passage, results);
+        try { return ecrireRapportPassage(target, passage, results); }
+        catch (error) {
+          finalizationFailure = "L'écriture du rapport final dans le vault a échoué.";
+          throw error;
+        }
       },
       relever: (ecran, vue, hookSignal) => diagnosticReleve(ecran, async () => {
         const page = pages.find(page => page.ecran === ecran);
