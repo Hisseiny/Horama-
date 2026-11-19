@@ -126,7 +126,6 @@ export function createTourService({ env = process.env, now, readJson, runtimeDat
     try {
       const result = await github.updateIndex(index => recordDecision(index, body, account.name, now));
       if (result.status === 404) return send(404, { erreur: "Passage ou constat introuvable." });
-      if (result.note) await github.createDecisionNote(result.note.id, result.note.content);
       if (result.status === 409) return send(409, { erreur: "Ce constat a déjà été tranché." });
       return send(200, { decision: result.verdict.decision, par: result.verdict.par, le: result.verdict.le });
     } catch {

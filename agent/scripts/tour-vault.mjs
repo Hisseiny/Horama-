@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { FRONT_MATTER, splitFrontMatter, yamlScalar } from "../../memoire/src/files.ts";
 
 export function recordDecision(index, { passage: key, constat, decision }, name, now) {
@@ -7,33 +6,11 @@ export function recordDecision(index, { passage: key, constat, decision }, name,
   const finding = entry?.constats?.find(item => item.id === constat);
   if (!finding) return { changed: false, value: { status: 404 } };
   const previous = finding.decision;
-  const verdict = previous ?? { choix: decision, decision, par: name, le: new Date(now()).toISOString() };
-  if (!previous) {
-    finding.decision = verdict;
-    index.maj = verdict.le;
-  }
-  // Earlier decisions came from the scene and already have their own vault notes.
-  const note = verdict.decision ? decisionNote(entry, finding, passage, verdict) : null;
-  return { changed: !previous, value: { status: previous ? 409 : 200, verdict, note } };
-}
-
-function decisionNote(entry, finding, passage, verdict) {
-  const id = "tour-" + createHash("sha256").update(JSON.stringify([passage, finding.id])).digest("hex").slice(0, 32);
-  const screen = finding.ecran ?? finding.id.split("--")[0];
-  const data = {
-    id, passage_id: passage, test_id: finding.test_id ?? `exploration--${screen}`, ecart_id: finding.id,
-    decision: verdict.decision, logiciel: "eugenia-clone", ecran: screen, vue: "defaut",
-    ecart: finding.texte ?? finding.id, zone: finding.zone ?? undefined, version: String(entry.version ?? entry.commit),
-    portee: "cet ecart, cet ecran, cette version", par: verdict.par, le: verdict.le,
-  };
-  const content = [
-    "---", `date: ${yamlScalar(data.le.slice(0, 10))}`, `version: ${yamlScalar(data.version)}`,
-    `ecran: ${yamlScalar(data.ecran)}`, `vue: ${data.vue}`, `par: ${yamlScalar(data.par)}`,
-    `decision: ${data.decision}`, "---", "",
-    `Écart : ${data.ecart.replace(/\s+/g, " ")}`, `Décision : ${data.decision}`,
-    "", "```decision", JSON.stringify(data, null, 2), "```", "",
-  ].join("\n");
-  return { id, content };
+  if (previous) return { changed: false, value: { status: 409, verdict: previous } };
+  const verdict = { choix: decision, decision, par: name, le: new Date(now()).toISOString() };
+  finding.decision = verdict;
+  index.maj = verdict.le;
+  return { changed: true, value: { status: 200, verdict } };
 }
 
 const taskSection = /^## Task[ \t]*\n[\s\S]*?(?=^## Expected Result[ \t]*$)/m;

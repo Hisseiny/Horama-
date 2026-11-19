@@ -130,9 +130,12 @@ deux dépôts spécifiés dans [#238](https://github.com/Hisseiny/Horama-/issues
   visitées, défauts et doutes. Les mesures indisponibles valent `null`. Sans
   `GITHUB_TOKEN_TOUR`, la route répond `503` avec la raison, les explorations et
   l'état de l'agent ; la tour passe alors par son repli GitHub.
-- `POST /tour/decision` enregistre le choix dans l'index, puis sa note dans le
-  vault. Chaque écriture produit son propre commit. Après un `503`, rejouer la
-  demande. Si l'index avait été écrit, la note est complétée avant le `409`.
+- `POST /tour/decision` enregistre le choix (`choix`, `decision`, `par`, `le`)
+  seulement dans l'entrée du passage de `index.json`, branche `horama/captures`
+  du clone : un commit par décision, relu et réessayé si le SHA a changé.
+  Aucune note n'est écrite dans le vault (décision de Nathan sur #238). `409` si
+  le constat est déjà tranché, `404` s'il est inconnu, `503` (à rejouer) si
+  GitHub ne répond pas.
 - `POST /tour/test` prend l'identifiant du test comme valeur de `test`.
   Pour `modifier`, fournir au moins une section (`task` ou `verification`),
   avec son contenu Markdown. Le test modifié est accepté.

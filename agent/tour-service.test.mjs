@@ -195,7 +195,7 @@ test("public tour data reads the vault from horama/vault once that branch exists
   assert.equal(vaultReads.length, 1);
 });
 
-test("decisions retry a changed SHA, preserve concurrent index updates and write one note", async t => {
+test("decisions retry a changed SHA, preserve concurrent index updates and write only index.json", async t => {
   const { post, request, session, state } = await setup(t);
   const token = await session();
   await (await request("/tour/donnees")).json();
@@ -216,26 +216,20 @@ test("decisions retry a changed SHA, preserve concurrent index updates and write
   assert.deepEqual(snapshot.index.passages[0].constats[0].decision, {
     choix: "voulu", decision: "voulu", par: name, le: "2026-11-19T16:00:00.000Z",
   });
-  const note = [...state.notes.values()][0];
-  const noteBody = JSON.parse(/```decision\n([\s\S]+?)\n```/.exec(note)[1]);
-  assert.equal(noteBody.ecart_id, payload.constat);
-  assert.equal(noteBody.passage_id, "passage-essai");
-  assert.equal(noteBody.decision, "voulu");
+  assert.equal(snapshot.index.maj, "2026-11-19T16:00:00.000Z");
   assert.equal((await post("/tour/decision", { ...payload, decision: "bug" }, token)).status, 409);
-  assert.equal(state.writes.length, 2);
+  assert.deepEqual(state.writes, [githubIndex]);
+  assert.equal(state.notes.size, 0);
+  assert.ok(state.calls.every(([method, route]) => method === "GET" || route === githubIndex));
 });
 
-test("a repeated decision repairs a failed vault write without changing the recorded choice", async t => {
+test("an unknown passage or finding answers 404 without writing", async t => {
   const { post, session, state } = await setup(t);
   const token = await session();
-  state.beforeWrite = route => route.startsWith(notePath) ? 503 : undefined;
-  assert.equal((await post("/tour/decision", payload, token)).status, 503);
-  assert.equal(state.writes.length, 1);
-  state.beforeWrite = () => undefined;
-  assert.equal((await post("/tour/decision", { ...payload, decision: "bug" }, token)).status, 409);
-  assert.equal(state.index.passages[0].constats[0].decision.choix, "voulu");
-  assert.equal(state.writes.length, 2);
-  assert.equal(state.notes.size, 1);
+  assert.equal((await post("/tour/decision", { ...payload, passage: "inconnu" }, token)).status, 404);
+  assert.equal((await post("/tour/decision", { ...payload, constat: "inconnu" }, token)).status, 404);
+  assert.equal((await post("/tour/decision", { ...payload, decision: "peut-etre" }, token)).status, 400);
+  assert.deepEqual(state.writes, []);
 });
 
 test("simultaneous choices have one winner and existing scene decisions remain untouched", async t => {
@@ -243,11 +237,11 @@ test("simultaneous choices have one winner and existing scene decisions remain u
   const token = await session();
   const choices = await Promise.all([post("/tour/decision", payload, token), post("/tour/decision", { ...payload, decision: "bug" }, token)]);
   assert.deepEqual(choices.map(result => result.status).sort(), [200, 409]);
-  assert.equal(state.writes.length, 2);
+  assert.equal(state.writes.length, 1);
   const legacy = { ...finding(), id: "ancien", decision: { choix: "bug", par: "Nathan", le: "2026-11-18T20:00:00Z" } };
   state.index.passages[0].constats.push(legacy);
   assert.equal((await post("/tour/decision", { ...payload, constat: legacy.id }, token)).status, 409);
-  assert.equal(state.writes.length, 2);
+  assert.equal(state.writes.length, 1);
 });
 
 test("accepting, refusing and editing a vault test preserves unrelated fields and rules", async t => {

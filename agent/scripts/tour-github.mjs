@@ -114,13 +114,6 @@ export function createTourGitHub({ token, fetchGitHub = fetch, now }) {
         return { content: `${JSON.stringify(index, null, 2)}\n`, sha, value };
       });
     },
-    createDecisionNote(id, content) {
-      const file = { ...vault, path: `${vaultRoot}/decisions/${id}.md` };
-      return update(file, "Horama : note de décision de la tour", async () => {
-        if (await readFile(file, true)) return { value: undefined };
-        return { content };
-      });
-    },
     updateTest(id, edit) {
       const file = { ...vault, path: `${vaultRoot}/tests/${id}.md` };
       return update(file, `Horama : mise à jour du test ${id}`, async () => {
