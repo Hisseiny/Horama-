@@ -124,6 +124,35 @@ D'autres surfaces existent dans le dépôt. Ce sont des pages web et une extensi
 
 Le cadrage ne prévoit pas d'autre écran d'application que ces 7.
 
+**Écran manquant repéré (19/11) : un historique.** La fonctionnalité F35 du cadrage (« historique par écran et par règle : quand ça a cassé, qui a tranché ») n'a pas d'écran. Aujourd'hui, l'entrée « Passages & Rapports » ouvre directement un seul rapport : il n'y a pas de liste des passages, ni de journal des décisions. Les données existent déjà dans le vault, rangées par logiciel (`passages/` et `decisions/`).
+
+## Ce que fait chaque bouton
+
+Toutes les actions du prototype mènent quelque part (vérifié le 19/11 en cliquant chaque bouton de chaque écran). Les confirmations s'affichent dans une petite notification en bas de l'écran. Les décisions restent en mémoire tant que la page n'est pas rechargée.
+
+| Écran | Action | Ce qui se passe |
+|---|---|---|
+| 11.1 | « 3 règles sans test » | ouvre 11.2 |
+| 11.1 | une ligne « Défaut prouvé », « Ouvrir la relecture » | ouvre 11.6 |
+| 11.1 | une ligne d'« Écrans suivis » | ouvre 11.5 |
+| 11.2 | « Accepter le test » | « Test accepté, écrit dans le vault », puis ouvre 11.3 |
+| 11.2 | « Refuser » | « Test refusé : il ne sera pas joué », puis retour à 11.1 |
+| 11.2 | « Modifier » | les blocs Task et Verification deviennent éditables, « Enregistrer » confirme |
+| 11.2 | une réponse à la question | « Réponse enregistrée dans le vault », la ligne Verification se met à jour |
+| 11.3 | « Voir le rapport → » | ouvre 11.4 |
+| 11.4 | « Exporter au format H (.md) » | télécharge le rapport en Markdown |
+| 11.4 | ligne « Défaut prouvé » | ouvre 11.6 |
+| 11.4 | ligne « Suspect » ou « Conforme » | ouvre 11.5 |
+| 11.5 | « Côte à côte », « Rideau », « Pixels bruts » | change la vue |
+| 11.5 | « Écart 1 », « Écart 2 » | ouvre 11.6 |
+| 11.6 | « C'est un bug » | « Bug enregistré dans le vault », la carte se replie, les compteurs baissent |
+| 11.6 | « C'est voulu » | la décision est gardée, puis ouvre 11.7 pour corriger la doc |
+| 11.6 | tous les cas tranchés | « Tout est tranché. Horama ne reposera pas ces questions. » |
+| 11.7 | « Corriger la note et ouvrir la PR » ou « Laisser la note telle quelle » | confirmation, puis retour à 11.6 |
+| partout | liens « Replay » | ouvrent le hub de H Company dans un nouvel onglet (pas encore le vrai replay de la session) |
+
+Ce sont des confirmations simulées : le prototype n'écrit rien dans le vault et n'ouvre aucune vraie PR.
+
 ## Couleurs de la barre latérale
 
 En mode clair, la barre latérale est en Soleil clair `#FFE39A`, pour qu'on la distingue du fond et des cartes. En mode sombre, elle est en Encre `#1C1C1C`. Elle n'est jamais violette. Le détail est dans `barre-laterale.md`.
