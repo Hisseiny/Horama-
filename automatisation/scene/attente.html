@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Horama attend</title>
+<!-- The page of the Chrome of the scene while the wake-up waits for a pull request (S1, 19/11): instead of an empty
+     about:blank, the sky of the charter and the mascot getting ready. ?depot=<owner/repository> names what is watched. -->
+<style>
+  :root { --ciel: #E3E0F9; --soleil: #FFC93C; --encre: #1C1C1C; --encre-2: #5C5546; }
+  html, body { height: 100%; margin: 0; }
+  body { display: grid; place-items: center; background: var(--ciel); color: var(--encre); font: 500 18px/1.4 "Funnel Sans", system-ui, sans-serif; overflow: hidden; }
+  .astre { position: fixed; left: 50%; top: 58%; width: 520px; height: 520px; margin-left: -260px; border-radius: 50%; background: var(--soleil); border: 3px solid var(--encre); }
+  .scene { position: relative; text-align: center; }
+  img { width: 180px; height: 180px; animation: respire 2.4s ease-in-out infinite; }
+  p { margin: 18px 0 0; }
+  .depot { color: var(--encre-2); font: 500 15px ui-monospace, monospace; }
+  @keyframes respire { 50% { transform: translateY(-8px) scale(1.03); } }
+</style>
+</head>
+<body>
+  <div class="astre"></div>
+  <div class="scene">
+    <img src="../../docs/da/mascotte/observe.svg" alt="">
+    <p>Horama attend la prochaine pull request.</p>
+    <p class="depot" id="depot"></p>
+  </div>
+  <script>
+    const depot = new URLSearchParams(location.search).get("depot");
+    if (depot) document.getElementById("depot").textContent = depot;
+  </script>
+</body>
+</html>
