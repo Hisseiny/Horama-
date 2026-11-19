@@ -986,8 +986,8 @@
     if (held) replay();
     clearTimeout(moving);
     const to = { x: event.clientX, y: event.clientY };
-    // From where the arrow is now (it may be on its way after a move of the mouse of H); the first gesture of H shows it
-    // where it happens.
+    // From where the arrow is now (it may be on its way after a move of the mouse of H); the first gesture of H starts
+    // from the mascot (startOf), or where it happens without a mascot.
     const first = !state.geste;
     state.geste = true;
     const way = course(first ? startOf(to) : cursorAt ?? to, to);
