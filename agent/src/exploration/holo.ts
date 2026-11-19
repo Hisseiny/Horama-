@@ -66,7 +66,7 @@ export function filterFindings(findings: HoloFinding[], width: number, height: n
   for (const finding of findings) {
     if (finding.status === "INCONCLUSIVE") { kept.push(finding); continue; }
     const box = finding.zone;
-    if (box.y + box.hauteur >= height * 0.99 || box.x + box.largeur >= width * 0.99) continue;
+    if (box.y + box.hauteur >= height * 0.99 || box.x + box.largeur >= width * 0.99 || box.largeur < 4 || box.hauteur < 4) continue;
     const duplicate = kept.some(previous => {
       if (previous.status !== "SUSPECTED" || previous.kind !== finding.kind) return false;
       const other = previous.zone;
