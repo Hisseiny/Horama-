@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { aBlanc, aJouer, adresseCommentaireVercel, adresseControleVercel, ecarterLangue, impactDePr, jouerPr, langueDePage, lecteurGithub, ouverteSansConnexion, televerserCapture, entreeIndex, publierIndex } from "./pr.mjs";
+import { aBlanc, aJouer, adresseCommentaireVercel, adresseControleVercel, adresseTour, attendreDecisions, ecarterLangue, impactDePr, jouerPr, langueDePage, lecteurGithub, majEntreeIndex, ouverteSansConnexion, televerserCapture, entreeIndex, publierIndex } from "./pr.mjs";
 
 // A vault of trial: two screens of a site whose code we have, one test per screen.
 function vaultEssai(t) {
@@ -352,4 +352,99 @@ test("index des passages : entrée d'un passage, publiée sur la branche des cap
   }
   // GitHub refuses: a reason, never a throw.
   assert.ok((await publierIndex({ depot: "o/clone", branche: "b", entree }, async () => { throw new Error("HTTP 403"); })).raison);
+});
+
+// --trancher-dans-la-tour (#238): no question in the scene, the entry of the index first (duration and cost, no
+// decision), the tower opened on « À relire » of this passage, the decisions read back, then the answer with them and
+// only its address added to the index.
+test("--trancher-dans-la-tour : index d'abord, tour ouverte, décisions de la tour dans la réponse", async (t) => {
+  const vault = vaultEssai(t);
+  const sortie = mkdtempSync(join(tmpdir(), "horama-pr-sortie-"));
+  t.after(() => rmSync(sortie, { recursive: true, force: true }));
+  const item = (id) => ({ id, chemin: "/", texte: "Le texte dépasse la boîte de son conteneur.", preuve: null, zone: { x: 40, y: 209, largeur: 184, hauteur: 44 }, capture: null, anneau: null });
+  const elements = { adresse: "https://p.vercel.app", bilan: { aucune: false, nonVisitees: [] }, totaux: { pages_visitees: 2, pages_trouvees: 2 }, duree_s: 325.5, cout_usd: 0.1967, decisions: [],
+    prouves: [item("accueil--controle--1")], doutes: [item("programmes--holo--1")], dejaVoulus: [], note: "vault-horama/site-essai/passages/P9.md" };
+  const argsSeen = [];
+  const scenes = async (args) => {
+    argsSeen.push(args);
+    const out = args[args.indexOf("--sortie") + 1];
+    mkdirSync(out, { recursive: true });
+    if (args[0].endsWith("exploration.mjs")) writeFileSync(join(out, "scene.json"), JSON.stringify({ passage_id: "P9", commentaire: { corps: "texte seul", elements } }));
+  };
+  const order = [];
+  const indexed = [];
+  const opened = [];
+  const updated = [];
+  const settled = { pr: { numero: 19 }, commit: "1f5c03f0000", constats: [
+    { id: "accueil--controle--1", decision: { choix: "bug", par: "Équipe Horama", le: "2026-11-19T20:00:00Z" } },
+    { id: "programmes--holo--1", decision: { choix: "voulu", par: "Équipe Horama", le: "2026-11-19T20:00:05Z" } }] };
+  const report = await jouerPr({ pr: { numero: 19, adresse: "https://github.com/o/clone/pull/19", base: "b", tete: "1f5c03f0000", previsualisation: "https://p.vercel.app" }, fichiers: ["README.md"], vault, logiciel: "site-essai", sortie,
+    commenter: true, captures: { depot: "o/clone", branche: "horama/captures" }, televerser: async () => ({ raison: "pas d'anneau" }), tour: "https://horama-gold.vercel.app/tour/",
+    indexer: async (args) => (order.push("index"), indexed.push(args), { url: "https://raw.githubusercontent.com/o/clone/horama/captures/index.json", commit: "abc1234def", passages: 2 }),
+    ouvrir: async (adresse) => (order.push("tour"), opened.push(adresse)),
+    attendre: async ({ lire }) => (order.push("attente"), { entree: await lire(), complet: true, attendu_ms: 42 }),
+    lireEntree: async (where) => (assert.deepEqual(where, { depot: "o/clone", branche: "horama/captures", numero: 19, commit: "1f5c03f0000" }), settled),
+    majIndex: async (args) => (order.push("maj"), updated.push(args), { commit: "def" }),
+    publier: async (adresse, corps) => (order.push("reponse"), { status: "publie", url: "https://github.com/o/clone/pull/19#issuecomment-1", corps }) }, scenes);
+  // The scene is told to end in the tower, with the address of the tower.
+  const exploration = argsSeen.find((args) => args[0].endsWith("exploration.mjs"));
+  assert.deepEqual(exploration.slice(exploration.indexOf("--fin-dans-la-tour"), exploration.indexOf("--fin-dans-la-tour") + 3), ["--fin-dans-la-tour", "--tour", "https://horama-gold.vercel.app/tour/"]);
+  assert.deepEqual(order, ["index", "tour", "attente", "reponse", "maj"]);
+  // The entry published first: duration and cost, no decision, no answer yet.
+  const entry = indexed[0].entree;
+  assert.equal(entry.duree_s, 325.5);
+  assert.equal(entry.cout_usd, 0.1967);
+  assert.equal(entry.reponse, null);
+  assert.ok(entry.constats.every((constat) => constat.decision === null));
+  // The tower on « À relire » of this passage, the index read at the commit that wrote the entry.
+  assert.equal(opened[0], "https://horama-gold.vercel.app/tour/?index=abc1234def#relire/dev%3AP9");
+  // The answer carries the decisions of the tower; the index only gets the address of the answer.
+  assert.deepEqual(report.tour, { adresse: opened[0], complet: true, tranches: 2, cas: 2, attendu_ms: 42 });
+  assert.deepEqual(updated.map(({ numero, commit, champs }) => [numero, commit, champs]), [[19, "1f5c03f0000", { reponse: "https://github.com/o/clone/pull/19#issuecomment-1" }]]);
+  assert.equal(indexed.length, 1);
+});
+
+test("--trancher-dans-la-tour : au-delà de 10 min, la réponse part avec « à trancher »", async (t) => {
+  const vault = vaultEssai(t);
+  const sortie = mkdtempSync(join(tmpdir(), "horama-pr-sortie-"));
+  t.after(() => rmSync(sortie, { recursive: true, force: true }));
+  const item = (id) => ({ id, chemin: "/", texte: "Un texte semble coupé.", preuve: null, zone: null, capture: null, anneau: null });
+  const elements = { adresse: "https://p.vercel.app", bilan: { aucune: false, nonVisitees: [] }, totaux: { pages_visitees: 1, pages_trouvees: 1 }, decisions: [], prouves: [], doutes: [item("accueil--holo--1"), item("accueil--holo--2")], dejaVoulus: [], note: "n" };
+  const scenes = async (args) => {
+    const out = args[args.indexOf("--sortie") + 1];
+    mkdirSync(out, { recursive: true });
+    if (args[0].endsWith("exploration.mjs")) writeFileSync(join(out, "scene.json"), JSON.stringify({ passage_id: "P10", commentaire: { corps: "texte seul", elements } }));
+  };
+  const posted = [];
+  const half = { constats: [{ id: "accueil--holo--1", decision: { choix: "voulu", par: "Équipe Horama", le: "x" } }, { id: "accueil--holo--2", decision: null }] };
+  let clock = 0;
+  const report = await jouerPr({ pr: { numero: 19, adresse: "a", base: "b", tete: "1f5c03f0000", previsualisation: "https://p.vercel.app" }, fichiers: ["README.md"], vault, logiciel: "site-essai", sortie, sceneArgs: [],
+    commenter: true, captures: { depot: "o/clone", branche: "horama/captures" }, televerser: async () => ({ raison: "r" }), tour: "https://horama-gold.vercel.app/tour/",
+    indexer: async () => ({ url: "u", commit: "c", passages: 1 }), ouvrir: async () => {},
+    attendre: (options) => attendreDecisions({ ...options, pause: async (ms) => { clock += ms; }, maintenant: () => clock }),
+    lireEntree: async () => half, majIndex: async () => ({ commit: "d" }),
+    publier: async (adresse, corps) => (posted.push(corps), { status: "publie", url: "r" }) }, scenes);
+  assert.equal(report.tour.complet, false);
+  assert.equal(report.tour.tranches, 1);
+  assert.ok(report.tour.attendu_ms >= 600_000 && report.tour.attendu_ms < 606_000);
+  assert.match(posted[0], /Un texte semble coupé\. \(zone non mesurée, décision : voulu\)/);
+  assert.match(posted[0], /Un texte semble coupé\. \(zone non mesurée, décision : à trancher\)/);
+});
+
+test("tour : adresse du passage, et mise à jour de l'index qui garde les décisions écrites entre-temps", async () => {
+  assert.equal(adresseTour("https://horama-gold.vercel.app/tour/", "2026-11-19-20h00-ab12", "9f8e7d"), "https://horama-gold.vercel.app/tour/?index=9f8e7d#relire/dev%3A2026-11-19-20h00-ab12");
+  const index = { format: "horama-passages-1", passages: [{ pr: { numero: 19 }, commit: "c19", reponse: null, constats: [{ id: "x", decision: { choix: "bug", par: "Équipe Horama", le: "t" } }] }, { pr: { numero: 16 }, commit: "c16", reponse: "old" }] };
+  const calls = [];
+  const api = async ([method, path], body) => {
+    calls.push([method, path, body]);
+    if (method === "GET") return { sha: "s1", content: Buffer.from(JSON.stringify(index)).toString("base64") };
+    return { commit: { sha: "s2" } };
+  };
+  assert.deepEqual(await majEntreeIndex({ depot: "o/clone", branche: "horama/captures", numero: 19, commit: "c19", champs: { reponse: "R" } }, api), { commit: "s2" });
+  const written = JSON.parse(Buffer.from(calls[1][2].content, "base64").toString("utf8"));
+  assert.equal(written.passages[0].reponse, "R");
+  assert.deepEqual(written.passages[0].constats[0].decision, { choix: "bug", par: "Équipe Horama", le: "t" });
+  assert.equal(written.passages[1].reponse, "old");
+  assert.equal(calls[1][2].sha, "s1");
+  assert.deepEqual(await majEntreeIndex({ depot: "o/clone", branche: "horama/captures", numero: 7, commit: "c7", champs: {} }, api), { raison: "entrée absente de l'index" });
 });
