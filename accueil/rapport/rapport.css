@@ -26,6 +26,11 @@ h2 { font: 400 34px/1 var(--affiche); margin: 44px 0 8px; }
 .carte .ou { margin: 0 18px; font-size: 14.5px; }
 .carte .preuve { margin: 6px 18px 0; font: 500 13px/1.45 var(--mesure); color: var(--encre); overflow-wrap: anywhere; }
 .carte .preuve + .preuve { color: var(--encre-2); }
+.ticket { margin: 14px 18px 0; }
+.ticket label { display: block; margin-bottom: 8px; }
+.ticket button:disabled { opacity: .6; cursor: default; transform: none; }
+.ticket [role="status"]:empty { display: none; }
+.ticket textarea { box-sizing: border-box; width: 100%; min-height: 10em; }
 .capture { position: relative; overflow: hidden; background: var(--engobe-2); border-bottom: var(--trait) solid var(--encre); }
 .capture .vue { position: absolute; left: 0; right: 0; overflow: hidden; background: #fff; border-top: 2px solid var(--filet); border-bottom: 2px solid var(--filet); }
 .capture img { position: absolute; left: 0; top: 0; max-width: none; }

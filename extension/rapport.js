@@ -5,6 +5,7 @@
 // /direct on top, every 300 ms. Nothing here is particular to a site. The same file serves the page of welcome
 // (accueil/rapport/, copied by extension/copier-rapport.sh).
 import { poserDoute, tracerDefaut } from "./lib/trait.js";
+import { ticketMarkdown, writeTicket } from "./lib/ticket.mjs";
 
 const id = new URLSearchParams(location.search).get("id");
 const $ = (selector) => document.querySelector(selector);
@@ -14,6 +15,7 @@ const STATE = { a_visiter: "à visiter", en_cours: "en visite", visitee: "visit�
 // How the H agent reached the page, when the service says it (optional field arrivee of horama-exploration-1, #91).
 const ARRIVAL = { depart: "page de départ", clic: "atteinte par un clic de l'agent", adresse: "ouverte par son adresse" };
 const shown = new Set(); // ids of the findings already on the page
+let latestReport;
 const mascot = (etat) => poserMascotte($("#mascotte"), etat);
 
 // A capture on its sheet: the whole width of the page, a band of its height centred on the zone, the sign of the charter
@@ -56,6 +58,42 @@ function proofOf(constat) {
   return [];
 }
 
+function ticketActions(finding) {
+  const actions = element("div", "ticket");
+  const label = element("label");
+  const confirm = Object.assign(element("input"), { type: "checkbox" });
+  const copy = Object.assign(element("button", "bouton petit", "Copier le ticket"), { type: "button", disabled: true });
+  const status = element("p", "second");
+  status.setAttribute("role", "status");
+  const fallback = Object.assign(element("textarea"), { hidden: true, readOnly: true });
+  fallback.setAttribute("aria-label", "Ticket Markdown");
+  let decision = null;
+  label.append(confirm, " C'est un bug");
+  confirm.addEventListener("change", () => {
+    decision = confirm.checked ? { decision: "bug", ecart_id: finding.id, passage_id: latestReport.passage_id, le: new Date().toISOString() } : null;
+    copy.disabled = !decision;
+    status.textContent = "";
+    fallback.hidden = true;
+  });
+  copy.addEventListener("click", async () => {
+    const ticket = writeTicket({ report: latestReport, finding, decision });
+    if (!ticket) return;
+    const markdown = ticketMarkdown(ticket);
+    try {
+      await navigator.clipboard.writeText(markdown);
+      status.textContent = "Ticket copié.";
+      fallback.hidden = true;
+    } catch {
+      status.textContent = "Copie automatique impossible : copiez le texte ci-dessous.";
+      fallback.value = markdown;
+      fallback.hidden = false;
+      fallback.select();
+    }
+  });
+  actions.append(label, copy, status, fallback);
+  return actions;
+}
+
 function card(service, report, constat, genre) {
   const page = report.pages.find((candidate) => candidate.ecran === constat.ecran);
   const path = page ? new URL(page.url).pathname : constat.ecran;
@@ -69,6 +107,7 @@ function card(service, report, constat, genre) {
   const shot = capture(`${service}/explorations/${encodeURIComponent(id)}/${constat.capture}`, constat.zone, size, genre);
   item.append(bar, shot.box, element("h3", "", constat.description), where, ...proofOf(constat).map((line) => element("p", "preuve", line)));
   if (!constat.zone) item.append(element("p", "ou second", "Emplacement non mesuré sur la capture."));
+  if (genre === "defaut") item.append(ticketActions(constat));
   return { item, ring: shot.ring };
 }
 
@@ -89,6 +128,7 @@ const reasonOf = (report, page) => (page.raison ?? report.constats.find((constat
 const lowerFirst = (text) => text.charAt(0).toLowerCase() + text.slice(1);
 
 function render(service, report) {
+  latestReport = report;
   $("#adresse").textContent = report.adresse;
   const { totaux, trouvees } = report;
   const done = report.etat !== "en_cours";

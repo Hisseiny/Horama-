@@ -10,6 +10,7 @@
 //          [--sans-holo] [--sans-base | --avec-base] [--choix bug,voulu,...] [--repeter-choix] [--sans-fin] [--par <nom>] [--rythme <s>]
 //          [--vault <dir>] [--sortie <dir>] [--temoins <dir>] [--port 9333] [--profil <dir>] [--fermer-chrome]
 //          [--captures-instantanees]
+//          [--depot <propriétaire/dépôt>] [--commit <sha>]
 // The captures of proof of the explorer scroll smoothly to their zone (option doux of #179): the scene is on the screen,
 // a jump would be seen. --captures-instantanees goes back to the instant scroll.
 // Env: HAI_API_KEY (H and Holo), SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, CHROME_BIN, HOLO_BIN.
@@ -27,6 +28,7 @@ import { creerEcrivainMemoire, creerEcrivainSupabase } from "./decisions.mjs";
 import { completerNote } from "./note-passage.mjs";
 import { bilanExploration, dejaVoulu, lisible, phraseDe, revoir, selecteursDe, sizeOf } from "./recapitulatif.mjs";
 import { ecrireSectionExploration, publierCommentaire } from "../pr-doc/commentaire.mjs";
+import { recordTicket } from "../ticket/destinations.mjs";
 import { ouvrirVitrine } from "./vitrine.mjs";
 import { HEIGHT, WIDTH, capture, captureZone, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, layer, navigate, openChrome, option, say, sleep } from "./scene.mjs";
 
@@ -37,6 +39,8 @@ const MAX = Number(option("max", 15));
 // The folder of the site in the vault (PR #157): stable between previews of one repository, whose host names differ.
 // Without it, the explorer names the site after the host of --url.
 const SITE = option("site", "");
+const REPOSITORY = option("depot", "");
+const COMMIT = option("commit", "");
 // How many pages after the page of departure the H agent reaches by a real click on a visible link (issue #91, PR #93).
 const CLICKED = Number(option("pages-cliquees", 4));
 const VAULT = resolve(option("vault", join(HERE, "../../vault-horama")));
@@ -61,6 +65,8 @@ try {
   missing.push("--url attend l'adresse HTTP(S) d'un site.");
 }
 if (flag("site") && !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(SITE)) missing.push("--site attend un identifiant de dossier (lettres, chiffres, tirets, soulignés).");
+if (flag("depot") && !/^[\w.-]+\/[\w.-]+$/.test(REPOSITORY)) missing.push("--depot attend propriétaire/dépôt.");
+if (REPOSITORY && REPEAT) missing.push("--depot et --repeter-choix s'excluent : les décisions de répétition ne sont pas publiées.");
 if (!Number.isSafeInteger(MAX) || MAX < 1) missing.push("--max attend un entier positif.");
 if (!Number.isSafeInteger(CLICKED) || CLICKED < 0) missing.push("--pages-cliquees attend un entier positif ou nul.");
 if (CHOICES.some((choix) => choix !== "bug" && choix !== "voulu")) missing.push("--choix attend une liste de « bug » et de « voulu », séparés par des virgules.");
@@ -281,6 +287,7 @@ await queue;
 // ---------- The end: the summary, then bug or voulu for each defect and doubt ----------
 const count = (number, one, many) => `${number} ${number > 1 ? many : one}`;
 const decisions = [];
+const tickets = [];
 // The PR that woke the exploration (réveil par PR, #122): its part of the answer is written in scene.json, and posted
 // with --commenter (the wake-up posts one answer for both scenes instead).
 const PR = option("pr", null);
@@ -380,6 +387,17 @@ if (report?.format === "horama-exploration-1") {
   } catch (error) {
     errors.push(`Note du passage : ${error.message}`);
   }
+  if (!REPEAT) {
+    for (const { decision } of decisions) {
+      try {
+        const ticket = await recordTicket({ vault: VAULT, report, finding: constats.find((constat) => constat.id === decision.ecart_id),
+          decision, note: notePath, environment: { browser: chrome.version, commit: COMMIT }, repository: REPOSITORY, say });
+        if (ticket) tickets.push(ticket);
+      } catch (error) {
+        errors.push(`Écriture du ticket ${decision.ecart_id} : ${error.message}`);
+      }
+    }
+  }
   // The part of the answer on the PR (text only: page, zone, proof; the captures ringed stay in the note).
   if (PR) {
     // The comment on the PR (read by the jury): the readable text first; the selectors of a grouped finding folded.
@@ -415,7 +433,7 @@ if (flag("fermer-chrome")) await sleep(8000);
 const showcase = vitrine?.mesures() ?? null;
 if (showcase) say(`Vitrine : ${showcase.images_recues} images reçues, ${showcase.images_affichees} affichées, ${showcase.images_par_seconde} par seconde ; délai de l'image dessinée à l'image affichée : médiane ${showcase.delai_total_ms.mediane} ms, p95 ${showcase.delai_total_ms.p95} ms.`);
 await vitrine?.stop({ fermer: flag("fermer-chrome") });
-writeFileSync(join(OUT, "scene.json"), `${JSON.stringify({ id: ID, passage_id: report?.passage_id ?? null, adresse: URL_SITE, mode: SANS_AGENT ? "sans agent" : "agent H", holo: !flag("sans-holo"), traits: Object.fromEntries(drawnOn), decisions, pr: PR, commentaire, vitrine: showcase, erreurs: errors }, null, 2)}\n`);
+writeFileSync(join(OUT, "scene.json"), `${JSON.stringify({ id: ID, passage_id: report?.passage_id ?? null, adresse: URL_SITE, mode: SANS_AGENT ? "sans agent" : "agent H", holo: !flag("sans-holo"), traits: Object.fromEntries(drawnOn), decisions, tickets, pr: PR, commentaire, vitrine: showcase, erreurs: errors }, null, 2)}\n`);
 for (const line of errors) say(`Erreur : ${line}`);
 runtime.close();
 page.close();

@@ -78,6 +78,9 @@ test("une PR jouée : impact, tests du vault sur la prévisualisation, puis expl
   const explored = [];
   const none = await jouerPr({ pr: { ...pr, tete: "autre000000" }, fichiers: ["README.md"], vault, logiciel: "site-essai", sortie, exploration: { max: 3, pagesCliquees: 1 } }, async (args) => explored.push(args[0]));
   assert.deepEqual([none.etat, none.parcours.etat, explored], ["termine", "aucun-test", ["automatisation/scene/exploration.mjs"]]);
+  const ticketArgs = [];
+  await jouerPr({ pr: { ...pr, tete: "ticket123" }, fichiers: ["README.md"], vault, logiciel: "site-essai", sortie, depot: "o/d" }, async (args) => ticketArgs.push(args));
+  assert.deepEqual(ticketArgs[0].slice(-4), ["--depot", "o/d", "--commit", "ticket123"]);
   // Without the exploration and without a test: nothing runs.
   const nothing = await jouerPr({ pr: { ...pr, tete: "rien0000000" }, fichiers: ["README.md"], vault, logiciel: "site-essai", sortie, exploration: null }, async () => assert.fail("scène lancée"));
   assert.equal(nothing.etat, "aucun-test");
