@@ -10,6 +10,9 @@ export function maskConsentBanners() {
       || rect.width <= 0 || rect.height <= 0 || rect.height > innerHeight * 0.6 || rect.right <= 0 || rect.left >= innerWidth
       || rect.bottom <= 0 || rect.top >= innerHeight || Math.abs(rect.top) > 12 && Math.abs(rect.bottom - innerHeight) > 12) continue;
     if (!/cookie|consent|privacy|confidentialit|datenschutz|einwilligung/i.test(element.innerText || element.textContent || "")) continue;
+    const controls = element.querySelectorAll<HTMLElement>('button, [role="button"], a');
+    if (![...controls].some(control => /\b(?:accepter|refuser|parametrer|personnaliser|accept|reject|decline|manage|customize|preferences|akzeptieren|ablehnen|einstellungen)\b/i.test(
+      [control.innerText || control.textContent, control.getAttribute("aria-label"), control.getAttribute("title")].join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "")))) continue;
     saved.push({ element, value: element.style.getPropertyValue("visibility"), priority: element.style.getPropertyPriority("visibility") });
     element.style.setProperty("visibility", "hidden", "important");
   }
