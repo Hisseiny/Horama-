@@ -673,7 +673,9 @@
         found = document.querySelector(selecteur);
       } catch {}
       const rect = found?.getBoundingClientRect();
-      return rect && rect.width > 0 && rect.height > 0 ? [rounded({ x: rect.left + scrollX, y: rect.top + scrollY, largeur: rect.width, hauteur: rect.height })] : [];
+      // An element that is not seen (hidden, transparent, or cut to a point for screen readers) has no zone.
+      if (found && !found.checkVisibility?.({ opacityProperty: true, visibilityProperty: true })) return [];
+      return rect && rect.width >= 4 && rect.height >= 4 ? [rounded({ x: rect.left + scrollX, y: rect.top + scrollY, largeur: rect.width, hauteur: rect.height })] : [];
     },
     // The element at the centre of a zone: its displayed text ("" when it is none or a whole block of the page) and the
     // rectangle that holds both the zone and that text, so that a line is drawn around the whole value, not half of it.
@@ -713,7 +715,9 @@
     // drawn now when it is this page. voir: a zone out of the screen is first scrolled into view (only where the agent
     // does not read the page after its relevé).
     async surligner(adresse, rects, genre, id, avant, voir) {
-      if ((state.zones[adresse] ?? []).some((zone) => zone.id === id)) return;
+      // Never around nothing: a zone under 4 px in one dimension (a text kept for screen readers, 1 px wide) is not drawn.
+      rects = rects.filter((rect) => rect.largeur >= 4 && rect.hauteur >= 4);
+      if (!rects.length || (state.zones[adresse] ?? []).some((zone) => zone.id === id)) return;
       const zones = [...rects.map((rect) => ({ id, genre, ...rounded(rect) })), ...(avant ? [{ id, genre, trait: "pointille", ...rounded(avant) }] : [])];
       (state.zones[adresse] ??= []).push(...zones);
       save();

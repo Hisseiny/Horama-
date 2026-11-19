@@ -210,7 +210,8 @@ function showPage(pageEntry, constats) {
     if (live && sameAddress(live, pageEntry.url)) {
       const address = await evaluate(page, "location.pathname + location.search");
       for (const constat of mine.filter((candidate) => GENRE[candidate.statut])) {
-        const rects = await rectsOf(constat, pageEntry);
+        // Never around nothing: a zone under 4 px in one dimension is not drawn (S7, Louvre 19/11: rings around 1 px).
+        const rects = (await rectsOf(constat, pageEntry)).filter((rect) => rect.largeur >= 4 && rect.hauteur >= 4);
         if (!rects.length) continue;
         const drawing = mascot("surligner", address, rects, GENRE[constat.statut], constat.id, null, true);
         await sleep(300);
