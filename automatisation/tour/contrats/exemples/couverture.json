@@ -1,0 +1,87 @@
+{
+  "project": {
+    "name": "Facturo",
+    "testedVersion": "v13"
+  },
+  "lastRun": {
+    "version": "v13",
+    "duration": "4 min 10 s"
+  },
+  "summary": {
+    "documented": 39,
+    "tested": 36,
+    "conform": 28,
+    "suspect": 5,
+    "provenDefect": 3,
+    "inconclusive": 0,
+    "withoutTest": 3,
+    "toReview": 8
+  },
+  "reviewItems": [
+    {
+      "screen": "Liste des factures",
+      "rule": "CA du mois ≠ total des factures (écart 180,00 €)",
+      "status": "provenDefect"
+    },
+    {
+      "screen": "Détail facture",
+      "rule": "Total TTC ≠ somme des lignes",
+      "status": "provenDefect"
+    },
+    {
+      "screen": "Détail facture",
+      "rule": "Format de la TVA invalide",
+      "status": "provenDefect"
+    }
+  ],
+  "screens": [
+    {
+      "name": "Détail facture",
+      "path": "Menu / Facturation / Factures / Détail",
+      "counts": {
+        "conform": 7,
+        "suspect": 3,
+        "provenDefect": 2,
+        "inconclusive": 0
+      },
+      "worstStatus": "provenDefect"
+    },
+    {
+      "name": "Liste des factures",
+      "path": "Menu / Facturation / Factures",
+      "counts": {
+        "conform": 9,
+        "suspect": 2,
+        "provenDefect": 1,
+        "inconclusive": 0
+      },
+      "worstStatus": "provenDefect"
+    },
+    {
+      "name": "Tableau de bord",
+      "path": "Menu / Tableau de bord",
+      "counts": {
+        "conform": 12,
+        "suspect": 0,
+        "provenDefect": 0,
+        "inconclusive": 0
+      },
+      "worstStatus": "conform"
+    }
+  ],
+  "navigation": {
+    "testsToValidate": 2,
+    "toReview": 8
+  },
+  "subscription": {
+    "plan": "PRO",
+    "usedRuns": 14,
+    "includedRuns": 40,
+    "renewal": "1 déc."
+  },
+  "user": {
+    "initials": "LM",
+    "name": "Léa Martin",
+    "role": "Équipe produit"
+  }
+}
