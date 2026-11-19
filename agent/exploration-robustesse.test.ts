@@ -222,10 +222,10 @@ test("refus des cookies sur de vraies pages Chrome locales", { skip: !available 
     for (const control of ['<button>Tout accepter</button>', '<a href="#">Paramétrer</a>', '<div role="button">Personnaliser</div>', '<button aria-label="Reject all"></button>', '<button>Decline</button>', '<a href="#">Manage cookies</a>', '<button>Akzeptieren</button>', '<button>Ablehnen</button>', '<button>Einstellungen</button>']) {
       await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = ${JSON.stringify(`<aside id="banner" style="position:fixed;bottom:0">Cookies et consentement ${control}</aside>`)};` });
       const restore = await hideCaptureOverlays(surface);
-      assert.equal((await client.send("Runtime.evaluate", { expression: "getComputedStyle(document.querySelector('#banner')).visibility", returnByValue: true })).result.value, "hidden", control);
+      assert.equal((await client.send("Runtime.evaluate", { expression: "getComputedStyle(document.querySelector('#banner')).visibility", returnByValue: true })).result.value, control.startsWith('<a ') ? "visible" : "hidden", control);
       await restore();
     }
-    await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = '<header style="position:sticky;top:0"><a href="#">Products</a> <a href="#">Pricing</a> <a href="#">Privacy</a></header><footer style="position:fixed;bottom:0"><a href="#">Datenschutz</a></footer>'; window.clicked = 0; document.onclick = () => window.clicked++;` });
+    await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = '<header style="position:sticky;top:0"><a href="#">Products</a> <a href="#">Pricing</a> <a href="#">Privacy</a></header><footer style="position:fixed;bottom:0"><a href="#">Datenschutz</a> <a href="#">Cookie settings</a></footer>'; window.clicked = 0; document.onclick = () => window.clicked++;` });
     const restoreNavigation = await hideCaptureOverlays(surface, () => assert.fail("La navigation ne doit pas être masquée"));
     assert.deepEqual((await client.send("Runtime.evaluate", { expression: "[...document.querySelectorAll('header,footer')].map(element => getComputedStyle(element).visibility)", returnByValue: true })).result.value, ["visible", "visible"]);
     await restoreNavigation();
