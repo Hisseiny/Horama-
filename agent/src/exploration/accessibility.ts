@@ -40,11 +40,22 @@ async function scanDocument(): Promise<Scan> {
   };
 }
 
-function readTarget(index: number): Rect | null {
+async function readTarget(index: number): Promise<Rect | null> {
   const node = (globalThis as unknown as { horamaAxeElements: Array<Element | undefined> }).horamaAxeElements[index];
   if (!node?.isConnected || !node.checkVisibility({ opacityProperty: true, visibilityProperty: true })) return null;
-  const { left, top, width, height } = node.getBoundingClientRect();
-  return width > 0 && height > 0 ? { x: left + scrollX, y: top + scrollY, width, height } : null;
+  // Include the document outside the viewport while preserving any clipping by ancestors.
+  const extent = document.scrollingElement ?? document.documentElement;
+  const rootMargin = `${extent.scrollHeight}px ${extent.scrollWidth}px`;
+  return new Promise(resolve => {
+    const observer = new IntersectionObserver(([entry]) => {
+      clearTimeout(timeout);
+      observer.disconnect();
+      const { left, top, width, height } = entry.intersectionRect;
+      resolve(node.isConnected && width > 0 && height > 0 ? { x: left + scrollX, y: top + scrollY, width, height } : null);
+    }, { rootMargin });
+    const timeout = setTimeout(() => { observer.disconnect(); resolve(null); }, 1000);
+    observer.observe(node);
+  });
 }
 
 function markedPng(data: string, target: Rect, clip: Rect): Buffer {
@@ -99,7 +110,7 @@ export async function auditAccessibility(
       if (violation.needsKeyboardReview) { page.graves_sans_preuve++; continue; }
       try {
         const target = `(${readTarget.toString()})(${index})`;
-        const rect: Rect | null = await evaluate(target);
+        const rect: Rect | null = await evaluate(target, true);
         if (!rect) throw new Error("Élément sans zone visible.");
         const x = Math.max(0, Math.floor(rect.x) - 20), y = Math.max(0, Math.floor(rect.y) - 20);
         const clip = { x, y, width: Math.min(cssContentSize.width - x, Math.ceil(rect.width) + 40, 960),
@@ -110,7 +121,7 @@ export async function auditAccessibility(
         let capture = captures.get(key);
         if (!capture) {
           const image = await client.send("Page.captureScreenshot", { format: "png", clip, captureBeyondViewport: true });
-          if (JSON.stringify(await evaluate(`location.href === ${JSON.stringify(url)} ? ${target} : null`)) !== JSON.stringify(rect)) {
+          if (JSON.stringify(await evaluate(`location.href === ${JSON.stringify(url)} ? ${target} : null`, true)) !== JSON.stringify(rect)) {
             throw new Error("L’élément a bougé pendant la capture.");
           }
           capture = saveCapture(markedPng(image.data, rect, clip));

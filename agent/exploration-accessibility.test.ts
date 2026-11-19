@@ -29,6 +29,11 @@ test("axe-core sur l’onglet existant, preuves PNG, sans requête ni défilemen
       <img src="/lazy.gif" loading="lazy" alt="" width="32" height="32">`
       : request.url === "/incomplete" ? '<p id="uncertain" style="color:#555;background-image:linear-gradient(white,#aaa)">Contraste sur un dégradé</p>'
       : request.url === "/keyboard" ? '<div id="scroller" style="overflow:auto;width:120px"><p style="width:500px">Contenu à faire défiler.</p></div>'
+      : request.url === "/clipped" ? `<div style="overflow:hidden;height:45px;margin-top:1200px">
+        <button id="visible" style="height:40px"></button>
+        <div style="height:100px"></div>
+        <button id="clipped" style="height:40px"></button>
+      </div><p style="margin-top:300px">Suite de la page.</p>`
       : '<button>Continuer</button><p>Une page lisible.</p>';
     response.setHeader("Content-Type", "text/html; charset=utf-8");
     response.end(`<!doctype html><html lang="fr"><title>Essai axe-core</title><body style="color:#111;background:#fff">
@@ -104,4 +109,13 @@ test("axe-core sur l’onglet existant, preuves PNG, sans requête ni défilemen
   assert.equal(review.statut, "analyse", review.raison ?? "");
   assert.deepEqual(review.violations, []);
   assert.equal(review.graves_sans_preuve, 1);
+
+  const clipped = await open("/clipped");
+  await evaluate(axe.source);
+  assert.ok(await evaluate("axe.run().then(result => result.violations.some(rule => rule.id === 'button-name' && rule.nodes.some(node => node.target.includes('#clipped'))))"));
+  const clippedReview = await auditAccessibility(client, clipped, save);
+  assert.equal(clippedReview.statut, "analyse", clippedReview.raison ?? "");
+  assert.deepEqual(clippedReview.violations.map(item => item.element), ["#visible"]);
+  assert.equal(clippedReview.graves_sans_preuve, 1);
+  assert.equal(await evaluate("scrollY"), 0);
 });
