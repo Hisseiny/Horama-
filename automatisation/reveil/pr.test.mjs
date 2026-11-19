@@ -299,7 +299,7 @@ test("--captures-sur-branche : les captures entourées de l'exploration poussée
     commenter: true, publier: async (adresse, corps) => (posted.push(corps), { status: "publie", url: "u" }), captures: { depot: "o/clone", branche: "horama/captures" }, televerser,
     indexer: async (args) => (indexed.push(args), { url: "https://raw.githubusercontent.com/o/clone/horama/captures/index.json", passages: 1 }) }, scenes);
   assert.deepEqual(sent.map(({ depot, branche, chemin, fichier }) => [depot, branche, chemin, fichier]), [["o/clone", "horama/captures", "pr-14/0b4112f/accueil--controle--1.png", join(vault, anneau)]]);
-  assert.deepEqual(report.captures, { branche: "horama/captures", poussees: 1 });
+  assert.deepEqual(report.captures, { branche: "horama/captures", poussees: 1, pages: 0 });
   assert.match(posted[0], /- \/ : Le texte dépasse la boîte de son conteneur\. .*décision : bug\)\n\n  !\[\/ : Le texte dépasse la boîte de son conteneur\.\]\(https:\/\/raw\.githubusercontent\.com\/o\/clone\/c0mmit\/pr-14\/0b4112f\/accueil--controle--1\.png\)/);
   // The finding without a capture ringed stays in text.
   assert.equal((posted[0].match(/!\[/g) ?? []).length, 1);
@@ -447,4 +447,38 @@ test("tour : adresse du passage, et mise à jour de l'index qui garde les décis
   assert.equal(written.passages[1].reponse, "old");
   assert.equal(calls[1][2].sha, "s1");
   assert.deepEqual(await majEntreeIndex({ depot: "o/clone", branche: "horama/captures", numero: 7, commit: "c7", champs: {} }, api), { raison: "entrée absente de l'index" });
+});
+
+// Every page visited is published with its raw capture (11.5 of the tower, #238): the entry of the index lists them,
+// a page that could not be put there keeps its line with capture null, a page not visited is left out.
+test("captures de chaque page visitée poussées et listées dans l'entrée de l'index", async (t) => {
+  const vault = vaultEssai(t);
+  const sortie = mkdtempSync(join(tmpdir(), "horama-pr-sortie-"));
+  t.after(() => rmSync(sortie, { recursive: true, force: true }));
+  const elements = { adresse: "https://p.vercel.app", bilan: { aucune: false, nonVisitees: [] }, totaux: { pages_visitees: 2, pages_trouvees: 3 }, decisions: [], prouves: [], doutes: [], dejaVoulus: [], note: "n" };
+  const scenes = async (args) => {
+    const out = args[args.indexOf("--sortie") + 1];
+    mkdirSync(join(out, "captures"), { recursive: true });
+    if (!args[0].endsWith("exploration.mjs")) return;
+    writeFileSync(join(out, "scene.json"), JSON.stringify({ passage_id: "P11", commentaire: { corps: "c", elements } }));
+    for (const ecran of ["accueil", "ecole"]) writeFileSync(join(out, "captures", `${ecran}.png`), Buffer.from([137, 80, 78, 71]));
+    writeFileSync(join(out, "exploration.json"), JSON.stringify({ format: "horama-exploration-1", pages: [
+      { ecran: "accueil", url: "https://p.vercel.app/", etat: "visitee", capture: { fichier: "captures/accueil.png", largeur: 1280, hauteur: 900 } },
+      { ecran: "ecole", url: "https://p.vercel.app/ecole", etat: "visitee", capture: { fichier: "captures/ecole.png", largeur: 1280, hauteur: 900 } },
+      { ecran: "contact", url: "https://p.vercel.app/contact", etat: "non_visitee", capture: null }] }));
+  };
+  const sent = [];
+  const televerser = async (args) => (sent.push(args), args.chemin.endsWith("ecole.png") ? { raison: "refus" } : { url: `https://raw.githubusercontent.com/o/clone/c0/${args.chemin}` });
+  const indexed = [];
+  const report = await jouerPr({ pr: { numero: 19, adresse: "a", base: "b", tete: "1f5c03f0000", previsualisation: "https://p.vercel.app" }, fichiers: ["README.md"], vault, logiciel: "site-essai", sortie,
+    commenter: true, publier: async () => ({ status: "publie", url: "u" }), captures: { depot: "o/clone", branche: "horama/captures" }, televerser,
+    indexer: async (args) => (indexed.push(args), { url: "i", passages: 1 }) }, scenes);
+  const folder = join(sortie, "pr-19-1f5c03f", "exploration");
+  assert.deepEqual(sent.map(({ chemin, fichier }) => [chemin, fichier]), [["pr-19/1f5c03f/pages/accueil.png", join(folder, "captures/accueil.png")], ["pr-19/1f5c03f/pages/ecole.png", join(folder, "captures/ecole.png")]]);
+  assert.deepEqual(indexed[0].entree.pages, [
+    { ecran: "accueil", page: "/", adresse: "https://p.vercel.app/", capture: "https://raw.githubusercontent.com/o/clone/c0/pr-19/1f5c03f/pages/accueil.png", largeur: 1280, hauteur: 900 },
+    { ecran: "ecole", page: "/ecole", adresse: "https://p.vercel.app/ecole", capture: null, largeur: 1280, hauteur: 900 }]);
+  assert.equal(report.captures.pages, 1);
+  // Without the branch of the captures, no page is published and the entry keeps its old shape.
+  assert.equal("pages" in entreeIndex({ pr: { numero: 1, adresse: "a", tete: "t", previsualisation: "p" }, logiciel: "l", report: { recu_le: "d" }, scene: null }), false);
 });
