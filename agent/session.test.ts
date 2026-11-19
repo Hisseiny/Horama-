@@ -8,6 +8,34 @@ const consigne: Consigne = { tests: [], dropped: [], course: [], start: "http://
 const json = (value: unknown) => new Response(JSON.stringify(value));
 const defaults = (): SessionInput => ({ consigne, cle: "dev", onCreated: async () => {}, onStep: async () => {}, onTool: async () => "Continue." });
 
+for (const duringTool of [false, true]) {
+  test(`arrêt local sans état terminal ni silence, pendant outil=${duringTool}`, async () => {
+    let running: Awaited<ReturnType<ReturnType<typeof creerSessionH>>>;
+    let polled!: () => void;
+    const polling = new Promise<void>(resolve => { polled = resolve; });
+    let polls = 0, results = 0;
+    const session = creerSessionH({ key: "test-key", navigateur: async () => ({ channel: "fake", stop() {} }), signaler() {},
+      requete: async (url, init) => {
+        const path = String(url);
+        if (path.endsWith("/sessions")) return json({ id: "local", status: { status: "running" } });
+        if (init?.method === "DELETE") return new Response(null, { status: 204 });
+        if (path.endsWith("/share")) return json({ share_url: "https://example.org/replay" });
+        if (path.endsWith("/tool_results")) { results++; return json({}); }
+        polls++; polled();
+        if (duringTool) return json({ status: "running", pending_tool_calls: [{ id: "last", tool_name: "relever", args: {} }] });
+        return new Promise<Response>(() => {});
+      } });
+    running = await session({ ...defaults(), onTool: async () => { await polling; await running.stop?.(); return "Acquis"; } });
+    await polling;
+    if (!duringTool) await running.stop?.();
+    const result = await running.fin;
+    assert.equal(result.muted, false);
+    assert.equal(result.erreur, undefined);
+    assert.equal(polls, 1);
+    assert.equal(results, 0);
+  });
+}
+
 test("go_to_web et go_to sont des ouvertures de page", () => {
   assert.equal(libelleAction(["go_to_web"]), "Ouvre une page");
   assert.equal(libelleAction(["go_to"]), "Ouvre une page");

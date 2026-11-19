@@ -354,6 +354,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
   };
   const returned = { ...report, navigation };
   let finalizationFailure: string | null = null;
+  let autoCompleted = false;
   try {
     if (blocage) {
       markBlocked(blocage); report.etat = "fini"; agent.etat = "fini"; report.cout_usd = 0;
@@ -390,7 +391,6 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
       let active: SessionEnCours | undefined;
       let stopped = false;
       let completed = false;
-      let autoCompleted = false;
       let stopRequest: Promise<void> | undefined;
       const stopActive = () => stopRequest ??= Promise.resolve().then(() => active?.stop?.());
       let dimensions: { page: number; viewport: number } | undefined;
@@ -788,6 +788,9 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
   } catch {
     report.etat = "interrompu"; agent.etat = "tombe"; agent.raison ??= "Le passage a été interrompu.";
   } finally {
+    if (autoCompleted && pages.every(page => page.etat === "visitee") && !finalizationFailure) {
+      report.etat = "fini"; agent.etat = "fini";
+    }
     if (blocage) log(blocage);
     if (finalizationFailure) { report.etat = "interrompu"; agent.etat = "tombe"; agent.raison = finalizationFailure; }
     else if (blocage) { agent.raison = blocage; agent.etat = "fini"; }

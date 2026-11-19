@@ -66,7 +66,7 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
     async function h(method: string, path: string, body?: unknown, cleanup = false): Promise<any> {
       for (let attempt = 1; ; attempt++) {
         const { response, text } = await withTimeout(async (deadline) => {
-          const signal = !cleanup && input.signal ? AbortSignal.any([input.signal, deadline]) : deadline;
+          const signal = AbortSignal.any([deadline, ...(!cleanup && input.signal ? [input.signal] : []), ...(path.includes("/changes?") ? [localStop.signal] : [])]);
           signal.throwIfAborted();
           let response: Response;
           try {
@@ -114,8 +114,10 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
     const id: string = session.id;
     let status: string = session.status?.status ?? "";
     let stopping: Promise<void> | undefined;
+    const localStop = new AbortController();
     let stopFailure: Error | undefined;
     const stop = () => stopping ??= (async () => {
+      localStop.abort();
       const closed = closeBrowser(browser);
       if (!TERMINAL.includes(status)) {
         try { await h("DELETE", `/sessions/${id}`, undefined, true); }
@@ -147,6 +149,7 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
       const handled = new Set<string>();
       try {
         for (;;) {
+          if (stopping) break;
           input.signal?.throwIfAborted();
           const terminal = TERMINAL.includes(status);
           const idle = maintenant() - lastActivity;
@@ -155,6 +158,7 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
           if (!terminal && maintenant() > deadline) { erreur = "La session n'a pas atteint d'état final dans le délai."; break; }
           const wait = terminal ? 2 : Math.min(etapes ? 20 : 5, Math.max(1, Math.ceil((45_000 - idle) / 1000)));
           const changes = await h("GET", `/sessions/${id}/changes?from_index=${next}&wait_for_seconds=${wait}`);
+          if (stopping) break;
           if (!changes?.new_events?.length && terminal) break;
           if (!changes) continue;
           const events = changes.new_events ?? [];
@@ -177,17 +181,19 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
             if (event.type === "ActiveStateChangeEvent" && event.data?.state === "awaiting_tool_results") calls.push(...(event.data.pending_tool_calls ?? []));
           }
           for (const call of calls) {
+            if (stopping) break;
             const callId = call.id ?? `${call.tool_name}:${JSON.stringify(call.args)}`;
             if (handled.has(callId)) continue;
             handled.add(callId);
             input.signal?.throwIfAborted();
             const result = await withAbort(input.onTool(call.tool_name, call.args ?? {}), input.signal);
+            if (stopping) break;
             await h("POST", `/sessions/${id}/tool_results`, { kind: "tool_result", tool_req: call, result });
             lastActivity = maintenant();
             if (call.tool_name === "terminer") deadline = Math.min(deadline, maintenant() + 40_000);
           }
         }
-      } catch { erreur = "La session H est interrompue (erreur réseau ou outil)."; }
+      } catch { if (!stopping) erreur = "La session H est interrompue (erreur réseau ou outil)."; }
       finally {
         input.signal?.removeEventListener("abort", onAbort);
         await stop();

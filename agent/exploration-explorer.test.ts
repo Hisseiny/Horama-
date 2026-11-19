@@ -135,6 +135,29 @@ for (const failClose of [false, true]) {
   });
 }
 
+test("fin autonome : plafond pendant la fermeture sans résolution de fin au stop", async () => {
+  const controller = new AbortController();
+  let stopped = false;
+  const { result } = await run({ deps: {
+    signal: controller.signal,
+    session: async input => {
+      await input.onCreated("ceiling");
+      return { id: "ceiling", stop: async () => { stopped = true; },
+        confirmStopped: async () => { controller.abort(new Error("Plafond")); },
+        fin: (async () => {
+          for (const step of input.consigne.course) await input.onTool("relever", { ecran: step.ecran, vue: "defaut" });
+          await new Promise(resolve => setImmediate(resolve));
+          assert.equal(stopped, true);
+          return { id: "ceiling", muted: true, cout_usd: null, etapes: 2 };
+        })() };
+    },
+    runtime: { relever: async ecran => ({ png: original, texte: "Page", url_page: ecran === "accueil" ? "https://example.org/" : "https://example.org/faq", largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture" }), navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
+  } });
+  assert.equal(controller.signal.aborted, true);
+  assert.equal(result.etat, "fini");
+  assert.ok(result.pages.every(page => page.etat === "visitee"));
+});
+
 test("les redirections vers l’alias www restent sur le site", async () => {
   const { result, responses } = await run({ actual: address => address.replace("://example.org", "://www.example.org") });
   assert.equal(result.pages.filter(page => page.etat === "visitee").length, 2);
