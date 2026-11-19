@@ -1,11 +1,26 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { runInNewContext } from "node:vm";
 import test from "node:test";
 
 const cwd = fileURLToPath(new URL("..", import.meta.url));
 const run = (args, key = "") => spawnSync(process.execPath, ["agent/scripts/container.mjs", ...args], {
   cwd, encoding: "utf8", env: { ...process.env, HAI_API_KEY: key },
+});
+
+test("service clicked-page default matches the scene and preserves overrides", () => {
+  const source = readFileSync(new URL("./scripts/container.mjs", import.meta.url), "utf8");
+  const scene = readFileSync(new URL("../automatisation/scene/exploration.mjs", import.meta.url), "utf8");
+  const bound = source.match(/function bound\([^]*?\n\}/)?.[0];
+  const setting = source.match(/const clicked = bound\([^;]+;/)?.[0];
+  const sceneDefault = Number(scene.match(/const CLICKED = Number\(option\("pages-cliquees", (\d+)\)\)/)?.[1]);
+  assert.ok(bound && setting);
+  for (const value of [undefined, "0", "6"]) {
+    const actual = runInNewContext(`${bound}\n${setting}\nclicked`, { process: { env: { HORAMA_PAGES_CLIQUEES: value } } });
+    assert.equal(actual, value === undefined ? sceneDefault : Number(value));
+  }
 });
 
 test("service accepts 380 and 420 seconds and rejects 421", () => {

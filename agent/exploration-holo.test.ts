@@ -83,7 +83,9 @@ test("visible findings remain suspected and the request disables thinking withou
     assert.equal(body.model, "holo4-27b");
     assert.equal(body.temperature, 0);
     assert.equal(body.chat_template_kwargs.enable_thinking, false);
-    assert.equal(body.messages[0].content[1].image_url.url, `data:image/png;base64,${png.toString("base64")}`);
+    assert.equal(body.messages[0].content[2].image_url.url, `data:image/png;base64,${png.toString("base64")}`);
+    assert.match(body.messages[0].content[1].text, /open menu or dropdown/);
+    assert.match(body.messages[0].content[1].text, /selected\/active tab/);
     assert.ok(!JSON.stringify(body.response_format).includes("["));
     assert.match(body.messages[0].content[0].text, /1280x900/);
     assert.match(body.messages[0].content[0].text, /one short sentence in plain French for a non-technical visitor/);
@@ -94,6 +96,20 @@ test("visible findings remain suspected and the request disables thinking withou
   assert.equal(result.model, "holo4-27b");
   assert.ok(result.durationMs >= 0);
   assert.deepEqual(result.findings, [{ status: "SUSPECTED", kind: "cut-off-text", zone: { x: 128, y: 180, largeur: 384, hauteur: 360 }, sentence: "The title is clipped." }]);
+});
+
+test("a group of controls that leaves its frame half empty is a sixth kind of doubt, never a proven defect", async () => {
+  const result = await askHolo(png, { ...options, fetch: async (_url, init) => {
+    const text = JSON.parse(init?.body as string).messages[0].content[0].text;
+    assert.match(text, /unfilled-control-group/);
+    assert.match(text, /An unfilled control group is a row of controls \(tabs, buttons, segments\) inside a visible container/);
+    assert.match(text, /These are doubts, not proven defects/);
+    return reply(JSON.stringify({ ...empty, d0: "unfilled-control-group | 66,890,858,50 | La barre laisse un grand vide à droite." }));
+  } });
+  assert.equal(result.status, "SUSPECTED");
+  assert.deepEqual(result.findings.map(({ status, kind, sentence }) => ({ status, kind, sentence })),
+    [{ status: "SUSPECTED", kind: "unfilled-control-group", sentence: "La barre laisse un grand vide à droite." }]);
+  assert.ok(result.findings[0].zone, "la zone est gardée");
 });
 
 test("empty keys report no findings without being inconclusive", async () => {

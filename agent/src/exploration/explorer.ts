@@ -11,7 +11,8 @@ import type { Consigne } from "../consigne.ts";
 import { creerCoureur } from "../coureur.ts";
 import type { ReleveCapture } from "../coureur.ts";
 import type { ResultatSession, Session, SessionEnCours } from "../session.ts";
-import { captureDefect, connecterCdp, dismissCookies, prepareCapture, readLinks, verifierClics } from "./cdp.ts";
+import { captureDefect, connecterCdp, dismissCookies, hideCaptureOverlays, prepareCapture, readLinks, verifierClics } from "./cdp.ts";
+import { garderSansConsentement } from "./consentement.ts";
 import type { PageLink } from "./cdp.ts";
 import type { ExplorationCdp } from "./cdp.ts";
 import { controlerPage } from "./controles.ts";
@@ -49,6 +50,7 @@ export interface ExplorerDependencies {
   log?: (message: string) => void;
   urlCourante?: () => Promise<string | null>;
   onglets?: () => Promise<Array<{ type: string; url: string }>>;
+  garderSansConsentement?: (port: number, log: (message: string) => void) => Promise<() => void>;
 }
 
 const clickedCount = (pageCount: number, clicked: number) => Math.min(clicked, Math.max(0, pageCount - 1));
@@ -84,7 +86,7 @@ export function construireExploration(pages: Array<{ ecran: string; url: string 
   const course = pages.map((page, index) => ({ ecran: page.ecran, vue: "defaut", key: `${page.ecran}--defaut`, part: index + 1,
     test_id: tests[index].id, address: page.url, here: `location.href === ${JSON.stringify(page.url)}` }));
   return { tests, course, dropped: [], start: pages[0].url,
-    instructions: [...COURSE_RULES, "Si une bannière de cookies apparaît, refuse-la (Refuser / Tout refuser / Continuer sans accepter / Reject all), ne l’accepte jamais.", "Simple visiteur : ne remplis et ne soumets aucun formulaire, ne te connecte jamais. N'ouvre aucun onglet ni fenêtre.",
+    instructions: [...COURSE_RULES, "Si un bandeau de cookies propose Refuser / Tout refuser / Continuer sans accepter / Reject all / Ablehnen / No, thanks / No thanks / Non merci / Nein danke, REFUSE les cookies, ne les accepte jamais. Ne clique jamais sur OK, Accept ni Let me choose. Sans refus explicite, laisse le bandeau : il sera masqué temporairement pour Holo au relevé.", "Simple visiteur : ne remplis et ne soumets aucun formulaire, ne te connecte jamais. N'ouvre aucun onglet ni fenêtre.",
       "N'utilise jamais la commande retour du navigateur (back). Pour changer de page, clique toujours un lien visible ; go_to reste le dernier recours prévu par la consigne. Ne clique jamais vers une page déjà relevée dans ce passage, même pour retrouver le menu.",
       `Reste sur le site ${new URL(pages[0].url).origin} : ne suis aucun lien vers un autre domaine ou sous-domaine. Les adresses avec et sans www. sont le même site et leurs redirections sont autorisées. Si tu arrives sur un autre site, tu es ramené sur le site.`].join("\n"),
     task: ["Nouveau passage : aucune page n'a encore été relevée dans cette session. La page déjà ouverte ne prouve aucun avancement. Commence à la partie 1, même si le navigateur affiche une partie ultérieure.", ...pages.map((page, index) => `Partie ${index + 1} : ${index === 0
@@ -125,8 +127,8 @@ function controlDescription(message: string, selectors: Set<string>): string {
 function pageStatus(findings: Finding[]): Statut {
   return (["VERIFIED_FAIL", "SUSPECTED", "INCONCLUSIVE"] as Statut[]).find(status => findings.some(finding => finding.statut === status && !findings.some(other => other.id === finding.explique_par))) ?? "PASS";
 }
-const kinds = { "cut-off-text": "texte-coupe", "overlapping-text": "chevauchement", "misaligned-element": "decalage", "distorted-image": "image-deformee", "unreadable-contrast": "contraste-illisible" };
-const descriptions = { "cut-off-text": "Un texte semble coupé.", "overlapping-text": "Des textes semblent se chevaucher.", "misaligned-element": "Un élément semble décalé.", "distorted-image": "Une image semble déformée.", "unreadable-contrast": "Un texte semble difficile à lire." };
+const kinds = { "cut-off-text": "texte-coupe", "overlapping-text": "chevauchement", "misaligned-element": "decalage", "distorted-image": "image-deformee", "unreadable-contrast": "contraste-illisible", "unfilled-control-group": "groupe-incomplet" };
+const descriptions = { "cut-off-text": "Un texte semble coupé.", "overlapping-text": "Des textes semblent se chevaucher.", "misaligned-element": "Un élément semble décalé.", "distorted-image": "Une image semble déformée.", "unreadable-contrast": "Un texte semble difficile à lire.", "unfilled-control-group": "Un groupe de boutons semble ne pas remplir son cadre." };
 const sorts = { page_en_erreur: "page-erreur", image_cassee: "image-cassee", defilement_horizontal: "defilement-horizontal", debordement: "debordement", debordement_traduction: "debordement-traduction", texte_rogne: "texte-rogne", lien_casse: "lien-casse", texte_erreur: "texte-erreur", erreur_console: "erreur-console", texte_non_traduit: "texte-non-traduit" };
 const expected = { page_en_erreur: "Une réponse HTTP inférieure à 400.", image_cassee: "Une image décodable.", defilement_horizontal: "La page tient dans la largeur du document.", debordement: "Le contenu tient dans sa boîte.", debordement_traduction: "Le contenu tient dans sa boîte dans les deux langues.", texte_rogne: "Le texte reste lisible sans être rogné.", lien_casse: "Une réponse HTTP inférieure à 400.", texte_erreur: "Aucun texte d'erreur affiché.", erreur_console: "Aucune erreur JavaScript.", texte_non_traduit: "Le texte respecte la langue déclarée de la page ou du bloc." };
 
@@ -325,6 +327,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
       ecarts_visuels: findings.flatMap(item => (item.source !== "controle" || (item.statut === "SUSPECTED" && item.capture === `captures/${page.ecran}.png`)) && !item.explique_par && item.zone && (item.statut === "PASS" || item.statut === "SUSPECTED") ? [{ id: item.id, ecran: item.ecran, vue: item.vue, description: item.description, zone: item.zone, statut: item.statut, ...(item.decision_id ? { decision_id: item.decision_id } : {}) }] : []),
       captures: page.capture?.url ? [page.capture.url] : [], ...(replayUrl ? { replay_url: replayUrl } : {}), ...(reason ? { raison: reason } : {}) };
   };
+  let finalizationFailure: string | null = null;
   const wrapped: BasePassages = {
     async insererPassage(passage) { await base.insererPassage(passage); save(); },
     async insererEvenement(event) { agent.session_id = event.session_id; agent.etat = "en_cours"; save(); await base.insererEvenement(event); },
@@ -346,14 +349,21 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
     },
     async enregistrerResultat(result) { await base.enregistrerResultat(result); save(); },
     async terminerPassage(result) {
-      await base.terminerPassage(result);
-      const costs = [...report.agents.flatMap(item => item.cout_usd === null ? [] : [item.cout_usd]),
-        ...report.pages.flatMap(page => page.holo?.cout_usd == null ? [] : [page.holo.cout_usd])];
-      report.cout_usd = costs.length ? costs.reduce((sum, cost) => sum + cost, 0) : null; save();
+      try {
+        await base.terminerPassage(result);
+        const costs = [...report.agents.flatMap(item => item.cout_usd === null ? [] : [item.cout_usd]),
+          ...report.pages.flatMap(page => page.holo?.cout_usd == null ? [] : [page.holo.cout_usd])];
+        report.cout_usd = report.agents.some(item => item.cout_usd === null) ? null : costs.length ? costs.reduce((sum, cost) => sum + cost, 0) : null; save();
+      } catch (error) {
+        finalizationFailure = "La sauvegarde finale du passage a échoué.";
+        throw error;
+      }
     },
   };
   const returned = { ...report, navigation };
-  let finalizationFailure: string | null = null;
+  let autoCompleted = false;
+  // No cookie banner for the whole visit (#208): blocked, refused, else hidden, on every tab, from the first page.
+  const stopConsent = await (deps.garderSansConsentement ?? garderSansConsentement)(port, log);
   try {
     if (blocage) {
       markBlocked(blocage); report.etat = "fini"; agent.etat = "fini"; report.cout_usd = 0;
@@ -390,7 +400,6 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
       let active: SessionEnCours | undefined;
       let stopped = false;
       let completed = false;
-      let autoCompleted = false;
       let stopRequest: Promise<void> | undefined;
       const stopActive = () => stopRequest ??= Promise.resolve().then(() => active?.stop?.());
       let dimensions: { page: number; viewport: number } | undefined;
@@ -584,7 +593,11 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
             if (owner.replay_url) test.replay_url = owner.replay_url;
           }
         }
-        return ecrireRapportPassage(target, passage, results);
+        try { return ecrireRapportPassage(target, passage, results); }
+        catch (error) {
+          finalizationFailure = "L'écriture du rapport final dans le vault a échoué.";
+          throw error;
+        }
       },
       relever: (ecran, vue, hookSignal) => diagnosticReleve(ecran, async () => {
         const page = pages.find(page => page.ecran === ecran);
@@ -615,11 +628,29 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
         if (inaccessible) { hookSignal?.removeEventListener("abort", close); close(); throw new Error(inaccessible); }
         let capture: ReleveCapture;
         let consentFailed = false;
-        try { capture = await runtime.relever(ecran, vue, async () => {
-          try { if (client && await dismissCookies(client)) page.cookies = "refusee"; }
+        let captureFailed = false;
+        const restorations: Array<() => Promise<void>> = [];
+        const hideOverlays = async () => {
+          try {
+            if (client) {
+              if (await dismissCookies(client)) page.cookies = "refusee";
+              restorations.push(await hideCaptureOverlays(client, message => deps.log?.(`${ecran} : ${message}`)));
+            }
+          }
           catch { consentFailed = true; }
-        }); }
-        catch (error) { hookSignal?.removeEventListener("abort", close); close(); throw error; }
+        };
+        try {
+          await hideOverlays();
+          capture = await runtime.relever(ecran, vue, hideOverlays);
+        }
+        catch (error) { captureFailed = true; throw error; }
+        finally {
+          for (const restore of restorations.reverse()) {
+            try { await restore(); }
+            catch { consentFailed = true; deps.log?.(`${ecran} : restauration du bandeau de consentement non confirmée.`); }
+          }
+          if (captureFailed) { hookSignal?.removeEventListener("abort", close); close(); }
+        }
         hookSignal?.throwIfAborted();
         const matches = (address: string) => {
           try {
@@ -662,7 +693,6 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
         const findings: Finding[] = [];
         if (consentFailed) inconclusive(page, "controle", findings, "La revérification du consentement avant capture a échoué.");
         const controlZones = new Map<string, Zone>();
-        const recapturedControls: { item: Finding; message: string; selectors: Set<string> }[] = [];
         let http: number | null = null;
         const hookFetch: typeof fetch = (address, init) => (deps.fetch ?? fetch)(address, { ...init, ...(hookSignal ? { signal: init?.signal ? AbortSignal.any([hookSignal, init.signal]) : hookSignal } : {}) });
         const linkFetch: typeof fetch = (address, init) => siteFetch(address, { ...init, ...(hookSignal ? { signal: init?.signal ? AbortSignal.any([hookSignal, init.signal]) : hookSignal } : {}) });
@@ -706,17 +736,9 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
                     } catch { /* Repli sur la capture CDP. */ }
                   }
                   extra ??= await captureDefect(client, documentZone, capture.defilement, { doux: options.doux });
-                  const duplicate = extra.zone && recapturedControls.find(({ item: other }) =>
-                    other.sorte === item.sorte && other.preuve.mesure === measure && sameControlZone(other.zone, extra.zone));
-                  if (duplicate) {
-                    for (const selector of selectors) duplicate.selectors.add(selector);
-                    duplicate.item.description = controlDescription(duplicate.message, duplicate.selectors);
-                    continue;
-                  }
                   const file = `captures/${item.id}.png`;
                   writeFileSync(join(sortie, file), extra.png);
                   item.capture = file; item.zone = extra.zone;
-                  if (extra.zone) recapturedControls.push({ item, message: defect.message, selectors });
                 } catch { /* Le constat reste prouvé sans zone hors image. */ }
               }
               controlZones.set(item.id, zone);
@@ -794,6 +816,10 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
   } catch {
     report.etat = "interrompu"; agent.etat = "tombe"; agent.raison ??= "Le passage a été interrompu.";
   } finally {
+    stopConsent();
+    if (autoCompleted && pages.every(page => page.etat === "visitee") && !finalizationFailure) {
+      report.etat = "fini"; agent.etat = "fini";
+    }
     if (blocage) log(blocage);
     if (finalizationFailure) { report.etat = "interrompu"; agent.etat = "tombe"; agent.raison = finalizationFailure; }
     else if (blocage) { agent.raison = blocage; agent.etat = "fini"; }

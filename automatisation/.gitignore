@@ -1,2 +1,4 @@
 # Local files of the demo on the clone (patches, fake GitHub), never committed.
 demo/clone/
+# Also a symbolic link named node_modules (a worktree that borrows the dependencies): « node_modules/ » at the root only matches folders.
+node_modules

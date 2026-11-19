@@ -1,0 +1,10 @@
+{
+  "source": "docs/tests/, relevé le 19/11 ; voir banc/mesures.md",
+  "cout_par_passage": [
+    { "nom": "Facturo, 3 tests (3 passages)", "min_usd": 0.026, "max_usd": 0.034, "source": "docs/tests/2026-11-17-a5-trois-passages-agent-h.md" },
+    { "nom": "Clone Eugenia, PR #16, 8 pages", "min_usd": 0.0659, "max_usd": 0.0709, "source": "docs/tests/2026-11-18-passage-reel-pr16.md" },
+    { "nom": "Eugenia, mode visuel, 15 pages", "min_usd": 0.0712, "max_usd": 0.0745, "source": "docs/tests/2026-11-18-mode-visuel.md" },
+    { "nom": "Eugenia, tour de 7 pages (3 tours)", "min_usd": 0.0716, "max_usd": 0.0739, "source": "docs/tests/2026-11-17-tour-du-site-reel.md" },
+    { "nom": "Eugenia, visite par clics, 8 pages", "min_usd": 0.103, "max_usd": 0.103, "source": "docs/tests/2026-11-18-a91-visite.md" }
+  ]
+}

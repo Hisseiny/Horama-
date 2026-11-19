@@ -105,3 +105,52 @@ et les notes manquantes sont créées, sans écraser les notes existantes, même
 rapports de passages du site ; chaque écran compare sa dernière référence antérieure.
 Ctrl+C arrête la session et conserve une synthèse interrompue. Aucun passage réel ni
 contrôle visuel humain n'est attesté par les tests hors ligne.
+
+## Service Railway de la tour (#238)
+
+Configurer le compte d'équipe avec `TOUR_EMAIL` et `TOUR_NOM`. Mettre dans
+`TOUR_MOT_DE_PASSE_HASH` une chaîne `scrypt:<sel hex>:<clé hex>` produite avec
+un sel aléatoire de 16 octets et `scrypt` de Node (paramètres par défaut, clé de
+64 octets). Utiliser un secret aléatoire de 32 octets ou plus dans `TOUR_SECRET`.
+`GITHUB_TOKEN_TOUR` doit permettre la lecture et l'écriture du contenu des
+deux dépôts spécifiés dans [#238](https://github.com/Hisseiny/Horama-/issues/238).
+
+- CORS des routes `/tour/*` : seulement `https://horama-gold.vercel.app` et
+  `http://127.0.0.1:<port>`, en-têtes `Content-Type` et `Authorization`. Une
+  autre origine reçoit `403`.
+- `POST /tour/session` donne un jeton valide 12 h. Envoyer ce jeton dans
+  `Authorization: Bearer <jeton>` pour les écritures. Après cinq essais de
+  connexion par IP en une minute, le service répond `429`. Sur Railway, l'IP
+  est celle de l'en-tête `X-Real-IP` posé par le proxy ; ailleurs, celle de la
+  connexion. Sans les quatre variables du compte, la route répond `503` en les
+  nommant.
+- `GET /tour/donnees` renvoie l'index, les notes Markdown du vault du clone
+  (chemins relatifs au vault, lus sur la branche `horama/vault` si elle existe,
+  sinon sur `dev`), et les explorations récentes avec leurs nombres de pages
+  visitées, défauts et doutes. Les mesures indisponibles valent `null`. Sans
+  `GITHUB_TOKEN_TOUR`, la route répond `503` avec la raison, les explorations et
+  l'état de l'agent ; la tour passe alors par son repli GitHub.
+- `POST /tour/decision` enregistre le choix (`choix`, `decision`, `par`, `le`)
+  seulement dans l'entrée du passage de `index.json`, branche `horama/captures`
+  du clone : un commit par décision, relu et réessayé si le SHA a changé.
+  Aucune note n'est écrite dans le vault (décision de Nathan sur #238). `409` si
+  le constat est déjà tranché, `404` s'il est inconnu, `503` (à rejouer) si
+  GitHub ne répond pas.
+- `POST /tour/test` prend l'identifiant du test comme valeur de `test`.
+  Pour `modifier`, fournir au moins une section (`task` ou `verification`),
+  avec son contenu Markdown. Le test modifié est accepté. L'écriture se fait
+  sur la branche `horama/vault` du dépôt Horama- (créée depuis `dev` au premier
+  besoin), au chemin `vault-horama/eugenia-clone/tests/<test>.md`.
+- Le service refuse toute écriture hors de `horama/captures` (clone) et
+  `horama/vault` (Horama-) : jamais `dev` ni `main`. Les changements arrivent
+  dans `dev` seulement par une PR relue.
+- `POST /tour/doc` prend `{note, correction, action: "accepter" | "refuser"}` :
+  `note` est le chemin de la note dans `eugenia-clone/` (par exemple
+  `ecrans/accueil.md`), `correction` l'identifiant de la décision
+  `decisions/<correction>.md` qui porte la `correction_de_note` proposée.
+  Accepter remplace `avant` par `apres` dans la note (une seule occurrence
+  attendue, sinon `409`), puis passe la correction à `acceptee` ; refuser la
+  passe à `refusee` sans toucher la note. Les deux écritures vont sur
+  `horama/vault`. `404` si la correction ou la note est inconnue, `409` si
+  elle est déjà tranchée. Rejouée après un échec entre les deux écritures,
+  l'acceptation reconnaît la note déjà corrigée et ferme la proposition.

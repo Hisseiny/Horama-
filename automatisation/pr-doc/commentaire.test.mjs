@@ -47,7 +47,7 @@ test("exploration : défauts prouvés avec page, zone, preuve et décision ; dou
   assert.match(corps, /^### Exploration de tout le site de la prévisualisation\n\nhttps:\/\/p\.vercel\.app\/ : 7 pages visitées sur 8 trouvées\./);
   assert.match(corps, /\*\*1 défaut de mise en page prouvé, 1 doute\.\*\*/);
   assert.match(corps, /#### Défauts prouvés par le code\n\n- \/programmes : Le texte est rogné dans sa boîte\. Mesuré : 312 px de texte pour 180 px de boîte\. Attendu : le texte tient dans sa boîte\. \(zone x 40, y 612, 180 × 48 px sur la capture, décision : bug\)/);
-  assert.match(corps, /#### Doutes du regard de Holo, rien n'est prouvé\n\n- \/ : Un texte semble coupé\. \(zone x 700, y 300, 200 × 60 px sur la capture, décision : pas tranché\)/);
+  assert.match(corps, /#### Doutes du regard de Holo, rien n'est prouvé\n\n- \/ : Un texte semble coupé\. \(zone x 700, y 300, 200 × 60 px sur la capture, décision : à trancher\)/);
   assert.match(corps, /#### Déjà déclarés voulus, non redemandés\n\n- \/admissions : Le bouton déborde\. \(zone non mesurée\)/);
   assert.match(corps, /#### Pages non visitées\n\n- \/compte : Cette page demande une connexion\n/);
   assert.match(corps, /`vault-horama\/p-vercel-app\/passages\/P2\.md`/);

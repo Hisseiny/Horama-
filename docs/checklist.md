@@ -57,7 +57,7 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | 3.6 | Écran 11.3 : le fil en direct se remplit à partir de la base | Axil | à faire |  |
 | 3.7 | Point technique H (15 h) : ce qui bloque 3.4 et 3.5 | Ali, Nathan | à faire |  |
 | 3.8 | Workflow n8n : « cas à relire » (C7) devient une notification, et une ligne de mesure part en base | Nathan | à faire |  |
-| 3.9 | Banc : liste d'environ 10 régressions (dont 3 entre écrans) et 5 changements voulus (dont 2 contredisent la doc), vérité écrite à l'avance, cas gardés cachés jusqu'à la mesure | Inès | à faire |  |
+| 3.9 | Banc : liste d'environ 10 régressions (dont 3 entre écrans) et 5 changements voulus (dont 2 contredisent la doc), vérité écrite à l'avance, cas gardés cachés jusqu'à la mesure | Inès | codé non testé | banc/cas.md : 18 cas (13 bugs, 5 voulus), vérité écrite les 16 et 17/11 avant toute mesure. [PR #244](https://github.com/Hisseiny/Horama-/pull/244) |
 | 3.10 | Chiffres du pilote (temps de recette, bugs arrivés chez des clients), sa documentation transmise à Inès, premier jet du go-to-market | Noé | à faire |  |
 | 3.11 | Intégration : la boucle complète sur 1 écran, sans toucher au code entre deux passages ; `main` gelé pendant le test | Ali | codé non testé | Deux passages H Eugenia avec --sans-base ; C4 SUSPECTED, décision simulée relue au second passage. Base partagée non accessible. Voir docs/tests/2026-11-17-3.11-integration-eugenia.md. |
 | 3.12 | Peer review du soir | Tous | à faire |  |
@@ -76,8 +76,8 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | 4.8 | Écran 11.6 : file de relecture, « C'est un bug » ou « C'est voulu » (C5) | Axil | à faire |  |
 | 4.9 | Mémoire limitée à un écart, référence mise à jour seulement quand tout est tranché, retest | Inès | à faire |  |
 | 4.10 | Faux SaaS en deux versions (12 et 13) et régressions activables selon la liste du banc | Nathan | à faire |  |
-| 4.11 | Deck de vendredi : plan des 8 à 12 slides dans l'ordre imposé (problème, solution, démo, business model, go-to-market, architecture, limites et roadmap, coût de run) | Noé, Axil | en cours | Plan de 12 slides sourcé : `pitch/deck/plan.md` ; design (Axil), prix et test en allemand à venir |
-| 4.12 | Premier passage du banc : rappel et précision bruts | Inès | à faire |  |
+| 4.11 | Deck de vendredi : plan des 8 à 12 slides dans l'ordre imposé (problème, solution, démo, business model, go-to-market, architecture, limites et roadmap, coût de run) | Noé, Axil | en cours | Plan de 12 slides sourcé : `pitch/deck/plan.md` ; business model et grille de prix : `pitch/business-model.md` (#227) ; design (Axil) et test en allemand à venir |
+| 4.12 | Premier passage du banc : rappel et précision bruts | Inès | codé non testé | Passage 1 sans l'agent H, [preuve](tests/2026-11-19-banc-passage-1.md). Banc avec H à faire. [PR #244](https://github.com/Hisseiny/Horama-/pull/244) |
 | 4.13 | Peer review du soir | Tous | à faire |  |
 | A57.2 | Moteur visuel à un agent, commande explorer, C4 et mémoire du site | Ali | codé non testé | Tests hors ligne, passages H réels et revue humaine : [rapport](tests/2026-11-18-mode-visuel.md), 2 vrais constats et 6 faux sur 8. Plafond service 420 s, lecture mesurée par CDP et fin autonome validés hors ligne : [preuve](tests/2026-11-19-plafond-moments-creux.md). Lecture par la scène et parallélisme à mesurer. |
 | #170 (traduction) | Comparer les versions de langue pour le texte non traduit et les débordements | Ali | codé non testé | [Mesure Chrome](tests/2026-11-19-comparaison-traductions.md) sur la prévisualisation Eugenia #16 et les deux révisions FR/DE. |
@@ -94,7 +94,7 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | 5.2 | Dérive documentaire : un « voulu » qui contredit une note propose la correction (écran 11.7) ; Accepter modifie la note dans le vault | Inès (logique), Leslie (rédaction de la correction), Axil (écran) | en cours | Leslie : rédaction faite, `proposerCorrection` dans `jugement/correction/` (PR #11, #20) ; mesure réelle 11, 14, 14 puis 15 sur 15 après corrections (`docs/tests/2026-11-17-correction.md`) ; branchée dans la scène par Nathan (PR #28, `automatisation/scene/README.md`) : avant / après, « Accepter » ou « Refuser » ; passage réel de la scène avec correction : à mesurer |
 | #36.2 | PR documentaire après acceptation d'une correction de note (temps 6) | Ali | codé non testé | `automatisation/pr-doc/` : texte et commandes vérifiés hors réseau, vrais commits/poussées vers un dépôt nu local ; [preuve et limites](tests/2026-11-17-pr-doc.md). Branchement par Nathan et essai GitHub sur un dépôt d'essai à faire ; aucune attestation humaine. |
 | 5.3 | Vérifier les 8 critères du P0 (cadrage, section 7), `main` gelé | Ali | à faire |  |
-| 5.4 | Mesures complètes, comparaisons (pixels, tests écrits à la main, sans et avec mémoire, deux modèles Hugging Face), coût et durée d'un passage, graphiques du deck | Inès | à faire |  |
+| 5.4 | Mesures complètes, comparaisons (pixels, tests écrits à la main, sans et avec mémoire, deux modèles Hugging Face), coût et durée d'un passage, graphiques du deck | Inès | codé non testé | banc/mesures.md (sources), banc/graphiques/, banc/rapport-pole-cdo.pdf régénéré par banc/scripts/rapport-pdf.mjs. Comparaisons à la main et sans mémoire : à mesurer. [PR #244](https://github.com/Hisseiny/Horama-/pull/244) |
 | 5.5 | Retour écrit du pilote : utiliserait-il Horama, paierait-il, combien, que manque-t-il ; point business de l'après-midi | Noé | à faire |  |
 | 5.6 | État de départ de la démo écrit (comptes connectés, fenêtres, zoom, étiquette Git jouée) | Ali, Noé | à faire |  |
 | 5.7 | Vidéo de secours par étape de la chorégraphie (cadrage, section 14.2) | Nathan, Noé | à faire |  |
@@ -102,6 +102,7 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | 5.9 | Gel du soir : étiquette `demo-ok-jeudi` ; ensuite, seules les corrections de bug critiques, fusionnées par Ali | Ali | à faire |  |
 | 5.10 | README et « comment tester » en brouillon (trois façons de voir Horama, et le faux SaaS pour un développeur) | Ali | codé non testé | README et guide d'exécution livrés dans la [PR #16 fusionnée](https://github.com/Hisseiny/Horama-/pull/16) ; commandes vérifiées, [preuve](tests/2026-11-17-readme-architecture.md). Correction du README agent sur le partage incluse dans la [PR #26](https://github.com/Hisseiny/Horama-/pull/26) en relecture. validation par une autre personne à attester. |
 | 5.11 | Peer review du soir | Tous | à faire |  |
+| #238 | Service Railway de la tour en écriture | Léon | testé hors ligne | [Vérifications](tests/2026-11-19-tour-service.md). Correction de note en `501`. Déploiement et répétition à faire. |
 
 ## Phase 6. Vendredi : les livrables et le pitch
 

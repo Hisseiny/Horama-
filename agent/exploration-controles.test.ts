@@ -357,8 +357,11 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
   \`` });
   const clippedText = (await controlerPage(client, { maxLiens: 0 })).filter(defect => defect.sorte === "texte_rogne");
   t.diagnostic(`Textes rognés : ${clippedText.map(defect => defect.selecteur).join(", ")}`);
-  assert.deepEqual(clippedText.filter(defect => defect.statut === "VERIFIED_FAIL").map(defect => defect.selecteur), ["#german", "#multiline", "#clipping-parent", "#inline-clipping-parent"]);
-  const intentionalCuts = clippedText.filter(defect => defect.statut === "SUSPECTED");
+  assert.ok(clippedText.every(defect => defect.statut === "SUSPECTED"));
+  for (const selector of ["#german", "#multiline", "#clipping-parent", "#inline-clipping-parent"]) {
+    assert.ok(clippedText.some(defect => defect.selecteur === selector && /peut être voulu/.test(defect.raison ?? "")));
+  }
+  const intentionalCuts = clippedText.filter(defect => /sans doute voulu, à confirmer/.test(defect.raison ?? ""));
   assert.equal(intentionalCuts.length, 3);
   assert.ok(intentionalCuts.some(defect => defect.selecteur === "#ellipsis"));
   assert.ok(intentionalCuts.some(defect => defect.selecteur === "#line-clamp"));
@@ -385,7 +388,7 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
     <div id="quiet-parent" style="width:300px;overflow:hidden;text-overflow:ellipsis"><div id="clipped-child" style="width:100px;overflow:hidden;white-space:nowrap;font:16px/20px sans-serif">Un texte long déjà coupé par le conteneur enfant</div></div>
   \`` });
   const nestedCuts = (await controlerPage(client, { maxLiens: 0 })).filter(defect => ["debordement", "texte_rogne"].includes(defect.sorte));
-  assert.deepEqual(nestedCuts.map(defect => [defect.selecteur, defect.statut]), [["#really-cut", "VERIFIED_FAIL"], ["#clipped-child", "VERIFIED_FAIL"]]);
+  assert.deepEqual(nestedCuts.map(defect => [defect.selecteur, defect.statut]), [["#really-cut", "SUSPECTED"], ["#clipped-child", "SUSPECTED"]]);
   await navigate("/many");
   started = Date.now();
   const many = await controlerPage(client);
