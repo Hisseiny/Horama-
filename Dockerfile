@@ -17,7 +17,7 @@ COPY contrats/ contrats/
 COPY jugement/ jugement/
 COPY memoire/ memoire/
 COPY automatisation/scene/scene.mjs automatisation/scene/agent-h.mjs automatisation/scene/
-COPY automatisation/scene/couche-horama.js automatisation/scene/
+COPY automatisation/scene/couche-horama.js automatisation/scene/defilement-h.js automatisation/scene/
 COPY docs/da/trait.js docs/da/
 COPY docs/da/mascotte/*.svg docs/da/mascotte/
 COPY --chmod=0755 agent/scripts/chrome-container.mjs /usr/local/bin/horama-chrome
