@@ -40,6 +40,7 @@
   // ---------- Sizes and times ----------
   const TIP = { x: 7, y: 5 }; // point of the cursor arrow in its 40 px box
   const PRESS = 120; // ms the arrow stays pressed before the click is given back to the page
+  const HOVER = 170; // ms the arrow rests on its target, as a hand does, before it presses
   const STROKE = 800; // ms to draw the line around a zone
   const GAP = 16; // between the mascot and its bubble
   const FONT = '"Funnel Sans", system-ui, sans-serif'; // the text
@@ -146,6 +147,8 @@
     .cursor { position: fixed; left: 0; top: 0; width: 40px; height: 40px; will-change: transform; }
     .cursor svg { display: block; width: 40px; height: 40px; transform-origin: ${TIP.x}px ${TIP.y}px; transition: transform 90ms ease-out; }
     .cursor.press svg { transform: scale(0.78); }
+    .cursor.wheel svg { animation: wheel 380ms ease-in-out; }
+    @keyframes wheel { 40% { transform: translateY(calc(var(--wheel, 1) * 5px)) scale(0.94); } }
     .ripple { position: fixed; width: 28px; height: 28px; margin: -14px; border: 3px solid ${IRIS}; border-radius: 50%; animation: ripple 460ms ease-out forwards; }
     @keyframes hover { 50% { transform: translateY(-5px); } }
     @keyframes pop { from { scale: 0.82; } to { scale: 1; } }
@@ -196,14 +199,40 @@
   let goal = state.mascot ?? corners()[0];
   const at = { ...goal, vx: 0, vy: 0 };
   let cursorAt = state.cursor;
+  // The reading of the page by the mascot while H thinks (see « Reading » below): its timer, the title it reads.
+  let readTimer = 0, reading = null, readIndex = -1;
   let frame = 0;
   let last = 0;
-  // A curve from one point to the other, bowed to one side, slow at both ends.
-  const along = ({ from, to }, t) => {
-    const e = t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2;
-    const cx = (from.x + to.x) / 2 - (to.y - from.y) * 0.16;
-    const cy = (from.y + to.y) / 2 + (to.x - from.x) * 0.16;
-    return { x: (1 - e) ** 2 * from.x + 2 * (1 - e) * e * cx + e * e * to.x, y: (1 - e) ** 2 * from.y + 2 * (1 - e) * e * cy + e * e * to.y };
+  // The way of a hand from one point to the point H chose, never another point: a curve bowed to one side (how much and
+  // which side follow from the two points), the speed of a reach (fast early, slow at the end), a small overshoot past
+  // the target, then the correction back onto it. The duration grows with the distance as for a pointing hand (Fitts).
+  const course = (from, to) => {
+    const d = Math.hypot(to.x - from.x, to.y - from.y);
+    if (d < 2) return { from, to, ms: 0, over: to, ctrl: to };
+    const ux = (to.x - from.x) / d, uy = (to.y - from.y) / d;
+    const seed = Math.abs(Math.sin(from.x * 12.9898 + from.y * 78.233 + to.x * 37.719 + to.y * 4.581)); // 0..1, from the points
+    const bow = (seed < 0.5 ? -1 : 1) * (0.07 + 0.11 * (seed * 2 % 1)) * d;
+    const past = Math.min(11, 0.035 * d);
+    return {
+      from, to,
+      // 800 ms at most: with the hover and the press, the click reaches the page 1.09 s after H's at the latest, before
+      // H looks at the page again (1.53 s after its click at the soonest, bridge log of 18/11).
+      ms: Math.round(Math.min(800, 280 + 120 * Math.log2(1 + d / 24))),
+      over: { x: to.x + ux * past - uy * past * 0.35, y: to.y + uy * past + ux * past * 0.35 },
+      ctrl: { x: (from.x + to.x) / 2 - uy * bow, y: (from.y + to.y) / 2 + ux * bow },
+    };
+  };
+  const REACH = 0.84; // share of the time spent reaching the overshoot point; the rest corrects onto the target
+  const along = (travel, t) => {
+    const { from, to } = travel;
+    const over = travel.over ?? to, ctrl = travel.ctrl ?? { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
+    if (t >= REACH) {
+      const c = (t - REACH) / (1 - REACH), e = c * c * (3 - 2 * c);
+      return { x: over.x + (to.x - over.x) * e, y: over.y + (to.y - over.y) * e };
+    }
+    // Minimum jerk on a time bent forward: the peak of speed comes before the middle, the end is long and slow.
+    const w = (t / REACH) ** 0.8, e = w ** 3 * (10 - 15 * w + 6 * w * w);
+    return { x: (1 - e) ** 2 * from.x + 2 * (1 - e) * e * ctrl.x + e * e * over.x, y: (1 - e) ** 2 * from.y + 2 * (1 - e) * e * ctrl.y + e * e * over.y };
   };
   const putCursor = (point) => {
     cursorAt = point;
@@ -212,7 +241,9 @@
   // The arrow presses where it arrives, with a ripple. Once the page has reacted (a menu that opens), the mascot checks
   // that it hides nothing.
   const land = () => {
+    const pressing = state.travel?.clic !== false;
     state.travel = null;
+    if (!pressing) return save();
     // The click is given: the mascot takes back the expression it had before it.
     if (state.avant_clic) {
       const before = state.avant_clic;
@@ -220,20 +251,25 @@
       if (state.etat === "hesite") setEtat(before);
     }
     save();
-    if (TITLE) setTimeout(() => state.revue || stepAside(busy()), PRESS + 350);
-    cursor.classList.add("press");
-    setTimeout(() => cursor.classList.remove("press"), PRESS + 120);
-    const ring = element("div", "ripple");
-    ring.style.left = `${cursorAt.x}px`;
-    ring.style.top = `${cursorAt.y}px`;
-    ring.addEventListener("animationend", () => ring.remove(), { once: true });
-    shadow.append(ring);
+    if (TITLE) setTimeout(() => state.revue || stepAside(busy()), HOVER + PRESS + 350);
+    // The arrow rests on its target a moment, then presses.
+    setTimeout(() => {
+      cursor.classList.add("press");
+      setTimeout(() => cursor.classList.remove("press"), PRESS + 120);
+      const ring = element("div", "ripple");
+      ring.style.left = `${cursorAt.x}px`;
+      ring.style.top = `${cursorAt.y}px`;
+      ring.addEventListener("animationend", () => ring.remove(), { once: true });
+      shadow.append(ring);
+    }, HOVER);
   };
   const wake = () => {
     frame ||= requestAnimationFrame(tick);
   };
   function tick(now) {
     frame = 0;
+    // The clock of the page, not the one of the frame: the flight goes on when the animations are frozen (a test).
+    now = performance.now();
     const dt = Math.min(0.034, (now - last) / 1000);
     last = now;
     let moving = false;
@@ -244,15 +280,17 @@
       else land();
     }
     // A spring a little under critical damping: it settles without bouncing back and forth.
-    at.vx += (130 * (goal.x - at.x) - 19 * at.vx) * dt;
-    at.vy += (130 * (goal.y - at.y) - 19 * at.vy) * dt;
+    // While it reads the page (calm), a slow spring: a quiet flight from one title to the next.
+    const [k, c] = reading ? [36, 11.4] : [130, 19];
+    at.vx += (k * (goal.x - at.x) - c * at.vx) * dt;
+    at.vy += (k * (goal.y - at.y) - c * at.vy) * dt;
     at.x += at.vx * dt;
     at.y += at.vy * dt;
     if (Math.abs(goal.x - at.x) + Math.abs(goal.y - at.y) + Math.abs(at.vx) + Math.abs(at.vy) > 0.4) moving = true;
     else Object.assign(at, goal, { vx: 0, vy: 0 });
     mascot.style.transform = `translate(${at.x}px, ${at.y}px)`;
     look();
-    if (moving) wake();
+    if (moving || reading) wake();
   }
   const goTo = (spot) => {
     goal = { x: spot.x, y: spot.y };
@@ -269,10 +307,12 @@
   const animate = () => {
     pupil = body.querySelector(".pupils");
   };
-  // The pupil looks at the arrow of the agent while it works (4 units at most from its place), straight ahead at the end.
+  // The pupil looks where the arrow of the agent is going (its target while it travels) while it works (4 units at most from its place), straight ahead at the end.
   const look = () => {
     if (!pupil) return;
-    const target = state.bulle || state.revue ? null : cursorAt;
+    // Reading: the eye goes along the title it reads, slowly, from its start to its end.
+    const sweep = reading ? { x: reading.look.x + Math.sin(performance.now() / 1100) * reading.half, y: reading.look.y } : null;
+    const target = state.bulle || state.revue ? null : sweep ?? state.travel?.to ?? cursorAt;
     const dx = target ? target.x - at.x - M / 2 : 0;
     const dy = target ? target.y - at.y - M / 2 : 0;
     const distance = Math.hypot(dx, dy) || 1;
@@ -299,11 +339,13 @@
   // ---------- Where the mascot stands: hiding as little as it can ----------
   // Room kept free around the cursor, or around the point where it is about to land.
   const clearance = ({ x, y }) => ({ left: x - 70, top: y - 70, right: x + 110, bottom: y + 120, weight: 60 });
-  // What must stay readable: the texts and the controls of the page, and far more the zones and the cursor.
+  // What must stay readable: the texts and the controls of the page (a hard rule, weight 10), the pictures (above all
+  // their upper half), and far more the zones and the cursor.
   const busy = () => {
     const boxes = [];
     for (const control of document.querySelectorAll("a, button, summary, input, select, textarea")) {
-      for (const { left, top, right, bottom } of control.getClientRects()) boxes.push({ left: left - 6, top: top - 6, right: right + 6, bottom: bottom + 6, weight: 10 });
+      // A control keeps a wider margin than a text: the mascot does not brush a button or the edge of a card.
+      for (const { left, top, right, bottom } of control.getClientRects()) boxes.push({ left: left - 14, top: top - 14, right: right + 14, bottom: bottom + 14, weight: 10 });
     }
     const range = document.createRange();
     const walker = document.body && document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
@@ -311,6 +353,15 @@
       if (!node.nodeValue.trim()) continue;
       range.selectNodeContents(node);
       for (const { left, top, right, bottom } of range.getClientRects()) boxes.push({ left: left - 6, top: top - 6, right: right + 6, bottom: bottom + 6, weight: 10 });
+    }
+    // The pictures of the page: never on the upper half of one (where the faces are, weight 40), on its lower half only
+    // when the background has no room (weight 4). A bare background comes first.
+    for (const media of document.querySelectorAll("img, video, canvas, picture, [style*='background-image']")) {
+      for (const { left, top, right, bottom, width, height } of media.getClientRects()) {
+        if (width < 60 || height < 60 || bottom < 0 || top > innerHeight) continue;
+        const middle = top + height / 2;
+        boxes.push({ left, top, right, bottom: middle, weight: 40 }, { left, top: middle, right, bottom, weight: 4 });
+      }
     }
     for (const zone of state.zones[here()] ?? []) boxes.push(box(zone, 24, 60));
     if (state.cursor && !state.revue) boxes.push(clearance(state.cursor));
@@ -338,6 +389,31 @@
     }
     return best;
   }
+  // The companion (all along the course): a place on a ring around a point (where the arrow goes, or a finding being
+  // drawn), that hides as little as it can of the page, nothing of the arrow, of its target or of the way to it, and
+  // not too far from where the mascot already is, so that it flies a short way beside the arrow.
+  // `near`: while it reads, being close to the title counts more than a short flight.
+  const nearSpot = (point, boxes, from, near = false) => {
+    const p = { x: Math.max(0, Math.min(innerWidth, point.x)), y: Math.max(0, Math.min(innerHeight, point.y)) };
+    const way = from ? [0.2, 0.4, 0.6, 0.8].map((t) => ({ x: from.x + (p.x - from.x) * t, y: from.y + (p.y - from.y) * t }))
+      .map(({ x, y }) => ({ left: x - 34, top: y - 34, right: x + 34, bottom: y + 34, weight: 60 })) : [];
+    const all = [...boxes, clearance(p), ...way];
+    // What must stay readable (texts, links, buttons: weight 10) is a hard rule: a place that covers none of it wins over
+    // any place that covers some, even farther from the point; among free places, the cheapest.
+    const readable = boxes.filter(({ weight }) => weight === 10);
+    let best = null;
+    for (const r of [130, 170, 220, 280, 350, 430, 560, 700]) {
+      for (let a = 0; a < 24; a++) {
+        const x = Math.round(p.x + Math.cos((a / 24) * 2 * Math.PI) * r - M / 2);
+        const y = Math.round(p.y + Math.sin((a / 24) * 2 * Math.PI) * r - M / 2);
+        if (x < 8 || y < 8 || x > innerWidth - M - 8 || y > innerHeight - M - 8) continue;
+        const covered = hidden(x, y, M, M, readable);
+        const cost = hidden(x, y, M, M, all) + (near ? 1 : 6) * Math.hypot(x - goal.x, y - goal.y) + (near ? 12 : 4) * r;
+        if (!best || (covered === 0) > (best.covered === 0) || ((covered === 0) === (best.covered === 0) && (covered === 0 ? cost < best.cost : covered < best.covered || (covered === best.covered && cost < best.cost)))) best = { x, y, cost, covered };
+      }
+    }
+    return best ?? corner(all);
+  };
   // The corner that hides the least of these boxes; the nearest one when several hide nothing.
   const corner = (boxes) => corners().reduce((best, spot) => {
     const cost = hidden(spot.x, spot.y, M, M, boxes) + 0.01 * Math.hypot(spot.x - goal.x, spot.y - goal.y);
@@ -393,12 +469,17 @@
     if (live) await wait(200);
   }
   // The mascot steps aside when it or its bubble hides one of these boxes: where the cursor is about to land, or what
-  // a page shows once it has opened or reacted. Without a bubble (all along the course) it only leaves its corner for
-  // the cursor or a zone, and goes to the corner that hides the least.
+  // a page shows once it has opened or reacted. Without a bubble (all along the course) it keeps beside the arrow
+  // (nearSpot): it comes back when it is far, and moves when it hides the arrow, a zone or the page that reacted.
   const stepAside = (boxes) => {
     const spot = state.bulle?.spot;
     if (!spot) {
-      if (hidden(goal.x, goal.y, M, M, boxes.filter(({ weight }) => weight >= 60)) > 0) goTo(corner(busy()));
+      const arrow = state.cursor ?? { x: innerWidth / 2, y: innerHeight / 2 };
+      const far = !reading && Math.hypot(goal.x + M / 2 - arrow.x, goal.y + M / 2 - arrow.y) > 340;
+      const now = busy();
+      if (far || hidden(goal.x, goal.y, M, M, boxes.filter(({ weight }) => weight >= 60)) > 0 || hidden(goal.x, goal.y, M, M, now.filter(({ weight }) => weight === 10 || weight === 40)) > 0) {
+        goTo(nearSpot(reading?.look ?? arrow, now));
+      }
       return;
     }
     if (hidden(goal.x, goal.y, M, M, boxes) + hidden(goal.x + spot.left, goal.y + spot.top, bubble.offsetWidth, bubble.offsetHeight, boxes) === 0) return;
@@ -541,7 +622,8 @@
   dim.classList.toggle("on", state.revue);
   setEtat(state.etat);
   mascot.hidden = !TITLE;
-  cursor.hidden = !state.cursor || state.revue;
+  // The arrow shows from the first gesture of the mouse of H, where it happens; before, there is nothing to show.
+  cursor.hidden = !state.cursor || !state.geste || state.revue;
   if (state.cursor) putCursor(state.travel ? state.travel.from : state.cursor);
   mascot.style.transform = `translate(${at.x}px, ${at.y}px)`;
   wake();
@@ -550,6 +632,16 @@
   // ---------- Commands called by the script (CDP Runtime.evaluate; a promise is awaited) ----------
   let examined = null; // id of the finding whose question is asked
   window.__horama = {
+    // While the agent starts (the pages are found, the session of H opens: about 30 s): the mascot reads the page at
+    // once (see « reading »), until the first gesture of the mouse of H (or preparer(false)). The arrow does not move:
+    // it has done nothing yet.
+    preparer(on = true) {
+      state.prepare = Boolean(on);
+      save();
+      clearTimeout(readTimer);
+      if (on) readNext();
+      else stopReading();
+    },
     // observe, trouve, doute, bloquee, fini (or a name of the first skeleton): a change in place, with a small jolt.
     etat(name) {
       setEtat(name);
@@ -632,9 +724,12 @@
         scrollTo({ top: Math.max(0, first.y - innerHeight / 3), behavior: "smooth" });
         await wait(600);
       }
-      // The mascot moves away first when it stands on what is about to be drawn: to another corner.
-      if (hidden(goal.x, goal.y, M, M, zones.map((zone) => box(zone, 14))) > 0) {
-        goTo(corner(busy()));
+      // The mascot lands beside what is about to be drawn (never on it), then the stroke comes.
+      if (TITLE && first && !state.bulle) {
+        const marked = zones.map((zone) => box(zone, 14, 60));
+        const left = Math.min(...marked.map((b) => b.left)), top = Math.min(...marked.map((b) => b.top));
+        const right = Math.max(...marked.map((b) => b.right)), bottom = Math.max(...marked.map((b) => b.bottom));
+        goTo(nearSpot({ x: (left + right) / 2, y: (top + bottom) / 2 }, [...busy(), ...marked]));
         await arrived();
       }
       await Promise.all(zones.filter((zone) => !zone.trait).map((zone) => drawZone(zone, true)));
@@ -653,7 +748,7 @@
     revue(on) {
       state.revue = on;
       save();
-      cursor.hidden = on || !state.cursor;
+      cursor.hidden = on || !state.cursor || !state.geste;
       dim.classList.toggle("on", on);
       if (!on) mascot.classList.remove("away");
     },
@@ -790,6 +885,11 @@
     held = null;
     window.horamaPress?.(JSON.stringify({ rejoue: heure, retard_ms: Math.round(performance.now() - since) }));
     const on = target.isConnected ? target : document.elementFromPoint(x, y);
+    // A link that would open another tab opens in this one: a second tab would take the front from the tab of the
+    // scene, and the bridge of H loses its tab when the scene closes it (passage on albertschool.com, 19/11: H asked to
+    // close the tab, its session became invalid). Same address, same click of H, one tab.
+    const link = on?.closest?.("a[target]");
+    if (link && !/^_(self|top|parent)$/i.test(link.target)) link.target = "_self";
     const init = { bubbles: true, cancelable: true, composed: true, view: window, clientX: x, clientY: y, button: 0, detail: 1 };
     on?.dispatchEvent(new PointerEvent("pointerdown", { ...init, buttons: 1, pointerId: 1, isPrimary: true }));
     on?.dispatchEvent(new MouseEvent("mousedown", { ...init, buttons: 1 }));
@@ -800,12 +900,19 @@
   };
   const press = (event) => {
     attach();
+    state.prepare = false;
+    gestured();
     if (held) replay();
+    clearTimeout(moving);
     const to = { x: event.clientX, y: event.clientY };
-    const from = cursorAt ?? to;
-    const ms = cursorAt ? Math.round(Math.min(800, 500 + 0.4 * Math.hypot(to.x - from.x, to.y - from.y))) : 0;
+    // From where the arrow is now (it may be on its way after a move of the mouse of H); the first gesture of H shows it
+    // where it happens.
+    const first = !state.geste;
+    state.geste = true;
+    const way = course(first ? to : cursorAt ?? to, to);
+    const ms = first || !cursorAt ? 0 : way.ms;
     const heure = Date.now();
-    state.travel = { from, to, at: heure, ms };
+    state.travel = { ...way, ms, at: heure };
     state.cursor = to;
     // Just before the click of the agent, while the arrow travels to it: the mascot hesitates.
     if (TITLE && !state.revue && ms > 0 && MASCOT.hesite && state.etat !== "hesite") {
@@ -814,9 +921,10 @@
     }
     save();
     cursor.hidden = false;
-    if (TITLE) stepAside([clearance(to)]);
+    if (TITLE && !state.bulle) goTo(nearSpot(to, busy(), cursorAt));
+    else if (TITLE) stepAside([clearance(to)]);
     wake();
-    if (!OPTIONS.direct) held = { target: event.target, ...to, heure, since: performance.now(), timer: setTimeout(replay, ms + PRESS) };
+    if (!OPTIONS.direct) held = { target: event.target, ...to, heure, since: performance.now(), timer: setTimeout(replay, ms + (ms ? HOVER : 0) + PRESS) };
     const under = document.elementFromPoint(to.x, to.y);
     const hit = under?.closest("a, summary, button") ?? under;
     window.horamaPress?.(JSON.stringify({
@@ -829,6 +937,101 @@
       trajet_ms: ms,
     }));
   };
+  // ---------- Reading: while H thinks, the mascot reads the page ----------
+  // Nothing of H moves while it thinks (8 to 15 s a step): the arrow stays where H left it. The mascot is ours: 2.5 s
+  // after the last gesture of H it flies slowly beside a title (or a paragraph) of the screen, reads it with its eye,
+  // rests 3.5 s, then the next one; a gesture of H brings it back beside the arrow at once. Never on a text.
+  const READ_AFTER = 2500, READ_PAUSE = 3500;
+  const readable = () => {
+    const seen = (el) => {
+      const r = el.getBoundingClientRect();
+      return r.width > 40 && r.height > 10 && r.top > 30 && r.bottom < innerHeight - 30 && r.left < innerWidth - 40 && r.right > 40 && el.checkVisibility?.({ opacityProperty: true, visibilityProperty: true }) !== false ? r : null;
+    };
+    const titles = [...document.querySelectorAll("h1, h2, h3, h4, [role=heading]")].map(seen).filter(Boolean);
+    if (titles.length) return titles;
+    return [...document.querySelectorAll("p, li")].filter((el) => el.innerText?.trim().length >= 40).map(seen).filter(Boolean).slice(0, 6);
+  };
+  const stopReading = () => {
+    clearTimeout(readTimer);
+    if (reading) {
+      reading = null;
+      wake();
+    }
+  };
+  function readNext() {
+    clearTimeout(readTimer);
+    if (!TITLE || state.revue || state.bulle || held || state.travel) return void (readTimer = setTimeout(readNext, READ_AFTER));
+    const list = readable().sort((a, b) => a.top - b.top || a.left - b.left);
+    if (!list.length) return stopReading();
+    readIndex = (readIndex + 1) % list.length;
+    const r = list[readIndex];
+    const width = Math.min(r.width, 520);
+    reading = { look: { x: r.left + width / 2, y: r.top + r.height / 2 }, half: width / 2 };
+    goTo(nearSpot(reading.look, busy(), null, true));
+    wake();
+    readTimer = setTimeout(readNext, READ_PAUSE + 1500);
+  }
+  // Each gesture of H: the reading stops, and starts again once H is quiet.
+  const gestured = () => {
+    stopReading();
+    readTimer = setTimeout(readNext, READ_AFTER + 1100);
+  };
+  document.addEventListener("DOMContentLoaded", () => {
+    if (TITLE && !state.revue) readTimer = setTimeout(readNext, READ_AFTER);
+  });
+  // After a scroll of the page, the mascot leaves a text that slid under it.
+  window.addEventListener("scrollend", () => TITLE && !state.revue && !state.bulle && stepAside([]), true);
+
+  // The other gestures of the mouse of H, shown where they really happen and nowhere else. A move of its mouse with no
+  // press just after (the bridge moves it before a scroll, or the agent hovers): the arrow goes there without pressing.
+  // A turn of the wheel (a scroll of the agent, at the point of its mouse): the arrow goes there if it is not, and nods
+  // in the direction of the scroll. Nothing moves while the agent thinks: then it is the mascot that lives.
+  let moving = 0;
+  const goWithoutPress = (to) => {
+    state.prepare = false;
+    gestured();
+    if (state.revue || (state.geste && cursorAt && Math.hypot(to.x - (state.cursor?.x ?? cursorAt.x), to.y - (state.cursor?.y ?? cursorAt.y)) < 2)) return;
+    attach();
+    const first = !state.geste;
+    state.geste = true;
+    const way = course(first ? to : cursorAt ?? to, to);
+    state.travel = { ...way, ms: first || !cursorAt ? 0 : way.ms, at: Date.now(), clic: false };
+    state.cursor = to;
+    save();
+    cursor.hidden = false;
+    if (TITLE && !state.bulle) goTo(nearSpot(to, busy(), cursorAt));
+    else if (TITLE) stepAside([clearance(to)]);
+    wake();
+  };
+  window.addEventListener("mousemove", (event) => {
+    if (!event.isTrusted || event.target === host || held) return;
+    clearTimeout(moving);
+    const to = { x: event.clientX, y: event.clientY };
+    moving = setTimeout(() => goWithoutPress(to), 60);
+  }, true);
+  // The scroll of a turn of the wheel, the same distance, shown as a hand scrolls: smooth instead of a jump. The element
+  // that scrolls is the one the wheel would have scrolled (the nearest one under the mouse that can still go that way,
+  // else the page); the bridge of H waits for its « scrollend », so the agent sees the page once it has arrived.
+  const scroller = (from, dy) => {
+    for (let node = from instanceof Element ? from : null; node && node !== document.body && node !== document.documentElement; node = node.parentElement) {
+      const { overflowY } = getComputedStyle(node);
+      if (!/(auto|scroll|overlay)/.test(overflowY) || node.scrollHeight <= node.clientHeight + 1) continue;
+      if (dy > 0 ? node.scrollTop + node.clientHeight < node.scrollHeight - 1 : node.scrollTop > 0) return node;
+    }
+    return document.scrollingElement ?? document.documentElement;
+  };
+  window.addEventListener("wheel", (event) => {
+    if (!event.isTrusted || event.target === host || state.revue) return;
+    clearTimeout(moving);
+    goWithoutPress({ x: event.clientX, y: event.clientY });
+    cursor.style.setProperty("--wheel", event.deltaY < 0 ? -1 : 1);
+    cursor.classList.remove("wheel");
+    void cursor.offsetWidth;
+    cursor.classList.add("wheel");
+    if (event.ctrlKey || event.deltaMode !== 0 || Math.abs(event.deltaY) < 1 || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
+    event.preventDefault();
+    scroller(event.target, event.deltaY).scrollBy({ top: event.deltaY, behavior: "smooth" });
+  }, { capture: true, passive: false });
   for (const type of ["pointerdown", "mousedown", "pointerup", "mouseup", "click"]) {
     window.addEventListener(type, (event) => {
       if (!event.isTrusted || event.button !== 0 || event.target === host) return;

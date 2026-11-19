@@ -223,6 +223,8 @@ export async function installLayer(page, onPress, { passage = "", titre = "", di
     source: `(() => {\n${signes()}\n${read("./couche-horama.js")}(${JSON.stringify(passage)}, ${JSON.stringify(titre)}, ${JSON.stringify({ direct })}, { tracerDefaut, poserDoute }, ${JSON.stringify(mascotte())});\n})();`,
     worldName: WORLD,
   });
+  // The scroll of the page by the bridge of H, eased (defilement-h.js): in the page itself, where the bridge calls it.
+  await page.send("Page.addScriptToEvaluateOnNewDocument", { source: read("./defilement-h.js") });
 }
 
 // The two signs of proof of the charter (docs/da/trait.js: tracerDefaut, one stroke of miltos; poserDoute, a row of

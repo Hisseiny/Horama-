@@ -6,6 +6,6 @@ set -eu
 cd "$(dirname "$0")"
 mkdir -p dist
 rm -f dist/horama-extension.zip
-zip -q -r dist/horama-extension.zip . -x "faux-service/*" "dist/*" "README.md" "empaqueter.sh" ".DS_Store" "*/.DS_Store"
+zip -q -r dist/horama-extension.zip . -x "faux-service/*" "dist/*" "README.md" "empaqueter.sh" "copier-rapport.sh" ".DS_Store" "*/.DS_Store"
 echo "dist/horama-extension.zip : $(unzip -l dist/horama-extension.zip | tail -1)"
 echo "Service : $(grep -o 'DEFAULT_SERVICE = "[^"]*"' service.js)"

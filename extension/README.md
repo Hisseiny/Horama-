@@ -42,6 +42,7 @@ Celui de l'issue #68, étape 2, avec six points proposés pour Ali le 18/11 dans
 | `POST /explorations` `{ url }` | `202 { id, place }` (`place` : 0, ou le nombre d'explorations devant) ; `400`, `429` (plafond de demandes), `503` (service complet) : `{ erreur }`, phrase affichée telle quelle |
 | `GET /explorations/:id` | `200 { id, etat: "en_file", place }` tant qu'elle attend, puis le fichier `horama-exploration-1` à jour ([format](../docs/decisions/2026-11-17-format-exploration.md)), lu toutes les 500 ms ; `404 { erreur }` |
 | `GET /explorations/:id/<capture>` | l'image, `<capture>` étant le champ `capture` du fichier tel quel (`captures/<ecran>.png`, `captures/<id du constat>.png`) |
+| `GET /explorations/:id/direct` (#164) | `200 image/jpeg`, la dernière image de l'onglet que l'agent H pilote, `no-store` ; `404` tant qu'aucune image ; `410` une fois l'exploration finie. Le rapport l'interroge toutes les 300 ms tant que `GET /explorations/:id` porte `direct: true`, et l'affiche en haut ; l'image suivante est chargée et décodée avant de remplacer l'autre. Sans `direct: true`, rien ne change. |
 
 Un service qui ne répond pas : « Le service Horama ne répond pas. Vérifie son adresse dans les options. »
 
@@ -53,7 +54,13 @@ node extension/faux-service/serveur.mjs
 
 Node, sans dépendance, même contrat, sur `http://127.0.0.1:8787`. Il rejoue page par page une exploration réelle enregistrée, quelle que soit l'adresse envoyée, et le dit dans le terminal. Par défaut, il rejoue `faux-service/rapport-enregistre/` : l'exploration scriptée de la scène lancée depuis l'article de blog d'Eugenia, le 18/11 (15 pages, sans H ni Holo, un lien en 404 prouvé ; voir `docs/tests/2026-11-18-depart-article-et-pr-doc.md`).
 
-Options : `--port 8787`, `--dossier <sortie d'une exploration>` (un autre rapport `horama-exploration-1` et ses captures), `--rythme 2` (secondes par page), `--file 1` (places dans la file avant le départ), `--plafond 20` (demandes par heure et par adresse IP, puis 429), `--refuser 429|503` (chaque demande reçoit ce refus, pour voir la fenêtre d'erreur).
+Options : `--port 8787`, `--dossier <sortie d'une exploration>` (un autre rapport `horama-exploration-1` et ses captures), `--rythme 2` (secondes par page), `--file 1` (places dans la file avant le départ), `--plafond 20` (demandes par heure et par adresse IP, puis 429), `--refuser 429|503` (chaque demande reçoit ce refus, pour voir la fenêtre d'erreur), `--direct <dossier>` (les images du direct, `<ordre>-<n>.jpg`), `--sans-direct` (aucune image : `/direct` répond 404, comme le service actuel).
+
+Les images du direct ne sont pas dans Git (environ 4 Mo). Les fabriquer une fois, sans H ni réseau : chaque capture du rapport enregistré, avec la couche de la scène (curseur qui va cliquer, mascotte, trait miltos ou points ocre sur le constat de la page), quatre images JPEG par page, dans `faux-service/direct-enregistre/` :
+
+```
+node extension/faux-service/enregistrer-direct.mjs
+```
 
 ## Fichiers
 
@@ -61,10 +68,11 @@ Options : `--port 8787`, `--dossier <sortie d'une exploration>` (un autre rappor
 - `popup.*` : la fenêtre du bouton, avec l’adresse et « Envoyer Horama ». Le rapport s'ouvre dans un onglet de l'extension, qui reste ouvert pendant toute l'exploration (une fenêtre de bouton se ferme dès qu'elle perd le focus).
 - `rapport.*` : la progression, puis le récapitulatif.
 - `options.*` : l'adresse du service.
-- `service.js` : les appels au service, partagés.
+- `service.js` : les appels au service, partagés. L'adresse : `?service=` de la page s'il est donné, sinon les options, sinon l'adresse par défaut.
 - `envoye.css` : la feuille de style de la charte, copiée telle quelle (variables, polices, bouton ailé, feuille).
 - `commun.css` : ce qui est propre à l'extension (bandeau, mascotte animée, carrés d'état).
 - `mascotte.js` et `mascotte/` : la mascotte de la charte, mise en ligne dans la page pour bouger.
 - `lib/trait.js` : les deux signes de preuve de la charte (`tracerDefaut`, `poserDoute`), copiés de `docs/da/trait.js`.
 - `faux-service/` : le faux service et le rapport qu'il rejoue (hors du .zip).
 - `empaqueter.sh` : le .zip.
+- `copier-rapport.sh` : copie le rapport (`rapport.*`, la charte, la mascotte, `lib/trait.js`) dans `accueil/rapport/`, servi avec la page d'accueil ; `--verifier` dit si les copies sont à jour. Seul `accueil/rapport/service.js` est propre à la page d'accueil (l'adresse du service vient de `?service=`).

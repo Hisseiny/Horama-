@@ -902,3 +902,84 @@ ouverts : cadence de démonstration, respect strict des cinq petits pas et
 de la remontée finale, premier geste sous 15 s ; le quota nul de reprise
 reste explicitement à traiter dans #178. Aucun second lancement n'a été
 effectué, puisque Après 3 s'est terminé sans incident API.
+
+## PR #179 — fusion de dev après #178
+
+Fusion normale de `origin/dev` (`23ca4bb`), sans rebase ni réécriture
+d'historique. Deux fichiers en conflit :
+
+- `agent/src/exploration/cdp.ts` : conserver ensemble `PageLink`,
+  `pageLinks` et `readLinks` de dev, puis `scrollSmooth` et la signature
+  optionnelle `captureDefect(..., { doux })` de #170. Le comportement par
+  défaut reste instantané ; les erreurs et la restauration douce sont gardées.
+- `agent/src/exploration/explorer.ts` : conserver **mot pour mot**
+  `readingInstruction` (cinq petits pas de 450 px maximum, grands trajets
+  bornés, geste facultatif), et combiner son appel avec `pathOf`, la liste
+  des chemins/adresses et le choix de lien par adresse de #178. La réponse
+  dynamique ajoute `linkHints` tout en conservant la lecture, la dernière
+  page et `raison_go_to`. Enfin, garder à la fois l'option `doux` au repli
+  CDP et la déduplication des contrôles recapturés apportée par dev.
+
+Les ajouts fusionnés sans conflit sont conservés : retour sur le site,
+relevés hors site refusés, indications de liens réels, détection Selenium
+`invalid session id` et journal neuf par pont. `browser.ts` et son test
+sont identiques à dev. Les tests de l'explorateur se sont combinés sans
+résolution manuelle. Le contrôle de langue et Holo parallèle sont conservés.
+Budgets #170 inchangés : 130 étapes / 1040 s pour huit pages.
+
+**Le quota de clics à la reprise n'est pas corrigé dans ce dev.** Vérifié
+dans `origin/dev` puis dans le résultat fusionné :
+
+```ts
+const clicked = launches === 1 ? clickTarget : 0;
+await launch(construireExploration(remaining, site, version, 0));
+```
+
+Ces deux mises à zéro restent présentes. La correction du pont de #178
+ne doit donc pas être décrite comme une correction du quota de clics.
+
+Premier check : 275/276, échec du test Chrome de découverte déjà rencontré :
+
+```text
+agent check: not ok 171 - Chrome réel découvre une page JS locale sans masquer la scène et ferme ses onglets
+agent check:   error: 'Onglet du relevé introuvable.'
+agent check:     async TestContext.<anonymous> (file:///home/ubuntu/repos/Horama-/agent/exploration-pages.test.ts:172:22)
+agent check: # tests 276
+agent check: # pass 275
+agent check: # fail 1
+```
+
+Le nettoyage restait ouvert ; seuls son Node et son Chrome dédiés ont été
+arrêtés, sans toucher au Chrome bureau 29229. `pages.ts`, le test et le corps
+de `connecterCdp` sont identiques à dev ; la cause de cette intermittence
+n'est pas établie. Aucun changement spéculatif de gestion d'onglets.
+Journal : `/home/ubuntu/horama-179-merge-check.log`.
+
+Le contrôle des espaces de l'index complet signale six fins de ligne avec
+espaces dans un passage du vault importé de dev ; ce fichier est identique
+à dev et laissé intact. Le contrôle limité aux fichiers de résolution et
+aux tests fusionnés passe. Aucun fichier d'un autre pôle n'est modifié
+manuellement : les autres fichiers proviennent de la fusion de dev.
+Aucune nouvelle session H ni vérification visuelle de scène pour cette fusion.
+
+Après nettoyage, deuxième `pnpm -r --if-present run check`, sans modification
+de code entre les deux essais : code **0**.
+
+```text
+agent check: 1..269
+agent check: # tests 276
+agent check: # suites 0
+agent check: # pass 276
+agent check: # fail 0
+agent check: # cancelled 0
+agent check: # skipped 0
+agent check: # todo 0
+agent check: # duration_ms 20450.321624
+agent check: Done
+```
+
+Journal : `/home/ubuntu/horama-179-merge-check-2.log`. Les tests de capture
+douce, langue, Holo parallèle, consigne bornée, retour sur site, liens par
+adresse et nouveau pont sont inclus. Seule cette documentation a changé
+après le check vert ; aucune mesure H antérieure n'est présentée comme
+une validation réelle de la combinaison après fusion.
