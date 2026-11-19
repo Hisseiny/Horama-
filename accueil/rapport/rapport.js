@@ -187,6 +187,13 @@ function stopLive() {
   $("#direct").hidden = true;
 }
 
+// Served on the web (accueil/rapport/, next to the tower of control accueil/tour/): a link to the tower under the
+// title. Not in the extension, where the tower is not.
+if (/^https?:$/.test(location.protocol)) {
+  const lien = Object.assign(element("a", "site", "Tous les passages : la tour de contrôle"), { href: "../tour/" });
+  $("#adresse")?.after(lien);
+}
+
 async function follow() {
   const service = await serviceAddress();
   for (;;) {

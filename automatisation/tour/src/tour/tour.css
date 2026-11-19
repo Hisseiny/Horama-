@@ -1,0 +1,31 @@
+/* La tour de contrôle (#149) : ce que les écrans du prototype n'avaient pas, dans ses couleurs. */
+.tour-erreurs { margin: 0 0 18px; padding: 12px 16px; border: 2px solid #C48A1E; border-radius: 12px; background: #FFF6DF; color: #5C5546; font-size: 14px; }
+.tour-erreurs p { margin: 0; }
+.tour-vide, .tour-note { color: #5C5546; font-size: 14px; }
+.tour-titre { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tour-titre strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tour-titre small { color: #5C5546; }
+.tour-liens { display: flex; flex-wrap: wrap; gap: 10px; }
+.tour-liens a { text-decoration: none; }
+.tour-captures { display: grid; gap: 22px; margin-top: 26px; }
+.tour-constat { padding: 16px; border: 2px solid #1C1C1C; border-radius: 14px; background: #FFFDF6; }
+.tour-constat header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+.tour-capture img { border: 2px solid #E2D6B8; border-radius: 10px; }
+.tour-preuve { margin: 10px 0 0; font: 500 13px/1.45 ui-monospace, "Spline Sans Mono", monospace; color: #1C1C1C; overflow-wrap: anywhere; }
+.tour-cas { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 18px; align-items: start; }
+.tour-cas-texte { display: flex; flex-direction: column; gap: 10px; }
+.tour-lien { color: #1C1C1C; font-weight: 600; }
+.tour-decision { align-self: flex-start; }
+.tour-sous-titre { margin: 34px 0 12px; }
+.is-light .tour-erreurs { background: #FFF6DF; }
+/* The passage column holds a PR title or an address: wider than the « Version » of the prototype. */
+.tour-passages .passages-head, .tour-passages .passage-row { grid-template-columns: 120px minmax(0, 1fr) 70px 150px 130px; }
+@media (max-width: 720px) {
+  .tour-cas { grid-template-columns: 1fr; }
+  .tour-passages .passages-head { display: none; }
+  .tour-passages .passage-row { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+  .tour-titre strong { white-space: normal; overflow-wrap: anywhere; }
+  .decision-entry { display: flex !important; flex-wrap: wrap; gap: 6px 10px; }
+  .decision-copy { flex: 1 1 100%; min-width: 0; overflow-wrap: anywhere; }
+  .mascot { display: none; }
+}

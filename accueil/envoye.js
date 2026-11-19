@@ -4,6 +4,15 @@
 import { creerMascotte } from "./mascotte.js";
 import { tracerDefaut } from "./trait.js";
 import { RAPPORT_URL, SERVICE } from "./service.js";
+// Each exploration sent from this page, kept in this browser for the tower of control (accueil/tour/, #149): its id,
+// its service, the address, the date. 30 at most, the latest first. Nothing leaves the browser.
+function garder(id, adresse) {
+  try {
+    const cle = "horama-explorations";
+    const liste = JSON.parse(localStorage.getItem(cle) ?? "[]").filter((e) => e && e.id !== id);
+    localStorage.setItem(cle, JSON.stringify([{ id, service: SERVICE, adresse, date: new Date().toISOString() }, ...liste].slice(0, 30)));
+  } catch {}
+}
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -266,8 +275,11 @@ for (const f of $$("form[data-envoi]")) f.addEventListener("submit", async e => 
     const r = await fetch(`${SERVICE}/explorations`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: adresse }) });
     const corps = await r.json().catch(() => ({}));
     if (r.status !== 202 || !corps.id) dire(corps.erreur || `Le service a répondu ${r.status}.`);
-    else if (RAPPORT_URL) { location.href = `${RAPPORT_URL}?id=${encodeURIComponent(corps.id)}&service=${encodeURIComponent(SERVICE)}`; return; }
-    else fin = await suivre(corps.id, dire);
+    else {
+      garder(corps.id, adresse);
+      if (RAPPORT_URL) { location.href = `${RAPPORT_URL}?id=${encodeURIComponent(corps.id)}&service=${encodeURIComponent(SERVICE)}`; return; }
+      fin = await suivre(corps.id, dire);
+    }
   } catch {
     dire("Le service ne répond pas : réessayez dans un instant.");
   }
