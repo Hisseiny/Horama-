@@ -34,6 +34,7 @@ import { parseArgs } from "node:util";
 import { lireNotes, lireTestsAcceptes } from "../../memoire/index.ts";
 import { choisirTests } from "../impact/impact.mjs";
 import { ecrireSectionExploration, publierCommentaire } from "../pr-doc/commentaire.mjs";
+import { connectTab, navigate, openChrome } from "../scene/scene.mjs";
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const gh = (path) => JSON.parse(execFileSync("gh", ["api", "--paginate", "--slurp", path], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })).flat();
@@ -349,6 +350,19 @@ export async function jouerPr({ pr, fichiers, vault, logiciel, socle, sortie, sc
   }
 }
 
+// The Chrome of the scene (port 9333, profile of the scene, as exploration.mjs and parcours.mjs open it by default) on
+// automatisation/scene/attente.html: the sky of the charter, the mascot, the repository watched.
+async function ouvrirAttente(depot) {
+  const port = 9333;
+  const chrome = await openChrome({ bin: process.env.CHROME_BIN || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", port, profile: join(ROOT, ".orchestrateur/chrome-agent") });
+  const tab = await connectTab(port);
+  const page = new URL("../scene/attente.html", import.meta.url);
+  page.searchParams.set("depot", depot ?? "");
+  await navigate(tab, page.href);
+  tab.close();
+  console.log(`réveil PR : Chrome de la scène ${chrome.started ? "ouvert" : "déjà ouvert"} sur la page d'attente (port ${port}).`);
+}
+
 async function main() {
   const separator = process.argv.indexOf("--");
   const sceneArgs = separator < 0 ? [] : process.argv.slice(separator + 1);
@@ -381,6 +395,10 @@ async function main() {
     for (const line of await aBlanc(lecteur, { vault, logiciel: values.logiciel, socle })) console.log(line);
     return;
   }
+  // S1 (19/11): the Chrome of the scene opens now, on a page of waiting in the charter, instead of about:blank when the
+  // PR comes; the scenes find it on their port and take its tab. Not with options of scene that change the Chrome
+  // (another port or profile).
+  if (!sceneArgs.some((arg) => /^--(port|profil)\b/.test(arg))) await ouvrirAttente(values.depot ?? values["faux-github"]).catch((error) => console.log(`réveil PR : page d'attente non ouverte, ${error.message}.`));
   const faits = new Set();
   const protegees = new Set(); // « numéro@sha » already said protected: said once, tried again at each round
   console.log(`réveil PR : surveillance de ${values.depot ?? values["faux-github"]} toutes les ${interval} s, vault ${values.logiciel}.`);
