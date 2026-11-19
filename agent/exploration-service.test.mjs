@@ -29,6 +29,45 @@ const post = (request, address = url) => request("/explorations", {
   method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: address }),
 });
 
+test("direct frames are available only during an active job, with JPEG and CORS headers", async t => {
+  let current;
+  let release;
+  let complete;
+  const completed = new Promise(resolve => { complete = resolve; });
+  const request = await setup(t, { run: async job => {
+    current = job;
+    await new Promise(resolve => { release = resolve; });
+    complete();
+  } });
+  const { id } = await (await post(request)).json();
+  const path = `/explorations/${id}`;
+  assert.equal((await request(`${path}/direct`)).status, 404);
+  assert.equal((await (await request(path)).json()).direct, undefined);
+  const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
+  current.frame = { buffer: jpeg, at: 1795000000123 };
+  const frame = await request(`${path}/direct`);
+  assert.equal(frame.status, 200);
+  assert.equal(frame.headers.get("Content-Type"), "image/jpeg");
+  assert.equal(frame.headers.get("Cache-Control"), "no-store");
+  assert.equal(frame.headers.get("Access-Control-Allow-Origin"), "*");
+  assert.equal(frame.headers.get("X-Horama-Image-At"), "1795000000123");
+  assert.equal(frame.headers.get("Access-Control-Expose-Headers"), "X-Horama-Image-At");
+  assert.deepEqual(Buffer.from(await frame.arrayBuffer()), jpeg);
+  assert.equal((await (await request(path)).json()).direct, true);
+  await mkdir(current.directory, { recursive: true });
+  const file = join(current.directory, "exploration.json");
+  await writeFile(file, JSON.stringify({ format: "horama-exploration-1", etat: "en_cours" }));
+  assert.equal((await (await request(path)).json()).direct, true);
+  await writeFile(file, JSON.stringify({ format: "horama-exploration-1", etat: "fini" }));
+  release();
+  await completed;
+  assert.equal((await request(`${path}/direct`)).status, 410);
+  assert.equal(current.frame, undefined);
+  assert.equal((await (await request(path)).json()).direct, undefined);
+  assert.equal((await request(`/explorations/${"a".repeat(36)}/direct`)).status, 404);
+  assert.equal((await request(`${path}/appuis.jsonl`)).status, 404);
+});
+
 test("the service validates addresses, rejects DNS-resolved private targets and serves CORS on errors", async t => {
   const request = await setup(t);
   const health = await request("/sante");

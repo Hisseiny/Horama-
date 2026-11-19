@@ -14,6 +14,12 @@
 !automatisation/scene/
 !automatisation/scene/scene.mjs
 !automatisation/scene/agent-h.mjs
+!automatisation/scene/couche-horama.js
+!docs/
+!docs/da/
+!docs/da/trait.js
+!docs/da/mascotte/
+!docs/da/mascotte/*.svg
 **/node_modules
 **/.env*
 **/*.log
