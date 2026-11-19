@@ -135,17 +135,40 @@ test("refus des cookies sur de vraies pages Chrome locales", { skip: !available 
   });
 
   const surface = { ...client, close() {} };
+  await t.test("racines d'ombre ouvertes imbriquées : refus et masquage réversible sans acceptation", async () => {
+    for (const fixedHost of [true, false]) {
+      for (const refusal of [true, false]) {
+        const setup = await client.send("Runtime.evaluate", { expression: `(() => { document.body.innerHTML = '<div id="host"></div>'; window.selected = [];
+          const host = document.querySelector('#host');
+          host.style.cssText = ${JSON.stringify(fixedHost ? 'position:fixed;bottom:20px;left:20px;width:400px;height:200px' : '')};
+          const root = host.attachShadow({mode:'open'});
+          root.innerHTML = '<div id="nested"></div>';
+          const nested = root.querySelector('#nested').attachShadow({mode:'open'});
+          nested.innerHTML = ${JSON.stringify(`<aside id="banner" style="${fixedHost ? '' : 'position:fixed;bottom:20px;left:20px;'}width:400px;height:200px"><p>Cookies</p><button id="ok">OK</button><button id="choose">Let me choose</button>${refusal ? '<button id="reject">No, thanks</button>' : ''}</aside>`)};
+          nested.querySelectorAll('button').forEach(button => button.onclick = () => window.selected.push(button.id));
+          window.shadowBanner = nested.querySelector('#banner'); })()` });
+        assert.equal(setup.exceptionDetails, undefined, JSON.stringify(setup.exceptionDetails));
+        assert.equal((await client.send("Runtime.evaluate", { expression: `(${refuseCookies.toString()})()`, returnByValue: true })).result.value, refusal, `fixedHost=${fixedHost}, refusal=${refusal}`);
+        assert.deepEqual((await client.send("Runtime.evaluate", { expression: "window.selected", returnByValue: true })).result.value, refusal ? ["reject"] : []);
+        const restore = await hideCaptureOverlays(surface);
+        assert.equal((await client.send("Runtime.evaluate", { expression: "getComputedStyle(window.shadowBanner).visibility", returnByValue: true })).result.value, "hidden");
+        await restore();
+        assert.deepEqual((await client.send("Runtime.evaluate", { expression: "[getComputedStyle(window.shadowBanner).visibility, window.selected]", returnByValue: true })).result.value, ["visible", refusal ? ["reject"] : []]);
+      }
+    }
+  });
   await t.test("refus ambigus : ne pas confondre newsletter et consentement voisin", async () => {
     for (const label of ["No, thanks", "No thanks", "Non merci", "Nein danke"]) {
       for (const container of ['style="position:fixed;top:100px"', 'style="position:sticky;top:100px"', 'role="dialog"', 'role="alertdialog"', '']) {
         for (const cookies of [true, false]) {
           await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = ${JSON.stringify(`<main><section ${container}><p>Newsletter</p><div><button id="newsletter">${label}</button></div></section>${cookies ? '<aside style="position:fixed;bottom:20px"><p>Cookies</p><button id="cookies">Refuser</button></aside>' : ''}</main>`)};
             window.selected = []; document.querySelectorAll('button').forEach(button => button.onclick = () => { window.selected.push(button.id); button.parentElement.remove(); });` });
-          assert.equal(await prepareCapture(surface), cookies ? "refusee" : "aucune", `${label}, ${container}, cookies=${cookies}`);
+          assert.equal((await client.send("Runtime.evaluate", { expression: `(${refuseCookies.toString()})()`, returnByValue: true })).result.value, cookies, `${label}, ${container}, cookies=${cookies}`);
           assert.deepEqual((await client.send("Runtime.evaluate", { expression: "window.selected", returnByValue: true })).result.value, cookies ? ["cookies"] : []);
         }
       }
     }
+    assert.equal(await prepareCapture(surface), "aucune");
   });
   await t.test("carte cookies à 20 px du bord : refus explicite puis masquage de repli réversible", async () => {
     for (const label of ["No, thanks", "No thanks", "Non merci", "Nein danke"]) {
