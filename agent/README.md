@@ -105,3 +105,20 @@ et les notes manquantes sont créées, sans écraser les notes existantes, même
 rapports de passages du site ; chaque écran compare sa dernière référence antérieure.
 Ctrl+C arrête la session et conserve une synthèse interrompue. Aucun passage réel ni
 contrôle visuel humain n'est attesté par les tests hors ligne.
+
+### Essai accessibilité (#204)
+
+Ajouter `--accessibilite` et choisir un dossier `--sortie` par passage. À chaque
+relevé accepté, axe-core analyse le document principal dans l’onglet déjà
+ouvert, via CDP, avec le chargement d’assets et l’analyse des sous-cadres
+désactivés. Les captures sont prises sans défilement et entourées dans le PNG.
+
+Le fichier `accessibilite.json` est écrit à côté de `exploration.json`.
+Il indique, par page, la durée ajoutée, le nombre de constats mineurs ou
+modérés, les violations graves prouvées et le nombre de violations graves
+sans preuve suffisante. Ce dernier compte couvre les captures indisponibles
+et les zones défilantes sans `tabindex` que Chrome peut rendre focalisables
+au clavier. Un constat correspond à une règle sur un élément d’une page.
+Les preuves renvoient à des chemins relatifs à `--sortie`. Les cas « incomplete »
+d’axe-core sont écartés. Le contrôle automatique ne permet pas de conclure
+sur l’accessibilité du site.

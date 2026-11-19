@@ -6,6 +6,7 @@ import { deflateSync } from "node:zlib";
 import { afterEach, beforeEach, test } from "node:test";
 import { ecrireDecision } from "@horama/memoire";
 import { BaseMemoire } from "./src/base.ts";
+import type { AccessibilityPage } from "./src/exploration/accessibility.ts";
 import { construireExploration, exclusionLabel, explorer, explorationPassageId, explorationStepBudget, explorationTimeBudget } from "./src/exploration/explorer.ts";
 import type { ExplorerDependencies } from "./src/exploration/explorer.ts";
 import { lireArguments } from "./src/exploration/cli.ts";
@@ -35,7 +36,7 @@ let root: string;
 beforeEach(() => { root = mkdtempSync(join(tmpdir(), "horama-explorer-")); });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-async function run({ png = original, skip = "", refuse = false, failure = false, lateError = false, earlyEnd = false, query = "", actual, retries = 1, defilement = [0, 0], deps = {}, site, doux }: { doux?: boolean; site?: string; actual?: (url: string) => string; retries?: number; defilement?: [number, number]; png?: Buffer; skip?: string; refuse?: boolean; failure?: boolean; lateError?: boolean; earlyEnd?: boolean; query?: string; deps?: Partial<ExplorerDependencies> } = {}) {
+async function run({ png = original, skip = "", refuse = false, failure = false, lateError = false, earlyEnd = false, query = "", actual, retries = 1, defilement = [0, 0], deps = {}, site, doux, accessibilite }: { doux?: boolean; site?: string; actual?: (url: string) => string; retries?: number; defilement?: [number, number]; png?: Buffer; skip?: string; refuse?: boolean; failure?: boolean; lateError?: boolean; earlyEnd?: boolean; query?: string; deps?: Partial<ExplorerDependencies>; accessibilite?: boolean } = {}) {
   let address = "https://example.org/";
   const base = new BaseMemoire();
   const responses: string[] = [];
@@ -71,7 +72,7 @@ async function run({ png = original, skip = "", refuse = false, failure = false,
     })();
     return { id: "session-1", fin };
   };
-  const result = await explorer({ url: "https://example.org", max: 15, vault: join(root, "vault"), sortie: join(root, "out"), port: 9333, site, doux }, {
+  const result = await explorer({ url: "https://example.org", max: 15, vault: join(root, "vault"), sortie: join(root, "out"), port: 9333, site, doux, accessibilite }, {
     base, session, urlCourante: async () => null, runtime: { relever: async () => ({ png, texte: "Page", url_page: address, largeur: 1280, hauteur: 900, defilement, phrase: "Capture enregistrée." }),
       navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
     fetch: async input => {
@@ -83,6 +84,55 @@ async function run({ png = original, skip = "", refuse = false, failure = false,
   });
   return { result, base, responses };
 }
+
+test("l’essai accessibilité écrit seulement un fichier séparé pour les relevés acceptés", async () => {
+  const file = join(root, "out", "accessibilite.json");
+  assert.equal(lireArguments(["--url", "https://example.org", "--accessibilite"])?.accessibilite, true);
+  const absent = await run();
+  assert.equal(existsSync(file), false);
+  const active = await run({ accessibilite: true, skip: "faq" }); // Le faux CDP ne sait pas créer de monde isolé.
+  const accessibility = JSON.parse(readFileSync(file, "utf8")) as { passage_id: string; pages: AccessibilityPage[] };
+  assert.equal(accessibility.passage_id, active.result.passage_id);
+  assert.deepEqual(accessibility.pages.map(({ url, statut }) => [url, statut]), [["https://example.org/", "INCONCLUSIVE"]]);
+  assert.ok(active.result.constats.every(item => item.source === "controle" && item.statut === "INCONCLUSIVE"));
+  assert.equal(active.result.totaux.defauts, absent.result.totaux.defauts);
+  assert.ok(!("accessibilite" in active.result));
+});
+
+test("une preuve d’accessibilité ne peut pas écraser une capture de page", async () => {
+  const { result } = await run({ accessibilite: true, actual: address => new URL(address).pathname === "/" ? address : address.replace(/\/$/, ""), deps: {
+    fetch: async input => {
+      const path = new URL(String(input)).pathname;
+      return new Response(path === "/robots.txt" ? "" : path === "/sitemap.xml"
+        ? "<urlset><url><loc>https://example.org/accessibilite-accueil-1</loc></url></urlset>" : "<html>Page</html>",
+      { headers: { "Content-Type": path === "/sitemap.xml" ? "application/xml" : "text/html" } });
+    },
+    connecter: async (_port, address) => ({
+      on() {}, close() {},
+      async send(method, params) {
+        if (method === "Page.getFrameTree") return { frameTree: { frame: { id: "frame" } } };
+        if (method === "Page.createIsolatedWorld") return { executionContextId: 1 };
+        if (method === "Page.getLayoutMetrics") return { cssContentSize: { width: 1280, height: 900 } };
+        if (method === "Page.captureScreenshot") return { data: original.toString("base64") };
+        const expression = String((params as { expression?: string })?.expression);
+        if (expression === "location.href") return { result: { value: address } };
+        if (expression.includes("function scanDocument")) return { result: { value: { url: address, violations: [
+          { rule: "button-name", impact: "serious", target: "#button", html: '<button id="button"></button>' },
+        ] } } };
+        if (expression.includes("function readTarget")) return { result: { value: { x: 5, y: 5, width: 20, height: 10 } } };
+        return { result: { value: 200 } };
+      },
+    }),
+  } });
+  const output = join(root, "out");
+  const audit = JSON.parse(readFileSync(join(output, "accessibilite.json"), "utf8")) as { pages: AccessibilityPage[] };
+  const proof = audit.pages.find(page => new URL(page.url).pathname === "/")?.violations[0];
+  const pageCapture = result.pages.find(page => page.ecran === "accessibilite-accueil-1")?.capture;
+  assert.ok(proof && pageCapture);
+  assert.notEqual(proof.capture, pageCapture.fichier);
+  assert.notDeepEqual(readFileSync(join(output, proof.capture)), original);
+  assert.deepEqual(readFileSync(join(output, pageCapture.fichier)), original);
+});
 
 for (const measurement of [{ page: 966, viewport: 900 }, { page: 1200, viewport: 900 }, { page: 3000, viewport: 900 }, null, "error"]) {
   test(`lecture ajustée aux dimensions CDP : ${JSON.stringify(measurement)}`, async () => {

@@ -177,6 +177,12 @@ importers:
       '@horama/memoire':
         specifier: workspace:*
         version: link:../memoire
+      axe-core:
+        specifier: 4.14.1
+        version: 4.14.1
+      pngjs:
+        specifier: 7.0.0
+        version: 7.0.0
     devDependencies:
       '@types/node':
         specifier: 26.6.6
@@ -656,6 +662,10 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  axe-core@4.14.1:
+    resolution: {integrity: sha512-FHfa+lmNjQZfJz1q8wKqIDwC6DExcHt/pkjNQb09a3NPjCKg2rhu5qb2S4r76ASyFNNtuFooJpZe37OgudVGtQ==}
+    engines: {node: '>=4'}
+
   baseline-browser-mapping@2.11.37:
     resolution: {integrity: sha512-QYph+vfurmaxhNwi9FprfmtkT5cx2Keg8FzZ0vnjO8ukscIybVyZGMFwdllKGlTI6qyU8ck43OM9UXh+IFJihQ==}
     engines: {node: '>=6.0.0'}
@@ -999,6 +1009,8 @@ snapshots:
 
   '@typescript/typescript-win32-x64@7.0.2':
     optional: true
+
+  axe-core@4.14.1: {}
 
   baseline-browser-mapping@2.11.37: {}
 
