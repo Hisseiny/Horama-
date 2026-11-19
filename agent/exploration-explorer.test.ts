@@ -318,6 +318,44 @@ test("une page non visitée reste INCONCLUSIVE en JSON et C4", async () => {
   assert.equal(existsSync(join(root, "vault/example-org/references/faq/defaut--v1.png")), false);
 });
 
+test("références préexistantes sans historique : conservées et comparées dès le premier passage", async () => {
+  for (const page of ["accueil", "faq"]) {
+    const folder = join(root, "vault/example-org/references", page);
+    mkdirSync(folder, { recursive: true });
+    writeFileSync(join(folder, "defaut--v1.png"), original);
+  }
+  for (const version of ["2", "3"]) {
+    const { result } = await run({ png: changed });
+    assert.equal(result.version, version);
+    assert.equal(result.version_reference, "1");
+    assert.equal(result.constats.filter(item => item.source === "comparaison" && item.statut === "SUSPECTED").length, 2);
+    for (const page of result.pages) {
+      const folder = join(root, "vault/example-org/references", page.ecran);
+      assert.deepEqual(readFileSync(join(folder, "defaut--v1.png")), original);
+      assert.equal(existsSync(join(folder, `defaut--v${version}.png`)), false);
+    }
+  }
+});
+
+test("une référence décimale est comparée sans être remplacée", async () => {
+  const site = join(root, "vault/example-org");
+  const folder = join(site, "references/accueil");
+  mkdirSync(folder, { recursive: true });
+  writeFileSync(join(folder, "defaut--v1.1.png"), original);
+  mkdirSync(join(site, "passages"), { recursive: true });
+  writeFileSync(join(site, "passages/precedent.md"), '---\nversion_testee: "1"\n---\n');
+
+  const { result, base } = await run({ png: changed });
+  const page = result.pages.find(page => page.ecran === "accueil")!;
+  assert.equal(page.statut, "SUSPECTED");
+  assert.equal(page.reference?.version, "1.1");
+  assert.equal(result.version, "2");
+  assert.equal(result.version_reference, "1.1");
+  assert.equal(base.resultats.find(item => item.test_id === "exploration--accueil")?.ecarts_visuels.length, 1);
+  assert.deepEqual(readFileSync(join(folder, "defaut--v1.1.png")), original);
+  assert.equal(existsSync(join(folder, "defaut--v2.png")), false);
+});
+
 test("navigateur sur la dernière page : une fin prématurée est refusée et les relevés reprennent", async () => {
   await run();
   const { result, base } = await run({ earlyEnd: true });
@@ -388,6 +426,59 @@ test("contrôle en échec, Holo hors délai et session interrompue", async () =>
   assert.equal(result.etat, "interrompu"); assert.equal(result.agents[0].etat, "tombe");
   assert.equal(result.pages[0].holo?.etat, "hors_delai"); assert.equal(result.totaux.sans_conclusion, 4);
   assert.ok(base.resultats.every(item => item.statut === "INCONCLUSIVE" && item.raison));
+});
+
+test("constats de contrôle regroupés par type, mesure et zone à un pixel près, par page", async () => {
+  const zone = { x: 676, y: 406, largeur: 96, hauteur: 89 };
+  const defect = { statut: "VERIFIED_FAIL", sorte: "debordement", message: "Le texte dépasse.", valeur: "129×89 > 96×89", zone } as const;
+  const { result, base } = await run({ deps: { controler: async () => [
+    { ...defect, selecteur: "#premier" },
+    { ...defect, selecteur: "#deuxieme", zone: { ...zone, y: 405 } },
+    { ...defect, selecteur: "#troisieme", zone: { ...zone, y: 405 } },
+    { ...defect, selecteur: "#ailleurs", zone: { ...zone, x: 678 } },
+    { ...defect, selecteur: "#autre-mesure", valeur: "130×89 > 96×89" },
+    { ...defect, selecteur: "#autre-type", sorte: "texte_rogne" },
+  ] } });
+  assert.equal(result.totaux.defauts, 8);
+  for (const page of result.pages) {
+    const findings = result.constats.filter(item => item.ecran === page.ecran && item.source === "controle");
+    assert.deepEqual(findings.map(item => item.preuve.element), ["#premier", "#ailleurs", "#autre-mesure", "#autre-type"]);
+    assert.match(findings[0].description, /#premier, #deuxieme, #troisieme/);
+    assert.equal(findings[0].capture, page.capture?.fichier);
+    const c4 = base.resultats.find(item => item.test_id === `exploration--${page.ecran}`)!;
+    assert.equal(Object.keys(c4.valeurs).length, 4);
+    assert.match(c4.calcul!, /#premier, #deuxieme, #troisieme/);
+  }
+});
+
+test("trois éléments hors écran recadrés au même endroit donnent un constat et une capture", async () => {
+  let scrollY = 0;
+  const { result, base } = await run({ deps: {
+    connecter: async () => ({ send: async (method, params) => {
+      if (method === "Page.captureScreenshot") return { data: original.toString("base64") };
+      const expression = (params as { expression?: string } | undefined)?.expression ?? "";
+      if (expression === "[window.scrollX, window.scrollY]") return { result: { value: [0, scrollY] } };
+      const recenter = /top: Math.max\(0, Math.min\(([\d.]+)/.exec(expression);
+      if (recenter) scrollY = Math.round(Number(recenter[1]));
+      return { result: { value: 200 } };
+    }, on() {}, close() {} }),
+    controler: async () => [2553.6875, 2703.875, 2854.0625, 3000].map((y, index) => ({
+      statut: "VERIFIED_FAIL", sorte: "debordement", message: "Le texte dépasse.",
+      selecteur: `#element-${index + 1}`, valeur: "129×89 > 96×89",
+      zone: { x: index === 3 ? 500 : 668.5, y, largeur: 96, hauteur: 89.1875 },
+    })),
+  } });
+  assert.equal(result.totaux.defauts, 4);
+  for (const page of result.pages) {
+    const findings = result.constats.filter(item => item.ecran === page.ecran && item.source === "controle");
+    assert.equal(findings.length, 2);
+    assert.match(findings[0].description, /#element-1, #element-2, #element-3/);
+    assert.equal(findings[1].preuve.element, "#element-4");
+    assert.ok(existsSync(join(root, "out", findings[0].capture)));
+    assert.ok(existsSync(join(root, "out", findings[1].capture)));
+    assert.equal(existsSync(join(root, "out/captures", `${page.ecran}--controle--3.png`)), false);
+    assert.equal(Object.keys(base.resultats.find(item => item.test_id === `exploration--${page.ecran}`)!.valeurs).length, 2);
+  }
 });
 
 test("erreur H après le dernier relevé : toutes les pages visitées, passage fini", async () => {
