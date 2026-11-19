@@ -58,6 +58,8 @@ export function completerNote({ vault, logiciel, passage, tests, items, decision
     const found = decisions.find(({ decision }) => decision.ecart_id === item.id);
     const correction = found?.decision.correction_de_note;
     lines.push(`#### ${index + 1}. ${kind[item.genre]} : ${item.id}`, "", ...(item.textes.length ? item.textes : [item.texte]).flatMap((text) => [text, ""]),
+      // A grouped finding (#180): the selectors of its elements stay in the note (on the screen, only their texts).
+      ...(item.selecteurs?.length > 1 ? [`Éléments : ${item.selecteurs.map((selector) => `\`${selector}\``).join(", ")}`, ""] : []),
       `![${item.id}](${passage}/${image})`, "",
       found
         ? `Décision : **${found.decision.decision}**, par ${found.decision.par}, le ${found.decision.le.slice(0, 10)} : [${found.fichier.split("/").pop()}](../${found.fichier.split("/").slice(1).join("/")})${correction ? `. Correction de la note ${correction.fichier} : ${correction.statut}` : ""}.`

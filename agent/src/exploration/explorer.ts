@@ -40,7 +40,7 @@ interface ExplorationPage {
   cookies?: "refusee" | "aucune"; url_finale?: string; raison?: string;
   arrivee?: "depart" | "clic" | "adresse";
 }
-export interface ExplorerOptions { url: string; max: number; sortie: string; vault: string; port: number; pagesCliquees?: number; reseauPublic?: boolean; site?: string }
+export interface ExplorerOptions { url: string; max: number; sortie: string; vault: string; port: number; pagesCliquees?: number; reseauPublic?: boolean; site?: string; doux?: boolean }
 export interface ExplorerDependencies {
   base: BasePassages; runtime: BrowserRuntime; session: Session; signal?: AbortSignal;
   fetch?: typeof fetch; controler?: typeof controlerPage; holo?: typeof askHolo;
@@ -52,8 +52,8 @@ export interface ExplorerDependencies {
 }
 
 const clickedCount = (pageCount: number, clicked: number) => Math.min(clicked, Math.max(0, pageCount - 1));
-export const explorationTimeBudget = (maxSteps: number) => Math.min(600, Math.max(240, 8 * maxSteps));
-export const explorationStepBudget = (pageCount: number, clicked = 0) => 4 * pageCount + 13 + 3 * clickedCount(pageCount, clicked);
+export const explorationTimeBudget = (maxSteps: number) => Math.min(1800, Math.max(240, 8 * maxSteps));
+export const explorationStepBudget = (pageCount: number, clicked = 0) => 14 * pageCount + 11 + 3 * clickedCount(pageCount, clicked);
 
 export function explorationPassageId(date: Date): string {
   const parts = Object.fromEntries(new Intl.DateTimeFormat("fr-FR", {
@@ -65,9 +65,13 @@ export function explorationPassageId(date: Date): string {
 
 export const exclusionLabel = (reason: string) => reason === "section-limit" ? "limite de pages par rubrique atteinte" : reason;
 
+function readingInstruction(): string {
+  return "Après relever, sur CHAQUE page (départ, clic ou adresse), seulement s'il reste des pages à relever : fais au plus 5 petits scroll_web vers le bas (direction down, num_pixels environ 450, soit une demi-hauteur d'écran, scroll_element null). Arrête ces petits pas dès le bas atteint ou si la page ne bouge plus. Si le bas reste hors vue, fais ensuite UN seul grand scroll_web jusqu'en bas (direction down, num_pixels 100000). Fais ensuite UN geste de visiteur facultatif si la page en propose un visible : menu déroulant, accordéon, onglet ou question FAQ, jamais un formulaire ni une connexion. N'ajoute pas de scrolls pour chercher un contrôle. Pour changer de page, cherche d'abord un lien utile visible là où tu es (menu fixe, corps ou pied de page). Seulement si aucun lien utile n'est visible, remonte en 2 ou 3 scroll_web moyens au plus (direction up, num_pixels environ 900, scroll_element null). Jamais de grand scroll vers le haut pour retrouver le menu. Aucun aller-retour supplémentaire, ni répétition à une extrémité sans déplacement. Ne répète pas la lecture déjà faite sur la page courante.";
+}
+
 const pathOf = (address: string) => { const parsed = new URL(address); return parsed.pathname + parsed.search; };
 function clickInstruction(pages: Array<{ ecran: string; url: string }>): string {
-  return `Après relever, fais 1 ou 2 défilements au plus avec scroll_web sur une page atteinte par clic, en grands défilements, avant de cliquer. Pour la page de départ, conserve la limite de 3 défilements au plus jusqu'en bas. Ne répète pas les défilements déjà faits sur la page courante ; aucun défilement demandé sur les autres pages atteintes par adresse. Puis sans go_to clique un lien visible de la page courante (menu, corps ou pied de page) vers une page pas encore relevée de cette liste : ${pages.map(page => `${page.ecran} : chemin ${pathOf(page.url)} (${page.url})`).join(" ; ")}. Choisis le lien par son adresse (son chemin), pas par son nom : un lien au nom proche peut mener ailleurs. Attends le chargement puis appelle relever avec l'ecran de la page atteinte. Si aucun lien visible ne mène à une page de la liste : ouvre ${pages[0]?.url} avec go_to puis appelle relever(ecran="${pages[0]?.ecran}", vue="defaut").`;
+  return `${readingInstruction()} Puis sans go_to clique un lien visible de la page courante (menu, corps ou pied de page) vers une page pas encore relevée de cette liste : ${pages.map(page => `${page.ecran} : chemin ${pathOf(page.url)} (${page.url})`).join(" ; ")}. Choisis le lien par son adresse (son chemin), pas par son nom : un lien au nom proche peut mener ailleurs. Attends le chargement puis appelle relever avec l'ecran de la page atteinte. Si aucun lien visible ne mène à une page de la liste, même après avoir examiné le menu : en dernier recours seulement, ouvre ${pages[0]?.url} avec go_to puis appelle relever(ecran="${pages[0]?.ecran}", vue="defaut", raison_go_to="explique quel lien manque ou est inutilisable").`;
 }
 
 export function construireExploration(pages: Array<{ ecran: string; url: string }>, site: string, version: string, pagesCliquees = 4): Consigne {
@@ -78,13 +82,14 @@ export function construireExploration(pages: Array<{ ecran: string; url: string 
     test_id: tests[index].id, address: page.url, here: `location.href === ${JSON.stringify(page.url)}` }));
   return { tests, course, dropped: [], start: pages[0].url,
     instructions: [...COURSE_RULES, "Si une bannière de cookies apparaît, refuse-la (Refuser / Tout refuser / Continuer sans accepter / Reject all), ne l’accepte jamais.", "Simple visiteur : ne remplis et ne soumets aucun formulaire, ne te connecte jamais. N'ouvre aucun onglet ni fenêtre.",
+      "N'utilise jamais la commande retour du navigateur (back). Pour changer de page, clique toujours un lien visible ; go_to reste le dernier recours prévu par la consigne. Ne clique jamais vers une page déjà relevée dans ce passage, même pour retrouver le menu.",
       `Reste sur le site ${new URL(pages[0].url).origin} : ne suis aucun lien vers un autre domaine ou sous-domaine. Si tu y arrives quand même, tu es ramené sur le site.`].join("\n"),
     task: ["Nouveau passage : aucune page n'a encore été relevée dans cette session. La page déjà ouverte ne prouve aucun avancement. Commence à la partie 1, même si le navigateur affiche une partie ultérieure.", ...pages.map((page, index) => `Partie ${index + 1} : ${index === 0
-      ? `si l'onglet n'affiche pas ${page.url}, ouvre cette adresse avec go_to. Appelle relever(ecran="${page.ecran}", vue="defaut"), puis fais 3 défilements au plus jusqu'en bas avec scroll_web, en grands défilements comme un visiteur qui la lit.`
+      ? `si l'onglet n'affiche pas ${page.url}, ouvre cette adresse avec go_to et note raison_go_to="page de départ absente de l'onglet" au relevé. Appelle relever(ecran="${page.ecran}", vue="defaut"). ${readingInstruction()}`
       : index <= clicked ? clickInstruction(pages.slice(1))
-      : `ouvre ${page.url} avec go_to dans l'onglet courant, attends le chargement puis appelle relever(ecran="${page.ecran}", vue="defaut").`}`),
-      'Après toutes les pages, appelle terminer(etat="reussi"). Si une page est inaccessible, continue les autres.'].join("\n"),
-    tools: [{ name: "relever", description: "Enregistre la page chargée.", input_schema: { type: "object", properties: { ecran: { type: "string", enum: pages.map(page => page.ecran) }, vue: { type: "string", enum: ["defaut"] } }, required: ["ecran", "vue"] } }, END_TOOL] };
+      : `ouvre ${page.url} avec go_to dans l'onglet courant, attends le chargement puis appelle relever(ecran="${page.ecran}", vue="defaut", raison_go_to="page hors quota de clics demandé"). ${readingInstruction()}`}`),
+      'Dès le dernier relever accepté, appelle immédiatement terminer(etat="reussi"), sans navigation, scroll, geste ni attente supplémentaire. Si une page est inaccessible, continue les autres.'].join("\n"),
+    tools: [{ name: "relever", description: "Enregistre la page chargée.", input_schema: { type: "object", properties: { ecran: { type: "string", enum: pages.map(page => page.ecran) }, vue: { type: "string", enum: ["defaut"] }, raison_go_to: { type: "string", description: "Seulement après go_to : raison concrète du recours à une adresse plutôt qu'à un lien." } }, required: ["ecran", "vue"] } }, END_TOOL] };
 }
 
 // Rendering noise: a box under 4 px in either dimension shows nothing a visitor can judge.
@@ -119,8 +124,8 @@ function pageStatus(findings: Finding[]): Statut {
 }
 const kinds = { "cut-off-text": "texte-coupe", "overlapping-text": "chevauchement", "misaligned-element": "decalage", "distorted-image": "image-deformee", "unreadable-contrast": "contraste-illisible" };
 const descriptions = { "cut-off-text": "Un texte semble coupé.", "overlapping-text": "Des textes semblent se chevaucher.", "misaligned-element": "Un élément semble décalé.", "distorted-image": "Une image semble déformée.", "unreadable-contrast": "Un texte semble difficile à lire." };
-const sorts = { page_en_erreur: "page-erreur", image_cassee: "image-cassee", defilement_horizontal: "defilement-horizontal", debordement: "debordement", texte_rogne: "texte-rogne", lien_casse: "lien-casse", texte_erreur: "texte-erreur", erreur_console: "erreur-console" };
-const expected = { page_en_erreur: "Une réponse HTTP inférieure à 400.", image_cassee: "Une image décodable.", defilement_horizontal: "La page tient dans la largeur du document.", debordement: "Le contenu tient dans sa boîte.", texte_rogne: "Le texte reste lisible sans être rogné.", lien_casse: "Une réponse HTTP inférieure à 400.", texte_erreur: "Aucun texte d'erreur affiché.", erreur_console: "Aucune erreur JavaScript." };
+const sorts = { page_en_erreur: "page-erreur", image_cassee: "image-cassee", defilement_horizontal: "defilement-horizontal", debordement: "debordement", texte_rogne: "texte-rogne", lien_casse: "lien-casse", texte_erreur: "texte-erreur", erreur_console: "erreur-console", texte_non_traduit: "texte-non-traduit" };
+const expected = { page_en_erreur: "Une réponse HTTP inférieure à 400.", image_cassee: "Une image décodable.", defilement_horizontal: "La page tient dans la largeur du document.", debordement: "Le contenu tient dans sa boîte.", texte_rogne: "Le texte reste lisible sans être rogné.", lien_casse: "Une réponse HTTP inférieure à 400.", texte_erreur: "Aucun texte d'erreur affiché.", erreur_console: "Aucune erreur JavaScript.", texte_non_traduit: "Le texte respecte la langue déclarée de la page ou du bloc." };
 
 export async function explorer(options: ExplorerOptions, deps: ExplorerDependencies) {
   const { url, max, vault, sortie, port } = options;
@@ -413,8 +418,10 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
               if (blocage) return input.onTool("terminer", { etat: "echec", raison: blocage });
               const remaining = () => {
                 const page = unfinished()[0];
-                if (page && clickedPages < clicked) return `${pages.filter(page => page.etat === "visitee").length}/${pages.length} pages relevées dans ce passage. ${clickInstruction(unfinished())}${linkHints(unfinished())} Ne termine pas avant les relevés restants.`;
-                return page ? `${pages.filter(page => page.etat === "visitee").length}/${pages.length} pages relevées dans ce passage. Ouvre ${page.url} avec go_to puis appelle relever(ecran="${page.ecran}", vue="defaut"). Ne termine pas avant les relevés restants.` : 'Tous les relevés sont acquis. Appelle terminer(etat="reussi").';
+                const recorded = pages.filter(page => page.etat === "visitee");
+                const progress = `${recorded.length}/${pages.length} pages relevées dans ce passage. Pages déjà relevées, à ne plus cliquer : ${recorded.map(page => page.ecran).join(", ") || "aucune"}.`;
+                if (page && clickedPages < clicked) return `${progress} ${clickInstruction(unfinished())}${linkHints(unfinished())} Ne termine pas avant les relevés restants.`;
+                return page ? `${progress} ${readingInstruction()} Ouvre ${page.url} avec go_to puis appelle relever(ecran="${page.ecran}", vue="defaut", raison_go_to="page hors quota de clics demandé"). Ne termine pas avant les relevés restants.` : 'Tous les relevés sont acquis. Appelle immédiatement terminer(etat="reussi"), sans navigation, scroll, geste ni attente supplémentaire.';
               };
               if (name === "terminer" && args.etat === "reussi" && unfinished().length) return `Fin refusée : des pages restent à visiter. ${remaining()}`;
               if (name === "relever") {
@@ -471,9 +478,11 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
                 save();
                 if (mode === "clic") clickedPages++;
                 log(`${accepted.ecran} : ${mode}`);
+                if (hadGoTo) log(`${accepted.ecran} : raison go_to : ${typeof args.raison_go_to === "string" && args.raison_go_to.trim() ? args.raison_go_to.trim() : "à mesurer (raison non fournie par H)"}`);
                 currentScreen = accepted.ecran; hadClick = false; hadGoTo = false;
               }
               if (name === "terminer") completed = args.etat === "reussi";
+              if (name === "relever" && !unfinished().length) return remaining();
               return name === "relever" ? `${response}\n${remaining()}` : response;
             })()),
           });
@@ -627,6 +636,8 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
         let http: number | null = null;
         const hookFetch: typeof fetch = (address, init) => (deps.fetch ?? fetch)(address, { ...init, ...(hookSignal ? { signal: init?.signal ? AbortSignal.any([hookSignal, init.signal]) : hookSignal } : {}) });
         const linkFetch: typeof fetch = (address, init) => siteFetch(address, { ...init, ...(hookSignal ? { signal: init?.signal ? AbortSignal.any([hookSignal, init.signal]) : hookSignal } : {}) });
+        const visualAnalysis = Promise.resolve().then(() => (deps.holo ?? askHolo)(Buffer.from(capture.png), { url: capture.url_page, fetch: hookFetch }))
+          .then(result => ({ result }), error => ({ error }));
         try {
           if (!client) throw new Error("Connexion CDP indisponible.");
           hookSignal?.throwIfAborted();
@@ -658,7 +669,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
                         && zone.x + zone.largeur <= 1280 && zone.y + zone.hauteur <= 900) extra = captured;
                     } catch { /* Repli sur la capture CDP. */ }
                   }
-                  extra ??= await captureDefect(client, documentZone, capture.defilement);
+                  extra ??= await captureDefect(client, documentZone, capture.defilement, { doux: options.doux });
                   const duplicate = extra.zone && recapturedControls.find(({ item: other }) =>
                     other.sorte === item.sorte && other.preuve.mesure === measure && sameControlZone(other.zone, extra.zone));
                   if (duplicate) {
@@ -681,7 +692,9 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
         hookSignal?.throwIfAborted();
         let holo: NonNullable<ExplorationPage["holo"]> = { etat: "non_lance", modele: null, duree_ms: 0, ecartes_sans_zone: 0, jetons: null, cout_usd: null };
         try {
-          const result = await (deps.holo ?? askHolo)(Buffer.from(capture.png), { url: capture.url_page, fetch: hookFetch });
+          const analysis = await visualAnalysis;
+          if (!("result" in analysis)) throw analysis.error;
+          const result = analysis.result;
           holo = { etat: result.status === "INCONCLUSIVE" ? /timeout|timed|délai/i.test(result.message) ? "hors_delai" : "echec" : "fait", modele: result.model, duree_ms: result.durationMs, ecartes_sans_zone: 0,
             jetons: result.usage ? { entree: result.usage.prompt_tokens, sortie: result.usage.completion_tokens } : null, cout_usd: result.cost_usd };
           if (result.status === "INCONCLUSIVE") inconclusive(page, "holo", findings, `Le regard visuel n'a pas abouti : ${result.message}`);

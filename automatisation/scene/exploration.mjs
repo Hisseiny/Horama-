@@ -7,7 +7,7 @@
 // in the memory of the site. Nothing here is particular to a site.
 //
 // Usage: node [--env-file=<.env.local>] automatisation/scene/exploration.mjs --url <adresse> [--site <dossier du vault>] [--max 15] [--pages-cliquees 4] [--sans-agent]
-//          [--sans-holo] [--sans-base | --avec-base] [--choix bug,voulu,...] [--sans-fin] [--par <nom>] [--rythme <s>]
+//          [--sans-holo] [--sans-base | --avec-base] [--choix bug,voulu,...] [--repeter-choix] [--sans-fin] [--par <nom>] [--rythme <s>]
 //          [--vault <dir>] [--sortie <dir>] [--temoins <dir>] [--port 9333] [--profil <dir>] [--fermer-chrome]
 // Env: HAI_API_KEY (H and Holo), SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, CHROME_BIN, HOLO_BIN.
 // Exit: 0 the exploration ended « fini » and nothing failed, 1 otherwise, 2 something is missing, 130 Ctrl+C.
@@ -22,7 +22,7 @@ import { ecrireDecision, lireDecisions } from "../../memoire/index.ts";
 import { findHolo, startBridge, stopIfMissing } from "./agent-h.mjs";
 import { creerEcrivainMemoire, creerEcrivainSupabase } from "./decisions.mjs";
 import { completerNote } from "./note-passage.mjs";
-import { bilanExploration, dejaVoulu, revoir, sizeOf } from "./recapitulatif.mjs";
+import { bilanExploration, dejaVoulu, lisible, revoir, selecteursDe, sizeOf } from "./recapitulatif.mjs";
 import { ecrireSectionExploration, publierCommentaire } from "../pr-doc/commentaire.mjs";
 import { ouvrirVitrine } from "./vitrine.mjs";
 import { HEIGHT, WIDTH, capture, captureZone, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, layer, navigate, openChrome, option, say, sleep } from "./scene.mjs";
@@ -43,6 +43,9 @@ const ID = `${new Date().toLocaleString("sv-SE").slice(0, 16).replace(" ", "-").
 const OUT = resolve(option("sortie", `/Users/nathan/Code/projet/horama/.orchestrateur/exploration/${ID}`));
 const WITNESSES = option("temoins") ? resolve(option("temoins")) : null;
 const CHOICES = flag("choix") ? option("choix").split(",") : [];
+// --repeter-choix: --choix taken again from the start (S9, filmed passages). It writes as many decisions as there are
+// questions, chosen in advance: on a temporary vault and without the shared base only.
+const REPEAT = flag("repeter-choix");
 const PAR = option("par", "Nathan");
 const RYTHME = Number(option("rythme", 2));
 const CHROME_BIN = process.env.CHROME_BIN || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
@@ -58,6 +61,10 @@ if (flag("site") && !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(SITE)) missing.push("--s
 if (!Number.isSafeInteger(MAX) || MAX < 1) missing.push("--max attend un entier positif.");
 if (!Number.isSafeInteger(CLICKED) || CLICKED < 0) missing.push("--pages-cliquees attend un entier positif ou nul.");
 if (CHOICES.some((choix) => choix !== "bug" && choix !== "voulu")) missing.push("--choix attend une liste de « bug » et de « voulu », séparés par des virgules.");
+const REPO_VAULT = resolve(HERE, "../../vault-horama");
+if (REPEAT && (VAULT === REPO_VAULT || VAULT.startsWith(`${REPO_VAULT}/`))) missing.push("--repeter-choix demande un vault temporaire (--vault), jamais vault-horama/ du dépôt.");
+if (REPEAT && !flag("sans-base")) missing.push("--repeter-choix demande --sans-base (aucune décision choisie d'avance dans la base partagée).");
+if (REPEAT && !CHOICES.length) missing.push("--repeter-choix demande --choix.");
 if (flag("temoins") && !option("temoins")) missing.push("--temoins demande un dossier.");
 if (flag("sans-base") && flag("avec-base")) missing.push("--sans-base et --avec-base s'excluent.");
 if (!flag("sans-holo") && !process.env.HAI_API_KEY) missing.push("Holo demande HAI_API_KEY (sans Holo : --sans-holo).");
@@ -179,6 +186,7 @@ const GENRE = { VERIFIED_FAIL: "defaut", SUSPECTED: "doute" };
 const LOOK = { VERIFIED_FAIL: "trouve", SUSPECTED: "doute", INCONCLUSIVE: "observe", PASS: "observe" };
 const shown = new Set(); // pages whose findings were handed to the mascot
 const drawnOn = new Map(); // finding id -> drawn on the live page
+const visibleTexts = new Map(); // finding id -> visible texts of the elements it groups, read on the live page
 let queue = Promise.resolve();
 const sameAddress = (a, b) => {
   const [x, y] = [new URL(a), new URL(b)];
@@ -209,8 +217,14 @@ function showPage(pageEntry, constats) {
     const live = await evaluate(page, "location.href").catch(() => "");
     if (live && sameAddress(live, pageEntry.url)) {
       const address = await evaluate(page, "location.pathname + location.search");
+      // The visible texts of the elements a grouped finding cites, while their page is on the screen (for the end).
+      for (const constat of mine) {
+        const selectors = selecteursDe(constat.description);
+        if (selectors.length) visibleTexts.set(constat.id, await Promise.all(selectors.map((selector) => mascot("texte", selector).catch(() => ""))));
+      }
       for (const constat of mine.filter((candidate) => GENRE[candidate.statut])) {
-        const rects = await rectsOf(constat, pageEntry);
+        // Never around nothing: a zone under 4 px in one dimension is not drawn (S7, Louvre 19/11: rings around 1 px).
+        const rects = (await rectsOf(constat, pageEntry)).filter((rect) => rect.largeur >= 4 && rect.hauteur >= 4);
         if (!rects.length) continue;
         const drawing = mascot("surligner", address, rects, GENRE[constat.statut], constat.id, null, true);
         await sleep(300);
@@ -220,6 +234,9 @@ function showPage(pageEntry, constats) {
         await witness(`trait-${GENRE[constat.statut]}`);
       }
     }
+    // A stroke drawn: the layer has put the expression before it and keeps it until the next gesture of H (S3). Without
+    // a stroke (no zone on the live page), the expression of the page for 1.2 s, as before.
+    if (mine.some((constat) => drawnOn.has(constat.id))) return;
     const worst = ["VERIFIED_FAIL", "SUSPECTED", "INCONCLUSIVE"].find((statut) => mine.some((constat) => constat.statut === statut)) ?? "PASS";
     await mascot("etat", LOOK[worst]);
     await sleep(1200);
@@ -295,9 +312,10 @@ if (report?.format === "horama-exploration-1") {
     : constat.source === "holo" ? "Doute du regard de Holo, le modèle visuel de H : rien n'est prouvé." : "Écart d'image avec la capture du passage précédent.");
   const items = toDecide.map((constat) => {
     const png = readFileSync(join(OUT, constat.capture));
-    return { id: constat.id, genre: GENRE[constat.statut], etat: LOOK[constat.statut], texte: `${pathOf(constat.ecran)} : ${constat.description}`, png, zones: constat.zone ? [constat.zone] : [], page: constat.page ?? sizeOf(png),
+    const said = lisible(constat.description, visibleTexts.get(constat.id));
+    return { id: constat.id, genre: GENRE[constat.statut], etat: LOOK[constat.statut], texte: `${pathOf(constat.ecran)} : ${said}`, selecteurs: selecteursDe(constat.description), png, zones: constat.zone ? [constat.zone] : [], page: constat.page ?? sizeOf(png),
       mesure: constat.source === "controle" && constat.preuve?.mesure ? `mesuré : ${constat.preuve.mesure}` : null,
-      textes: [`Page ${pathOf(constat.ecran)}${arrivalOf(constat.ecran) ? ` (${arrivalOf(constat.ecran)})` : ""} : ${constat.description}`, proof(constat)], question: "C'est un bug, ou c'est voulu ?" };
+      textes: [`Page ${pathOf(constat.ecran)}${arrivalOf(constat.ecran) ? ` (${arrivalOf(constat.ecran)})` : ""} : ${said}`, proof(constat)], question: "C'est un bug, ou c'est voulu ?" };
   });
   const excluded = Object.entries(trouvees.exclues.reduce((all, { raison }) => ({ ...all, [raison]: (all[raison] ?? 0) + 1 }), {})).map(([raison, n]) => `${exclusionLabel(raison)} (${n})`);
   const bilan = bilanExploration(report);
@@ -329,7 +347,7 @@ if (report?.format === "horama-exploration-1") {
   // The course stopped for a reason (site that blocks robots, address not found): the mascot says it, the summary keeps it.
   if (bilan.aucune) await mascot("etat", "bloquee").catch(() => {});
   try {
-    const made = await revoir({ mascot, recap, items: items.filter((item) => review.some((constat) => constat.id === item.id)), choix: CHOICES, presentation: true, witness, say }, () => new Promise((resolve) => (chosen = resolve)));
+    const made = await revoir({ mascot, recap, items: items.filter((item) => review.some((constat) => constat.id === item.id)), choix: CHOICES, repeter: REPEAT, presentation: true, witness, say }, () => new Promise((resolve) => (chosen = resolve)));
     const le = new Date().toISOString();
     for (const { item, choix } of made) {
       const constat = review.find((candidate) => candidate.id === item.id);
@@ -361,7 +379,8 @@ if (report?.format === "horama-exploration-1") {
   }
   // The part of the answer on the PR (text only: page, zone, proof; the captures ringed stay in the note).
   if (PR) {
-    const entry = (constat) => ({ id: constat.id, chemin: pathOf(constat.ecran), texte: constat.description, zone: constat.zone ?? null, capture: constat.capture ?? null,
+    // The comment on the PR (read by the jury): the readable text first; the selectors of a grouped finding folded.
+    const entry = (constat) => ({ id: constat.id, chemin: pathOf(constat.ecran), texte: lisible(constat.description, visibleTexts.get(constat.id)), selecteurs: selecteursDe(constat.description), zone: constat.zone ?? null, capture: constat.capture ?? null,
       preuve: constat.source === "controle" && constat.preuve?.mesure ? `Mesuré : ${String(constat.preuve.mesure).replace(/\.+$/, "")}. Attendu : ${String(constat.preuve.attendu).replace(/\.+$/, "")}.` : null });
     const corps = ecrireSectionExploration({ adresse: report.adresse, bilan: bilanExploration(report), totaux, decisions: decisions.map(({ decision }) => decision),
       prouves: toDecide.filter((constat) => constat.statut === "VERIFIED_FAIL").map(entry), doutes: toDecide.filter((constat) => constat.statut === "SUSPECTED").map(entry),
@@ -387,6 +406,9 @@ if (report?.format === "horama-exploration-1") {
   }
 } else errors.push(`${FILE} absent ou illisible.`);
 
+// The end stays on the screen before Chrome and the showcase close (S9: a filmed passage sees the summary or « C'est
+// rangé »); before the showcase stops, which closes its window with --fermer-chrome.
+if (flag("fermer-chrome")) await sleep(8000);
 const showcase = vitrine?.mesures() ?? null;
 if (showcase) say(`Vitrine : ${showcase.images_recues} images reçues, ${showcase.images_affichees} affichées, ${showcase.images_par_seconde} par seconde ; délai de l'image dessinée à l'image affichée : médiane ${showcase.delai_total_ms.mediane} ms, p95 ${showcase.delai_total_ms.p95} ms.`);
 await vitrine?.stop({ fermer: flag("fermer-chrome") });

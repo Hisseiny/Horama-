@@ -60,3 +60,15 @@ test("exploration : un site qui n'a pas pu être visité dit seulement pourquoi"
   assert.match(corps, /\*\*Horama n'a pas pu visiter ce site : ce site bloque les robots \(_Incapsula_Resource\)\.\*\*/);
   assert.doesNotMatch(corps, /défaut|pages visitées/);
 });
+
+// A grouped finding (#180) on the PR: the readable line for the jury, the CSS selectors folded in a <details>.
+test("ecrireSectionExploration : les sélecteurs d'un constat groupé repliés sous la ligne lisible", () => {
+  const corps = ecrireSectionExploration({ adresse: "https://p", bilan: { aucune: false, nonVisitees: [] }, totaux: { pages_visitees: 1, pages_trouvees: 1, defauts: 1, doutes: 0 }, decisions: [],
+    prouves: [{ id: "programmes--controle--1", chemin: "/programmes", texte: "Le texte dépasse la boîte de son conteneur. 3 éléments : « Studienjahr ».", selecteurs: ["html > body > ol > li:nth-child(1) > span", "html > body > ol > li:nth-child(2) > span", "html > body > ol > li:nth-child(3) > span"], zone: null }],
+    doutes: [], dejaVoulus: [], note: "vault-horama/x.md" });
+  const line = corps.split("\n").find((text) => text.startsWith("- /programmes"));
+  assert.match(line, /3 éléments : « Studienjahr »/);
+  assert.doesNotMatch(line, /nth-child/);
+  assert.match(corps, /<details><summary>Sélecteurs des 3 éléments<\/summary>/);
+  assert.match(corps, /`html > body > ol > li:nth-child\(2\) > span`/);
+});

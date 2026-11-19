@@ -224,3 +224,38 @@ doutes principaux sans `explique_par`.
 # pass 104
 # fail 0
 ```
+
+### Fusion de dev après #179 et vérification finale
+
+Les trois corrections ont été commitées séparément : `5dd09da`, `8b83cc1`,
+`ad2c7d8`. Avant fusion, le check global passait avec 286 tests, 286 pass, 0 fail
+(`/home/ubuntu/horama-197-review-check.log`).
+
+Après contrôle par `git fetch` et `git log origin/dev`, #179 est fusionnée dans
+dev via `8ae6fd8`. Fusion normale de `origin/dev` à `e0f95bc` dans cette branche,
+sans rebase ni poussée forcée. Un seul conflit :
+`agent/exploration-controles.test.ts`. Conservation intégrale des fixtures Holo,
+y compris le calque sans interaction, puis des tests de langue de #179 et de
+son attente d’un doute regroupant les troncatures intentionnelles. L’ancienne
+assertion « aucun constat » sur cette fixture n’est plus valable avec #179 ;
+ses assertions `SUSPECTED` sont conservées. Aucun test des deux PR supprimé.
+Les autres fichiers de dev sont fusionnés automatiquement, sans retouche.
+
+`pnpm -r --if-present run check` après résolution, code 0 au premier essai :
+
+```text
+agent check: 1..287
+agent check: # tests 294
+agent check: # suites 0
+agent check: # pass 294
+agent check: # fail 0
+agent check: # cancelled 0
+agent check: # skipped 0
+agent check: # todo 0
+agent check: # duration_ms 20651.749914
+agent check: Done
+```
+
+Journal : `/home/ubuntu/horama-197-merge-check.log`. Pas de nouvel appel Holo/H ni
+de nouvelle validation visuelle pour ces corrections : tests sans réseau externe,
+dont les contrôles CDP sur Chrome local. Une seule poussée finale.

@@ -36,12 +36,37 @@ export function dejaVoulu(constat, decisions) {
   return decisions.find((decision) => decision.decision === "voulu" && decision.ecran === constat.ecran && decision.ecart === constat.description && overlap(decision.zone, constat.zone)) ?? null;
 }
 
+// A finding grouped over several elements (#180) carries their CSS selectors at the end of its description
+// (« … Éléments : html > body… , html > body… . »). On the screen never a selector: the number of elements and their
+// visible texts, short, without repeats (« 3 éléments : « Studienjahr » »); the selectors stay in the note of the vault.
+// textes: the visible texts read on the page during the course (empty when the page could not be read).
+export function selecteursDe(description) {
+  const [, tail] = String(description ?? "").split(" Éléments : ");
+  return tail ? tail.replace(/\.\s*$/, "").split(/, (?=html\b)/).map((selector) => selector.trim()).filter(Boolean) : [];
+}
+export function lisible(description, textes = []) {
+  const [message, tail] = String(description ?? "").split(" Éléments : ");
+  if (!tail) return message;
+  const count = selecteursDe(description).length;
+  // The number of a list item (« 1. », « 2) ») goes: « 1. Studienjahr » and « 2. Studienjahr » are one text.
+  const short = [...new Set(textes.map((text) => String(text ?? "").replace(/\s+/g, " ").trim().replace(/^(\d+|[a-z])[.)]\s+/i, "")).filter(Boolean))]
+    .map((text) => (text.length > 40 ? `${text.slice(0, 39)}…` : text));
+  const shown = short.slice(0, 3).map((text) => `« ${text} »`).join(", ");
+  return `${message} ${count} éléments${shown ? ` : ${shown}${short.length > 3 ? ", …" : ""}` : ""}.`;
+}
+
+// The time an automatic answer (--choix) waits, the time to read the question: 2,5 s plus 50 ms per character, 6 s at
+// most (S9: a question of 700 characters waited 40 s).
+export const attenteLecture = (texte) => Math.min(6000, 2500 + 50 * String(texte).length);
+
 // mascot: (command, ...args) => layer call. recap: { titre, site, chiffres, lignes, selection } (see recap in
 // couche-horama.js). items: { id, genre ("defaut" or "doute"), etat (of the mascot), texte (one line in the summary),
 // mesure (its measure in the summary, or nothing), png (the capture), zones, page, textes, question }. choix: the
-// answers of --choix, in order. answer(): a promise of the next { id, choix } the layer reports. Returns, per item, the
+// answers of --choix, in order; a question without one waits for a real click. repeter (--repeter-choix, filmed
+// exploration on a temporary vault only, S9): the answers are taken again from the start, so that a filmed passage shows
+// the whole end without knowing in advance how many questions it will ask. answer(): a promise of the next { id, choix } the layer reports. Returns, per item, the
 // choice made.
-export async function revoir({ mascot, recap, items, choix = [], presentation, witness, say }, answer) {
+export async function revoir({ mascot, recap, items, choix = [], repeter = false, presentation, witness, say }, answer) {
   await mascot("recap", { ...recap, items: items.map(({ id, genre, texte, mesure }) => ({ id, genre, texte, mesure })) });
   await witness("recapitulatif");
   const made = [];
@@ -53,11 +78,13 @@ export async function revoir({ mascot, recap, items, choix = [], presentation, w
     const response = answer();
     await mascot("examen", { id: item.id, rang, genre: item.genre, etat: item.etat, image: dataUrl(item.png), zones: item.zones, page: item.page, textes: item.textes, question: item.question });
     await witness(`examen-${index + 1}`);
-    // --choix answers by itself, after the time it takes to read: 2,5 s plus 50 ms per character.
+    // --choix answers by itself, after the time it takes to read: 2,5 s plus 50 ms per character, 6 s at most.
     const words = [...item.textes, item.question].join(" ");
-    if (choix[index]) sleep(presentation ? 2500 + 50 * words.length : 0).then(() => mascot("choisir", choix[index])).catch(() => {});
+    const auto = choix[index] ?? (repeter && choix.length ? choix[index % choix.length] : null);
+    // 6 s at most, whatever the length (S9: a question of 700 characters waited 40 s).
+    if (auto) sleep(presentation ? attenteLecture(words) : 0).then(() => mascot("choisir", auto)).catch(() => {});
     const { choix: chosen } = await response;
-    say(`Question ${rang} : ${item.question} Réponse : ${chosen}${choix[index] ? " (--choix)" : ""}.`);
+    say(`Question ${rang} : ${item.question} Réponse : ${chosen}${auto ? " (--choix)" : ""}.`);
     made.push({ item, choix: chosen });
     if (presentation) await sleep(900);
     await witness(`reponse-${index + 1}`);

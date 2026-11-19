@@ -35,7 +35,7 @@ let root: string;
 beforeEach(() => { root = mkdtempSync(join(tmpdir(), "horama-explorer-")); });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-async function run({ png = original, skip = "", refuse = false, failure = false, lateError = false, earlyEnd = false, query = "", actual, retries = 1, defilement = [0, 0], deps = {}, site }: { site?: string; actual?: (url: string) => string; retries?: number; defilement?: [number, number]; png?: Buffer; skip?: string; refuse?: boolean; failure?: boolean; lateError?: boolean; earlyEnd?: boolean; query?: string; deps?: Partial<ExplorerDependencies> } = {}) {
+async function run({ png = original, skip = "", refuse = false, failure = false, lateError = false, earlyEnd = false, query = "", actual, retries = 1, defilement = [0, 0], deps = {}, site, doux }: { doux?: boolean; site?: string; actual?: (url: string) => string; retries?: number; defilement?: [number, number]; png?: Buffer; skip?: string; refuse?: boolean; failure?: boolean; lateError?: boolean; earlyEnd?: boolean; query?: string; deps?: Partial<ExplorerDependencies> } = {}) {
   let address = "https://example.org/";
   const base = new BaseMemoire();
   const responses: string[] = [];
@@ -63,7 +63,7 @@ async function run({ png = original, skip = "", refuse = false, failure = false,
         for (let attempt = 0; attempt < retries; attempt++) {
           const response = await input.onTool("relever", { ecran: step.ecran, vue: "defaut" });
           responses.push(response);
-          if (!actual) assert.match(response, refuse ? /refusé/ : /Capture/);
+          if (!actual) assert.match(response, refuse ? /refusé/ : /Capture|Tous les relevés/);
         }
       }
       responses.push(await input.onTool("terminer", { etat: failure ? "echec" : "reussi", raison: "Arrêt demandé." }));
@@ -71,7 +71,7 @@ async function run({ png = original, skip = "", refuse = false, failure = false,
     })();
     return { id: "session-1", fin };
   };
-  const result = await explorer({ url: "https://example.org", max: 15, vault: join(root, "vault"), sortie: join(root, "out"), port: 9333, site }, {
+  const result = await explorer({ url: "https://example.org", max: 15, vault: join(root, "vault"), sortie: join(root, "out"), port: 9333, site, doux }, {
     base, session, urlCourante: async () => null, runtime: { relever: async () => ({ png, texte: "Page", url_page: address, largeur: 1280, hauteur: 900, defilement, phrase: "Capture enregistrée." }),
       navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
     fetch: async input => {
@@ -401,6 +401,21 @@ test("comparaison neutralisée par une décision voulu de la version", async () 
   assert.equal(neutralized?.statut, "PASS"); assert.equal(neutralized?.decision_id, "voulu");
 });
 
+test("un voulu de même version ne neutralise pas encore un doute mécanique de troncature", async () => {
+  const deps: Partial<ExplorerDependencies> = { controler: async () => [{ statut: "SUSPECTED", sorte: "texte_rogne", message: "4 textes coupés. Éléments : #a, #b, #c, #d.",
+    selecteur: "#a, #b, #c, #d", valeur: "200 > 100", raison: "Sans doute voulu, à confirmer.", zone: { x: 10, y: 10, largeur: 100, hauteur: 30 } }] };
+  const first = await run({ deps });
+  const item = first.result.constats.find(candidate => candidate.source === "controle" && candidate.ecran === "accueil")!;
+  ecrireDecision(join(root, "vault"), { id: "troncature-voulue", logiciel: "example-org", passage_id: first.result.passage_id, test_id: "exploration--accueil", ecart_id: item.id,
+    decision: "voulu", ecran: item.ecran, vue: "defaut", ecart: item.description, zone: item.zone, version: "2", portee: "cet ecart, cet ecran, cette version", par: "test", le: new Date().toISOString() });
+  const next = await run({ deps });
+  assert.equal(next.result.version, "2");
+  const cut = next.result.constats.find(candidate => candidate.source === "controle" && candidate.ecran === "accueil")!;
+  assert.equal(cut.statut, "SUSPECTED"); assert.equal(cut.decision_id, undefined);
+  assert.match(cut.description, /#a, #b, #c, #d/);
+  assert.ok(next.base.resultats[0].ecarts_visuels.some(candidate => candidate.id === cut.id), "le doute reste présentable au jugement humain");
+});
+
 test("contrôle prouvé explique Holo, hors capture et sans zone comptés honnêtement", async () => {
   const { result, base } = await run({ deps: {
     connecter: async () => ({ send: async (method, params) => method === "Page.captureScreenshot" ? { data: original.toString("base64") } : { result: { value: (params as Record<string, unknown> | undefined)?.expression === "[window.scrollX, window.scrollY]" ? [0, 900] : 200 } }, on() {}, close() {} }),
@@ -547,7 +562,9 @@ test("erreur H après le dernier relevé : toutes les pages visitées, passage f
 test("budget de temps H proportionnel aux étapes et borné", () => {
   assert.equal(explorationTimeBudget(10), 240);
   assert.equal(explorationTimeBudget(57), 456);
-  assert.equal(explorationTimeBudget(200), 600);
+  assert.equal(explorationTimeBudget(200), 1600);
+  assert.equal(explorationTimeBudget(explorationStepBudget(8, 8)), 1152);
+  assert.equal(explorationTimeBudget(2000), 1800);
 });
 
 test("découverte vide ne crée aucune session", async () => {
@@ -634,7 +651,7 @@ test("arguments, aide, valeurs par défaut et erreurs", () => {
   for (const args of [[], ["--url", "file:///x"], ["--url", "https://u:p@example.org"], ["--url", "https://example.org", "--max", "-1"], ["--url", "https://example.org", "--chrome-port", "0"], ["--url", "https://example.org", "--url", "https://example.org"], ["--url"]]) assert.throws(() => lireArguments(args));
 });
 
-test("consigne : relever, défiler puis cliquer, liste dynamique et repli", () => {
+test("consigne : lecture bornée, liens sur place, remontée moyenne facultative et fin immédiate", () => {
   const pages = ["accueil", "faq", "aide"].map(ecran => ({ ecran, url: `https://example.org/${ecran}` }));
   const task = construireExploration(pages, "site", "1", 99).task;
   assert.ok(task.indexOf('Appelle relever') < task.indexOf("scroll_web"));
@@ -646,16 +663,90 @@ test("consigne : relever, défiler puis cliquer, liste dynamique et repli", () =
   assert.equal(task.match(/sans go_to clique/g)?.length, 2);
   assert.doesNotMatch(construireExploration(pages, "site", "1", 0).task, /clique un lien/);
   assert.doesNotMatch(construireExploration(pages.slice(0, 1), "site", "1", 99).task, /clique un lien/);
-  assert.match(task, /3 défilements au plus jusqu'en bas/);
-  assert.match(task, /1 ou 2 défilements au plus/);
-  assert.match(task, /grands défilements/);
-  assert.match(task, /Ne répète pas les défilements déjà faits/);
+  assert.match(task, /au plus 5 petits scroll_web.*direction down, num_pixels environ 450.*demi-hauteur/);
+  assert.match(task, /scroll_element null/);
+  assert.match(task, /Arrête ces petits pas dès le bas atteint ou si la page ne bouge plus/);
+  assert.match(task, /Si le bas reste hors vue.*UN seul grand scroll_web jusqu'en bas.*direction down, num_pixels 100000/);
+  assert.match(task, /cherche d'abord un lien utile visible là où tu es \(menu fixe, corps ou pied de page\)/);
+  assert.match(task, /Seulement si aucun lien utile n'est visible, remonte en 2 ou 3 scroll_web moyens au plus.*direction up, num_pixels environ 900/);
+  assert.match(task, /Jamais de grand scroll vers le haut/);
+  assert.doesNotMatch(task, /direction up, num_pixels 100000/);
+  assert.match(task, /Aucun aller-retour supplémentaire, ni répétition à une extrémité sans déplacement/);
+  assert.match(task, /UN geste de visiteur facultatif/);
+  assert.match(task, /N'ajoute pas de scrolls pour chercher un contrôle/);
+  assert.match(task, /jamais un formulaire ni une connexion/);
+  assert.ok(task.indexOf("jusqu'en bas") < task.indexOf("UN geste"));
+  assert.ok(task.indexOf("UN geste") < task.indexOf("cherche d'abord un lien"));
+  assert.ok(task.indexOf("cherche d'abord un lien") < task.indexOf("remonte en 2 ou 3"));
+  assert.match(task, /Ne répète pas la lecture déjà faite/);
+  assert.match(task, /en dernier recours seulement.*raison_go_to/);
+  assert.doesNotMatch(task, /deux essais|Remonte.*mêmes petits pas/);
+  const consigne = construireExploration(pages, "site", "1", 99);
+  assert.match(consigne.instructions, /jamais la commande retour du navigateur \(back\)/);
+  assert.match(consigne.instructions, /Ne clique jamais vers une page déjà relevée dans ce passage/);
+  assert.match(task, /Dès le dernier relever accepté, appelle immédiatement terminer.*sans navigation, scroll, geste ni attente/);
+  assert.match(consigne.instructions, /ne remplis et ne soumets aucun formulaire, ne te connecte jamais/);
+  const schema = consigne.tools[0].input_schema as { required: string[]; properties: Record<string, unknown> };
+  assert.deepEqual(schema.required, ["ecran", "vue"]);
+  assert.ok("raison_go_to" in schema.properties);
+  for (const part of task.split(/Partie \d+ : /).slice(1)) assert.match(part, /CHAQUE page.*seulement s'il reste des pages à relever/);
   const addressPart = construireExploration(pages, "site", "1", 0).task.split("Partie 2")[1];
-  assert.doesNotMatch(addressPart, /défile|scroll_web/);
-  assert.equal(explorationStepBudget(3, 99), 31);
-  assert.equal(explorationStepBudget(3, 0), 25);
-  assert.equal(explorationStepBudget(8, 4), 57);
-  assert.equal(explorationStepBudget(8, 4) - (4 * 8 + 3 + 3 * 4), 10);
+  assert.match(addressPart, /scroll_web/);
+  assert.equal(explorationStepBudget(3, 99), 59);
+  assert.equal(explorationStepBudget(3, 0), 53);
+  assert.equal(explorationStepBudget(8, 4), 135);
+  assert.equal(explorationStepBudget(8, 8), 144);
+  assert.ok(explorationStepBudget(8, 8) >= 8 * (5 + 1 + 1 + 3 + 4) + 7 * 3 + 10);
+});
+
+for (const failure of [false, true]) {
+  test(`Holo commence pendant les contrôles, même en cas d'échec : ${failure}`, async () => {
+    let started = 0, checked = 0;
+    const overlap: number[][] = [];
+    const { result } = await run({ deps: {
+      holo: async () => {
+        started++;
+        if (failure) throw new Error("Holo indisponible");
+        return { status: "SUSPECTED", model: "holo4-27b", durationMs: 1, usage: null, cost_usd: null, findings: [] };
+      },
+      controler: async () => {
+        await new Promise(resolve => setImmediate(resolve));
+        checked++;
+        overlap.push([started, checked]);
+        return [];
+      },
+    } });
+    assert.equal(checked, 2);
+    assert.deepEqual(overlap, [[1, 1], [2, 2]]);
+    assert.equal(result.totaux.pages_visitees, 2);
+    assert.equal(result.constats.filter(item => item.source === "holo").length, failure ? 2 : 0);
+    if (failure) assert.ok(result.constats.every(item => item.statut === "INCONCLUSIVE"));
+  });
+}
+
+test("le repli go_to conserve les compteurs et journalise sa raison facultative", async () => {
+  const logs: string[] = [];
+  let address = "https://example.org/";
+  const { result } = await run({ deps: {
+    log: message => logs.push(message),
+    runtime: { relever: async () => ({ png: original, texte: "Page", url_page: address, largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture" }), navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
+    session: async input => {
+      await input.onCreated("fallback");
+      return { id: "fallback", fin: (async () => {
+        for (const step of input.consigne.course) {
+          address = step.address;
+          await input.onStep({ etape: step.part, horodatage: new Date().toISOString(), action: "Ouvre une page", etat_session: "en_cours" });
+          await input.onTool("relever", { ecran: step.ecran, vue: "defaut", ...(step.part === 2 ? { raison_go_to: "  Aucun lien vers FAQ dans le menu  " } : {}) });
+        }
+        await input.onTool("terminer", { etat: "reussi" });
+        return { id: "fallback", muted: false, cout_usd: null, etapes: 2 };
+      })() };
+    },
+  } });
+  assert.ok(logs.includes("accueil : raison go_to : à mesurer (raison non fournie par H)"));
+  assert.ok(logs.includes("faq : raison go_to : Aucun lien vers FAQ dans le menu"));
+  assert.equal(result.navigation.goTo, 2);
+  assert.equal(result.navigation.arrivees.faq, "adresse");
 });
 
 test("URL courante : réécriture, refus hors liste et repli illisible", async () => {
@@ -707,13 +798,16 @@ test("modes d'arrivée sérialisés, compteurs des actions composées seulement 
       await input.onCreated("actions");
       return { id: "actions", fin: (async () => {
         const first = await input.onTool("relever", { ecran: "accueil", vue: "defaut" });
-        assert.match(first, /3 défilements au plus jusqu'en bas/);
-        assert.match(first, /1 ou 2 défilements au plus/);
-        assert.match(first, /Ne répète pas les défilements déjà faits/);
+        assert.match(first, /CHAQUE page/);
+        assert.match(first, /au plus 5 petits scroll_web.*num_pixels environ 450/);
+        assert.match(first, /Ne répète pas la lecture déjà faite/);
+        assert.match(first, /Pages déjà relevées, à ne plus cliquer : accueil\./);
         await input.onStep({ etape: 1, horodatage: new Date().toISOString(), action: "Défile, Défile, Clique", etat_session: "en_cours" });
         address = "https://example.org/faq";
         const response = await input.onTool("relever", { ecran: "faq", vue: "defaut" });
         assert.match(response, /Tous les relevés/);
+        assert.match(response, /Appelle immédiatement terminer\(etat="reussi"\)/);
+        assert.doesNotMatch(response, /scroll_web|go_to|Continue le parcours|450|900/);
         await input.onTool("terminer", { etat: "reussi" });
         return { id: "actions", muted: false, cout_usd: null, etapes: 2 };
       })() };
@@ -881,6 +975,20 @@ test("crochet de capture : résultat valide utilisé, sinon repli CDP sans perdr
   }
 });
 
+test("option douce transmise au repli CDP", async () => {
+  const scrolls: string[] = [];
+  await run({ doux: true, deps: {
+    connecter: async () => ({ on() {}, close() {}, async send(method, params) {
+      if (method === "Page.captureScreenshot") return { data: original.toString("base64") };
+      const expression = String((params as Record<string, unknown> | undefined)?.expression);
+      if (expression.includes('behavior: "smooth"')) scrolls.push(expression);
+      return { result: { value: expression === "[window.scrollX, window.scrollY]" ? [0, 4200] : 200 } };
+    } }),
+    controler: async () => [{ statut: "VERIFIED_FAIL", sorte: "debordement", message: "Texte coupé.", zone: { x: 10, y: 4583, largeur: 100, hauteur: 40 } }],
+  } });
+  assert.equal(scrolls.length, 4);
+});
+
 test("cookies préparés avant capture, client partagé puis fermé", async () => {
   const calls: string[] = [];
   const { result } = await run({ deps: {
@@ -994,7 +1102,7 @@ test("contrôle d'adresse : redirection même origine résolue avant le premier 
   assert.match(responses[0], /n'est pas dans la liste/);
   assert.equal(result.pages[1].etat, "visitee");
   assert.equal(result.pages[1].url_finale, "https://example.org/help");
-  assert.match(responses[1], /Capture/);
+  assert.match(responses[1], /Capture|Tous les relevés/);
   assert.equal(resolves, 2);
 });
 
@@ -1014,7 +1122,7 @@ test(`contrôle d'adresse : deux pages de même chemin gardent leur query et leu
         assert.equal(input.consigne.course.length, 3);
         for (const step of input.consigne.course) {
           address = step.address + (step.address.includes("?") ? tracking : "");
-          assert.match(await input.onTool("relever", { ecran: step.ecran, vue: "defaut" }), /Capture/);
+          assert.match(await input.onTool("relever", { ecran: step.ecran, vue: "defaut" }), /Capture|Tous les relevés/);
         }
         await input.onTool("terminer", { etat: "reussi" });
         return { id: "queries", muted: false, cout_usd: null, etapes: 3 };
@@ -1113,8 +1221,8 @@ async function budgetRun(limits: number[], { failCreation = false, rejectFinal =
 
 test("15 pages : budget pour navigation, relevé, attente, reprises et début/fin", async () => {
   const { result, budgets, launches } = await budgetRun([15]);
-  assert.equal(explorationStepBudget(15, 4), 85);
-  assert.equal(budgets[0], 85);
+  assert.equal(explorationStepBudget(15, 4), 233);
+  assert.equal(budgets[0], 233);
   assert.ok(budgets[0] >= 15 * 3 + 10);
   assert.equal(launches, 1);
   assert.equal(result.etat, "fini");
@@ -1127,7 +1235,7 @@ test("budget épuisé après 13 pages : une seule relance limitée aux 2 restant
   assert.equal(result.totaux.sans_conclusion, 0);
   assert.equal(result.agents.length, 2);
   assert.deepEqual(plans[1], plans[0].slice(13));
-  assert.deepEqual(budgets, [85, 21]);
+  assert.deepEqual(budgets, [233, 39]);
   assert.equal(result.navigation.arrivees[result.pages[0].ecran], "depart");
   assert.ok(result.pages.slice(1).every(page => result.navigation.arrivees[page.ecran] === "adresse"));
   assert.deepEqual(closed, ["budget-1", "budget-2"]);

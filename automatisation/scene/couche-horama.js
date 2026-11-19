@@ -29,6 +29,7 @@
   const SKY = "#E3E0F9"; // ciel: where the envoy flies
   const WING = "#AFA9EC";
   const IRIS = "#7F77DD"; // iris of the mascot, for the ripple of a click
+  const AILE = "#AFA9EC"; // lilac of the wings: the line of reading (S4), never a sign of proof
   const COLORS = { conforme: "#2E7D55", defaut: "#B8321F", doute: "#C48A1E" }; // olivier, miltos, ocre
   const STAMPS = { bug: "Bug noté", voulu: "Voulu" };
   // observe (the course), trouve (a proven defect ringed), doute (a finding of Holo), bloquee (the course stops for a
@@ -57,7 +58,12 @@
     [hidden] { display: none !important; }
     :host { --miltos: ${COLORS.defaut}; --ocre: ${COLORS.doute}; }
     .zones { position: absolute; left: 0; top: 0; }
-    .zone { position: absolute; }
+    .zone { position: absolute; transition: opacity 160ms ease-out; }
+    .zone.covered { opacity: 0 !important; }
+    /* S4 : la ligne de lecture de la mascotte, fine, droite, lilas des ailes, qui se trace au rythme de l'œil puis
+       s'efface. Rien à voir avec les signes de preuve (le trait miltos à main levée, les points ocre). */
+    .lecture { position: absolute; height: 2px; border-radius: 1px; background: ${AILE}; opacity: 0; transform-origin: left center; transform: scaleX(0); transition: opacity 400ms ease-out; }
+    .lecture.on { opacity: 0.9; transform: scaleX(1); transition: opacity 300ms ease-out, transform var(--lire, 3000ms) linear; } /* over .zone.old.done (three classes): a dashed old place hides too */
     .zone > svg, .shot .mark > svg { position: absolute; left: 0; top: 0; overflow: visible; }
     .zone.old { margin: -7px; padding: 7px; box-sizing: content-box; border: 3px dashed ${INK}; opacity: 0; transition: opacity 300ms ease-out; }
     .zone.old.done { opacity: 0.45; }
@@ -146,10 +152,14 @@
     .panel .files li { padding: 5px 10px; background: ${PAPER}; border: 2px solid ${FILET}; border-radius: 8px; color: ${INK}; font: 500 13.5px/1.3 ${MESURE}; overflow-wrap: anywhere; }
     .cursor { position: fixed; left: 0; top: 0; width: 40px; height: 40px; will-change: transform; }
     .cursor svg { display: block; width: 40px; height: 40px; transform-origin: ${TIP.x}px ${TIP.y}px; transition: transform 90ms ease-out; }
-    .cursor.press svg { transform: scale(0.78); }
+    .cursor.press svg { transform: scale(0.7); }
+    .echo { position: fixed; left: 0; top: 0; width: 40px; height: 40px; opacity: 0; transition: opacity 120ms; }
+    .echo svg { display: block; width: 40px; height: 40px; }
     .cursor.wheel svg { animation: wheel 380ms ease-in-out; }
     @keyframes wheel { 40% { transform: translateY(calc(var(--wheel, 1) * 5px)) scale(0.94); } }
-    .ripple { position: fixed; width: 28px; height: 28px; margin: -14px; border: 3px solid ${IRIS}; border-radius: 50%; animation: ripple 460ms ease-out forwards; }
+    .ripple { position: fixed; width: 28px; height: 28px; margin: -14px; border: 3px solid ${IRIS}; border-radius: 50%; background: ${IRIS}33; animation: ripple 460ms ease-out forwards; }
+    .ripple.second { background: transparent; border-width: 2px; animation: ripple 560ms ease-out 120ms both; }
+    .mascot .body { transition: rotate 220ms ease-out; }
     @keyframes hover { 50% { transform: translateY(-5px); } }
     @keyframes pop { from { scale: 0.82; } to { scale: 1; } }
     @keyframes flap { from { transform: rotate(0deg); } to { transform: rotate(calc(var(--dir) * 16deg)) scaleY(0.9); } }
@@ -161,6 +171,15 @@
   <div class="mascot" hidden><div class="body"></div><div class="bubble"></div></div>
   <div class="cursor" hidden><svg viewBox="0 0 24 24"><path d="M4.2 3v16.2l4.3-4 2.9 6.6 2.9-1.3-2.9-6.5h6.1Z" fill="${INK}" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg></div>`;
   const [zonesBox, dim, panel, mascot, body, bubble, cursor] = ["zones", "dim", "panel", "mascot", "body", "bubble", "cursor"].map((name) => shadow.querySelector(`.${name}`));
+  // Three echoes of the arrow behind it while it travels to a gesture of H (S2): the trace of the hand, nothing else.
+  const echoes = [0.32, 0.2, 0.1].map((opacity) => {
+    const echo = document.createElement("div");
+    echo.className = "echo";
+    echo.dataset.opacity = String(opacity);
+    echo.innerHTML = cursor.innerHTML;
+    shadow.insertBefore(echo, cursor);
+    return echo;
+  });
 
   // ---------- State, kept across pages (sessionStorage is refused on about:blank) ----------
   const stored = () => {
@@ -201,6 +220,8 @@
   let cursorAt = state.cursor;
   // The reading of the page by the mascot while H thinks (see « Reading » below): its timer, the title it reads.
   let readTimer = 0, reading = null, readIndex = -1;
+  // At a stroke (S3): where the mascot looks (the zone), and until when its expression is kept at least.
+  let lookAt = null, held3 = 0, stroke = 0;
   let frame = 0;
   let last = 0;
   // The way of a hand from one point to the point H chose, never another point: a curve bowed to one side (how much and
@@ -256,11 +277,14 @@
     setTimeout(() => {
       cursor.classList.add("press");
       setTimeout(() => cursor.classList.remove("press"), PRESS + 120);
-      const ring = element("div", "ripple");
-      ring.style.left = `${cursorAt.x}px`;
-      ring.style.top = `${cursorAt.y}px`;
-      ring.addEventListener("animationend", () => ring.remove(), { once: true });
-      shadow.append(ring);
+      // A filled ripple and a second ring just after (S2: the click was more visible on 16/11, before the ring alone).
+      for (const name of ["ripple", "ripple second"]) {
+        const ring = element("div", name);
+        ring.style.left = `${cursorAt.x}px`;
+        ring.style.top = `${cursorAt.y}px`;
+        ring.addEventListener("animationend", () => ring.remove(), { once: true });
+        shadow.append(ring);
+      }
     }, HOVER);
   };
   const wake = () => {
@@ -276,9 +300,16 @@
     if (state.travel) {
       const t = Math.min(1, (Date.now() - state.travel.at) / (state.travel.ms || 1));
       putCursor(along(state.travel, t));
+      echoes.forEach((echo, i) => {
+        const p = along(state.travel, Math.max(0, t - (i + 1) * 0.06));
+        echo.style.transform = `translate(${p.x - TIP.x}px, ${p.y - TIP.y}px)`;
+        echo.style.opacity = t < 1 && state.travel.ms > 0 ? echo.dataset.opacity : "0";
+      });
+      // The mascot leans toward where the arrow goes (8 degrees at most), straight again when it lands.
+      if (TITLE) body.style.rotate = t < 1 ? `${Math.max(-8, Math.min(8, (state.travel.to.x - (at.x + M / 2)) / 40))}deg` : "0deg";
       if (t < 1) moving = true;
       else land();
-    }
+    } else for (const echo of echoes) echo.style.opacity = "0";
     // A spring a little under critical damping: it settles without bouncing back and forth.
     // While it reads the page (calm), a slow spring: a quiet flight from one title to the next.
     const [k, c] = reading ? [36, 11.4] : [130, 19];
@@ -311,8 +342,8 @@
   const look = () => {
     if (!pupil) return;
     // Reading: the eye goes along the title it reads, slowly, from its start to its end.
-    const sweep = reading ? { x: reading.look.x + Math.sin(performance.now() / 1100) * reading.half, y: reading.look.y } : null;
-    const target = state.bulle || state.revue ? null : sweep ?? state.travel?.to ?? cursorAt;
+    const sweep = reading ? { x: reading.start ? reading.left + reading.width * Math.min(1, (performance.now() - reading.start) / reading.lire) : reading.left, y: reading.look.y } : null;
+    const target = state.bulle || state.revue ? null : sweep ?? state.travel?.to ?? lookAt ?? cursorAt;
     const dx = target ? target.x - at.x - M / 2 : 0;
     const dy = target ? target.y - at.y - M / 2 : 0;
     const distance = Math.hypot(dx, dy) || 1;
@@ -393,16 +424,20 @@
   // drawn), that hides as little as it can of the page, nothing of the arrow, of its target or of the way to it, and
   // not too far from where the mascot already is, so that it flies a short way beside the arrow.
   // `near`: while it reads, being close to the title counts more than a short flight.
-  const nearSpot = (point, boxes, from, near = false) => {
+  // `rings` and `textOk` (at a stroke, S3): a nearer ring, and a text of the page may be covered (never the zone, the
+  // arrow or its way, which stay in `boxes` with a higher weight).
+  const nearSpot = (point, boxes, from, near = false, { rings = [130, 170, 220, 280, 350, 430, 560, 700], textOk = false } = {}) => {
     const p = { x: Math.max(0, Math.min(innerWidth, point.x)), y: Math.max(0, Math.min(innerHeight, point.y)) };
     const way = from ? [0.2, 0.4, 0.6, 0.8].map((t) => ({ x: from.x + (p.x - from.x) * t, y: from.y + (p.y - from.y) * t }))
       .map(({ x, y }) => ({ left: x - 34, top: y - 34, right: x + 34, bottom: y + 34, weight: 60 })) : [];
-    const all = [...boxes, clearance(p), ...way];
+    const all = [...(textOk ? boxes.filter(({ weight }) => weight !== 10) : boxes), clearance(p), ...way];
     // What must stay readable (texts, links, buttons: weight 10) is a hard rule: a place that covers none of it wins over
     // any place that covers some, even farther from the point; among free places, the cheapest.
-    const readable = boxes.filter(({ weight }) => weight === 10);
+    // At a stroke (textOk), the hard rule is the zone, the arrow and its way (weight 60 and more): a nearby text is only a
+    // cost (review of #190).
+    const readable = textOk ? all.filter(({ weight }) => weight >= 60) : boxes.filter(({ weight }) => weight === 10);
     let best = null;
-    for (const r of [130, 170, 220, 280, 350, 430, 560, 700]) {
+    for (const r of rings) {
       for (let a = 0; a < 24; a++) {
         const x = Math.round(p.x + Math.cos((a / 24) * 2 * Math.PI) * r - M / 2);
         const y = Math.round(p.y + Math.sin((a / 24) * 2 * Math.PI) * r - M / 2);
@@ -412,6 +447,8 @@
         if (!best || (covered === 0) > (best.covered === 0) || ((covered === 0) === (best.covered === 0) && (covered === 0 ? cost < best.cost : covered < best.covered || (covered === best.covered && cost < best.cost)))) best = { x, y, cost, covered };
       }
     }
+    // With textOk, no place free of the zone and of the arrow: none (the caller does not fly there).
+    if (textOk) return best && best.covered === 0 ? best : null;
     return best ?? corner(all);
   };
   // The corner that hides the least of these boxes; the nearest one when several hide nothing.
@@ -503,7 +540,7 @@
     const frameOf = element("div", `zone${zone.trait ? " old" : ""}`);
     frameOf.style.cssText = `left:${zone.x}px;top:${zone.y}px;width:${zone.largeur}px;height:${zone.hauteur}px`;
     zonesBox.append(frameOf);
-    const item = { zone, element: frameOf };
+    const item = { zone, element: frameOf, under: underOf(zone) };
     drawn.push(item);
     if (zone.trait) {
       void frameOf.offsetWidth;
@@ -520,6 +557,36 @@
   const follow = () => {
     zonesBox.style.transform = `translate(${-scrollX}px, ${-scrollY}px)`;
   };
+  // ---------- A stroke belongs to its page and to what it surrounds (S6, louvre.fr 19/11) ----------
+  // The element under the middle of a zone, when the zone is on the screen (page coordinates in, null out of it).
+  function underOf(zone) {
+    const x = zone.x + zone.largeur / 2 - scrollX, y = zone.y + zone.hauteur / 2 - scrollY;
+    return x >= 0 && y >= 0 && x < innerWidth && y < innerHeight ? document.elementFromPoint(x, y) : null;
+  }
+  // A site that changes page without a new document (its own router): the strokes of the address left go, those of the
+  // new address come. Something put over a zone (a menu that opens, a window, a sticky bar): its stroke hides while it is
+  // covered, and comes back once it is clear. Checked every 300 ms and after each scroll.
+  let drawnFor = here();
+  function watchStrokes() {
+    if (!started) return;
+    if (here() !== drawnFor) {
+      drawnFor = here();
+      for (const item of drawn.splice(0)) item.element.remove();
+      for (const zone of state.zones[drawnFor] ?? []) drawZone(zone, false);
+      return;
+    }
+    for (const item of drawn) {
+      const now = underOf(item.zone);
+      if (!now) continue; // out of the screen: nothing to tell
+      // The element kept is gone (a cookie banner closed, a part of the page drawn again): the zone takes what is there now,
+      // else its stroke would stay hidden for ever.
+      if (!item.under?.isConnected) item.under = now;
+      const covered = !(item.under.isConnected && (item.under === now || item.under.contains(now) || now.contains(item.under)));
+      item.element.classList.toggle("covered", covered);
+    }
+  }
+  setInterval(watchStrokes, 300);
+  window.addEventListener("scrollend", watchStrokes, true);
 
   // ---------- The panel of the end: all the text, and the captures with their zone ringed ----------
   // A capture of the course (a data: address), cropped around its zones (pixels of the capture), shown w × h px, the zones
@@ -609,6 +676,7 @@
     if (started) return;
     // Once: what the page shows when it opens. The lines of a screen already annotated are there, not drawn again.
     started = true;
+    drawnFor = here();
     for (const zone of state.zones[here()] ?? []) drawZone(zone, false);
     if (state.bulle) renderBubble(false);
   };
@@ -666,6 +734,15 @@
         })
         .filter((rect) => rect.largeur > 0 && rect.hauteur > 0);
     },
+    // The visible text of the first element the CSS selector finds, for the questions of the end ("" when there is none or
+    // it is not seen): a selector is never shown on the screen.
+    texte(selecteur) {
+      let found = null;
+      try {
+        found = document.querySelector(selecteur);
+      } catch {}
+      return found?.checkVisibility?.({ opacityProperty: true, visibilityProperty: true }) ? norm(found.innerText) : "";
+    },
     // The rectangle of the first element the CSS selector finds, in page coordinates; [] when there is none.
     element(selecteur) {
       let found = null;
@@ -673,7 +750,9 @@
         found = document.querySelector(selecteur);
       } catch {}
       const rect = found?.getBoundingClientRect();
-      return rect && rect.width > 0 && rect.height > 0 ? [rounded({ x: rect.left + scrollX, y: rect.top + scrollY, largeur: rect.width, hauteur: rect.height })] : [];
+      // An element that is not seen (hidden, transparent, or cut to a point for screen readers) has no zone.
+      if (found && !found.checkVisibility?.({ opacityProperty: true, visibilityProperty: true })) return [];
+      return rect && rect.width >= 4 && rect.height >= 4 ? [rounded({ x: rect.left + scrollX, y: rect.top + scrollY, largeur: rect.width, hauteur: rect.height })] : [];
     },
     // The element at the centre of a zone: its displayed text ("" when it is none or a whole block of the page) and the
     // rectangle that holds both the zone and that text, so that a line is drawn around the whole value, not half of it.
@@ -713,7 +792,9 @@
     // drawn now when it is this page. voir: a zone out of the screen is first scrolled into view (only where the agent
     // does not read the page after its relevé).
     async surligner(adresse, rects, genre, id, avant, voir) {
-      if ((state.zones[adresse] ?? []).some((zone) => zone.id === id)) return;
+      // Never around nothing: a zone under 4 px in one dimension (a text kept for screen readers, 1 px wide) is not drawn.
+      rects = rects.filter((rect) => rect.largeur >= 4 && rect.hauteur >= 4);
+      if (!rects.length || (state.zones[adresse] ?? []).some((zone) => zone.id === id)) return;
       const zones = [...rects.map((rect) => ({ id, genre, ...rounded(rect) })), ...(avant ? [{ id, genre, trait: "pointille", ...rounded(avant) }] : [])];
       (state.zones[adresse] ??= []).push(...zones);
       save();
@@ -724,16 +805,37 @@
         scrollTo({ top: Math.max(0, first.y - innerHeight / 3), behavior: "smooth" });
         await wait(600);
       }
-      // The mascot lands beside what is about to be drawn (never on it), then the stroke comes.
+      // S3: the expression first (a proven defect: trouve; a doubt: doute), then the mascot flies close to what is about
+      // to be drawn (110 to 260 px; it may cover a nearby text, never the zone nor the arrow) and looks at it, then the
+      // stroke comes. The expression stays until the next gesture of H, 3 s at least.
       if (TITLE && first && !state.bulle) {
+        setEtat(genre === "defaut" ? "trouve" : "doute");
+        held3 = Date.now() + 3000;
+        stroke += 1; // a reset armed by a gesture after an earlier stroke must not clear this one (review of #190)
+        stopReading();
         const marked = zones.map((zone) => box(zone, 14, 60));
         const left = Math.min(...marked.map((b) => b.left)), top = Math.min(...marked.map((b) => b.top));
         const right = Math.max(...marked.map((b) => b.right)), bottom = Math.max(...marked.map((b) => b.bottom));
-        goTo(nearSpot({ x: (left + right) / 2, y: (top + bottom) / 2 }, [...busy(), ...marked]));
-        await arrived();
+        lookAt = { x: (left + right) / 2, y: (top + bottom) / 2 };
+        // No place free of the zone and of the arrow (a zone that fills the screen): the mascot does not fly there.
+        const spot = nearSpot(lookAt, [...busy(), ...marked.map((b) => ({ ...b, weight: 200 }))], null, true, { rings: [110, 150, 200, 260], textOk: true });
+        if (spot) {
+          goTo(spot);
+          await arrived();
+        }
+        // Still on the zone (no free place, or it was there): it steps out of sight while the stroke is drawn.
+        if (hidden(at.x, at.y, M, M, marked) > 0) mascot.style.opacity = "0";
       }
       await Promise.all(zones.filter((zone) => !zone.trait).map((zone) => drawZone(zone, true)));
       for (const zone of zones.filter((candidate) => candidate.trait)) await drawZone(zone, true);
+      mascot.style.opacity = "";
+      // The stroke is drawn: the permission to cover a nearby text ends with it (passage on albertschool.com, 19/11: the
+      // mascot stayed 9 s on a title next to a doubt of the menu). On a text, it goes to a place without one, near the
+      // zone, keeping its expression.
+      if (TITLE && lookAt && !state.bulle) {
+        const now = busy();
+        if (hidden(goal.x, goal.y, M, M, now.filter(({ weight }) => weight === 10)) > 0) goTo(nearSpot(lookAt, now, null, true));
+      }
     },
     // A doubt that became a proven defect (or the reverse): its line changes colour and shape, on every page.
     requalifier(id, genre) {
@@ -905,12 +1007,12 @@
     if (held) replay();
     clearTimeout(moving);
     const to = { x: event.clientX, y: event.clientY };
-    // From where the arrow is now (it may be on its way after a move of the mouse of H); the first gesture of H shows it
-    // where it happens.
+    // From where the arrow is now (it may be on its way after a move of the mouse of H); the first gesture of H starts
+    // from the mascot (startOf), or where it happens without a mascot.
     const first = !state.geste;
     state.geste = true;
-    const way = course(first ? to : cursorAt ?? to, to);
-    const ms = first || !cursorAt ? 0 : way.ms;
+    const way = course(first ? startOf(to) : cursorAt ?? to, to);
+    const ms = (first && !TITLE) || (!first && !cursorAt) ? 0 : way.ms;
     const heure = Date.now();
     state.travel = { ...way, ms, at: heure };
     state.cursor = to;
@@ -937,22 +1039,43 @@
       trajet_ms: ms,
     }));
   };
+  // The first gesture of H starts from the mascot, which hands the arrow over: the mouse of H has no known place before
+  // its first gesture, so where the arrow starts from is a convention (until 18/11, the middle of the screen); where it
+  // goes and when are those of H. Without a mascot (the probe), the arrow shows where the gesture happens.
+  const startOf = (to) => (TITLE ? { x: Math.round(at.x + M / 2), y: Math.round(at.y + M / 2) } : to);
+
   // ---------- Reading: while H thinks, the mascot reads the page ----------
   // Nothing of H moves while it thinks (8 to 15 s a step): the arrow stays where H left it. The mascot is ours: 2.5 s
   // after the last gesture of H it flies slowly beside a title (or a paragraph) of the screen, reads it with its eye,
   // rests 3.5 s, then the next one; a gesture of H brings it back beside the arrow at once. Never on a text.
-  const READ_AFTER = 2500, READ_PAUSE = 3500;
+  const READ_AFTER = 2500, READ_PAUSE = 5000;
+  const readLine = element("div", "lecture");
   const readable = () => {
-    const seen = (el) => {
-      const r = el.getBoundingClientRect();
-      return r.width > 40 && r.height > 10 && r.top > 30 && r.bottom < innerHeight - 30 && r.left < innerWidth - 40 && r.right > 40 && el.checkVisibility?.({ opacityProperty: true, visibilityProperty: true }) !== false ? r : null;
+    // The part of an element on the screen (a title larger than the screen counts by its visible part), 40 × 10 px at least.
+    const seen = (el, min = [40, 10]) => {
+      // A text by the box of its letters (a title in a wide block reads as long as its words), a picture by its own box.
+      let r = el.getBoundingClientRect();
+      if (!el.matches("img, picture, video")) {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const letters = range.getBoundingClientRect();
+        if (letters.width > 0 && letters.height > 0) r = letters;
+      }
+      const left = Math.max(r.left, 0), top = Math.max(r.top, 30), right = Math.min(r.right, innerWidth), bottom = Math.min(r.bottom, innerHeight - 30);
+      return right - left > min[0] && bottom - top > min[1] && el.checkVisibility?.({ opacityProperty: true, visibilityProperty: true }) !== false
+        ? { left, top, right, bottom, width: right - left, height: bottom - top, image: el.matches("img, picture, video") } : null;
     };
-    const titles = [...document.querySelectorAll("h1, h2, h3, h4, [role=heading]")].map(seen).filter(Boolean);
-    if (titles.length) return titles;
-    return [...document.querySelectorAll("p, li")].filter((el) => el.innerText?.trim().length >= 40).map(seen).filter(Boolean).slice(0, 6);
+    const titles = [...document.querySelectorAll("h1, h2, h3, h4, [role=heading]")].map((el) => seen(el)).filter(Boolean);
+    if (titles.length >= 2) return titles;
+    // One title or none on the screen (S8, louvre.fr 19/11: « ÉDITIONS » alone, the mascot stayed on it 30 s): the title,
+    // then the paragraphs and the pictures of the screen, in the order of the page.
+    const paragraphs = [...document.querySelectorAll("p, li")].filter((el) => el.innerText?.trim().length >= 40).map((el) => seen(el)).filter(Boolean).slice(0, 4);
+    const pictures = [...document.querySelectorAll("img, picture, video")].map((el) => seen(el, [160, 100])).filter(Boolean).slice(0, 3);
+    return [...titles, ...paragraphs, ...pictures].slice(0, 7);
   };
   const stopReading = () => {
     clearTimeout(readTimer);
+    readLine.classList.remove("on");
     if (reading) {
       reading = null;
       wake();
@@ -966,14 +1089,36 @@
     readIndex = (readIndex + 1) % list.length;
     const r = list[readIndex];
     const width = Math.min(r.width, 520);
-    reading = { look: { x: r.left + width / 2, y: r.top + r.height / 2 }, half: width / 2 };
+    readLine.classList.remove("on");
+    reading = { look: { x: r.left + width / 2, y: r.top + r.height / 2 }, half: width / 2, left: r.left, width, start: null };
     goTo(nearSpot(reading.look, busy(), null, true));
     wake();
+    const mine = reading;
+    // Once it has landed: the eye goes along the text from its start to its end, and the line of reading is drawn under
+    // it at the same pace (a text only, not a picture), then both rest until the next one (S4: what it reads is seen).
+    arrived().then(() => {
+      if (reading !== mine) return;
+      const lire = Math.round(READ_PAUSE * 0.7);
+      mine.start = performance.now();
+      mine.lire = lire;
+      if (r.image) return;
+      readLine.style.cssText = `left:${r.left + scrollX}px;top:${r.bottom + scrollY + 4}px;width:${width}px;--lire:${lire}ms`;
+      attach();
+      if (!readLine.isConnected) zonesBox.append(readLine);
+      void readLine.offsetWidth;
+      readLine.classList.add("on");
+    });
     readTimer = setTimeout(readNext, READ_PAUSE + 1500);
   }
   // Each gesture of H: the reading stops, and starts again once H is quiet.
   const gestured = () => {
     stopReading();
+    lookAt = null;
+    if (state.etat === "trouve" || state.etat === "doute") {
+      const keep = held3 - Date.now();
+      const armedFor = stroke;
+      setTimeout(() => armedFor === stroke && (state.etat === "trouve" || state.etat === "doute") && !state.revue && !state.bulle && setEtat("observe"), Math.max(0, keep));
+    }
     readTimer = setTimeout(readNext, READ_AFTER + 1100);
   };
   document.addEventListener("DOMContentLoaded", () => {
@@ -994,8 +1139,8 @@
     attach();
     const first = !state.geste;
     state.geste = true;
-    const way = course(first ? to : cursorAt ?? to, to);
-    state.travel = { ...way, ms: first || !cursorAt ? 0 : way.ms, at: Date.now(), clic: false };
+    const way = course(first ? startOf(to) : cursorAt ?? to, to);
+    state.travel = { ...way, ms: (first && !TITLE) || (!first && !cursorAt) ? 0 : way.ms, at: Date.now(), clic: false };
     state.cursor = to;
     save();
     cursor.hidden = false;
