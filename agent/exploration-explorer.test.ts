@@ -401,6 +401,21 @@ test("comparaison neutralisée par une décision voulu de la version", async () 
   assert.equal(neutralized?.statut, "PASS"); assert.equal(neutralized?.decision_id, "voulu");
 });
 
+test("un voulu de même version ne neutralise pas encore un doute mécanique de troncature", async () => {
+  const deps: Partial<ExplorerDependencies> = { controler: async () => [{ statut: "SUSPECTED", sorte: "texte_rogne", message: "4 textes coupés. Éléments : #a, #b, #c, #d.",
+    selecteur: "#a, #b, #c, #d", valeur: "200 > 100", raison: "Sans doute voulu, à confirmer.", zone: { x: 10, y: 10, largeur: 100, hauteur: 30 } }] };
+  const first = await run({ deps });
+  const item = first.result.constats.find(candidate => candidate.source === "controle" && candidate.ecran === "accueil")!;
+  ecrireDecision(join(root, "vault"), { id: "troncature-voulue", logiciel: "example-org", passage_id: first.result.passage_id, test_id: "exploration--accueil", ecart_id: item.id,
+    decision: "voulu", ecran: item.ecran, vue: "defaut", ecart: item.description, zone: item.zone, version: "2", portee: "cet ecart, cet ecran, cette version", par: "test", le: new Date().toISOString() });
+  const next = await run({ deps });
+  assert.equal(next.result.version, "2");
+  const cut = next.result.constats.find(candidate => candidate.source === "controle" && candidate.ecran === "accueil")!;
+  assert.equal(cut.statut, "SUSPECTED"); assert.equal(cut.decision_id, undefined);
+  assert.match(cut.description, /#a, #b, #c, #d/);
+  assert.ok(next.base.resultats[0].ecarts_visuels.some(candidate => candidate.id === cut.id), "le doute reste présentable au jugement humain");
+});
+
 test("contrôle prouvé explique Holo, hors capture et sans zone comptés honnêtement", async () => {
   const { result, base } = await run({ deps: {
     connecter: async () => ({ send: async (method, params) => method === "Page.captureScreenshot" ? { data: original.toString("base64") } : { result: { value: (params as Record<string, unknown> | undefined)?.expression === "[window.scrollX, window.scrollY]" ? [0, 900] : 200 } }, on() {}, close() {} }),

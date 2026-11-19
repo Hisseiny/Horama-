@@ -1024,3 +1024,72 @@ agent check: Done
 Journal : `/home/ubuntu/horama-179-merge-2-check.log`. Aucun nettoyage de
 Chrome ni nouvel essai nécessaire. Aucun nouveau passage H ni vérification
 visuelle ; seule cette documentation a changé après le check vert.
+
+### Troncatures intentionnelles : doutes regroupés
+
+Les troncatures réellement mesurées sous `text-overflow: ellipsis` ou
+`-webkit-line-clamp`, y compris sur un ancêtre, deviennent `SUSPECTED` avec
+une raison « sans doute voulu, à confirmer ». Une troncature sans texte qui
+dépasse ne produit rien. Les textes masqués (`sr-only`, clip, boîte d'un
+pixel) restent exclus ; les débordements non intentionnels gardent leur
+comportement précédent.
+
+Les conteneurs répétés sont rapprochés par leur parent commun et le chemin
+structurel de leur texte, sans dépendre d'un domaine ou d'une classe métier.
+Un groupe expose tous ses sélecteurs CSS dans le message et `selecteur` ;
+la zone représentative reste celle du premier texte, sans englober tout le
+carrousel. Les mesures individuelles restent dans `valeur`.
+
+Contrôle réel, sans H ni formulaire : accueil `https://www.louvre.fr/`,
+Chrome headless, fenêtre et viewport 1280 × 900, DPR 1, après chargement et
+polices. Liens réseau désactivés pour isoler ces deux contrôles (`maxLiens: 0`).
+
+| Contrôles `debordement` / `texte_rogne` | Résultat |
+|---|---|
+| Défauts prouvés | 0 |
+| Doutes | 1 |
+| Éléments cités du carrousel Instagram | 4 |
+| Mesures largeur × hauteur : contenu > boîte | 210×198 > 210×66 ; 210×242 > 210×66 ; 210×176 > 210×66 ; 210×417 > 210×66 |
+| Zone représentative | x=103,890625 ; y=6126,53125 ; 210,25×65,90625 px |
+| Zones de largeur ou hauteur ≤1 px signalées | 0 |
+
+Artefacts externes : `/home/ubuntu/horama-179-louvre/after.json` et script
+`/home/ubuntu/horama-179-louvre.mjs`. Vérification mécanique CDP seulement,
+sans contrôle visuel de la scène.
+
+**Limite mémoire vérifiée : un « voulu » ne neutralise pas ce doute mécanique
+au passage suivant.** `explorer.ts` recrée les constats de contrôle sans leur
+appliquer les décisions ; `verifierReleve` les utilise uniquement pour les
+écarts issus de la comparaison d'images. `decisionQuiNeutralise` exige en
+outre même écran, même vue, même version et recouvrement de zone. Le nouveau
+test d'explorateur crée une décision pour la version suivante elle-même :
+même dans ce cas favorable, le contrôle reste `SUSPECTED` sans `decision_id`.
+Il reste toutefois exporté dans les `ecarts_visuels` du C4 quand sa zone est
+dans la capture de page, donc présentable au jugement humain. Aucune extension
+du mécanisme mémoire ou du contrat n'est faite ici.
+
+Les tests locaux couvrent ellipsis, clamp sur ancêtre, quatre cartes en un
+doute citant quatre sélecteurs, texte non tronqué, texte invisible, débordement
+réel inchangé et limite mémoire. Les anciennes assertions « page saine =
+aucun constat » ont été adaptées : cette fixture contient déjà deux textes
+avec ellipsis, désormais regroupés en un doute. Deux checks intermédiaires
+ont révélé ces attentes à adapter ; le deuxième est aussi resté bloqué dans
+le test de découverte, dont seuls le Node et le Chrome dédiés ont été arrêtés.
+Chrome bureau 29229 n'a pas été touché.
+
+`pnpm -r --if-present run check` final : code **0**.
+
+```text
+agent check: 1..278
+agent check: # tests 285
+agent check: # suites 0
+agent check: # pass 285
+agent check: # fail 0
+agent check: # cancelled 0
+agent check: # skipped 0
+agent check: # todo 0
+agent check: # duration_ms 20557.011141
+agent check: Done
+```
+
+Journal : `/home/ubuntu/horama-179-truncation-check-3.log`.

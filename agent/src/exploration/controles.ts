@@ -175,6 +175,15 @@ function inspectDocument() {
     }
     return bounds;
   };
+  const truncations: Element[] = [];
+  const truncationOwner = (element: Element) => {
+    for (let ancestor: Element | null = element; ancestor; ancestor = ancestor.parentElement) {
+      const css = getComputedStyle(ancestor);
+      if ((css.textOverflow === "ellipsis" && css.overflowX !== "visible")
+        || (Number(css.webkitLineClamp) > 0 && css.webkitBoxOrient === "vertical" && ["-webkit-box", "-webkit-inline-box", "flow-root"].includes(css.display))) return ancestor;
+    }
+    return undefined;
+  };
   const pattern = /(?<![\p{L}\p{N}_])(?:undefined|NaN|null|lorem\s+ipsum)(?![\p{L}\p{N}_])|\{\{/iu;
   for (const element of [document.body, ...document.body.querySelectorAll("*")]) {
     if (!visible(element) || element.matches("script,style,noscript,template")) continue;
@@ -185,6 +194,19 @@ function inspectDocument() {
     if (match) add("texte_erreur", "Un texte d’erreur est affiché.", match[0], element, value ? undefined : "Le mot technique est dans un texte rédigé (phrase ou titre) : il peut s'agir du texte voulu.");
     if (!(element.textContent ?? "").trim()) continue;
     const style = getComputedStyle(element);
+    const owner = truncationOwner(element);
+    if (owner) {
+      if (owner !== element || masked(element) || element.clientWidth <= 1 || element.clientHeight <= 1) continue;
+      const ink = textBounds(element);
+      const box = element.getBoundingClientRect();
+      const scaleX = box.width / (element as HTMLElement).offsetWidth || 1, scaleY = box.height / (element as HTMLElement).offsetHeight || 1;
+      const left = box.left + element.clientLeft * scaleX, top = box.top + element.clientTop * scaleY;
+      const right = left + element.clientWidth * scaleX, bottom = top + element.clientHeight * scaleY;
+      if (ink && box.width > 1 && box.height > 1 && right + scrollX > 0 && bottom + scrollY > 0
+        && ink.right > left && ink.left < right && ink.bottom > top && ink.top < bottom
+        && (ink.right > right + scaleX || ink.bottom > bottom + scaleY)) truncations.push(element);
+      continue;
+    }
     const clippedX = ["hidden", "clip"].includes(style.overflowX) && element.scrollWidth > element.clientWidth + 1;
     const clippedY = ["hidden", "clip"].includes(style.overflowY) && element.scrollHeight > element.clientHeight + 1;
     const lineClamped = Number(style.webkitLineClamp) > 0 && style.webkitBoxOrient === "vertical" && ["-webkit-box", "-webkit-inline-box", "flow-root"].includes(style.display);
@@ -235,6 +257,35 @@ function inspectDocument() {
         carousel(element) ? "Le texte est dans un carrousel ou un bandeau défilant, dont les éléments débordent volontairement."
           : element.closest('[aria-hidden="true"]') ? "Le texte est décoratif (aria-hidden) : son débordement peut être voulu." : undefined);
     }
+  }
+  const repeated = new Map<Element, Map<string, Element[]>>();
+  const paths = new Map<Element, Element[][]>();
+  for (const element of truncations) {
+    const candidates: Element[][] = [];
+    let path = "";
+    for (let node: Element | null = element; node?.parentElement && node !== document.body; node = node.parentElement) {
+      const parent = node.parentElement;
+      const groups = repeated.get(parent) ?? new Map<string, Element[]>();
+      repeated.set(parent, groups);
+      const key = `${node.localName}/${path}`;
+      const group = groups.get(key) ?? [];
+      groups.set(key, group); group.push(element); candidates.push(group);
+      path = `${node.localName}:nth-child(${Array.from(parent.children).indexOf(node) + 1})/${path}`;
+    }
+    paths.set(element, candidates);
+  }
+  const emitted = new Set<Element>();
+  for (const element of truncations) {
+    if (emitted.has(element)) continue;
+    const group = paths.get(element)?.find(items => items.length > 1) ?? [element];
+    const elements = group.filter(item => !emitted.has(item));
+    for (const item of elements) emitted.add(item);
+    const selectors = elements.map(selector);
+    defects.push({ statut: "SUSPECTED", sorte: "texte_rogne",
+      message: `${elements.length} texte${elements.length > 1 ? "s" : ""} coupé${elements.length > 1 ? "s" : ""} par troncature CSS. Éléments : ${selectors.join(", ")}.`,
+      valeur: elements.map(item => `${item.scrollWidth}×${item.scrollHeight} > ${item.clientWidth}×${item.clientHeight}`).join(" ; "),
+      ...proof(element), selecteur: selectors.join(", "),
+      raison: "Texte coupé par des points de suspension ou une limite de lignes : sans doute voulu, à confirmer." });
   }
   const rank = (link: Element) => link.closest("main,[role=main]") ? 0 : link.closest("header,nav,footer,aside,[role=banner],[role=navigation],[role=contentinfo]") ? 2 : 1;
   const links = Array.from(document.querySelectorAll<HTMLAnchorElement>("a[href]")).filter(link => {

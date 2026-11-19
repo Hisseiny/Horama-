@@ -158,7 +158,11 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
   assert.equal(grouped[0].valeur, grouped[0].message);
   assert.ok(grouped[0].zone);
   await navigate("/healthy");
-  assert.deepEqual(await controlerPage(client), []);
+  const healthy = await controlerPage(client);
+  assert.equal(healthy.length, 1);
+  assert.equal(healthy[0].statut, "SUSPECTED");
+  assert.equal(healthy[0].sorte, "texte_rogne");
+  assert.match(healthy[0].message, /2 textes coupés/);
   await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = '<main>' + ['code', 'pre', 'kbd', 'samp', 'var'].map(tag => '<' + tag + '>null <span>undefined <span>NULL</span></span></' + tag + '>').join('') + '</main>'` });
   assert.ok(!(await controlerPage(client, { maxLiens: 0 })).some(defect => defect.sorte === "texte_erreur"));
   await client.send("Runtime.evaluate", { expression: `document.querySelector('main').insertAdjacentHTML('beforeend', '<p id="error">Erreur : undefined</p>')` });
@@ -256,8 +260,29 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
   \`` });
   const clippedText = (await controlerPage(client, { maxLiens: 0 })).filter(defect => defect.sorte === "texte_rogne");
   t.diagnostic(`Textes rognés : ${clippedText.map(defect => defect.selecteur).join(", ")}`);
-  assert.deepEqual(clippedText.map(defect => defect.selecteur), ["#german", "#multiline", "#clipping-parent", "#inline-clipping-parent"]);
-  assert.ok(clippedText.every(defect => defect.zone && defect.statut === "VERIFIED_FAIL"));
+  assert.deepEqual(clippedText.filter(defect => defect.statut === "VERIFIED_FAIL").map(defect => defect.selecteur), ["#german", "#multiline", "#clipping-parent", "#inline-clipping-parent"]);
+  const intentionalCuts = clippedText.filter(defect => defect.statut === "SUSPECTED");
+  assert.equal(intentionalCuts.length, 3);
+  assert.ok(intentionalCuts.some(defect => defect.selecteur === "#ellipsis"));
+  assert.ok(intentionalCuts.some(defect => defect.selecteur === "#line-clamp"));
+  assert.ok(intentionalCuts.every(defect => defect.zone && /sans doute voulu, à confirmer/.test(defect.raison ?? "")));
+  await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = \`
+    <style>.cut { width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap } .clamp { width:100px; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; font:16px/20px sans-serif }</style>
+    <section><article><p id="card-1" class="cut">Un premier texte beaucoup trop long pour une carte</p></article><article><p id="card-2" class="cut">Une deuxième description trop longue</p></article><article><p id="card-3" class="cut">Une troisième description beaucoup trop longue</p></article><article><p id="card-4" class="cut">Une quatrième description trop longue</p></article></section>
+    <div id="ancestor-clamp" class="clamp"><p id="child" style="margin:0">Première ligne deuxième ligne troisième ligne quatrième ligne cinquième ligne sixième ligne</p></div>
+    <p id="fits" class="cut">Oui</p>
+    <div class="sr-only"><p class="cut">Un texte réservé aux lecteurs d’écran beaucoup trop long</p></div>
+    <div style="width:1px;height:1px;overflow:hidden"><p class="cut">Un texte masqué dans une boîte d’un pixel</p></div>
+    <div style="clip-path:inset(50%)"><p class="cut">Un texte masqué par un chemin de découpe</p></div>
+  \`` });
+  const truncations = (await controlerPage(client, { maxLiens: 0 })).filter(defect => ["debordement", "texte_rogne"].includes(defect.sorte));
+  assert.equal(truncations.length, 2);
+  assert.ok(truncations.every(defect => defect.statut === "SUSPECTED" && defect.raison && defect.zone && defect.zone.largeur > 1 && defect.zone.hauteur > 1));
+  const cards = truncations.find(defect => defect.selecteur?.includes("#card-1"))!;
+  assert.equal(cards.selecteur, "#card-1, #card-2, #card-3, #card-4");
+  assert.match(cards.message, /4 textes coupés/);
+  for (let index = 1; index <= 4; index++) assert.match(cards.message, new RegExp(`#card-${index}`));
+  assert.ok(truncations.some(defect => defect.selecteur === "#ancestor-clamp"), "le conteneur tronquant couvre aussi son enfant");
   await navigate("/many");
   started = Date.now();
   const many = await controlerPage(client);
@@ -289,7 +314,7 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
   await navigate("/error");
   assert.ok((await controlerPage(client)).some(defect => defect.sorte === "page_en_erreur" && defect.valeur === 500));
   await navigate("/healthy");
-  assert.deepEqual(await controlerPage(client), []);
+  assert.deepEqual((await controlerPage(client)).map(defect => [defect.sorte, defect.statut]), [["texte_rogne", "SUSPECTED"]]);
 
   const sent: string[] = [];
   const callerEvents: string[] = [];
@@ -313,5 +338,5 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
   await new Promise(resolve => setTimeout(resolve, 100));
   assert.ok(callerEvents.includes("Erreur de démonstration") && callerEvents.includes("Après le contrôle"));
   await navigate("/healthy");
-  assert.deepEqual(await controlerPage(caller, { connexionAppelant: true }), []);
+  assert.deepEqual((await controlerPage(caller, { connexionAppelant: true })).map(defect => [defect.sorte, defect.statut]), [["texte_rogne", "SUSPECTED"]]);
 });
