@@ -1119,3 +1119,174 @@ dans `agent/` : code **0**.
 ```
 
 Journal : `/home/ubuntu/horama-179-review-truncation.log`.
+
+Louvre rejoué après ces deux corrections : **un `SUSPECTED`, quatre
+éléments, zéro `VERIFIED_FAIL`, zéro zone ≤1 px**, avec les mêmes mesures
+`210×198 > 210×66 ; 210×242 > 210×66 ; 210×176 > 210×66 ; 210×417 > 210×66`.
+Artefact : `/home/ubuntu/horama-179-louvre/review-fr.json`.
+Un premier rejeu avait été redirigé vers `/en`, sans carrousel : il ne
+validait pas le cas demandé. Le rejeu retenu utilise un profil neuf et
+`Accept-Language: fr-FR,fr;q=0.9` ; l'URL finale est bien `/`.
+
+## Nouvelle consigne : liens sur place et fin immédiate
+
+### Changement ciblé
+
+- Jamais de retour navigateur (`back`), jamais de clic vers une page déjà
+  relevée dans ce passage ; le résultat de l'outil rappelle les pages acquises.
+- Après la lecture bornée, chercher d'abord un lien visible sur place
+  (menu fixe, corps ou pied de page). À défaut seulement : deux ou trois
+  remontées d'environ 900 px, plus de grand retour en haut.
+- La limite **au plus cinq descentes de 450 px** reste identique, ainsi que
+  le grand descendant si le bas reste hors vue et le geste facultatif sans
+  formulaire ni connexion. Seule exception nouvelle : aucune lecture après
+  le dernier relevé, puisqu'il faut immédiatement terminer.
+- Le résultat du dernier `relever` accepté dit explicitement d'appeler
+  `terminer`, sans navigation, scroll, geste ni attente supplémentaire.
+- Budget : `14 × pages + 11 + 3 × clics demandés bornés`, soit **144 étapes /
+  1152 s** pour huit pages, contre 130 / 1040. La réserve augmente de deux
+  remontées par transition ; le plafond temporel global reste 1800 s.
+- Navigation par adresse, maintien sur site, `raison_go_to`, Holo parallèle,
+  captures douces et quota nul à la reprise sont inchangés. Le dernier point
+  reste le problème connu pour #178, pas une correction de ce travail.
+
+### Méthode des mesures H
+
+Prévisualisation allemande du clone PR #16, même URL que plus haut ; CLI
+`--max 8 --pages-cliquees 8 --sans-base`, clé de développement liée dans
+l'environnement, jamais la clé démo. **Une seule session H à la fois**.
+Avant : worktree détaché au commit `6152742`. Après : nouvelle consigne et
+corrections de revue `598d679`. Les deux corrections des contrôles sont donc
+aussi présentes après : comparaison de passages, pas preuve causale isolant
+uniquement la consigne.
+
+Chrome headless dédié, DPR 1, fenêtre demandée 1280×900. Les relevés et tous
+les gestes de lecture utilisent un viewport de 900 px de haut. Pendant
+l'amorçage, après `prepareCapture` et avant le premier relevé, l'observateur
+a toutefois relevé le viewport natif de 813 px ; ne pas présenter toute cette
+phase initiale comme un viewport constamment égal à 900 px.
+
+Horloge locale depuis le lancement CLI. Les étapes/outils sont observés
+dans les réponses SDK ; un observateur CDP passif conserve les clics, URL et
+positions. Les reclics comptent les liens vers une page déjà relevée, hors
+ancres internes. Couverture des clics : **6/6 avant, 8/8 après terminé**
+entre les appels H et les événements DOM. Les grandes remontées sont celles
+d'au moins 5000 px ; les sept observées avant valent toutes 100000 px.
+« Résultat dernier relever → terminer » va du POST du résultat de l'outil
+à la réception de l'étape H `terminer`, et exclut le traitement du relevé.
+L'autre intervalle part de la réception de l'appel `relever` lui-même.
+
+### Résultats avant / après
+
+| Mesure | Avant `6152742` | Après 1, interrompu | Après 2, terminé |
+|---|---:|---:|---:|
+| Durée CLI | 396,709 s | 177,358 s | **281,482 s** |
+| Pages relevées | 8/8 | 0/8 | **8/8** |
+| Départ / clic / adresse | 1 / 6 / 1 | 0 / 0 / 0 | **1 / 7 / 0** |
+| `go_to` | 1 | 0 | **0** |
+| Retour navigateur | 0 | 0 | **0** |
+| Reclics de pages déjà relevées | 0 | 0 | **0** |
+| Grandes remontées | 7 | 0 | **0** |
+| Remontées moyennes | 0 | 0 | **0** |
+| Scrolls H totaux | 51 | 0 | **31** |
+| Dernier appel `relever` → `terminer` | 47,621 s | à mesurer | **4,104 s** |
+| Résultat dernier `relever` → `terminer` | 45,061 s | à mesurer | **2,694 s** |
+| Étapes H reçues | 69 | 99 | **50** |
+| Étapes au dernier métrique API | 69 | 98 | **50** |
+| Coût H au dernier métrique API | 0,263506 USD | 0,2342858 USD, non final | **0,1831242 USD** |
+| Coût Holo estimé | 0,0052122 USD | 0 USD | **0,0052002 USD** |
+| Coût total rapporté H + Holo | 0,2687182 USD | à mesurer | **0,1883244 USD** |
+| État | completed | interrompu volontairement | **completed** |
+
+Les crédits distincts des USD ne sont pas renvoyés : **à mesurer**.
+Les valeurs finales de l'essai interrompu ne sont pas connues ; son coût
+observé n'est pas compris dans le total du passage après terminé.
+
+Avant, unique repli vers Bachelor, motif H enregistré :
+
+> Aucun lien visible sur la page /evenements ne mène à /programme/bachelor-ia-business (page très courte, uniquement un formulaire de réservation d'événement)
+
+Il s'agit du motif fourni par H, pas d'une preuve indépendante d'absence de
+lien. Après terminé, aucun repli et donc aucun motif `go_to`.
+
+Ordre avant : accueil → programmes → entreprises → carrières → admissions →
+école → événements → Bachelor (adresse). Ordre après terminé : accueil →
+programmes → Bachelor → carrières → école → admissions → entreprises →
+événements. Les sept destinations suivant le départ sont alors atteintes
+par clic. Un geste non navigant après : bouton « Elternteil » sur Bachelor,
+`type="button" data-audience-select="parent"` dans le sélecteur de contenu
+de la section audience, pas un formulaire. Aucune saisie ni soumission
+observée. Aucun geste non navigant avant.
+
+### Limite importante : lecture du bas non respectée par H
+
+Les quatre nouvelles règles sont respectées dans le passage terminé
+(pas de back, de reclic ou de remontée géante ; outil `terminer` aussitôt
+après le résultat final). **La lecture complète n'est pas validée** : H
+omet tous les grands descendants et quitte même Programmes après quatre
+petits pas et Bachelor après deux, avant le bas. La consigne conserve bien
+ces obligations ; ce passage ne démontre pas leur exécution.
+
+| Page | Avant petits↓ / grand↓ / grand↑ | Après terminé petits↓ / grand↓ / grand↑ |
+|---|---:|---:|
+| Accueil | 6 / 1 / 1 | 5 / 0 / 0 |
+| Programmes | 5 / 1 / 1 | 4 / 0 / 0 |
+| Bachelor | 5 / 1 / 1 | 2 / 0 / 0 |
+| Carrières | 5 / 1 / 1 | 5 / 0 / 0 |
+| École | 5 / 1 / 1 | 5 / 0 / 0 |
+| Admissions | 5 / 1 / 1 | 5 / 0 / 0 |
+| Entreprises | 5 / 1 / 1 | 5 / 0 / 0 |
+| Événements | 1 / 0 / 0 | 0 / 0 / 0, dernier relevé |
+
+L'observateur confirme par exemple après : accueil à `y=2250` pour une
+hauteur de document de 10318 px ; Programmes à `y=1800` pour 6599 px ;
+Bachelor à `y=900` pour 24102 px, viewport 900 px. Ce ne sont pas des bas de
+page. Avant, l'accueil dépassait déjà la limite avec six petits pas.
+Le gain de durée observé ne peut donc pas être attribué aux seuls retours
+supprimés. Le rendu de la scène n'a pas fait l'objet d'une validation visuelle.
+
+### Incident de la première tentative après
+
+99 étapes reçues émettant `relever` avec `vie: "defaut"` au lieu du champ
+requis `vue`, aucun résultat d'outil envoyé, aucune page acquise. Le schéma
+et son `required: ["ecran", "vue"]` sont inchangés. Arrêt Ctrl+C pour éviter
+la boucle ; l'arrêt CLI et sa fermeture ont précédé la seconde tentative,
+qui a fonctionné sans modification de code. Origine non établie : cela ne
+prouve ni panne H ni effet de la nouvelle consigne. Aucun HTTP 429 observé.
+
+Une requête de diagnostic ad hoc vers les changements de session a renvoyé
+`Error: API changes HTTP 404` ; elle n'a pas été réessayée ni remplacée par
+une autre forme de requête. Les résultats retenus ci-dessus viennent de
+l'instrumentation SDK et CDP existante.
+
+Artefacts persistants :
+
+- `/home/ubuntu/horama-179-before-consigne/` : `run.json`, `probe.jsonl`,
+  `viewport.jsonl`, `analysis.json`, `output/exploration.json` ;
+- `/home/ubuntu/horama-179-after-consigne/` : tentative interrompue, mêmes fichiers ;
+- `/home/ubuntu/horama-179-after-consigne-2/` : passage terminé, mêmes fichiers ;
+- scripts extérieurs au dépôt : `/home/ubuntu/horama-179-run.mjs`,
+  `/home/ubuntu/horama-179-observe.mjs`, `/home/ubuntu/horama-179-analyze.mjs`.
+
+### Vérification finale du code, avant les passages après
+
+Tests de consigne, budgets, liste de pages déjà relevées et réponse finale
+sans lecture/navigation supplémentaire inclus. Le test mémoire « voulu »
+décrit plus haut reste inclus : la limitation mécanique est inchangée.
+`pnpm -r --if-present run check` : **code 0**, aucun changement de code
+après ce check, seulement la présente documentation.
+
+```text
+agent check: 1..278
+agent check: # tests 285
+agent check: # suites 0
+agent check: # pass 285
+agent check: # fail 0
+agent check: # cancelled 0
+agent check: # skipped 0
+agent check: # todo 0
+agent check: # duration_ms 20561.428812
+agent check: Done
+```
+
+Journal : `/home/ubuntu/horama-179-consigne-review-check.log`.

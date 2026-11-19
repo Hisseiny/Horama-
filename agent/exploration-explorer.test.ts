@@ -63,7 +63,7 @@ async function run({ png = original, skip = "", refuse = false, failure = false,
         for (let attempt = 0; attempt < retries; attempt++) {
           const response = await input.onTool("relever", { ecran: step.ecran, vue: "defaut" });
           responses.push(response);
-          if (!actual) assert.match(response, refuse ? /refusé/ : /Capture/);
+          if (!actual) assert.match(response, refuse ? /refusé/ : /Capture|Tous les relevés/);
         }
       }
       responses.push(await input.onTool("terminer", { etat: failure ? "echec" : "reussi", raison: "Arrêt demandé." }));
@@ -536,7 +536,7 @@ test("budget de temps H proportionnel aux étapes et borné", () => {
   assert.equal(explorationTimeBudget(10), 240);
   assert.equal(explorationTimeBudget(57), 456);
   assert.equal(explorationTimeBudget(200), 1600);
-  assert.equal(explorationTimeBudget(explorationStepBudget(8, 8)), 1040);
+  assert.equal(explorationTimeBudget(explorationStepBudget(8, 8)), 1152);
   assert.equal(explorationTimeBudget(2000), 1800);
 });
 
@@ -624,7 +624,7 @@ test("arguments, aide, valeurs par défaut et erreurs", () => {
   for (const args of [[], ["--url", "file:///x"], ["--url", "https://u:p@example.org"], ["--url", "https://example.org", "--max", "-1"], ["--url", "https://example.org", "--chrome-port", "0"], ["--url", "https://example.org", "--url", "https://example.org"], ["--url"]]) assert.throws(() => lireArguments(args));
 });
 
-test("consigne : lecture bornée, geste facultatif et remontée unique sur chaque page, clics et repli motivé", () => {
+test("consigne : lecture bornée, liens sur place, remontée moyenne facultative et fin immédiate", () => {
   const pages = ["accueil", "faq", "aide"].map(ecran => ({ ecran, url: `https://example.org/${ecran}` }));
   const task = construireExploration(pages, "site", "1", 99).task;
   assert.ok(task.indexOf('Appelle relever') < task.indexOf("scroll_web"));
@@ -640,30 +640,36 @@ test("consigne : lecture bornée, geste facultatif et remontée unique sur chaqu
   assert.match(task, /scroll_element null/);
   assert.match(task, /Arrête ces petits pas dès le bas atteint ou si la page ne bouge plus/);
   assert.match(task, /Si le bas reste hors vue.*UN seul grand scroll_web jusqu'en bas.*direction down, num_pixels 100000/);
-  assert.match(task, /Remonte vers le menu par UN seul grand scroll_web.*direction up, num_pixels 100000.*jamais par petits pas/);
+  assert.match(task, /cherche d'abord un lien utile visible là où tu es \(menu fixe, corps ou pied de page\)/);
+  assert.match(task, /Seulement si aucun lien utile n'est visible, remonte en 2 ou 3 scroll_web moyens au plus.*direction up, num_pixels environ 900/);
+  assert.match(task, /Jamais de grand scroll vers le haut/);
+  assert.doesNotMatch(task, /direction up, num_pixels 100000/);
   assert.match(task, /Aucun aller-retour supplémentaire, ni répétition à une extrémité sans déplacement/);
   assert.match(task, /UN geste de visiteur facultatif/);
   assert.match(task, /N'ajoute pas de scrolls pour chercher un contrôle/);
   assert.match(task, /jamais un formulaire ni une connexion/);
   assert.ok(task.indexOf("jusqu'en bas") < task.indexOf("UN geste"));
-  assert.ok(task.indexOf("UN geste") < task.indexOf("Remonte vers le menu"));
-  assert.ok(task.indexOf("Remonte vers le menu") < task.indexOf("clique un lien"));
+  assert.ok(task.indexOf("UN geste") < task.indexOf("cherche d'abord un lien"));
+  assert.ok(task.indexOf("cherche d'abord un lien") < task.indexOf("remonte en 2 ou 3"));
   assert.match(task, /Ne répète pas la lecture déjà faite/);
   assert.match(task, /en dernier recours seulement.*raison_go_to/);
   assert.doesNotMatch(task, /deux essais|Remonte.*mêmes petits pas/);
   const consigne = construireExploration(pages, "site", "1", 99);
+  assert.match(consigne.instructions, /jamais la commande retour du navigateur \(back\)/);
+  assert.match(consigne.instructions, /Ne clique jamais vers une page déjà relevée dans ce passage/);
+  assert.match(task, /Dès le dernier relever accepté, appelle immédiatement terminer.*sans navigation, scroll, geste ni attente/);
   assert.match(consigne.instructions, /ne remplis et ne soumets aucun formulaire, ne te connecte jamais/);
   const schema = consigne.tools[0].input_schema as { required: string[]; properties: Record<string, unknown> };
   assert.deepEqual(schema.required, ["ecran", "vue"]);
   assert.ok("raison_go_to" in schema.properties);
-  for (const part of task.split(/Partie \d+ : /).slice(1)) assert.match(part, /CHAQUE page.*dernière page comprise/);
+  for (const part of task.split(/Partie \d+ : /).slice(1)) assert.match(part, /CHAQUE page.*seulement s'il reste des pages à relever/);
   const addressPart = construireExploration(pages, "site", "1", 0).task.split("Partie 2")[1];
   assert.match(addressPart, /scroll_web/);
-  assert.equal(explorationStepBudget(3, 99), 55);
-  assert.equal(explorationStepBudget(3, 0), 49);
-  assert.equal(explorationStepBudget(8, 4), 121);
-  assert.equal(explorationStepBudget(8, 8), 130);
-  assert.ok(explorationStepBudget(8, 8) >= 8 * (5 + 1 + 1 + 1 + 4) + 7 * 3 + 10);
+  assert.equal(explorationStepBudget(3, 99), 59);
+  assert.equal(explorationStepBudget(3, 0), 53);
+  assert.equal(explorationStepBudget(8, 4), 135);
+  assert.equal(explorationStepBudget(8, 8), 144);
+  assert.ok(explorationStepBudget(8, 8) >= 8 * (5 + 1 + 1 + 3 + 4) + 7 * 3 + 10);
 });
 
 for (const failure of [false, true]) {
@@ -768,12 +774,13 @@ test("modes d'arrivée sérialisés, compteurs des actions composées seulement 
         assert.match(first, /CHAQUE page/);
         assert.match(first, /au plus 5 petits scroll_web.*num_pixels environ 450/);
         assert.match(first, /Ne répète pas la lecture déjà faite/);
+        assert.match(first, /Pages déjà relevées, à ne plus cliquer : accueil\./);
         await input.onStep({ etape: 1, horodatage: new Date().toISOString(), action: "Défile, Défile, Clique", etat_session: "en_cours" });
         address = "https://example.org/faq";
         const response = await input.onTool("relever", { ecran: "faq", vue: "defaut" });
         assert.match(response, /Tous les relevés/);
-        assert.match(response, /dernière page comprise/);
-        assert.ok(response.indexOf("Remonte vers le menu") < response.indexOf('Puis appelle terminer'));
+        assert.match(response, /Appelle immédiatement terminer\(etat="reussi"\)/);
+        assert.doesNotMatch(response, /scroll_web|go_to|Continue le parcours|450|900/);
         await input.onTool("terminer", { etat: "reussi" });
         return { id: "actions", muted: false, cout_usd: null, etapes: 2 };
       })() };
@@ -1068,7 +1075,7 @@ test("contrôle d'adresse : redirection même origine résolue avant le premier 
   assert.match(responses[0], /n'est pas dans la liste/);
   assert.equal(result.pages[1].etat, "visitee");
   assert.equal(result.pages[1].url_finale, "https://example.org/help");
-  assert.match(responses[1], /Capture/);
+  assert.match(responses[1], /Capture|Tous les relevés/);
   assert.equal(resolves, 2);
 });
 
@@ -1088,7 +1095,7 @@ test(`contrôle d'adresse : deux pages de même chemin gardent leur query et leu
         assert.equal(input.consigne.course.length, 3);
         for (const step of input.consigne.course) {
           address = step.address + (step.address.includes("?") ? tracking : "");
-          assert.match(await input.onTool("relever", { ecran: step.ecran, vue: "defaut" }), /Capture/);
+          assert.match(await input.onTool("relever", { ecran: step.ecran, vue: "defaut" }), /Capture|Tous les relevés/);
         }
         await input.onTool("terminer", { etat: "reussi" });
         return { id: "queries", muted: false, cout_usd: null, etapes: 3 };
@@ -1187,8 +1194,8 @@ async function budgetRun(limits: number[], { failCreation = false, rejectFinal =
 
 test("15 pages : budget pour navigation, relevé, attente, reprises et début/fin", async () => {
   const { result, budgets, launches } = await budgetRun([15]);
-  assert.equal(explorationStepBudget(15, 4), 205);
-  assert.equal(budgets[0], 205);
+  assert.equal(explorationStepBudget(15, 4), 233);
+  assert.equal(budgets[0], 233);
   assert.ok(budgets[0] >= 15 * 3 + 10);
   assert.equal(launches, 1);
   assert.equal(result.etat, "fini");
@@ -1201,7 +1208,7 @@ test("budget épuisé après 13 pages : une seule relance limitée aux 2 restant
   assert.equal(result.totaux.sans_conclusion, 0);
   assert.equal(result.agents.length, 2);
   assert.deepEqual(plans[1], plans[0].slice(13));
-  assert.deepEqual(budgets, [205, 37]);
+  assert.deepEqual(budgets, [233, 39]);
   assert.equal(result.navigation.arrivees[result.pages[0].ecran], "depart");
   assert.ok(result.pages.slice(1).every(page => result.navigation.arrivees[page.ecran] === "adresse"));
   assert.deepEqual(closed, ["budget-1", "budget-2"]);

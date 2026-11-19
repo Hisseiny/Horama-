@@ -53,7 +53,7 @@ export interface ExplorerDependencies {
 
 const clickedCount = (pageCount: number, clicked: number) => Math.min(clicked, Math.max(0, pageCount - 1));
 export const explorationTimeBudget = (maxSteps: number) => Math.min(1800, Math.max(240, 8 * maxSteps));
-export const explorationStepBudget = (pageCount: number, clicked = 0) => 12 * pageCount + 13 + 3 * clickedCount(pageCount, clicked);
+export const explorationStepBudget = (pageCount: number, clicked = 0) => 14 * pageCount + 11 + 3 * clickedCount(pageCount, clicked);
 
 export function explorationPassageId(date: Date): string {
   const parts = Object.fromEntries(new Intl.DateTimeFormat("fr-FR", {
@@ -66,7 +66,7 @@ export function explorationPassageId(date: Date): string {
 export const exclusionLabel = (reason: string) => reason === "section-limit" ? "limite de pages par rubrique atteinte" : reason;
 
 function readingInstruction(): string {
-  return "Après relever, sur CHAQUE page (départ, clic ou adresse, dernière page comprise) : fais au plus 5 petits scroll_web vers le bas (direction down, num_pixels environ 450, soit une demi-hauteur d'écran, scroll_element null). Arrête ces petits pas dès le bas atteint ou si la page ne bouge plus. Si le bas reste hors vue, fais ensuite UN seul grand scroll_web jusqu'en bas (direction down, num_pixels 100000). Fais ensuite UN geste de visiteur facultatif si la page en propose un visible : menu déroulant, accordéon, onglet ou question FAQ, jamais un formulaire ni une connexion. N'ajoute pas de scrolls pour chercher un contrôle. Remonte vers le menu par UN seul grand scroll_web vers le haut (direction up, num_pixels 100000), jamais par petits pas. Aucun aller-retour supplémentaire, ni répétition à une extrémité sans déplacement. Ne répète pas la lecture déjà faite sur la page courante.";
+  return "Après relever, sur CHAQUE page (départ, clic ou adresse), seulement s'il reste des pages à relever : fais au plus 5 petits scroll_web vers le bas (direction down, num_pixels environ 450, soit une demi-hauteur d'écran, scroll_element null). Arrête ces petits pas dès le bas atteint ou si la page ne bouge plus. Si le bas reste hors vue, fais ensuite UN seul grand scroll_web jusqu'en bas (direction down, num_pixels 100000). Fais ensuite UN geste de visiteur facultatif si la page en propose un visible : menu déroulant, accordéon, onglet ou question FAQ, jamais un formulaire ni une connexion. N'ajoute pas de scrolls pour chercher un contrôle. Pour changer de page, cherche d'abord un lien utile visible là où tu es (menu fixe, corps ou pied de page). Seulement si aucun lien utile n'est visible, remonte en 2 ou 3 scroll_web moyens au plus (direction up, num_pixels environ 900, scroll_element null). Jamais de grand scroll vers le haut pour retrouver le menu. Aucun aller-retour supplémentaire, ni répétition à une extrémité sans déplacement. Ne répète pas la lecture déjà faite sur la page courante.";
 }
 
 const pathOf = (address: string) => { const parsed = new URL(address); return parsed.pathname + parsed.search; };
@@ -82,12 +82,13 @@ export function construireExploration(pages: Array<{ ecran: string; url: string 
     test_id: tests[index].id, address: page.url, here: `location.href === ${JSON.stringify(page.url)}` }));
   return { tests, course, dropped: [], start: pages[0].url,
     instructions: [...COURSE_RULES, "Si une bannière de cookies apparaît, refuse-la (Refuser / Tout refuser / Continuer sans accepter / Reject all), ne l’accepte jamais.", "Simple visiteur : ne remplis et ne soumets aucun formulaire, ne te connecte jamais. N'ouvre aucun onglet ni fenêtre.",
+      "N'utilise jamais la commande retour du navigateur (back). Pour changer de page, clique toujours un lien visible ; go_to reste le dernier recours prévu par la consigne. Ne clique jamais vers une page déjà relevée dans ce passage, même pour retrouver le menu.",
       `Reste sur le site ${new URL(pages[0].url).origin} : ne suis aucun lien vers un autre domaine ou sous-domaine. Si tu y arrives quand même, tu es ramené sur le site.`].join("\n"),
     task: ["Nouveau passage : aucune page n'a encore été relevée dans cette session. La page déjà ouverte ne prouve aucun avancement. Commence à la partie 1, même si le navigateur affiche une partie ultérieure.", ...pages.map((page, index) => `Partie ${index + 1} : ${index === 0
       ? `si l'onglet n'affiche pas ${page.url}, ouvre cette adresse avec go_to et note raison_go_to="page de départ absente de l'onglet" au relevé. Appelle relever(ecran="${page.ecran}", vue="defaut"). ${readingInstruction()}`
       : index <= clicked ? clickInstruction(pages.slice(1))
       : `ouvre ${page.url} avec go_to dans l'onglet courant, attends le chargement puis appelle relever(ecran="${page.ecran}", vue="defaut", raison_go_to="page hors quota de clics demandé"). ${readingInstruction()}`}`),
-      'Après toutes les pages, appelle terminer(etat="reussi"). Si une page est inaccessible, continue les autres.'].join("\n"),
+      'Dès le dernier relever accepté, appelle immédiatement terminer(etat="reussi"), sans navigation, scroll, geste ni attente supplémentaire. Si une page est inaccessible, continue les autres.'].join("\n"),
     tools: [{ name: "relever", description: "Enregistre la page chargée.", input_schema: { type: "object", properties: { ecran: { type: "string", enum: pages.map(page => page.ecran) }, vue: { type: "string", enum: ["defaut"] }, raison_go_to: { type: "string", description: "Seulement après go_to : raison concrète du recours à une adresse plutôt qu'à un lien." } }, required: ["ecran", "vue"] } }, END_TOOL] };
 }
 
@@ -419,8 +420,10 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
               if (blocage) return input.onTool("terminer", { etat: "echec", raison: blocage });
               const remaining = () => {
                 const page = unfinished()[0];
-                if (page && clickedPages < clicked) return `${pages.filter(page => page.etat === "visitee").length}/${pages.length} pages relevées dans ce passage. ${clickInstruction(unfinished())}${linkHints(unfinished())} Ne termine pas avant les relevés restants.`;
-                return page ? `${pages.filter(page => page.etat === "visitee").length}/${pages.length} pages relevées dans ce passage. ${readingInstruction()} Ouvre ${page.url} avec go_to puis appelle relever(ecran="${page.ecran}", vue="defaut", raison_go_to="page hors quota de clics demandé"). Ne termine pas avant les relevés restants.` : `Tous les relevés sont acquis. ${readingInstruction()} Puis appelle terminer(etat="reussi").`;
+                const recorded = pages.filter(page => page.etat === "visitee");
+                const progress = `${recorded.length}/${pages.length} pages relevées dans ce passage. Pages déjà relevées, à ne plus cliquer : ${recorded.map(page => page.ecran).join(", ") || "aucune"}.`;
+                if (page && clickedPages < clicked) return `${progress} ${clickInstruction(unfinished())}${linkHints(unfinished())} Ne termine pas avant les relevés restants.`;
+                return page ? `${progress} ${readingInstruction()} Ouvre ${page.url} avec go_to puis appelle relever(ecran="${page.ecran}", vue="defaut", raison_go_to="page hors quota de clics demandé"). Ne termine pas avant les relevés restants.` : 'Tous les relevés sont acquis. Appelle immédiatement terminer(etat="reussi"), sans navigation, scroll, geste ni attente supplémentaire.';
               };
               if (name === "terminer" && args.etat === "reussi" && unfinished().length) return `Fin refusée : des pages restent à visiter. ${remaining()}`;
               if (name === "relever") {
@@ -481,6 +484,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
                 currentScreen = accepted.ecran; hadClick = false; hadGoTo = false;
               }
               if (name === "terminer") completed = args.etat === "reussi";
+              if (name === "relever" && !unfinished().length) return remaining();
               return name === "relever" ? `${response}\n${remaining()}` : response;
             })()),
           });
