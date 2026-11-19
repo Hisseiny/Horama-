@@ -9,6 +9,9 @@
 // Usage: node [--env-file=<.env.local>] automatisation/scene/exploration.mjs --url <adresse> [--site <dossier du vault>] [--max 15] [--pages-cliquees 4] [--sans-agent]
 //          [--sans-holo] [--sans-base | --avec-base] [--choix bug,voulu,...] [--repeter-choix] [--sans-fin] [--par <nom>] [--rythme <s>]
 //          [--vault <dir>] [--sortie <dir>] [--temoins <dir>] [--port 9333] [--profil <dir>] [--fermer-chrome]
+//          [--captures-instantanees]
+// The captures of proof of the explorer scroll smoothly to their zone (option doux of #179): the scene is on the screen,
+// a jump would be seen. --captures-instantanees goes back to the instant scroll.
 // Env: HAI_API_KEY (H and Holo), SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, CHROME_BIN, HOLO_BIN.
 // Exit: 0 the exploration ended « fini » and nothing failed, 1 otherwise, 2 something is missing, 130 Ctrl+C.
 import { randomUUID } from "node:crypto";
@@ -265,7 +268,7 @@ process.on("SIGINT", () => {
 const errors = [];
 let report = null;
 try {
-  report = await explorer({ url: URL_SITE, max: MAX, pagesCliquees: CLICKED, sortie: OUT, vault: VAULT, port: PORT, ...(SITE ? { site: SITE } : {}) }, { base, runtime, session, signal: arret.signal, log: say, ...(flag("sans-holo") ? { holo: noHolo } : {}) });
+  report = await explorer({ url: URL_SITE, max: MAX, pagesCliquees: CLICKED, sortie: OUT, vault: VAULT, port: PORT, ...(SITE ? { site: SITE } : {}), doux: !flag("captures-instantanees") }, { base, runtime, session, signal: arret.signal, log: say, ...(flag("sans-holo") ? { holo: noHolo } : {}) });
 } catch (error) {
   errors.push(error.message);
   say(`Échec : ${error.message}`);
