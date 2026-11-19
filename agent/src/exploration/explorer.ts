@@ -702,7 +702,8 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
           if (options.accessibilite && !accessibility.has(ecran) && !hookSignal?.aborted) {
             let index = 0;
             const result = await auditAccessibility(client, capture.url_page, png => {
-              const path = `captures/accessibilite-${ecran}-${++index}.png`;
+              // Screen names start with a letter or digit, including in other evidence paths.
+              const path = `captures/--accessibilite-${ecran}-${++index}.png`;
               writeFileSync(join(sortie, path), png);
               return path;
             }, hookSignal);

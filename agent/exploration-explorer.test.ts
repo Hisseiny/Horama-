@@ -99,6 +99,41 @@ test("l’essai accessibilité écrit seulement un fichier séparé pour les rel
   assert.ok(!("accessibilite" in active.result));
 });
 
+test("une preuve d’accessibilité ne peut pas écraser une capture de page", async () => {
+  const { result } = await run({ accessibilite: true, actual: address => new URL(address).pathname === "/" ? address : address.replace(/\/$/, ""), deps: {
+    fetch: async input => {
+      const path = new URL(String(input)).pathname;
+      return new Response(path === "/robots.txt" ? "" : path === "/sitemap.xml"
+        ? "<urlset><url><loc>https://example.org/accessibilite-accueil-1</loc></url></urlset>" : "<html>Page</html>",
+      { headers: { "Content-Type": path === "/sitemap.xml" ? "application/xml" : "text/html" } });
+    },
+    connecter: async (_port, address) => ({
+      on() {}, close() {},
+      async send(method, params) {
+        if (method === "Page.getFrameTree") return { frameTree: { frame: { id: "frame" } } };
+        if (method === "Page.createIsolatedWorld") return { executionContextId: 1 };
+        if (method === "Page.getLayoutMetrics") return { cssContentSize: { width: 1280, height: 900 } };
+        if (method === "Page.captureScreenshot") return { data: original.toString("base64") };
+        const expression = String((params as { expression?: string })?.expression);
+        if (expression === "location.href") return { result: { value: address } };
+        if (expression.includes("function scanDocument")) return { result: { value: { url: address, violations: [
+          { rule: "button-name", impact: "serious", target: "#button", html: '<button id="button"></button>' },
+        ] } } };
+        if (expression.includes("function readTarget")) return { result: { value: { x: 5, y: 5, width: 20, height: 10 } } };
+        return { result: { value: 200 } };
+      },
+    }),
+  } });
+  const output = join(root, "out");
+  const audit = JSON.parse(readFileSync(join(output, "accessibilite.json"), "utf8")) as { pages: AccessibilityPage[] };
+  const proof = audit.pages.find(page => new URL(page.url).pathname === "/")?.violations[0];
+  const pageCapture = result.pages.find(page => page.ecran === "accessibilite-accueil-1")?.capture;
+  assert.ok(proof && pageCapture);
+  assert.notEqual(proof.capture, pageCapture.fichier);
+  assert.notDeepEqual(readFileSync(join(output, proof.capture)), original);
+  assert.deepEqual(readFileSync(join(output, pageCapture.fichier)), original);
+});
+
 for (const context of ["plusieurs", "vide", "indisponible"]) {
   test(`exception de relevé journalisée et page écartée : CDP ${context}`, async () => {
     const messages: string[] = [];
