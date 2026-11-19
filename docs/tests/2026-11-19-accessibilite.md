@@ -7,7 +7,7 @@ Passages en visiteur, sans connexion ni envoi de formulaire.
 ## Vérifications locales
 
 `pnpm -r check` et `pnpm -r --if-present run check` sortent à 0. Le paquet
-`agent` réussit ses 287 tests. Le serveur de test ne sert que des pages locales.
+`agent` réussit ses 288 tests. Le serveur de test ne sert que des pages locales.
 
 - Le bouton sans nom, l’image sans `alt`, le contraste insuffisant et un
   deuxième bouton sous la ligne de flottaison produisent des `VERIFIED_FAIL`
@@ -19,6 +19,10 @@ Passages en visiteur, sans connexion ni envoi de formulaire.
 - Une zone défilante sans `tabindex` signalée par axe est comptée dans les
   violations graves sans preuve suffisante. Un CDP indisponible rend le relevé
   d’accessibilité non concluant dans le fichier séparé.
+- Un bouton signalé par axe, mais rogné par son conteneur, ne reçoit aucune
+  preuve visuelle. Le bouton visible placé sous la ligne de flottaison reste
+  prouvé. L’URL `/accessibilite-accueil-1` ne peut pas produire un fichier
+  qui écrase la première preuve de l’accueil.
 
 ## Passage H sur la prévisualisation locale du clone Eugenia
 
@@ -31,16 +35,16 @@ pnpm --filter @horama/agent explorer -- --url http://127.0.0.1:4322/ \
   --sortie /chemin/essai-eugenia --vault /chemin/vault-essai
 ```
 
-Le passage a visité les 3 pages en 109,987 s, avec la clé de développement H.
-[Replay de la session H](https://agp.eu.hcompany.ai/share/api/v1/trajectories/8cfbaf12-ac52-4e71-b4a5-bebf6dc2dc9c).
+Le passage a visité les 3 pages en 133,294 s, avec la clé de développement H.
+[Replay de la session H](https://agp.eu.hcompany.ai/share/api/v1/trajectories/b7cdd506-dc1e-4341-9801-481f4cd9f629).
 La durée ajoutée couvre l’analyse, la capture et l’enregistrement des PNG
 pour la page. L’unité de comptage est une règle sur un élément d’une page.
 
 | Page | Graves prouvées | Graves sans preuve suffisante | Mineures ou modérées | Durée ajoutée |
 |---|---:|---:|---:|---:|
-| `/` | 0 | 1 | 0 | 289 ms |
-| `/programmes` | 0 | 0 | 0 | 163 ms |
-| `/entreprises` | 0 | 0 | 0 | 178 ms |
+| `/` | 0 | 1 | 0 | 411 ms |
+| `/programmes` | 0 | 0 | 0 | 157 ms |
+| `/entreprises` | 0 | 0 | 0 | 176 ms |
 
 ## Mesure du contrôle sur les sites de #162
 
@@ -53,20 +57,20 @@ observée pendant le contrôle sur chacune des neuf pages.
 
 | Page | Graves prouvées | Graves sans preuve suffisante | Mineures ou modérées | Durée ajoutée |
 |---|---:|---:|---:|---:|
-| [Debian — Accueil](https://www.debian.org/) | 11 | 0 | 18 | 861 ms |
-| [Debian — Versions](https://www.debian.org/releases/) | 2 | 0 | 10 | 291 ms |
-| [Debian — Distribution](https://www.debian.org/distrib/) | 2 | 0 | 10 | 216 ms |
-| [Python — Nouveautés 3.15](https://docs.python.org/fr/3/whatsnew/3.15.html) | 0 | 3 | 3 | 1 481 ms |
-| [Python — Table des matières](https://docs.python.org/fr/3/contents.html) | 0 | 0 | 4 | 2 704 ms |
-| [Python — Tutoriel](https://docs.python.org/fr/3/tutorial/index.html) | 0 | 0 | 4 | 190 ms |
+| [Debian — Accueil](https://www.debian.org/) | 11 | 0 | 18 | 1 216 ms |
+| [Debian — Versions](https://www.debian.org/releases/) | 2 | 0 | 10 | 303 ms |
+| [Debian — Distribution](https://www.debian.org/distrib/) | 2 | 0 | 10 | 254 ms |
+| [Python — Nouveautés 3.15](https://docs.python.org/fr/3/whatsnew/3.15.html) | 0 | 3 | 3 | 1 556 ms |
+| [Python — Table des matières](https://docs.python.org/fr/3/contents.html) | 0 | 0 | 4 | 2 480 ms |
+| [Python — Tutoriel](https://docs.python.org/fr/3/tutorial/index.html) | 0 | 0 | 4 | 183 ms |
 
 Deux passages H de confirmation, avec la même commande qu’Eugenia et
 `--max 1`, ont aussi terminé sur les pages de départ des deux sites.
 
 | Page visitée par H | Graves prouvées | Graves sans preuve suffisante | Mineures ou modérées | Durée ajoutée |
 |---|---:|---:|---:|---:|
-| [Debian — Accueil, replay H](https://agp.eu.hcompany.ai/share/api/v1/trajectories/33067b3c-bd1a-43e8-938a-a4e351d3f581) | 10 | 1 | 18 | 922 ms |
-| [Python — Nouveautés 3.15, replay H](https://agp.eu.hcompany.ai/share/api/v1/trajectories/c9764672-25a7-4f42-a244-44243b7ad55d) | 0 | 3 | 3 | 1 620 ms |
+| [Debian — Accueil, replay H](https://agp.eu.hcompany.ai/share/api/v1/trajectories/564e9498-02c7-435f-a3c6-b0f516d17cbf) | 10 | 1 | 18 | 1 076 ms |
+| [Python — Nouveautés 3.15, replay H](https://agp.eu.hcompany.ai/share/api/v1/trajectories/b0b81b58-5d6b-48de-8bff-f3e5d6a88a15) | 0 | 3 | 3 | 1 520 ms |
 
 Le lien `people` de Debian, prouvé par une capture dans la mesure à l’URL
 fixe, n’avait pas de capture exploitable au passage H.
