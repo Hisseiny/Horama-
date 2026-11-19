@@ -26,7 +26,8 @@ export function sameHeaderElement(first: HoloElement, second: HoloElement): bool
 }
 
 export function isCutFinding(finding: HoloFinding): boolean {
-  return finding.kind === "cut-off-text" || /\b(masqu[ée]|coup[ée]|rogn[ée]|tronqu[ée]|hidden|clipped|cut.off|obscured)/i.test(finding.sentence);
+  return finding.kind !== "overlapping-text" && (finding.kind === "cut-off-text"
+    || /\b(masqu[ée]|coup[ée]|rogn[ée]|tronqu[ée]|hidden|clipped|cut.off|obscured)/i.test(finding.sentence));
 }
 
 export async function inspectHoloElement(client: CdpClient, finding: HoloFinding,

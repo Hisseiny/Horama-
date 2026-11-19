@@ -452,7 +452,7 @@ test("lien au clic non vérifié reste un doute et un même doute Holo répété
   assert.ok(holoOnly.result.pages.every(page => page.statut === "SUSPECTED"), "un doute rattaché à une autre page n'est pas une réussite");
 });
 
-for (const mode of ["visible", "different", "unavailable"]) {
+for (const mode of ["visible", "different", "unavailable", "overlap"]) {
   test(`inspection DOM Holo : ${mode}`, async () => {
     const logs: string[] = [];
     let inspected = 0;
@@ -461,10 +461,10 @@ for (const mode of ["visible", "different", "unavailable"]) {
       connecter: async () => ({ send: async (_method, params) => {
         if (!String((params as { expression?: string })?.expression).includes("expected.width")) return { result: { value: 200 } };
         if (mode === "unavailable") throw new Error("CDP indisponible");
-        return { result: { value: { selector: `#item-${inspected++}`, text: `Texte ${inspected}`, header: true, visible: mode === "visible" } } };
+        return { result: { value: { selector: `#item-${inspected++}`, text: `Texte ${inspected}`, header: true, visible: mode === "visible" || mode === "overlap" } } };
       }, on() {}, close() {} }),
       holo: async () => ({ status: "SUSPECTED", model: "holo4-27b", durationMs: 1, usage: null, cost_usd: null, findings: [
-        { status: "SUSPECTED", kind: "cut-off-text", sentence: "Logo masqué.", zone: { x: 49, y: 72, largeur: 70, hauteur: 14 } },
+        { status: "SUSPECTED", kind: mode === "overlap" ? "overlapping-text" : "cut-off-text", sentence: "Logo masqué.", zone: { x: 49, y: 72, largeur: 70, hauteur: 14 } },
       ] }),
     } });
     const visuals = result.constats.filter(item => item.source === "holo");

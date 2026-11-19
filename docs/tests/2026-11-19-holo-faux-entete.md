@@ -188,3 +188,19 @@ continue à renvoyer le texte.
 # fail 0
 # skipped 0
 ```
+
+### 2. Chevauchements décrits comme « masqués »
+
+Retour fondé : le test lexical autorisait `overlapping-text` à être retiré si la
+phrase contenait « masqué ». Cette catégorie est désormais toujours exclue du
+filtre de visibilité, même si la cible au premier plan est entièrement visible.
+Test unitaire français/anglais et test d’explorateur avec DOM visible : les deux
+constats de chevauchement restent conservés et aucun retrait n’est journalisé.
+
+`node --test exploration-holo.test.ts exploration-explorer.test.ts`, code 0 :
+
+```text
+# tests 102
+# pass 102
+# fail 0
+```

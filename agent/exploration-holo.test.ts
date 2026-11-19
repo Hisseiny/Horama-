@@ -24,13 +24,19 @@ test("header identity uses selector or normalized text, never coordinates or a b
 test("only cut or hidden doubts can be dismissed, and missing DOM evidence preserves them", async () => {
   const finding: HoloFinding = { status: "SUSPECTED", kind: "cut-off-text", sentence: "Logo.", zone: { x: 0, y: 0, largeur: 90, hauteur: 90 } };
   assert.ok(isCutFinding(finding));
-  assert.ok(isCutFinding({ ...finding, kind: "overlapping-text", sentence: "Le premier lien est partiellement masqué." }));
+  assert.ok(isCutFinding({ ...finding, kind: "misaligned-element", sentence: "Le premier lien est partiellement masqué." }));
   assert.ok(!isCutFinding({ ...finding, kind: "misaligned-element", sentence: "Le titre est décalé." }));
   const capture = { url: options.url, width: 1280, height: 900, scroll: [0, 0] as [number, number] };
   for (const send of [async () => { throw new Error("CDP"); }, async () => ({ result: { value: null } }), async () => ({ exceptionDetails: {} })]) {
     assert.equal(await inspectHoloElement({ send, on() {} }, finding, capture), null);
   }
   assert.equal(await inspectHoloElement({ send: async () => { throw new Error("unused"); }, on() {} }, { ...finding, status: "INCONCLUSIVE", zone: null, message: "No box" }, capture), null);
+});
+
+test("overlapping text is never dismissed even when described as hidden or cut", () => {
+  for (const sentence of ["Le texte est masqué.", "Le texte est coupé.", "The text is hidden.", "The text is clipped."]) {
+    assert.equal(isCutFinding({ status: "SUSPECTED", kind: "overlapping-text", sentence, zone: { x: 40, y: 40, largeur: 90, hauteur: 30 } }), false);
+  }
 });
 
 test("filters bottom and right edges, preserves interior text and different kinds, and keeps the first duplicate", () => {
