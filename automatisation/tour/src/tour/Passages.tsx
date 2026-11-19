@@ -1,5 +1,5 @@
-// 11.8 Passages et historique, on real data only: the passages of the public index (mode développeur, PR of the clone)
-// and the explorations sent from this browser (grand public), the latest first; then the journal of the decisions taken
+// 11.8 Passages et historique, on real data only: the passages of the public index (entry by a PR, PR of the clone)
+// and the explorations sent from this browser (entry by an address), the latest first; then the journal of the decisions taken
 // by a human, as the index carries them. No journal of the agent step by step: no source gives it today.
 import "../../interface/screen-11-8/styles.css";
 import "./tour.css";
@@ -17,7 +17,7 @@ export default function Passages({ route, data }: { route: Route; data: Chargeme
         <div className="content-column">
           <header className="history-page-heading">
             <h1>Passages et historique</h1>
-            <p>Mode développeur : les PR du clone d'Eugenia School, lues dans l'index public des passages. Grand public : les explorations envoyées depuis ce navigateur.</p>
+            <p>Par une PR : les PR du clone d'Eugenia School, lues dans l'index public des passages. Par une adresse : les explorations envoyées depuis ce navigateur.</p>
           </header>
           <Erreurs data={data} />
           <section className="history-card passages-card" aria-labelledby="passages-title">
@@ -40,7 +40,7 @@ export default function Passages({ route, data }: { route: Route; data: Chargeme
                         <span>{dateCourte(p.date)}</span>
                         <span className="tour-titre">
                           <strong>{p.titre}</strong>
-                          <small>{p.mode === "dev" ? "mode développeur" : "grand public"}{p.etat && p.etat !== "termine" && p.etat !== "fini" ? ` · ${p.etat}` : ""}</small>
+                          <small>{p.mode === "dev" ? "par une PR" : "par une adresse"}{p.etat && p.etat !== "termine" && p.etat !== "fini" ? ` · ${p.etat}` : ""}</small>
                         </span>
                         <span>{p.pages.visitees ?? "?"}{p.pages.trouvees ? ` / ${p.pages.trouvees}` : ""}</span>
                         <span className="passage-results">

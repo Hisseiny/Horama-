@@ -1,6 +1,6 @@
-# Persona du mode grand public : la responsable du site d'Eugenia School
+# Persona : la responsable du site d'Eugenia School (cas réel de la cible « marketeur qui vibe-code »)
 
-Rendu du mercredi 18/11 à 17 h, issue [#73](https://github.com/Hisseiny/Horama-/issues/73) (parcours utilisateur). Seconde persona, à côté du [CTO de Troov](persona-cto-troov.md) (mode développeur). Elle n'est pas nommée. Ce qui vient de Noé est sourcé en bas de page ; ce qui n'est pas mesuré est écrit « à mesurer ».
+Rendu du mercredi 18/11 à 17 h, issue [#73](https://github.com/Hisseiny/Horama-/issues/73) (parcours utilisateur). Seconde persona, à côté du [CTO de Troov](persona-cto-troov.md). Depuis le 19/11, Horama est un seul produit pour deux cibles prioritaires, le CTO d'un SaaS et le marketeur qui vibe-code le site de son entreprise ([décision](../docs/decisions/2026-11-19-un-seul-produit.md)) ; elle ne code pas, mais son cas est celui de la seconde cible. Elle n'est pas nommée. Ce qui vient de Noé est sourcé en bas de page ; ce qui n'est pas mesuré est écrit « à mesurer ».
 
 ## Profil
 
@@ -36,7 +36,7 @@ Rendu du mercredi 18/11 à 17 h, issue [#73](https://github.com/Hisseiny/Horama-
 3. Un lien mort ou un texte coupé ailleurs sur le site reste en ligne.
 4. Elle l'apprend quand quelqu'un le lui signale, ou jamais.
 
-## Son parcours avec Horama (mode grand public)
+## Son parcours avec Horama (entrée par une adresse)
 
 1. Elle est sur une page du site, dans Chrome, et lance Horama. Pas de documentation à écrire, pas d'accès au code.
 2. Un agent H parcourt le site comme un visiteur : il clique, il lit, il suit les liens.
@@ -46,7 +46,7 @@ Rendu du mercredi 18/11 à 17 h, issue [#73](https://github.com/Hisseiny/Horama-
 
 ## Le test qui la concerne : le site traduit en allemand
 
-On a recréé le site d'Eugenia (le clone d'Ali, `Hisseiny/eugenia-school-website`) et on le traduit en allemand, une langue aux mots longs, pour pousser le design à bout. Horama le parcourt en mode grand public et montre ce qui casse.
+On a recréé le site d'Eugenia (le clone d'Ali, `Hisseiny/eugenia-school-website`) et on le traduit en allemand, une langue aux mots longs, pour pousser le design à bout. Horama le parcourt à partir de sa seule adresse et montre ce qui casse.
 
 | Ce qu'on cherche | Comment Horama le voit | État au 18/11 |
 |---|---|---|

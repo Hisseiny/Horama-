@@ -1,5 +1,5 @@
 // 11.6 À relire, read-only online: every finding of the passages, the cases not decided yet first. A page served on the
-// web holds no key: « bug » or « voulu » is decided in the scene (mode développeur) or on the report, never here; what
+// web holds no key: « bug » or « voulu » is decided in the scene (entry by a PR) or on the report, never here; what
 // was decided is shown with who and when, as the index of the passages carries it.
 import "../../interface/screen-11-6/styles.css";
 import "./tour.css";
