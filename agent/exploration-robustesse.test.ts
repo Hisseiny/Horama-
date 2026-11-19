@@ -165,6 +165,16 @@ test("refus des cookies sur de vraies pages Chrome locales", { skip: !available 
     const restore = await hideCaptureOverlays(surface, () => assert.fail("Aucun bandeau à journaliser"));
     await restore();
   });
+  await t.test("bandeaux d'acceptation seule : masquage sans refus ni clic", async () => {
+    for (const label of ["Autoriser", "Tout autoriser", "Allow", "Allow all", "Agree", "I agree", "J'accepte", "Zustimmen", "Erlauben", "Alle erlauben"]) {
+      await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = ${JSON.stringify(`<aside id="banner" style="position:fixed;bottom:0">Cookies <button>${label}</button></aside>`)}; window.clicked = 0; document.onclick = () => window.clicked++;` });
+      assert.equal((await client.send("Runtime.evaluate", { expression: `(${refuseCookies.toString()})()`, returnByValue: true })).result.value, false, label);
+      const restore = await hideCaptureOverlays(surface);
+      assert.deepEqual((await client.send("Runtime.evaluate", { expression: "[getComputedStyle(document.querySelector('#banner')).visibility, window.clicked]", returnByValue: true })).result.value, ["hidden", 0], label);
+      await restore();
+      assert.deepEqual((await client.send("Runtime.evaluate", { expression: "[getComputedStyle(document.querySelector('#banner')).visibility, window.clicked]", returnByValue: true })).result.value, ["visible", 0], label);
+    }
+  });
   await t.test("bannière apparue pendant la stabilisation : fermeture avant la capture", async () => {
     await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = '<main>Page locale</main>'; window.accepted = 0; setTimeout(() => {
       document.body.insertAdjacentHTML('beforeend', '<section id="late"><p>Stockage de cookies</p><button>Refuser</button><button id="accept">Autoriser tous les cookies</button></section>');
