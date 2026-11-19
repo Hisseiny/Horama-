@@ -132,7 +132,10 @@ function render(service, report) {
     return;
   }
   $("#etat").textContent = done
-    ? report.etat === "fini" ? "Exploration terminée." : "Exploration interrompue : les pages non visitées sont listées."
+    ? report.etat === "fini"
+      // A run stopped by the time limit of the service is finished: its reason says so (« Limite de temps atteinte, 7 pages sur 8 »).
+      ? ((raison) => raison ? `Exploration terminée : ${lowerFirst(raison)}.` : "Exploration terminée.")((report.agents?.find((agent) => agent.raison)?.raison ?? "").trim().replace(/\.+$/, ""))
+      : "Exploration interrompue : les pages non visitées sont listées."
     : `${count(totaux.pages_visitees, "page visitée", "pages visitées")} sur ${trouvees.nombre}, trouvées par ${trouvees.par === "sitemap" ? "le plan du site" : "les liens"}.`;
   // The pages, one by one.
   $("#pages").hidden = false;

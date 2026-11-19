@@ -11,6 +11,16 @@ const fullError = "Le service est complet : réessaie dans quelques minutes.";
 const rateError = "Trop de demandes en une heure : réessaie plus tard.";
 const runError = "L’exploration a été interrompue avant de produire un rapport complet.";
 
+// A run stopped by the time limit of the service (HORAMA_MAX_SECONDS) after visiting pages is finished, not broken
+// (decision of Nathan, 19/11): « fini », with the reason « Limite de temps atteinte, N pages sur M. ». « interrompu »
+// stays for real failures (no page visited, error). Returns the report to write, or null when nothing changes.
+export function finishAtTimeLimit(report) {
+  const visited = report?.totaux?.pages_visitees ?? 0;
+  if (report?.format !== "horama-exploration-1" || report.etat !== "interrompu" || visited < 1) return null;
+  const raison = `Limite de temps atteinte, ${visited} page${visited > 1 ? "s" : ""} sur ${report.totaux.pages_trouvees}.`;
+  return { ...report, etat: "fini", agents: (report.agents ?? []).map(agent => ({ ...agent, etat: "fini", raison })) };
+}
+
 const explorationCors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Content-Type" };
 function send(response, status, body, type = Buffer.isBuffer(body) ? "image/png" : "application/json; charset=utf-8", headers = {}, cors = explorationCors) {
   response.writeHead(status, { ...cors, "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -67,7 +77,10 @@ export function createExplorationService({ data, run, resolveAddress = resolvePu
 
   async function readReport(job) {
     const report = await readFile(join(job.directory, "exploration.json"), "utf8").then(JSON.parse).catch(() => null);
-    return report?.format === "horama-exploration-1" && (job.finished === undefined || report.etat !== "en_cours") ? report : null;
+    if (report?.format !== "horama-exploration-1" || (job.finished !== undefined && report.etat === "en_cours")) return null;
+    // The engine may write its last state before the run is over (the time limit is applied after it stops): until
+    // then, the report stays « en_cours », so that a reader does not stop on a state about to change.
+    return job.finished === undefined && report.etat !== "en_cours" ? { ...report, etat: "en_cours" } : report;
   }
 
   function startNext() {

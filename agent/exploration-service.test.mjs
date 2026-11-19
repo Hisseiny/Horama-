@@ -166,3 +166,34 @@ test("global and per-client hourly limits return 429 and expired IDs are forgott
     assert.equal((await post(request)).status, 202);
   }
 });
+
+test("limite de temps atteinte après des pages visitées : le passage est fini, avec sa raison", async () => {
+  const { finishAtTimeLimit } = await import("./scripts/exploration-service.mjs");
+  const report = (etat, visited) => ({ format: "horama-exploration-1", etat, agents: [{ agent: 1, etat: "tombe", raison: "Des pages n'ont pas été visitées." }],
+    totaux: { pages_trouvees: 8, pages_visitees: visited } });
+  const finished = finishAtTimeLimit(report("interrompu", 7));
+  assert.equal(finished.etat, "fini");
+  assert.deepEqual(finished.agents, [{ agent: 1, etat: "fini", raison: "Limite de temps atteinte, 7 pages sur 8." }]);
+  assert.equal(finishAtTimeLimit(report("interrompu", 1)).agents[0].raison, "Limite de temps atteinte, 1 page sur 8.");
+  assert.equal(finishAtTimeLimit(report("interrompu", 0)), null, "aucune page : une vraie panne reste interrompue");
+  assert.equal(finishAtTimeLimit(report("fini", 8)), null);
+  assert.equal(finishAtTimeLimit(null), null);
+});
+
+test("un état final écrit par le moteur reste « en_cours » tant que le passage n'est pas clos", async t => {
+  let release;
+  let current;
+  const request = await setup(t, { run: async job => {
+    current = job;
+    await mkdir(job.directory, { recursive: true });
+    await writeFile(join(job.directory, "exploration.json"), JSON.stringify({ format: "horama-exploration-1", etat: "interrompu" }));
+    await new Promise(resolve => { release = resolve; });
+    await writeFile(join(job.directory, "exploration.json"), JSON.stringify({ format: "horama-exploration-1", etat: "fini" }));
+  } });
+  const { id } = await (await post(request)).json();
+  for (let i = 0; i < 100 && !release; i++) await new Promise(resolve => setTimeout(resolve, 5));
+  assert.equal((await (await request(`/explorations/${id}`)).json()).etat, "en_cours");
+  release();
+  for (let i = 0; i < 100 && current.finished === undefined; i++) await new Promise(resolve => setTimeout(resolve, 5));
+  assert.equal((await (await request(`/explorations/${id}`)).json()).etat, "fini");
+});
