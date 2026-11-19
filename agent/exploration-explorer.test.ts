@@ -794,6 +794,8 @@ test("consigne : lecture bornée, liens sur place, remontée moyenne facultative
   assert.match(consigne.instructions, /Ne clique jamais vers une page déjà relevée dans ce passage/);
   assert.match(task, /Dès le dernier relever accepté, appelle immédiatement terminer.*sans navigation, scroll, geste ni attente/);
   assert.match(consigne.instructions, /ne remplis et ne soumets aucun formulaire, ne te connecte jamais/);
+  assert.match(consigne.instructions, /Refuser \/ Tout refuser \/ Continuer sans accepter \/ Reject all \/ Ablehnen/);
+  assert.match(consigne.instructions, /REFUSE les cookies, ne les accepte jamais/);
   const schema = consigne.tools[0].input_schema as { required: string[]; properties: Record<string, unknown> };
   assert.deepEqual(schema.required, ["ecran", "vue"]);
   assert.ok("raison_go_to" in schema.properties);
@@ -1117,7 +1119,7 @@ test("option douce transmise au repli CDP", async () => {
   assert.equal(scrolls.length, 4);
 });
 
-test("capture stabilisée sans refus de cookies, client partagé puis fermé", async () => {
+test("refus des cookies avant capture, client partagé puis fermé", async () => {
   const calls: string[] = [];
   const { result } = await run({ deps: {
     connecter: async () => { calls.push("connect"); return { on() {}, close() { calls.push("close"); }, async send(_method, params) {
@@ -1131,7 +1133,7 @@ test("capture stabilisée sans refus de cookies, client partagé puis fermé", a
     }, navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
   } });
   assert.deepEqual(calls.slice(0, 5), ["connect", "cookies", "capture", "controls", "close"]);
-  assert.equal(result.pages[0].cookies, "aucune");
+  assert.equal(result.pages[0].cookies, "refusee");
 });
 
 test("connexion CDP indisponible : capture conservée et contrôles non conclus", async () => {
@@ -1141,7 +1143,7 @@ test("connexion CDP indisponible : capture conservée et contrôles non conclus"
   assert.equal(result.pages[0].statut, "INCONCLUSIVE");
 });
 
-test("bannière tardive : masquage revérifié avant capture, repli en cas d'erreur", async () => {
+test("bannière tardive : refus puis masquage de repli avant capture, repli en cas d'erreur", async () => {
   for (const fail of [false, true]) {
     const { result } = await run({ deps: {
       connecter: async () => ({ on() {}, close() {}, async send(_method, params) {
@@ -1158,7 +1160,7 @@ test("bannière tardive : masquage revérifié avant capture, repli en cas d'err
       }, navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
     } });
     assert.equal(result.totaux.pages_visitees, 2);
-    assert.ok(result.pages.every(page => page.cookies === "aucune"));
+    assert.ok(result.pages.every(page => page.cookies === (fail ? "aucune" : "refusee")));
     assert.ok(result.pages.every(page => page.statut === (fail ? "INCONCLUSIVE" : "PASS")));
     if (fail) assert.ok(result.constats.every(finding => finding.statut === "INCONCLUSIVE" && finding.raison?.includes("consentement")));
   }
@@ -1188,7 +1190,7 @@ test("onglets multiples : prépare et contrôle l'onglet redirigé avant capture
   } });
   assert.equal(controls, 2);
   assert.ok(connected.includes("https://example.org/help"));
-  assert.equal(result.pages[1].cookies, "aucune");
+  assert.equal(result.pages[1].cookies, "refusee");
   assert.equal(result.pages[1].http, 200);
 });
 
