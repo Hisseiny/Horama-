@@ -8,8 +8,9 @@ Les passages d'Horama et leurs constats, en ligne, sur données réelles seuleme
 |---|---|---|
 | 11.8 Passages et rapports | oui, à l'ouverture | l'index des passages (entrée par une PR) et les explorations du service ou envoyées depuis ce navigateur (entrée par une adresse) ; le journal des décisions de l'index |
 | 11.4 Rapport de passage | oui | les constats d'un passage, chacun sur sa capture : entourée par la scène (entrée par une PR), ou avec le trait miltos ou les points ocre dessinés ici (`src/trait.js`, la charte) sur la capture brute du service (entrée par une adresse) |
-| 11.6 À relire | oui, en lecture seule | les constats, ceux sans décision d'abord, de tous les passages ou d'un seul (`#relire/<cle>`) ; la décision et son auteur viennent de l'index. « Bug » ou « voulu » se tranche dans la scène ou le rapport |
-| 11.1, 11.2, 11.3, 11.5, 11.7, connexion | non | aucune source réelle : rien d'exemple n'est mis en ligne. Le journal de l'agent étape par étape de 11.8 non plus |
+| 11.6 À relire | oui, et on y tranche une fois connecté | les constats, ceux sans décision d'abord, de tous les passages ou d'un seul (`#relire/<cle>`) ; la décision et son auteur viennent de l'index. Un cas d'un passage par une PR se tranche ici (« C'est un bug », « C'est voulu ») ; une exploration par une adresse garde le lien vers son rapport |
+| Connexion (`#connexion`) | oui | le compte d'équipe vérifié par le service (`POST /tour/session`) |
+| 11.1, 11.2, 11.3, 11.5, 11.7 | non | aucune source réelle : rien d'exemple n'est mis en ligne. Le journal de l'agent étape par étape de 11.8 non plus |
 
 Les sources (`src/donnees.ts`), dans cet ordre :
 - **le service Horama** (#238) : `GET <service>/tour/donnees` donne `index` (l'index des passages, entrée par une PR), `vault` (les notes de `vault-horama/eugenia-clone/`), `explorations` (les explorations récentes du service, entrée par une adresse) et `agent`. Le service lit GitHub avec sa clé : ni limite de 60 appels par heure, ni cache de 5 min côté visiteur. Par défaut, le service Railway (`https://explorations-production-70bf5b38.up.railway.app`, celui de `accueil/service.js`) ;
@@ -23,13 +24,19 @@ Paramètres de l'adresse :
 - `?index=<sha>` : dans le repli GitHub, lit l'index à ce commit de la branche `horama/captures`, ce qui échappe au cache de 5 min ; sans effet si le service répond ;
 - `#relire/<cle>` : « À relire » sur un seul passage (`dev:<passage>`, la même clé que `#rapport/<cle>`), avec un lien « Tous les cas à relire ». Le réveil ouvre `…/tour/?index=<sha>#relire/dev%3A<passage>`.
 
+## Connexion et écriture (#238)
+
+Sans connexion, tout se lit ; les boutons de 11.6 sont visibles mais désactivés, avec « Connectez-vous pour trancher ». L'écran de connexion (`#connexion`, repris de `interface/login/` sans compte d'exemple, SSO ni mot de passe oublié) envoie `POST <service>/tour/session {email, mot_de_passe}` ; le jeton, `expire_le` et `nom` sont gardés dans le `sessionStorage` de l'onglet (retirés quand ils expirent), puis la page revient à l'écran d'où l'on venait. La barre latérale montre le nom et « Se déconnecter », ou « Se connecter ».
+
+Connecté, « C'est un bug » ou « C'est voulu » envoie `POST <service>/tour/decision {passage, constat, decision}` avec `Authorization: Bearer <jeton>` : `passage` est le champ `passage` de l'entrée d'index, `constat` l'`id` du constat. Le cas passe aussitôt dans « Déjà tranchés » (qui, quand), puis les données sont relues. Erreurs dites sur le cas : 401 « Session expirée : reconnectez-vous » (et déconnexion), 409 « Déjà tranché » (et relecture), autre « Le service n'a pas pu écrire ».
+
 Le faux service local (`faux-service.mjs`, testé par `node --test faux-service.test.mjs`) imite le contrat de #238 sans rien écrire sur GitHub, pour essayer la tour avant le vrai service :
 
 ```
 node automatisation/tour/faux-service.mjs --port 8788
 ```
 
-puis la tour construite, servie en local (`python3 -m http.server 8765 --bind 127.0.0.1` depuis `accueil/`), sur http://127.0.0.1:8765/tour/?service=http://127.0.0.1:8788. `--index <fichier>` lui donne un autre index (par exemple sans décisions, pour trancher).
+puis la tour construite, servie en local (`python3 -m http.server 8765 --bind 127.0.0.1` depuis `accueil/`), sur http://127.0.0.1:8765/tour/?service=http://127.0.0.1:8788. `--index <fichier>` lui donne un autre index (par exemple sans décisions, pour trancher). Compte du faux service : `equipe@horama.test`, mot de passe `essai-local` (un faux compte, pas un secret).
 
 Le manifeste du vault se régénère après `git fetch origin dev`, avant le build : `node automatisation/tour/scripts/manifeste-vault.mjs`.
 
