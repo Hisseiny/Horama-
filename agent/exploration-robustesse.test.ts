@@ -135,6 +135,27 @@ test("refus des cookies sur de vraies pages Chrome locales", { skip: !available 
   });
 
   const surface = { ...client, close() {} };
+  await t.test("carte cookies à 20 px du bord : refus explicite puis masquage de repli réversible", async () => {
+    for (const label of ["No, thanks", "No thanks", "Non merci", "Nein danke"]) {
+      await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = ${JSON.stringify(`<aside id="banner" style="position:fixed;bottom:20px;left:20px;width:400px;height:200px;visibility:visible!important"><p>We're the cookies</p><button id="choose">Let me choose</button><button id="ok">OK</button><button id="accept">Accept</button><button id="reject">${label}</button></aside>`)};
+        window.selected = []; document.querySelectorAll('button').forEach(button => button.onclick = () => window.selected.push(button.id));` });
+      assert.equal((await client.send("Runtime.evaluate", { expression: `(${refuseCookies.toString()})()`, returnByValue: true })).result.value, true, label);
+      assert.deepEqual((await client.send("Runtime.evaluate", { expression: "window.selected", returnByValue: true })).result.value, ["reject"], label);
+      const restore = await hideCaptureOverlays(surface);
+      assert.deepEqual((await client.send("Runtime.evaluate", { expression: "[getComputedStyle(document.querySelector('#banner')).visibility, window.selected]", returnByValue: true })).result.value, ["hidden", ["reject"]], label);
+      await restore();
+      assert.deepEqual((await client.send("Runtime.evaluate", { expression: "[document.querySelector('#banner').style.getPropertyValue('visibility'), document.querySelector('#banner').style.getPropertyPriority('visibility'), window.selected]", returnByValue: true })).result.value, ["visible", "important", ["reject"]], label);
+    }
+    await client.send("Runtime.evaluate", { expression: "document.querySelector('#reject').remove(); window.selected = [];" });
+    assert.equal((await client.send("Runtime.evaluate", { expression: `(${refuseCookies.toString()})()`, returnByValue: true })).result.value, false);
+    assert.deepEqual((await client.send("Runtime.evaluate", { expression: "window.selected", returnByValue: true })).result.value, []);
+    for (const margin of [48, 49]) {
+      await client.send("Runtime.evaluate", { expression: `document.querySelector('#banner').style.bottom = '${margin}px';` });
+      const restore = await hideCaptureOverlays(surface);
+      assert.equal((await client.send("Runtime.evaluate", { expression: "getComputedStyle(document.querySelector('#banner')).visibility", returnByValue: true })).result.value, margin === 48 ? "hidden" : "visible");
+      await restore();
+    }
+  });
   await t.test("masquage générique réversible sans clic et fermeture du menu par Échap", async () => {
     for (const [position, edge, text] of [["fixed", "bottom:0", "Cookies and privacy"], ["sticky", "top:0", "Consentement et confidentialité"], ["fixed", "top:0", "Datenschutz und Einwilligung"]]) {
       await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = ${JSON.stringify(`<div id="banner" style="position:${position};${edge};height:80px;width:100%;visibility:visible!important">${text}<form><button>Accept all</button></form></div><main>Privacy policy in the page</main><div id="newsletter" style="position:fixed;bottom:0;right:0">Newsletter</div><div id="middle" style="position:fixed;top:200px">Cookies</div><div id="menu">Menu</div>`)};

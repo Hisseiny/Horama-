@@ -8,10 +8,10 @@ export function maskConsentBanners() {
     const style = getComputedStyle(element), rect = element.getBoundingClientRect();
     if (!["fixed", "sticky"].includes(style.position) || style.visibility !== "visible" || Number(style.opacity) === 0
       || rect.width <= 0 || rect.height <= 0 || rect.height > innerHeight * 0.6 || rect.right <= 0 || rect.left >= innerWidth
-      || rect.bottom <= 0 || rect.top >= innerHeight || Math.abs(rect.top) > 12 && Math.abs(rect.bottom - innerHeight) > 12) continue;
+      || rect.bottom <= 0 || rect.top >= innerHeight || Math.abs(rect.top) > 48 && Math.abs(rect.bottom - innerHeight) > 48) continue;
     if (!/cookie|consent|privacy|confidentialit|datenschutz|einwilligung/i.test(element.innerText || element.textContent || "")) continue;
     const controls = element.querySelectorAll<HTMLElement>('button, [role="button"], a');
-    if (![...controls].some(control => /\b(?:accepter|refuser|parametrer|personnaliser|autoriser|j['’]accepte|accept|reject|decline|manage|customize|preferences|allow|agree|akzeptieren|ablehnen|einstellungen|zustimmen|erlauben)\b/i.test(
+    if (![...controls].some(control => /\b(?:accepter|refuser|parametrer|personnaliser|autoriser|j['’]accepte|accept|reject|decline|manage|customize|preferences|allow|agree|no,?\s+thanks|non\s+merci|nein\s+danke|akzeptieren|ablehnen|einstellungen|zustimmen|erlauben)\b/i.test(
       [control.innerText || control.textContent, control.getAttribute("aria-label"), control.getAttribute("title")].join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "")))) continue;
     saved.push({ element, value: element.style.getPropertyValue("visibility"), priority: element.style.getPropertyPriority("visibility") });
     element.style.setProperty("visibility", "hidden", "important");
@@ -46,7 +46,7 @@ export async function hideCaptureOverlays(client: ExplorationCdp, log: (message:
 
 export function refuseCookies(): boolean {
   const normalize = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase().replace(/\s+/g, " ");
-  const refusals = new Set(["tout refuser", "refuser", "refuser tout", "continuer sans accepter", "reject all", "reject", "decline", "deny", "only necessary", "necessary only", "necessaires uniquement", "uniquement les necessaires", "reject all cookies", "refuser tous les cookies", "ablehnen", "alle ablehnen", "nur notwendige", "nur notwendige cookies"]);
+  const refusals = new Set(["tout refuser", "refuser", "refuser tout", "continuer sans accepter", "reject all", "reject", "decline", "deny", "no, thanks", "no thanks", "non merci", "nein danke", "only necessary", "necessary only", "necessaires uniquement", "uniquement les necessaires", "reject all cookies", "refuser tous les cookies", "ablehnen", "alle ablehnen", "nur notwendige", "nur notwendige cookies"]);
   for (const element of document.querySelectorAll<HTMLElement>('button, [role="button"], a')) {
     const text = normalize(element.innerText || element.textContent || "");
     const labels = [text, normalize(element.getAttribute("aria-label") ?? ""), normalize(element.getAttribute("title") ?? "")];
