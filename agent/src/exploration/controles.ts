@@ -65,7 +65,8 @@ function inspectDocument() {
     for (let ancestor: Element | null = element.parentElement; ancestor && ancestor !== document.body; ancestor = ancestor.parentElement) {
       if (ancestor.matches('[aria-roledescription="carousel" i],[aria-roledescription="carrousel" i],[aria-roledescription="slide" i]')
         || /(^|[-_\s])(carousel|carrousel|slider|swiper|slick|splide|glide|flickity|owl)([-_\s]|$)/i.test(String(ancestor.getAttribute("class") ?? ""))
-        || getComputedStyle(ancestor).scrollSnapType !== "none") return true;
+        || getComputedStyle(ancestor).scrollSnapType !== "none"
+        || (["auto", "scroll"].includes(getComputedStyle(ancestor).overflowX) && ancestor.scrollWidth > ancestor.clientWidth + 1)) return true;
     }
     return false;
   };
@@ -164,7 +165,8 @@ function inspectDocument() {
     const down = (Math.max(0, top - ink.top) + Math.max(0, ink.bottom - top - element.clientHeight * scaleY)) / scaleY;
     if (across > 3 || down > Math.max(3, lineHeight / 2)) {
       add("debordement", "Le texte dépasse la boîte de son conteneur.", `${element.scrollWidth}×${element.scrollHeight} > ${element.clientWidth}×${element.clientHeight}`, element,
-        carousel(element) ? "Le texte est dans un carrousel, dont les diapositives débordent volontairement." : undefined);
+        carousel(element) ? "Le texte est dans un carrousel ou un bandeau défilant, dont les éléments débordent volontairement."
+          : element.closest('[aria-hidden="true"]') ? "Le texte est décoratif (aria-hidden) : son débordement peut être voulu." : undefined);
     }
   }
   const rank = (link: Element) => link.closest("main,[role=main]") ? 0 : link.closest("header,nav,footer,aside,[role=banner],[role=navigation],[role=contentinfo]") ? 2 : 1;
