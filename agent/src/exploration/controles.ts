@@ -143,7 +143,15 @@ function inspectDocument() {
       const indent = parseFloat(style.textIndent) || 0;
       const scaleX = box.width / (element as HTMLElement).offsetWidth || 1, scaleY = box.height / (element as HTMLElement).offsetHeight || 1;
       const left = box.left + element.clientLeft * scaleX, top = box.top + element.clientTop * scaleY;
-      if (ink && !(indent < 0 && ink.right <= box.left) && box.right + scrollX > 0 && box.bottom + scrollY > 0
+      // Text pushed entirely out of the clipping boxes (image replacement, negative indent) is hidden on purpose, not cut.
+      let view = ink && { left: ink.left, top: ink.top, right: ink.right, bottom: ink.bottom };
+      for (let ancestor: Element | null = element; ancestor && view; ancestor = ancestor.parentElement) {
+        const css = getComputedStyle(ancestor), clip = ancestor.getBoundingClientRect();
+        if (["hidden", "clip"].includes(css.overflowX)) view = { ...view, left: Math.max(view.left, clip.left), right: Math.min(view.right, clip.right) };
+        if (["hidden", "clip"].includes(css.overflowY)) view = { ...view, top: Math.max(view.top, clip.top), bottom: Math.min(view.bottom, clip.bottom) };
+        if (view.right <= view.left || view.bottom <= view.top) view = undefined;
+      }
+      if (ink && view && !(indent < 0 && ink.right <= box.left) && box.right + scrollX > 0 && box.bottom + scrollY > 0
         && ((clippedX && (ink.right > left + (element.clientWidth + 1) * scaleX || ink.left < left - scaleX))
           || (clippedY && (ink.bottom > top + (element.clientHeight + 1) * scaleY || ink.top < top - scaleY)))) {
         add("texte_rogne", "Le texte est rogné par son conteneur.", `${element.scrollWidth}×${element.scrollHeight} > ${element.clientWidth}×${element.clientHeight}`, element);
