@@ -1,6 +1,6 @@
 # Test de la boucle verte (fin du pitch) : préparé, pas lancé
 
-But : montrer la fin du cycle du mode développeur. Horama a trouvé des défauts sur la PR #16 du clone, Léon pousse un commit qui les corrige, et Horama répond sur la PR qu'il n'y a plus de défaut prouvé.
+But : montrer la fin du cycle de l'entrée par une PR. Horama a trouvé des défauts sur la PR #16 du clone, Léon pousse un commit qui les corrige, et Horama répond sur la PR qu'il n'y a plus de défaut prouvé.
 
 Coût : un passage H, environ 0,10 à 0,22 $ et 4 à 6 min (passage final du 19/11 : 343 s, 0,22 $). Il se lance seulement sur un go de Nathan tapé dans la session du couloir Nathan : il publie une réponse sur une PR du clone.
 

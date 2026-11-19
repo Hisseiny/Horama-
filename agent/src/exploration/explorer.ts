@@ -65,13 +65,16 @@ export function explorationPassageId(date: Date): string {
 
 export const exclusionLabel = (reason: string) => reason === "section-limit" ? "limite de pages par rubrique atteinte" : reason;
 
-function readingInstruction(): string {
-  return "Après relever, sur CHAQUE page (départ, clic ou adresse), seulement s'il reste des pages à relever : fais au plus 5 petits scroll_web vers le bas (direction down, num_pixels environ 450, soit une demi-hauteur d'écran, scroll_element null). Arrête ces petits pas dès le bas atteint ou si la page ne bouge plus. Si le bas reste hors vue, fais ensuite UN seul grand scroll_web jusqu'en bas (direction down, num_pixels 100000). Fais ensuite UN geste de visiteur facultatif si la page en propose un visible : menu déroulant, accordéon, onglet ou question FAQ, jamais un formulaire ni une connexion. N'ajoute pas de scrolls pour chercher un contrôle. Pour changer de page, cherche d'abord un lien utile visible là où tu es (menu fixe, corps ou pied de page). Seulement si aucun lien utile n'est visible, remonte en 2 ou 3 scroll_web moyens au plus (direction up, num_pixels environ 900, scroll_element null). Jamais de grand scroll vers le haut pour retrouver le menu. Aucun aller-retour supplémentaire, ni répétition à une extrémité sans déplacement. Ne répète pas la lecture déjà faite sur la page courante.";
+function readingInstruction(dimensions?: { page: number; viewport: number }): string {
+  const distance = dimensions ? dimensions.page - dimensions.viewport : null;
+  const count = distance === null ? null : distance < 100 ? 0 : Math.min(5, Math.ceil(distance / 450));
+  if (count === 0) return "Sur cette page : 0 défilement utile, ne défile pas. Fais un geste de visiteur facultatif si un contrôle est visible, jamais un formulaire ni une connexion. Pour changer de page, clique un lien utile visible ; sinon utilise le recours go_to prévu. Ne répète pas la lecture déjà faite sur la page courante.";
+  return (count === null ? "" : `Sur cette page : fais exactement ${count} ${count === 1 ? "petit défilement utile" : "petits défilements utiles"} de 450 px vers le bas. `) + `Après relever, sur CHAQUE page (départ, clic ou adresse), seulement s'il reste des pages à relever : ${count === null ? "fais au plus 5" : `fais ${count}`} ${count === 1 ? "petit" : "petits"} scroll_web vers le bas (direction down, num_pixels environ 450, soit une demi-hauteur d'écran, scroll_element null). Arrête ces petits pas dès le bas atteint ou si la page ne bouge plus. Si le bas reste hors vue, fais ensuite UN seul grand scroll_web jusqu'en bas (direction down, num_pixels 100000). Fais ensuite UN geste de visiteur facultatif si la page en propose un visible : menu déroulant, accordéon, onglet ou question FAQ, jamais un formulaire ni une connexion. N'ajoute pas de scrolls pour chercher un contrôle. Pour changer de page, cherche d'abord un lien utile visible là où tu es (menu fixe, corps ou pied de page). Seulement si aucun lien utile n'est visible, remonte en 2 ou 3 scroll_web moyens au plus (direction up, num_pixels environ 900, scroll_element null). Jamais de grand scroll vers le haut pour retrouver le menu. Aucun aller-retour supplémentaire, ni répétition à une extrémité sans déplacement. Ne répète pas la lecture déjà faite sur la page courante.`;
 }
 
 const pathOf = (address: string) => { const parsed = new URL(address); return parsed.pathname + parsed.search; };
-function clickInstruction(pages: Array<{ ecran: string; url: string }>): string {
-  return `${readingInstruction()} Puis sans go_to clique un lien visible de la page courante (menu, corps ou pied de page) vers une page pas encore relevée de cette liste : ${pages.map(page => `${page.ecran} : chemin ${pathOf(page.url)} (${page.url})`).join(" ; ")}. Choisis le lien par son adresse (son chemin), pas par son nom : un lien au nom proche peut mener ailleurs. Attends le chargement puis appelle relever avec l'ecran de la page atteinte. Si aucun lien visible ne mène à une page de la liste, même après avoir examiné le menu : en dernier recours seulement, ouvre ${pages[0]?.url} avec go_to puis appelle relever(ecran="${pages[0]?.ecran}", vue="defaut", raison_go_to="explique quel lien manque ou est inutilisable").`;
+function clickInstruction(pages: Array<{ ecran: string; url: string }>, dimensions?: { page: number; viewport: number }): string {
+  return `${readingInstruction(dimensions)} Puis sans go_to clique un lien visible de la page courante (menu, corps ou pied de page) vers une page pas encore relevée de cette liste : ${pages.map(page => `${page.ecran} : chemin ${pathOf(page.url)} (${page.url})`).join(" ; ")}. Choisis le lien par son adresse (son chemin), pas par son nom : un lien au nom proche peut mener ailleurs. Attends le chargement puis appelle relever avec l'ecran de la page atteinte. Si aucun lien visible ne mène à une page de la liste, même après avoir examiné le menu : en dernier recours seulement, ouvre ${pages[0]?.url} avec go_to puis appelle relever(ecran="${pages[0]?.ecran}", vue="defaut", raison_go_to="explique quel lien manque ou est inutilisable").`;
 }
 
 export function construireExploration(pages: Array<{ ecran: string; url: string }>, site: string, version: string, pagesCliquees = 4): Consigne {
@@ -387,9 +390,13 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
       let active: SessionEnCours | undefined;
       let stopped = false;
       let completed = false;
+      let autoCompleted = false;
+      let stopRequest: Promise<void> | undefined;
+      const stopActive = () => stopRequest ??= Promise.resolve().then(() => active?.stop?.());
+      let dimensions: { page: number; viewport: number } | undefined;
       let sessionStarted = Date.now();
       const launch = async (plan: Consigne) => {
-        launches++; completed = false; sessionStarted = Date.now();
+        launches++; completed = false; autoCompleted = false; stopRequest = undefined; dimensions = undefined; sessionStarted = Date.now();
         hadClick = false; hadGoTo = false; currentScreen = undefined;
         const clicked = launches === 1 ? clickTarget : 0;
         try {
@@ -416,13 +423,14 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
               await input.onCreated(sessionId);
             },
             onTool: async (name, args) => withNote(await (async () => {
+              if (autoCompleted) return name === "terminer" ? "Parcours terminé. N'effectue plus aucune action." : 'Tous les relevés sont acquis. Appelle immédiatement terminer(etat="reussi"), sans navigation, scroll, geste ni attente supplémentaire.';
               if (blocage) return input.onTool("terminer", { etat: "echec", raison: blocage });
               const remaining = () => {
                 const page = unfinished()[0];
                 const recorded = pages.filter(page => page.etat === "visitee");
                 const progress = `${recorded.length}/${pages.length} pages relevées dans ce passage. Pages déjà relevées, à ne plus cliquer : ${recorded.map(page => page.ecran).join(", ") || "aucune"}.`;
-                if (page && clickedPages < clicked) return `${progress} ${clickInstruction(unfinished())}${linkHints(unfinished())} Ne termine pas avant les relevés restants.`;
-                return page ? `${progress} ${readingInstruction()} Ouvre ${page.url} avec go_to puis appelle relever(ecran="${page.ecran}", vue="defaut", raison_go_to="page hors quota de clics demandé"). Ne termine pas avant les relevés restants.` : 'Tous les relevés sont acquis. Appelle immédiatement terminer(etat="reussi"), sans navigation, scroll, geste ni attente supplémentaire.';
+                if (page && clickedPages < clicked) return `${progress} ${clickInstruction(unfinished(), dimensions)}${linkHints(unfinished())} Ne termine pas avant les relevés restants.`;
+                return page ? `${progress} ${readingInstruction(dimensions)} Ouvre ${page.url} avec go_to puis appelle relever(ecran="${page.ecran}", vue="defaut", raison_go_to="page hors quota de clics demandé"). Ne termine pas avant les relevés restants.` : 'Tous les relevés sont acquis. Appelle immédiatement terminer(etat="reussi"), sans navigation, scroll, geste ni attente supplémentaire.';
               };
               if (name === "terminer" && args.etat === "reussi" && unfinished().length) return `Fin refusée : des pages restent à visiter. ${remaining()}`;
               if (name === "relever") {
@@ -483,10 +491,27 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
                 currentScreen = accepted.ecran; hadClick = false; hadGoTo = false;
               }
               if (name === "terminer") completed = args.etat === "reussi";
-              if (name === "relever" && !unfinished().length) return remaining();
+              if (name === "relever" && accepted && !unfinished().length) {
+                await input.onTool("terminer", { etat: "reussi" });
+                completed = true; autoCompleted = true;
+                if (active) void stopActive().catch(() => {});
+                return remaining();
+              }
+              if (name === "relever" && accepted) {
+                dimensions = undefined;
+                let client: ExplorationCdp | undefined;
+                try {
+                  client = await (deps.connecter ?? connecterCdp)(port, accepted.url_finale ?? accepted.url);
+                  const measured = await client.send("Runtime.evaluate", { expression: "({ page: Math.max(document.documentElement.scrollHeight, document.body?.scrollHeight || 0), viewport: window.innerHeight })", returnByValue: true });
+                  const value = measured.result?.value;
+                  if (Number.isFinite(value?.page) && Number.isFinite(value?.viewport) && value.page > 0 && value.viewport > 0) dimensions = value;
+                } catch { /* La consigne habituelle reste valable sans mesure CDP. */ }
+                finally { client?.close(); }
+              }
               return name === "relever" ? `${response}\n${remaining()}` : response;
             })()),
           });
+          if (autoCompleted) void stopActive().catch(() => {});
           return active;
         } catch {
           agent.etat = "tombe"; agent.raison = "La session n'a pas pu être créée."; save();
@@ -496,7 +521,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
       const first = await launch(input.consigne);
       return {
         id: first.id,
-        async stop() { stopped = true; await active?.stop?.(); },
+        async stop() { stopped = true; await stopActive(); },
         fin: (async () => {
           let totalCost: number | null = 0, steps = 0;
           for (;;) {
@@ -509,14 +534,18 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
             } catch {
               result = { id: running?.id ?? "", muted: false, cout_usd: null, etapes: 0, erreur: "La session a été interrompue." };
             } finally {
-              try { await running?.stop?.(); await running?.confirmStopped?.(); }
-              catch { closeFailed = true; finalizationFailure = "La fermeture de la session n'a pas pu être confirmée."; agent.raison = finalizationFailure; }
+              try { await stopActive(); await running?.confirmStopped?.(); }
+              catch {
+                closeFailed = true;
+                agent.raison = "La fermeture de la session n'a pas pu être confirmée.";
+                if (!autoCompleted || pages.some(page => page.etat !== "visitee")) finalizationFailure = agent.raison;
+              }
             }
             totalCost = totalCost === null || result.cout_usd === null ? null : totalCost + result.cout_usd;
             steps += result.etapes;
             agent.cout_usd = result.cout_usd; agent.duree_s = (Date.now() - sessionStarted) / 1000;
             agent.replay_url = result.replay_url ?? null;
-            agent.etat = completed && !result.erreur && !result.muted ? "fini" : "tombe";
+            agent.etat = completed && (autoCompleted || (!result.erreur && !result.muted)) ? "fini" : "tombe";
             if (agent.etat === "tombe") agent.raison ??= result.erreur ?? (result.muted ? "La session est restée sans réponse." : "Session arrêtée avant la fin des visites (budget d'étapes ou erreur).");
             save();
             const remaining = unfinished();
@@ -524,7 +553,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
               for (const page of remaining) page.raison ??= signal?.aborted ? "Le passage a été annulé."
                 : closeFailed ? "Page non atteinte : la fermeture de la session précédente n'est pas confirmée."
                 : "Page non atteinte après deux sessions (budget d'étapes ou erreur).";
-              if (!remaining.length && !closeFailed) {
+              if (!remaining.length && (!closeFailed || (autoCompleted && pages.every(page => page.etat === "visitee")))) {
                 const { erreur: _erreur, ...visited } = result;
                 return { ...visited, muted: false, cout_usd: totalCost, etapes: steps };
               }

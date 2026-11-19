@@ -84,6 +84,57 @@ async function run({ png = original, skip = "", refuse = false, failure = false,
   return { result, base, responses };
 }
 
+for (const measurement of [{ page: 966, viewport: 900 }, { page: 1200, viewport: 900 }, { page: 3000, viewport: 900 }, null, "error"]) {
+  test(`lecture ajustée aux dimensions CDP : ${JSON.stringify(measurement)}`, async () => {
+    const { responses } = await run({ deps: {
+      connecter: async () => ({ on() {}, close() {}, send: async (_method, params) => {
+        if (String((params as Record<string, unknown>)?.expression).includes("viewport: window.innerHeight")) {
+          if (measurement === "error") throw new Error("CDP indisponible");
+          return { result: { value: measurement } };
+        }
+        return { result: { value: 200 } };
+      } }),
+    } });
+    if (measurement && typeof measurement === "object") {
+      assert.match(responses[0], measurement.page === 966 ? /0 défilement utile, ne défile pas/ : measurement.page === 1200 ? /exactement 1 petit défilement utile/ : /exactement 5 petits défilements utiles/);
+      if (measurement.page === 1200) assert.match(responses[0], /fais 1 petit scroll_web/);
+      if (measurement.page === 966) assert.doesNotMatch(responses[0], /fais ensuite UN seul grand scroll_web|remonte en 2 ou 3/);
+    } else assert.match(responses[0], /au plus 5 petits scroll_web/);
+  });
+}
+
+for (const failClose of [false, true]) {
+  test(`dernier relevé : fermeture autonome sans terminer H, fermeture échouée=${failClose}`, async () => {
+    let closed = false;
+    const { result } = await run({ deps: {
+      session: async input => {
+        await input.onCreated("autonomous");
+        let resolveStop!: () => void;
+        const stopped = new Promise<void>(resolve => { resolveStop = resolve; });
+        return { id: "autonomous",
+          stop: async () => { closed = true; resolveStop(); },
+          confirmStopped: async () => { if (failClose) throw new Error("Toujours active"); },
+          fin: (async () => {
+            for (const step of input.consigne.course) await input.onTool("relever", { ecran: step.ecran, vue: "defaut" });
+            await stopped;
+            return { id: "autonomous", muted: false, cout_usd: 0, etapes: 2, erreur: "Session supprimée" };
+          })(),
+        };
+      },
+      runtime: { relever: async ecran => ({ png: original, texte: "Page", url_page: ecran === "accueil" ? "https://example.org/" : "https://example.org/faq", largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture" }), navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
+    } });
+    assert.equal(closed, true);
+    assert.equal(result.etat, "fini");
+    assert.equal(result.agents[0].etat, "fini");
+    assert.ok(result.pages.every(page => page.etat === "visitee"));
+    if (failClose) assert.match(result.agents[0].raison!, /fermeture.*confirmée/);
+    const saved = JSON.parse(readFileSync(join(root, "out", "exploration.json"), "utf8"));
+    assert.equal(saved.etat, result.etat);
+    assert.equal(saved.agents[0].etat, result.agents[0].etat);
+    if (failClose) assert.match(saved.agents[0].raison, /fermeture.*confirmée/);
+  });
+}
+
 test("les redirections vers l’alias www restent sur le site", async () => {
   const { result, responses } = await run({ actual: address => address.replace("://example.org", "://www.example.org") });
   assert.equal(result.pages.filter(page => page.etat === "visitee").length, 2);
@@ -254,7 +305,7 @@ test("préparation attendue avant capture et contrôles dans explorer", async ()
   await run({ deps: {
     connecter: async () => ({ on() {}, close() {}, async send(_method, params) {
       const expression = String((params as Record<string, unknown> | undefined)?.expression);
-      if (expression.includes("responseStatus") || expression.includes("a[href]")) return { result: { value: 200 } };
+      if (expression.includes("responseStatus") || expression.includes("a[href]") || expression.includes("viewport: window.innerHeight")) return { result: { value: 200 } };
       events.push("préparation");
       await Promise.resolve();
       events.push("prêt");
@@ -496,10 +547,10 @@ for (const mode of ["visible", "different", "unavailable", "overlap", "label"]) 
   });
 }
 
-test("contrôle en échec, Holo hors délai et session interrompue", async () => {
+test("contrôle en échec et Holo hors délai restent non concluants après les relevés", async () => {
   const { result, base } = await run({ failure: true, deps: { controler: async () => { throw new Error("CDP"); },
     holo: async () => ({ status: "INCONCLUSIVE", model: "holo4-35b-a3b", durationMs: 16000, usage: null, cost_usd: null, findings: [], message: "Both Holo models timed out" }) } });
-  assert.equal(result.etat, "interrompu"); assert.equal(result.agents[0].etat, "tombe");
+  assert.equal(result.etat, "fini"); assert.equal(result.agents[0].etat, "fini");
   assert.equal(result.pages[0].holo?.etat, "hors_delai"); assert.equal(result.totaux.sans_conclusion, 4);
   assert.ok(base.resultats.every(item => item.statut === "INCONCLUSIVE" && item.raison));
 });
@@ -561,8 +612,8 @@ test("erreur H après le dernier relevé : toutes les pages visitées, passage f
   const { result } = await run({ lateError: true });
   assert.equal(result.etat, "fini");
   assert.ok(result.pages.every(page => page.etat === "visitee"));
-  assert.equal(result.agents[0].etat, "tombe");
-  assert.match(result.agents[0].raison!, /interrompue/);
+  assert.equal(result.agents[0].etat, "fini");
+  assert.equal(result.agents[0].raison, null);
 });
 
 test("budget de temps H proportionnel aux étapes et borné", () => {

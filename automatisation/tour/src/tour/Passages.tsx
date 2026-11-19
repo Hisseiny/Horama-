@@ -1,14 +1,14 @@
-// 11.8 Passages et historique, on real data only: the passages of the public index (mode développeur, PR of the clone)
-// and the explorations sent from this browser (grand public), the latest first; then the journal of the decisions taken
+// 11.8 Passages et rapports, on real data only: the passages of the public index (entry by a PR, PR of the clone)
+// and the explorations sent from this browser (entry by an address), the latest first; then the journal of the decisions taken
 // by a human, as the index carries them. No journal of the agent step by step: no source gives it today.
 import "../../interface/screen-11-8/styles.css";
-import "./tour.css";
 import type { Chargement } from "../donnees";
 import { usePrototype } from "../PrototypeContext";
-import { Erreurs, Mascot, Sidebar, dateCourte, dureeCout, type Route } from "./Commun";
+import { CHOIX, Erreurs, Mascot, Sidebar, dateCourte, dureeCout, etatLisible, sansSource, type Route } from "./Commun";
 
 export default function Passages({ route, data }: { route: Route; data: Chargement | null }) {
   const { lightMode } = usePrototype();
+  const vide = sansSource(data) ? "Rien à afficher tant que l'index ne répond pas." : null;
   const decisions = (data?.passages ?? []).flatMap((p) => p.constats.filter((c) => c.decision).map((c) => ({ p, c })));
   return (
     <div className={`app-shell history-screen${lightMode ? " is-light" : ""}`}>
@@ -16,14 +16,14 @@ export default function Passages({ route, data }: { route: Route; data: Chargeme
       <main className="main-content" id="main">
         <div className="content-column">
           <header className="history-page-heading">
-            <h1>Passages et historique</h1>
-            <p>Mode développeur : les PR du clone d'Eugenia School, lues dans l'index public des passages. Grand public : les explorations envoyées depuis ce navigateur.</p>
+            <h1>Passages et rapports</h1>
+            <p>Chaque ligne est une visite d'Horama. Ouvrez-en une pour voir ce qu'il a prouvé, capture à l'appui.</p>
           </header>
           <Erreurs data={data} />
           <section className="history-card passages-card" aria-labelledby="passages-title">
             <h2 id="passages-title">Passages</h2>
             {!data && <p className="tour-vide">Chargement des passages…</p>}
-            {data && !data.passages.length && <p className="tour-vide">Aucun passage pour l'instant.</p>}
+            {data && !data.passages.length && <p className="tour-vide">{vide ?? "Aucun passage pour l'instant."}</p>}
             {data && data.passages.length > 0 && (
               <div className="passages-table tour-passages">
                 <div className="passages-head">
@@ -40,16 +40,15 @@ export default function Passages({ route, data }: { route: Route; data: Chargeme
                         <span>{dateCourte(p.date)}</span>
                         <span className="tour-titre">
                           <strong>{p.titre}</strong>
-                          <small>{p.mode === "dev" ? "mode développeur" : "grand public"}{p.etat && p.etat !== "termine" && p.etat !== "fini" ? ` · ${p.etat}` : ""}</small>
+                          <small>{p.mode === "dev" ? "par une PR" : "par une adresse"}{etatLisible(p) ? ` · ${etatLisible(p)}` : ""}</small>
                         </span>
                         <span>{p.pages.visitees ?? "?"}{p.pages.trouvees ? ` / ${p.pages.trouvees}` : ""}</span>
                         <span className="passage-results">
-                          {p.defauts > 0 && <span className="is-bug">{p.defauts} [ ! ]</span>}
-                          {p.defauts > 0 && p.doutes > 0 && <i aria-hidden="true"> · </i>}
-                          {p.doutes > 0 && <span className="is-suspect">{p.doutes} [ ? ]</span>}
-                          {!p.defauts && !p.doutes && <span className="is-conform">rien de prouvé</span>}
+                          {p.defauts > 0 && <span className="is-bug">{p.defauts} {p.defauts > 1 ? "défauts prouvés" : "défaut prouvé"}</span>}
+                          {p.doutes > 0 && <span className="is-suspect">{p.doutes} {p.doutes > 1 ? "doutes" : "doute"}</span>}
+                          {!p.defauts && !p.doutes && (etatLisible(p) ? <span className="tour-etat">{etatLisible(p)}</span> : <span className="is-conform">rien de prouvé</span>)}
                         </span>
-                        <span>{dureeCout(p.duree_s, p.cout_usd)}</span>
+                        <span>{dureeCout(p.duree_s, p.cout_usd) || "Voir le rapport →"}</span>
                       </button>
                     </div>
                   </div>
@@ -73,12 +72,12 @@ export default function Passages({ route, data }: { route: Route; data: Chargeme
                     <strong>{c.page}</strong>
                     <span className="decision-rule">{c.texte}</span>
                   </span>
-                  <span className={`decision-pill is-${c.decision!.choix === "bug" ? "bug" : "wanted"}`}>{c.decision!.choix}</span>
+                  <span className={`decision-pill is-${c.decision!.choix === "bug" ? "bug" : "wanted"}`}>{CHOIX[c.decision!.choix]}</span>
                   <span className="decision-author">{c.decision!.par ? `par ${c.decision!.par}` : ""}</span>
                   <span className="decision-meta">{p.titre}</span>
                 </button>
               ))}
-              {data && !decisions.length && <p className="empty-decisions">Aucune décision pour l'instant.</p>}
+              {data && !decisions.length && <p className="empty-decisions">{vide ?? "Aucune décision pour l'instant."}</p>}
             </div>
           </section>
         </div>

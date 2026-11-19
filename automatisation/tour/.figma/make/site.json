@@ -1,8 +1,8 @@
 {
   "title": "Horama · Tour de contrôle",
-  "description": "Les passages d'Horama et leurs constats, sur données réelles : mode développeur (PR du clone) et grand public.",
+  "description": "Les passages d'Horama et leurs constats, sur données réelles : passages déclenchés par une PR du clone et explorations envoyées par adresse.",
   "language": "fr",
-  "icons": { "icon": "" },
+  "icons": { "icon": "/favicon.svg" },
   "robots": {
     "index": false
   },
