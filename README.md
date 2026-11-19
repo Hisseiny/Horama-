@@ -44,6 +44,8 @@ Pour le jury, à distance, sans terminal : Horama cherche les défauts d'un site
 - Avec plus d'accès à H, l'idée est de répartir les pages entre plusieurs agents qui travaillent en parallèle, jusqu'à un agent par page, pour couvrir tout un site, articles de blog compris, dans le temps d'une seule visite. Aujourd'hui, le moteur et son format de rapport sont prévus pour 1 à 3 agents, et le service tourne avec un seul (voir « Évolutions prévues »). Le gain de temps reste à mesurer.
 - **Conseil** : la page de départ est l'onglet ouvert. Pour tester une page précise (un article, une page profonde), ouvrez-la avant de cliquer sur Horama. C'est en partant d'un article du blog d'eugeniaschool.com qu'Horama a prouvé son lien « portes ouvertes » qui répond 404.
 
+Pourquoi nos démonstrations partent d'une page précise. Horama se lance depuis n'importe quelle page de n'importe quel site : la page de départ, c'est l'onglet ouvert. Sur la version gratuite des agents H, une exploration visite 8 pages au plus en environ 6 minutes. Sur un grand site, ce sont les premières pages du plan du site, souvent les plus soignées. Pour vous montrer en profondeur ce qu'Horama sait faire, nous le lançons sur une page qui a beaucoup à dire : un article du blog d'eugeniaschool.com, riche en liens, en textes et en appels à l'action. Horama contrôle d'abord cette page entièrement (chaque lien est appelé, chaque texte mesuré), puis continue sur le reste du site. Avec plusieurs agents H en parallèle, ce choix ne serait plus nécessaire : chaque page aurait son agent.
+
 **Les sites que nous avons vérifiés**. Testez le site de votre choix. Nous avons vérifié ceux-ci ; un site inconnu peut encore réserver une surprise.
 
 | Site | Date | Résultat |
