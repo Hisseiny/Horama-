@@ -1,7 +1,7 @@
 // The real data of the tower of control (#149), and nothing else: no example, no figure written here.
-// - Mode développeur: the public index of the passages, published by the wake-up on the branch of the captures of the
+// - Entry by a PR: the public index of the passages, published by the wake-up on the branch of the captures of the
 //   clone (automatisation/reveil/README.md, « L'index des passages »).
-// - Mode grand public: the explorations sent from the page of welcome, kept in this browser (localStorage
+// - Entry by an address: the explorations sent from the page of welcome, kept in this browser (localStorage
 //   « horama-explorations », written by accueil/envoye.js), each read again from its service (horama-exploration-1).
 // Both become one list of passages, the latest first. A source that does not answer says so; it never fills in.
 
@@ -20,7 +20,7 @@ export type Constat = {
   zone: Zone | null;
   taille: { largeur: number; hauteur: number } | null; // size of the capture, when known
   capture: string | null; // address of the image
-  entouree: boolean; // the capture already carries the stroke (mode développeur) or not (grand public)
+  entouree: boolean; // the capture already carries the stroke (entry by a PR) or not (entry by an address)
   decision: Decision | null;
 };
 export type Passage = {
@@ -131,7 +131,7 @@ export async function charger(): Promise<Chargement> {
     const index = await response.json();
     passages.push(...(index.passages ?? []).map(fromIndex));
   } catch {
-    erreurs.push("Index des passages du mode développeur illisible : le dépôt ne répond pas, rechargez la page.");
+    erreurs.push("Index des passages déclenchés par une PR illisible : le dépôt ne répond pas, rechargez la page.");
   }
   const envois = historique();
   // Only a 404 means the service no longer keeps an exploration; a service asleep, in error or answering something
