@@ -2,10 +2,9 @@
 // everything that was an example (no account, no plan, no « agent disponible »), and the capture of a finding with the
 // sign of the charter on its zone.
 import { useEffect, useRef } from "react";
-import { usePrototype } from "../PrototypeContext";
 import { Icon } from "../../interface/screen-11-1/Icons";
 import { poserDoute, tracerDefaut } from "../trait.js";
-import type { Chargement, Constat } from "../donnees";
+import type { Chargement, Constat, Decision, Passage } from "../donnees";
 
 export type Route = { ecran: "passages" | "rapport" | "relire"; cle?: string };
 
@@ -31,7 +30,11 @@ export function Logo() {
   );
 }
 
-export function Mascot() {
+// The iris says what the page holds, as the mascot of the welcome page does (accueil/mascotte.js): miltos for a proven
+// defect, ochre for a doubt, olive when all is done; iris of the charter while it only looks.
+const IRIS = { trouve: "#B8321F", doute: "#C48A1E", fini: "#2E7D55" };
+
+export function Mascot({ etat }: { etat?: keyof typeof IRIS }) {
   return (
     <div className="mascot" aria-hidden="true">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 4 96 66">
@@ -40,7 +43,7 @@ export function Mascot() {
           <path d="M66 46C72 30 86 24 94 28c-6 3-7 7-5 10-5 1-7 5-5 8-5 1-8 5-7 9-5-1-9-4-11-9Z" />
         </g>
         <circle cx="48" cy="48" r="20" fill="#fff" stroke="#1C1C1C" strokeWidth="3" />
-        <circle cx="48" cy="48" r="10.5" fill="#7F77DD" />
+        <circle cx="48" cy="48" r="10.5" fill={etat ? IRIS[etat] : "#7F77DD"} />
         <circle cx="48" cy="48" r="4.6" fill="#1C1C1C" />
         <circle cx="51.6" cy="44.4" r="2.2" fill="#fff" />
       </svg>
@@ -51,10 +54,9 @@ export function Mascot() {
 const aRelire = (data: Chargement | null) => (data ? data.passages.flatMap((p) => p.constats).filter((c) => !c.decision).length : 0);
 
 export function Sidebar({ route, data }: { route: Route; data: Chargement | null }) {
-  const { lightMode, toggleTheme } = usePrototype();
   const sites = data ? [...new Set(data.passages.map((p) => p.site).filter(Boolean))] : [];
   const items = [
-    { icon: "clock" as const, label: "Passages & Rapports", hash: "", active: route.ecran !== "relire" },
+    { icon: "clock" as const, label: "Passages et rapports", hash: "", active: route.ecran !== "relire" },
     { icon: "document" as const, label: "À relire", hash: "relire", active: route.ecran === "relire", count: aRelire(data) },
   ];
   return (
@@ -63,8 +65,8 @@ export function Sidebar({ route, data }: { route: Route; data: Chargement | null
         <Logo />
         <div className="product-select-wrap">
           <div className="product-select" aria-label="Sites suivis">
-            <span>{sites.length ? sites.join(", ") : "Tour de contrôle"}</span>
-            <small>{data ? `${data.passages.length} passage${data.passages.length > 1 ? "s" : ""}` : "chargement…"}</small>
+            <span>{sites.length > 1 ? `${sites.length} sites suivis` : sites[0] ?? "Tour de contrôle"}</span>
+            <small>{!data ? "chargement…" : sansSource(data) ? "index muet" : `${data.passages.length} passage${data.passages.length > 1 ? "s" : ""}`}</small>
           </div>
         </div>
         <a className="run-button" href="../">
@@ -82,12 +84,6 @@ export function Sidebar({ route, data }: { route: Route; data: Chargement | null
           ))}
         </nav>
       </div>
-      <div className="sidebar-bottom">
-        <button className="theme-toggle" type="button" aria-pressed={lightMode} onClick={toggleTheme}>
-          <Icon name={lightMode ? "moon" : "sun"} />
-          <span>{lightMode ? "Mode sombre" : "Mode clair"}</span>
-        </button>
-      </div>
     </aside>
   );
 }
@@ -97,7 +93,19 @@ export const dateCourte = (iso: string) => {
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).replace(" ", " · ");
 };
 export const dureeCout = (duree: number | null, cout: number | null) =>
-  [duree !== null ? `${Math.floor(duree / 60)} min ${String(Math.round(duree % 60)).padStart(2, "0")} s` : null, cout !== null ? `${cout.toFixed(2).replace(".", ",")} $` : null].filter(Boolean).join(" · ") || "non publiés";
+  [duree !== null ? `${Math.floor(duree / 60)} min ${String(Math.round(duree % 60)).padStart(2, "0")} s` : null, cout !== null ? `${cout.toFixed(2).replace(".", ",")} $` : null].filter(Boolean).join(" · ");
+
+// No source at all: the index did not answer and no exploration was read. Nothing can be said then, not even « 0 ».
+export const sansSource = (data: Chargement | null) => !!data && data.erreurs.length > 0 && data.passages.length === 0;
+
+// The state of a passage that is not over, in words; "" once it is over.
+const ETATS: Record<string, string> = { en_file: "en attente", en_cours: "visite en cours", echec: "visite interrompue", interrompu: "visite interrompue" };
+export const estFini = (p: Passage) => p.etat === "termine" || p.etat === "fini";
+export const etatLisible = (p: Passage) => (estFini(p) ? "" : ETATS[p.etat ?? ""] ?? p.etat ?? "état inconnu");
+
+// A decision as the source carries it (« Bug, par Nathan »), or « à trancher » while nobody decided.
+export const CHOIX = { bug: "Bug", voulu: "Voulu" };
+export const decisionLisible = (d: Decision | null) => (d ? `${CHOIX[d.choix]}${d.par ? `, par ${d.par}` : ""}` : "à trancher");
 
 // The capture of a finding, its zone in view. Mode développeur: the capture was ringed by the scene. Grand public: the
 // raw capture, and the sign of the charter drawn here on its zone (a stroke of miltos, or ochre dots).

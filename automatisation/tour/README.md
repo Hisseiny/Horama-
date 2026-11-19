@@ -6,7 +6,7 @@ Les passages d'Horama et leurs constats, en ligne, sur données réelles seuleme
 
 | Écran du prototype | En ligne | Source |
 |---|---|---|
-| 11.8 Passages et historique | oui, à l'ouverture | l'index public des passages (mode développeur) et les explorations envoyées depuis ce navigateur (grand public) ; le journal des décisions de l'index |
+| 11.8 Passages et rapports | oui, à l'ouverture | l'index public des passages (mode développeur) et les explorations envoyées depuis ce navigateur (grand public) ; le journal des décisions de l'index |
 | 11.4 Rapport de passage | oui | les constats d'un passage, chacun sur sa capture : entourée par la scène (mode développeur), ou avec le trait miltos ou les points ocre dessinés ici (`src/trait.js`, la charte) sur la capture brute du service (grand public) |
 | 11.6 À relire | oui, en lecture seule | les constats, ceux sans décision d'abord ; la décision et son auteur viennent de l'index. Une page publique ne tient aucune clé : « bug » ou « voulu » se tranche dans la scène ou le rapport, jamais ici |
 | 11.1, 11.2, 11.3, 11.5, 11.7, connexion | non | aucune source réelle : rien d'exemple n'est mis en ligne. Le journal de l'agent étape par étape de 11.8 non plus |
