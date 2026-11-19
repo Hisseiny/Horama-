@@ -285,7 +285,7 @@ Ce qui n'est pas mesuré : la boucle complète d'une correction (un commit qui c
 - **Contrôle « texte non traduit »** : il ne juge que les blocs d'au moins 8 mots, dont 3 mots outils de la langue étrangère (`agent/src/exploration/controles.ts`) ; un titre, un bouton ou un menu court resté dans une autre langue que celle déclarée par la page n'est pas relevé (sur la PR #16 du clone, deux titres de `/ecole` restés en français).
 - **Holo** : des faux doutes répétés (un logo très petit pris pour un logo masqué, sur albertschool.com) ; consignes spécialisées par sorte de doute à venir.
 - **Entrée par une PR** : jouée de bout en bout sur la PR #16 du clone ; reste la boucle d'une correction (un commit qui corrige les défauts, puis une réponse sans défaut). Quand une PR change la langue du site, les tests écrits du vault sont écartés et seule l'exploration est jouée.
-- **Tour de contrôle** (#149) : en ligne sur https://horama-gold.vercel.app/tour/, construite depuis la maquette d'Axil sur données réelles (index des passages déclenchés par une PR, explorations envoyées depuis le navigateur)  ; l'équipe peut y trancher « bug » ou « voulu » après connexion (#238). Le 19/11 au soir, l'écriture par le service échouait faute de droits du jeton GitHub (#255) : à revérifier après sa correction.
+- **Tour de contrôle** (#149) : en ligne sur https://horama-gold.vercel.app/tour/, construite depuis la maquette d'Axil sur données réelles (index des passages déclenchés par une PR, explorations envoyées depuis le navigateur) ; l'équipe peut y trancher « bug » ou « voulu » après connexion (#238). Le 19/11 au soir, l'écriture par le service échouait faute de droits du jeton GitHub (#255) : à revérifier après sa correction.
 - **Interface web** (`interface/`) : sur données factices ; la démo se joue dans la scène et la page de rapport.
 - **n8n** (C7, notification « cas à relire ») : non construit.
 - **Limites connues** : le mode scripté (sans agent H) ne sait pas cliquer un lien hors de l'écran ni ouvrir le menu burger ; la correction de note varie d'un appel à l'autre.
@@ -302,11 +302,11 @@ Après le hackathon, dans cet ordre de dépendance :
 
 ### Le plus court : le service d'exploration dans Docker (une seule clé H)
 
-C'est le service que le jury utilise en ligne. Il ne demande qu'une clé de l'Agents API de H (`HAI_API_KEY`) : il tourne sans base (`--sans-base`) et sans autre service.
+C'est le service que le jury utilise en ligne. Il ne demande qu'une clé de l'Agents API de H (`HAI_API_KEY`) : il tourne sans base (`--sans-base`) et sans autre service. `HORAMA_MAX_SECONDS=380` et 4 Go reprennent les réglages du service en ligne (sans la variable, le plafond est de 240 s ; le pic de mémoire mesuré sur 8 pages va jusqu'à 1,92 Go).
 
 ```sh
 docker build -t horama-explorations .
-docker run --rm --memory 1g -p 127.0.0.1:8787:8787 -e HAI_API_KEY horama-explorations
+docker run --rm --memory 4g -p 127.0.0.1:8787:8787 -e HAI_API_KEY -e HORAMA_MAX_SECONDS=380 horama-explorations
 ```
 
 Puis, dans les options de l'extension, mettre l'adresse du service à `http://127.0.0.1:8787`. On peut aussi l'appeler directement (détail des routes plus haut, « Lancer le service en local »).
