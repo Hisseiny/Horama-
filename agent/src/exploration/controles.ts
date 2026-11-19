@@ -14,6 +14,7 @@ export interface Defaut {
   sorte: "page_en_erreur" | "image_cassee" | "defilement_horizontal" | "debordement" | "texte_rogne" | "lien_casse" | "texte_erreur" | "erreur_console" | "texte_non_traduit";
   message: string;
   selecteur?: string;
+  libelle?: string;
   zone?: Zone;
   valeur?: string | number;
   raison?: string;
@@ -296,7 +297,11 @@ function inspectDocument() {
     if (!URL.canParse(link.href, location.href)) return false;
     const url = new URL(link.href, location.href);
     return visible(link) && url.origin === location.origin && /^https?:$/.test(url.protocol) && !(url.pathname === location.pathname && url.search === location.search);
-  }).map(link => { const url = new URL(link.href); url.hash = ""; return { url: url.href, rang: rank(link), ...proof(link) }; })
+  }).map(link => {
+    const url = new URL(link.href);
+    url.hash = "";
+    return { url: url.href, rang: rank(link), libelle: link.innerText.replace(/\s+/g, " ").trim(), ...proof(link) };
+  })
     .sort((a, b) => a.rang - b.rang);
   return { defects, links };
 }
@@ -398,9 +403,10 @@ async function checkLinks(links: ReturnType<typeof inspectDocument>["links"], op
       if (final && final.status >= 400) final = await follow(link.url, "GET");
       // No answer, too many redirects or rate limiting prove nothing about the link.
       if (!final || final.status < 400 || final.status === 429) continue;
+      const subject = link.libelle ? `Le lien interne « ${link.libelle} »` : "Le lien interne";
       const message = final.hops
-        ? `Le lien interne mène, après ${final.hops} redirection${final.hops > 1 ? "s" : ""}, à ${final.url} qui renvoie HTTP ${final.status}.`
-        : `Le lien interne renvoie HTTP ${final.status}.`;
+        ? `${subject} mène, après ${final.hops} redirection${final.hops > 1 ? "s" : ""}, à ${final.url} qui renvoie HTTP ${final.status}.`
+        : `${subject} renvoie HTTP ${final.status}.`;
       broken.push({ link, message, valeur: `${link.url} : ${final.status}` });
     } catch { /* Une absence de réponse ne prouve pas un lien cassé. */ }
   }
@@ -413,6 +419,7 @@ async function checkLinks(links: ReturnType<typeof inspectDocument>["links"], op
   return broken.map(({ link, message, valeur }): Defaut => {
     const click = clicks.get(link.url);
     return { statut: click === "navigue" ? "VERIFIED_FAIL" : "SUSPECTED", sorte: "lien_casse", message, selecteur: link.selecteur, zone: link.zone, valeur,
+      ...(link.libelle ? { libelle: link.libelle } : {}),
       ...(click === "navigue" ? {} : { raison: reasons[click ?? "absent"] }) };
   });
 }
