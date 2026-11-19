@@ -8,6 +8,28 @@ Hackathon Eugenia « Build The Future », 16 au 20 novembre 2026, équipe 11. Ho
 
 Ce document décrit l'architecture rendue le 18 novembre à 17 h, complétée le 19 : ce qui existe, ce qui a été mesuré, ce qui reste à construire. Chaque chiffre renvoie à son rapport dans `docs/tests/` ; une valeur non mesurée est écrite « à mesurer ».
 
+## Essayer Horama
+
+Pour le jury, à distance, sans terminal : Horama cherche les défauts d'un site public de votre choix. Tout passe par le service d'exploration en ligne (Railway, https://explorations-production-70bf5b38.up.railway.app) ; il suffit de Chrome.
+
+1. **Ouvrir Horama.** Sans rien installer : https://horama-gold.vercel.app. Ou l'extension Chrome : téléchargez https://horama-gold.vercel.app/horama-extension.zip, dézippez-le, ouvrez `chrome://extensions`, activez le « Mode développeur », cliquez « Charger l'extension non empaquetée » et choisissez le dossier dézippé.
+2. **Donner le site.** Sur la page d'accueil, collez l'adresse dans le champ. Avec l'extension, ouvrez le site puis cliquez sur l'icône Horama : l'adresse de l'onglet est déjà remplie.
+3. **Lancer.** Cliquez « Envoyer Horama ». Le rapport s'ouvre dans un onglet. S'il y a déjà une exploration en cours, il affiche votre place dans la file.
+4. **Regarder.** L'encadré « En direct » montre l'onglet que pilote l'agent H ; les pages visitées s'ajoutent une à une. Comptez **environ 4 minutes** : une exploration s'arrête au plus tard à 240 s, avec 8 pages au plus (`HORAMA_MAX_PAGES=8`). Sur le service en ligne, le 19/11, 3 à 7 pages sur 8 tenaient dans ce temps ([#208](https://github.com/Hisseiny/Horama-/issues/208)) ; les pages non atteintes sont marquées « non visitée », jamais comptées comme réussies.
+5. **Lire le récapitulatif.**
+   - Un **défaut prouvé** a été vérifié par le code (lien qui répond en erreur, texte qui déborde de sa boîte, image cassée, texte resté dans une autre langue…) : il vient avec sa capture entourée et sa mesure (« mesuré : … », « attendu : … »).
+   - Un **doute** vient du regard du modèle visuel Holo : rien n'est prouvé, c'est à vous de trancher « bug » ou « voulu ».
+
+**Ce qui peut arriver**
+- Un site qui bloque les robots (decathlon.fr répond 403) : l'exploration s'arrête tout de suite et le dit.
+- Une page qui demande une connexion : Horama ne remplit aucun formulaire ; la page est notée « Connexion demandée », avec la raison.
+- Un grand site : 8 pages au plus sont visitées (plafond du service, réglé dans Railway).
+- Un service occupé : une exploration à la fois, 5 en file au plus ; 4 demandes par heure et par adresse IP, 12 par heure en tout. Au-delà, un message le dit.
+- Une adresse privée, locale ou avec identifiants : refusée avant tout lancement.
+- La langue : le service tourne aux Pays-Bas, certains sites servent leur version néerlandaise.
+
+**Pour l'équipe : l'adresse du service et le `.zip`.** L'adresse est la constante `DEFAULT_SERVICE` de `extension/service.js` ; chaque utilisateur peut la changer dans les options de l'extension. Après un changement de l'extension : `sh extension/empaqueter.sh` produit `extension/dist/horama-extension.zip` et rappelle l'adresse qu'il contient ; le copier dans `accueil/horama-extension.zip` le publie avec la page d'accueil, au prochain redéploiement de horama-gold. Une release GitHub n'est téléchargeable par le jury que si le dépôt est public ; elle attend le go de Nathan.
+
 ## Fiche projet
 
 1. **Problème.** Une équipe produit documente son logiciel (écrans, règles métier), puis la documentation et le site divergent : personne ne relit chaque page à chaque déploiement, et un test automatique classique ne voit ni un texte coupé ni une page restée dans la mauvaise langue. Sans documentation du tout, un site n'est jamais regardé.
@@ -45,7 +67,7 @@ Décisions dans le vault, réponse sur la PR avec captures, index public des pas
    - Extension Chrome : https://horama-gold.vercel.app/horama-extension.zip
    - Mode développeur en vrai : la PR #16 du clone (traduction en allemand) et la réponse d'Horama, https://github.com/Hisseiny/eugenia-school-website/pull/16#issuecomment-7010755513
    - Index public des passages (données de la tour de contrôle) : https://raw.githubusercontent.com/Hisseiny/eugenia-school-website/horama/captures/index.json
-7. **Comment tester.** Sans rien installer : la page d'accueil, une adresse, « Envoyer Horama » ; ou l'extension. Détail plus bas, « Essayer Horama » ; pour lancer le code, « Comment lancer ».
+7. **Comment tester.** Sans rien installer : la page d'accueil, une adresse, « Envoyer Horama » ; ou l'extension. Détail plus haut, « Essayer Horama » ; pour lancer le code, « Comment lancer ».
 
 ## Deux modes
 
@@ -260,33 +282,6 @@ Après le hackathon, dans cet ordre de dépendance :
 - **Plusieurs agents H en parallèle** (décision de Nathan, 18/11) : le moteur et le format `horama-exploration-1` sont prévus pour 1 à 3 agents qui se partagent les pages, mais la démo de vendredi tourne avec un seul agent. Pourquoi attendre : le plan gratuit de H plafonne à 3 sessions simultanées par organisation, et le mode à un agent doit d'abord être stable sur le banc de sites (#67).
 - **Des consignes de Holo spécialisées**, une par sorte de doute (texte coupé, chevauchement, élément décalé, image déformée, contraste) au lieu d'une consigne générale, quand la base sera stable : aujourd'hui, la plupart des faux constats viennent de Holo (6 sur 8 sur eugeniaschool.com le 17/11), et une consigne ne s'affine qu'en mesurant ses faux constats sur un banc qui ne bouge plus.
 - Le reste de la feuille de route (entrée « message d'un client », correction du code par Devin, autres sources de documentation et autres sorties que GitHub, accessibilité mesurée, notification par n8n) : [`docs/feuille-de-route.md`](docs/feuille-de-route.md).
-
-## Essayer Horama
-
-Pour le jury, à distance, sans rien installer côté serveur : le mode grand public, sur le site de votre choix. Le service d'exploration tourne en ligne (Railway) ; il suffit d'un navigateur.
-
-**Sans rien installer, par la page d'accueil.** Ouvrez https://horama-gold.vercel.app, collez l'adresse d'un site public dans le champ et cliquez « Envoyer Horama ». Le rapport s'ouvre et se remplit page par page.
-
-**Par l'extension Chrome** (pour vérifier le site de l'onglet ouvert en un clic).
-1. Téléchargez https://horama-gold.vercel.app/horama-extension.zip, puis dézippez-le.
-2. Dans Chrome, ouvrez `chrome://extensions`, activez le « Mode développeur » et cliquez « Charger l'extension non empaquetée ». Choisissez le dossier dézippé.
-3. Ouvrez le site à vérifier, cliquez sur l'icône Horama : l'adresse de l'onglet est déjà remplie. Cliquez « Envoyer Horama ».
-
-Le rapport s'ouvre dans un onglet et se remplit page par page. Il montre :
-- les défauts **prouvés par le code**, chacun avec sa capture marquée d'un trait rouge et sa mesure (« mesuré : … », « attendu : … ») ;
-- à part, les doutes du regard de Holo, « à trancher » ;
-- les pages visitées.
-
-Le service visite 8 pages au plus. Sur le site d'Eugenia, 8 pages ont pris 212 s ([rapport](docs/tests/2026-11-18-a91-visite.md)). Un site qui bloque les robots, une page introuvable ou une connexion demandée finissent proprement, avec la raison.
-
-Limites du service (`agent/scripts/exploration-service.mjs`, #143) :
-- une exploration à la fois, 5 en file d'attente au plus ;
-- 4 demandes par heure et par adresse IP, 12 par heure en tout ;
-- seulement les adresses publiques en `http` ou `https`, sans identifiants.
-
-L'agent ne remplit aucun formulaire.
-
-**Pour l'équipe : l'adresse du service et le `.zip`.** L'adresse est la constante `DEFAULT_SERVICE` de `extension/service.js` (le service Railway, https://explorations-production-70bf5b38.up.railway.app). Chaque utilisateur peut la changer dans les options de l'extension. Après un changement de l'extension : `sh extension/empaqueter.sh` produit `extension/dist/horama-extension.zip` et rappelle l'adresse qu'il contient ; le copier dans `accueil/horama-extension.zip` le publie avec la page d'accueil (le dépôt étant privé, une release GitHub ne serait pas téléchargeable par le jury). La publication d'une release attend le go de Nathan.
 
 ## Comment lancer
 
