@@ -9,6 +9,7 @@ import { test } from "node:test";
 import { verifierClics } from "./src/exploration/cdp.ts";
 import { controlerPage, installerJournalConsole } from "./src/exploration/controles.ts";
 import type { CdpClient } from "./src/exploration/controles.ts";
+import { inspectHoloElement } from "./src/exploration/holo.ts";
 
 const chrome = process.env.CHROME_BIN ?? (process.platform === "darwin" ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" : "google-chrome");
 const available = !spawnSync(chrome, ["--version"]).error;
@@ -114,6 +115,35 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
   t.diagnostic("Chrome connecté ; navigation locale.");
   await navigate("/healthy");
   assert.deepEqual(await controlerPage(client), []);
+  await client.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
+  await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = \`
+    <header style="position:absolute;left:20px;top:20px"><svg id="holo-logo" aria-label="Brand" width="120" height="40"><rect width="120" height="40" fill="blue"/></svg></header>
+    <span id="holo-menu" style="position:absolute;left:200px;top:30px;width:90px;height:24px">Campus</span>
+    <div id="holo-cut" style="position:absolute;left:20px;top:130px;width:80px;height:24px;overflow:hidden;white-space:nowrap">Une étiquette réellement coupée</div>
+    <span id="holo-covered" style="position:absolute;left:20px;top:200px;width:180px;height:24px">Un texte recouvert</span>
+    <div style="position:absolute;left:20px;top:200px;width:180px;height:24px;background:black;z-index:10"></div>
+    <section style="position:absolute;left:20px;top:260px;width:70px;height:24px;overflow:hidden"><span id="holo-ancestor" style="display:inline-block;width:200px;height:24px">Texte rogné par son parent</span></section>
+    <span id="holo-offscreen" style="position:absolute;left:-20px;top:340px;width:100px;height:24px">Hors écran</span>
+    <span id="holo-clipped" style="position:absolute;left:20px;top:400px;width:180px;height:24px;clip-path:inset(0 50% 0 0)">Un texte découpé</span>
+    <div style="height:0;overflow:clip"><span id="holo-fixed" style="position:fixed;left:400px;top:30px;width:120px;height:24px">Menu fixe</span></div>
+  \`; document.body.style.margin='0'; document.documentElement.scrollTop=0;` });
+  const context = { url: `${base}/healthy`, width: 1280, height: 900, scroll: [0, 0] as [number, number] };
+  for (const id of ["logo", "menu", "cut", "covered", "ancestor", "offscreen", "clipped", "fixed"]) {
+    const { result } = await client.send("Runtime.evaluate", { expression: `(()=>{const b=document.querySelector('#holo-${id}').getBoundingClientRect();return {x:Math.max(0,b.x),y:b.y,largeur:b.right-Math.max(0,b.x),hauteur:b.height}})()`, returnByValue: true });
+    const visual = { status: "SUSPECTED" as const, kind: "cut-off-text" as const, sentence: "Un élément semble masqué.", zone: result.value };
+    const inspected = await inspectHoloElement(client, visual, context);
+    assert.equal(inspected?.selector, `#holo-${id}`, id);
+    assert.equal(inspected?.visible, ["logo", "menu", "fixed"].includes(id), id);
+    if (id === "logo") {
+      assert.equal(inspected?.header, true);
+      assert.equal(inspected?.text, "brand");
+      assert.equal(await inspectHoloElement(client, visual, { ...context, url: `${base}/other` }), null);
+      assert.equal(await inspectHoloElement(client, visual, { ...context, scroll: [0, 100] }), null);
+      assert.equal(await inspectHoloElement(client, visual, { ...context, width: 1000 }), null);
+    }
+  }
+  assert.equal(await inspectHoloElement(client, { status: "SUSPECTED", kind: "cut-off-text", sentence: "Vide.", zone: { x: 1100, y: 700, largeur: 80, hauteur: 40 } }, context), null);
+  await navigate("/healthy");
   await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = '<main>' + ['code', 'pre', 'kbd', 'samp', 'var'].map(tag => '<' + tag + '>null <span>undefined <span>NULL</span></span></' + tag + '>').join('') + '</main>'` });
   assert.ok(!(await controlerPage(client, { maxLiens: 0 })).some(defect => defect.sorte === "texte_erreur"));
   await client.send("Runtime.evaluate", { expression: `document.querySelector('main').insertAdjacentHTML('beforeend', '<p id="error">Erreur : undefined</p>')` });

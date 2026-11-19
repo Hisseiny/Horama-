@@ -426,11 +426,15 @@ test("contrôle prouvé explique Holo, hors capture et sans zone comptés honnê
 
 test("lien au clic non vérifié reste un doute et un même doute Holo répété sur chaque page compte une fois", async () => {
   const options: unknown[] = [];
+  const connecter: ExplorerDependencies["connecter"] = async () => ({ send: async (_method, params) => ({ result: { value: String((params as { expression?: string })?.expression).includes("expected.width")
+    ? { selector: "header > img", text: "logo", header: true, visible: false } : 200 } }), on() {}, close() {} });
+  let call = 0;
   const { result, base } = await run({ deps: {
+    connecter,
     controler: async (_client, option) => { options.push(option); return [{ statut: "SUSPECTED", sorte: "lien_casse", message: "Le lien interne renvoie HTTP 404.", selecteur: "a", valeur: "https://example.org/popin : 404",
       zone: { x: 10, y: 10, largeur: 100, hauteur: 30 }, raison: "Un script prend en charge le clic : un visiteur qui clique n'est pas envoyé vers cette adresse." }]; },
     holo: async () => ({ status: "SUSPECTED", model: "holo4-27b", durationMs: 2, usage: null, cost_usd: null, findings: [
-      { status: "SUSPECTED", kind: "cut-off-text", sentence: "Logo.", zone: { x: 500, y: 400, largeur: 60, hauteur: 30 } }] }),
+      { status: "SUSPECTED", kind: "cut-off-text", sentence: "Logo.", zone: { x: call++ ? 49 : 0, y: call > 1 ? 72 : 54, largeur: 70, hauteur: call > 1 ? 14 : 90 } }] }),
   } });
   assert.ok(options.every(option => typeof (option as { verifierClic?: unknown }).verifierClic === "function"));
   const links = result.constats.filter(item => item.sorte === "lien-casse");
@@ -443,10 +447,32 @@ test("lien au clic non vérifié reste un doute et un même doute Holo répété
   assert.equal(result.totaux.defauts, 0); assert.equal(result.totaux.doutes, 3);
   assert.ok(base.resultats.every(c4 => c4.statut === "SUSPECTED" && c4.niveau_de_preuve === "aucun"));
   assert.ok(base.resultats.every(c4 => c4.ecarts_visuels.some(ecart => ecart.description.startsWith("Le lien interne"))));
-  const holoOnly = await run({ deps: { controler: async () => [], holo: async () => ({ status: "SUSPECTED", model: "holo4-27b", durationMs: 2, usage: null, cost_usd: null, findings: [
+  const holoOnly = await run({ deps: { connecter, controler: async () => [], holo: async () => ({ status: "SUSPECTED", model: "holo4-27b", durationMs: 2, usage: null, cost_usd: null, findings: [
     { status: "SUSPECTED", kind: "cut-off-text", sentence: "Logo.", zone: { x: 500, y: 400, largeur: 60, hauteur: 30 } }] }) } });
   assert.ok(holoOnly.result.pages.every(page => page.statut === "SUSPECTED"), "un doute rattaché à une autre page n'est pas une réussite");
 });
+
+for (const mode of ["visible", "different", "unavailable"]) {
+  test(`inspection DOM Holo : ${mode}`, async () => {
+    const logs: string[] = [];
+    let inspected = 0;
+    const { result } = await run({ deps: {
+      log: message => logs.push(message),
+      connecter: async () => ({ send: async (_method, params) => {
+        if (!String((params as { expression?: string })?.expression).includes("expected.width")) return { result: { value: 200 } };
+        if (mode === "unavailable") throw new Error("CDP indisponible");
+        return { result: { value: { selector: `#item-${inspected++}`, text: `Texte ${inspected}`, header: true, visible: mode === "visible" } } };
+      }, on() {}, close() {} }),
+      holo: async () => ({ status: "SUSPECTED", model: "holo4-27b", durationMs: 1, usage: null, cost_usd: null, findings: [
+        { status: "SUSPECTED", kind: "cut-off-text", sentence: "Logo masqué.", zone: { x: 49, y: 72, largeur: 70, hauteur: 14 } },
+      ] }),
+    } });
+    const visuals = result.constats.filter(item => item.source === "holo");
+    assert.equal(visuals.length, mode === "visible" ? 0 : 2);
+    assert.ok(visuals.every(item => !item.explique_par), "des éléments distincts ou inconnus ne fusionnent pas même à coordonnées égales");
+    assert.equal(logs.filter(message => message.includes("doute Holo écarté")).length, mode === "visible" ? 2 : 0);
+  });
+}
 
 test("contrôle en échec, Holo hors délai et session interrompue", async () => {
   const { result, base } = await run({ failure: true, deps: { controler: async () => { throw new Error("CDP"); },
