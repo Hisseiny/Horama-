@@ -65,7 +65,7 @@ Les scripts de preuve pilotent le Chrome installé (`channel: "chrome"`, sans t�
 
 | Commande | Effet |
 |---|---|
-| `pnpm --filter @horama/faux-saas run check` | types, puis tests sans réseau (Chrome requis pour les pages d'essai sandbox) |
+| `pnpm --filter @horama/faux-saas run check` | types, puis tests sans réseau (pages d'essai sandbox ignorées avec « Chrome absent » si Chrome n'est pas lançable ; les échecs après lancement restent bloquants) |
 | `pnpm --filter @horama/faux-saas run verite` | régénère `verite.json` depuis le catalogue |
 | `node faux-saas/scripts/captures.mjs --sortie <dossier>` | 7 captures (v12 et v13), chaque page visitée deux fois et comparée pixel par pixel, planche `index.html` ; sortie 1 si deux visites diffèrent ou si une page défile |
 | `node faux-saas/scripts/verifier-regressions.mjs` | v13 `r=aucun` identique à la v12, effet de chacun des 15 changements, cas du paramètre `r`, puis écrit `positions.json` ; sortie 1 au premier écart |

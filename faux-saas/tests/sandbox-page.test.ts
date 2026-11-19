@@ -5,8 +5,12 @@ import { verdict } from "../lib/sandbox-check.ts";
 import { POST } from "../app/formulaires/route.ts";
 import { DELETE, GET } from "../app/recus/route.ts";
 
-test("pages d'essai hors réseau : faux Merci détecté, version saine non signalée", async () => {
-  const browser = await chromium.launch({ channel: "chrome", headless: true });
+test("pages d'essai hors réseau : faux Merci détecté, version saine non signalée", async (t) => {
+  const browser = await chromium.launch({ channel: "chrome", headless: true }).catch((error: unknown) => {
+    t.skip(`Chrome absent ou non lançable : ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  });
+  if (!browser) return;
   try {
     const page = await browser.newPage();
     await page.route("**/*", async route => {
