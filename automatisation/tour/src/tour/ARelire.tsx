@@ -37,7 +37,7 @@ export default function ARelire({ route, data, onRecharger }: { route: Route; da
     } else if (statut === 409) {
       setMessages((m) => ({ ...m, [k]: "Déjà tranché." }));
       onRecharger();
-    } else setMessages((m) => ({ ...m, [k]: "Le service n'a pas pu écrire." }));
+    } else setMessages((m) => ({ ...m, [k]: statut === 0 ? "Le service ne répond pas : réessayez dans un instant." : "Le service n'a pas pu enregistrer la décision : réessayez dans un instant." }));
   };
   // #relire/<cle>: the cases of one passage only (the wake-up opens it at the end of a passage), the passage at the top.
   const seul = route.cle ? data?.passages.find((p) => p.cle === route.cle) ?? null : null;
