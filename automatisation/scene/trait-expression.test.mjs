@@ -14,7 +14,8 @@ import { clickAt, closeChrome, connectTab, evaluate, fitViewport, installLayer, 
 const PORT = 9341;
 const text = "Un paragraphe de texte autour de la zone, pour que la mascotte ait du texte à côté d'elle. ";
 const PAGE = `<!doctype html><html lang="fr"><body style="margin:0;font:18px/1.5 sans-serif;padding:40px">
-<h1>Une page</h1><p>${text.repeat(4)}</p><p id="cible" style="width:300px;margin:30px 0">Le texte qui déborde.</p><p>${text.repeat(4)}</p></body></html>`;
+<h1>Une page</h1><p>${text.repeat(4)}</p><p id="cible" style="width:300px;margin:30px 0">Le texte qui déborde.</p><p>${text.repeat(4)}</p>
+<p id="autre" style="width:300px;margin:30px 0 0 600px">Un autre texte douteux.</p></body></html>`;
 const stored = (page) => evaluate(page, `JSON.parse(sessionStorage.getItem("horama"))`);
 
 test("l'expression vient avant le trait, la mascotte se pose près de la zone, l'expression reste jusqu'au geste suivant", async () => {
@@ -49,6 +50,22 @@ test("l'expression vient avant le trait, la mascotte se pose près de la zone, l
     assert.equal((await stored(page)).etat, "trouve", "gardée 3 s au moins");
     await sleep(Math.max(0, 3000 - (Date.now() - drawnAt)) + 400);
     assert.equal((await stored(page)).etat, "observe", "puis « observe » après le geste de H");
+
+    // Two strokes in a row (review of #190): a gesture of H after stroke A arms a reset; stroke B, drawn before that reset,
+    // keeps its own expression for its own 3 s.
+    await layer(page, "surligner", "/", [zone], "defaut", "cible-2", null, false);
+    const strokeA = Date.now();
+    await clickAt(page, { x: 900, y: 120 });
+    await sleep(700);
+    const [autre] = await layer(page, "element", "#autre");
+    await layer(page, "surligner", "/", [autre], "doute", "autre", null, false);
+    await sleep(Math.max(0, 3000 - (Date.now() - strokeA)) + 500);
+    assert.equal((await stored(page)).etat, "doute", "le délai armé après le trait A n'efface pas l'expression du trait B");
+
+    // A zone that fills the screen: no place free of it, the mascot does not fly onto it.
+    const before = (await stored(page)).mascot;
+    await layer(page, "surligner", "/", [{ x: 0, y: 0, largeur: 1280, hauteur: 900 }], "defaut", "plein-ecran", null, false);
+    assert.deepEqual((await stored(page)).mascot, before, "pas de vol vers une zone qui remplit l'écran");
   } finally {
     page.close();
     await closeChrome({ port: PORT, pid: chrome.pid });

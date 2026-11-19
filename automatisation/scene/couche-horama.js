@@ -216,7 +216,7 @@
   // The reading of the page by the mascot while H thinks (see « Reading » below): its timer, the title it reads.
   let readTimer = 0, reading = null, readIndex = -1;
   // At a stroke (S3): where the mascot looks (the zone), and until when its expression is kept at least.
-  let lookAt = null, held3 = 0;
+  let lookAt = null, held3 = 0, stroke = 0;
   let frame = 0;
   let last = 0;
   // The way of a hand from one point to the point H chose, never another point: a curve bowed to one side (how much and
@@ -428,7 +428,9 @@
     const all = [...(textOk ? boxes.filter(({ weight }) => weight !== 10) : boxes), clearance(p), ...way];
     // What must stay readable (texts, links, buttons: weight 10) is a hard rule: a place that covers none of it wins over
     // any place that covers some, even farther from the point; among free places, the cheapest.
-    const readable = textOk ? [] : boxes.filter(({ weight }) => weight === 10);
+    // At a stroke (textOk), the hard rule is the zone, the arrow and its way (weight 60 and more): a nearby text is only a
+    // cost (review of #190).
+    const readable = textOk ? all.filter(({ weight }) => weight >= 60) : boxes.filter(({ weight }) => weight === 10);
     let best = null;
     for (const r of rings) {
       for (let a = 0; a < 24; a++) {
@@ -440,6 +442,8 @@
         if (!best || (covered === 0) > (best.covered === 0) || ((covered === 0) === (best.covered === 0) && (covered === 0 ? cost < best.cost : covered < best.covered || (covered === best.covered && cost < best.cost)))) best = { x, y, cost, covered };
       }
     }
+    // With textOk, no place free of the zone and of the arrow: none (the caller does not fly there).
+    if (textOk) return best && best.covered === 0 ? best : null;
     return best ?? corner(all);
   };
   // The corner that hides the least of these boxes; the nearest one when several hide nothing.
@@ -793,16 +797,24 @@
       if (TITLE && first && !state.bulle) {
         setEtat(genre === "defaut" ? "trouve" : "doute");
         held3 = Date.now() + 3000;
+        stroke += 1; // a reset armed by a gesture after an earlier stroke must not clear this one (review of #190)
         stopReading();
         const marked = zones.map((zone) => box(zone, 14, 60));
         const left = Math.min(...marked.map((b) => b.left)), top = Math.min(...marked.map((b) => b.top));
         const right = Math.max(...marked.map((b) => b.right)), bottom = Math.max(...marked.map((b) => b.bottom));
         lookAt = { x: (left + right) / 2, y: (top + bottom) / 2 };
-        goTo(nearSpot(lookAt, [...busy(), ...marked.map((b) => ({ ...b, weight: 200 }))], null, true, { rings: [110, 150, 200, 260], textOk: true }));
-        await arrived();
+        // No place free of the zone and of the arrow (a zone that fills the screen): the mascot does not fly there.
+        const spot = nearSpot(lookAt, [...busy(), ...marked.map((b) => ({ ...b, weight: 200 }))], null, true, { rings: [110, 150, 200, 260], textOk: true });
+        if (spot) {
+          goTo(spot);
+          await arrived();
+        }
+        // Still on the zone (no free place, or it was there): it steps out of sight while the stroke is drawn.
+        if (hidden(at.x, at.y, M, M, marked) > 0) mascot.style.opacity = "0";
       }
       await Promise.all(zones.filter((zone) => !zone.trait).map((zone) => drawZone(zone, true)));
       for (const zone of zones.filter((candidate) => candidate.trait)) await drawZone(zone, true);
+      mascot.style.opacity = "";
     },
     // A doubt that became a proven defect (or the reverse): its line changes colour and shape, on every page.
     requalifier(id, genre) {
@@ -1051,7 +1063,8 @@
     lookAt = null;
     if (state.etat === "trouve" || state.etat === "doute") {
       const keep = held3 - Date.now();
-      setTimeout(() => (state.etat === "trouve" || state.etat === "doute") && !state.revue && !state.bulle && setEtat("observe"), Math.max(0, keep));
+      const armedFor = stroke;
+      setTimeout(() => armedFor === stroke && (state.etat === "trouve" || state.etat === "doute") && !state.revue && !state.bulle && setEtat("observe"), Math.max(0, keep));
     }
     readTimer = setTimeout(readNext, READ_AFTER + 1100);
   };
