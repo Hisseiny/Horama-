@@ -1,5 +1,5 @@
-// 11.8 Passages et rapports, on real data only: the passages of the public index (mode développeur, PR of the clone)
-// and the explorations sent from this browser (grand public), the latest first; then the journal of the decisions taken
+// 11.8 Passages et rapports, on real data only: the passages of the public index (entry by a PR, PR of the clone)
+// and the explorations sent from this browser (entry by an address), the latest first; then the journal of the decisions taken
 // by a human, as the index carries them. No journal of the agent step by step: no source gives it today.
 import "../../interface/screen-11-8/styles.css";
 import type { Chargement } from "../donnees";
@@ -40,7 +40,7 @@ export default function Passages({ route, data }: { route: Route; data: Chargeme
                         <span>{dateCourte(p.date)}</span>
                         <span className="tour-titre">
                           <strong>{p.titre}</strong>
-                          <small>{p.mode === "dev" ? "mode développeur" : "grand public"}{etatLisible(p) ? ` · ${etatLisible(p)}` : ""}</small>
+                          <small>{p.mode === "dev" ? "par une PR" : "par une adresse"}{etatLisible(p) ? ` · ${etatLisible(p)}` : ""}</small>
                         </span>
                         <span>{p.pages.visitees ?? "?"}{p.pages.trouvees ? ` / ${p.pages.trouvees}` : ""}</span>
                         <span className="passage-results">

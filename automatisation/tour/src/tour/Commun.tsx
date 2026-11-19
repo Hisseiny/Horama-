@@ -107,7 +107,7 @@ export const etatLisible = (p: Passage) => (estFini(p) ? "" : ETATS[p.etat ?? ""
 export const CHOIX = { bug: "Bug", voulu: "Voulu" };
 export const decisionLisible = (d: Decision | null) => (d ? `${CHOIX[d.choix]}${d.par ? `, par ${d.par}` : ""}` : "à trancher");
 
-// The capture of a finding, its zone in view. Mode développeur: the capture was ringed by the scene. Grand public: the
+// The capture of a finding, its zone in view. Entry by a PR: the capture was ringed by the scene. Entry by an address: the
 // raw capture, and the sign of the charter drawn here on its zone (a stroke of miltos, or ochre dots).
 export function Capture({ constat }: { constat: Constat }) {
   const box = useRef<HTMLDivElement>(null);
