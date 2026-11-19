@@ -113,7 +113,56 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
   };
   t.diagnostic("Chrome connecté ; navigation locale.");
   await navigate("/healthy");
-  assert.deepEqual(await controlerPage(client), []);
+  const french = "Les étudiants travaillent avec les entreprises pour apprendre et découvrir le monde.";
+  for (const [label, lang, html, count] of [
+    ["français", "de-DE", `<p id="foreign">Les <strong>étudiants</strong> travaillent avec les entreprises pour apprendre et découvrir le monde.</p>`, 1],
+    ["display contents", "de", `<p><span style="display:contents">${french}</span></p>`, 1],
+    ["display contents autour du paragraphe", "de", `<span style="display:contents"><p>${french}</p></span>`, 1],
+    ["display contents caché", "de", `<p><span style="display:contents;opacity:0">${french}</span></p>`, 0],
+    ["display contents avec langue", "de", `<p><span style="display:contents" lang="fr">${french}</span></p>`, 0],
+    ["display contents langue de", "de", `<p><span style="display:contents" lang="de">${french}</span></p>`, 1],
+    ["display contents langue erronée", "de", `<p><span style="display:contents" lang="en">${french}</span></p>`, 1],
+    ["allemand", "de", "<p>Die Studierenden lernen mit den Unternehmen und entdecken die Welt für ihre Zukunft.</p>", 0],
+    ["on a français", "fr", "<p>On a travaillé, on a discuté, on a beaucoup appris ensemble.</p>", 0],
+    ["in an allemand", "de", "<p>In Berlin arbeiten Studierende an Projekten, in Hamburg an Prototypen.</p>", 0],
+    ["or français", "fr", "<p>Or on a travaillé, or on a discuté ensemble.</p>", 0],
+    ["lang explicite", "de", `<section lang="fr"><p>${french}</p></section>`, 0],
+    ["phrase courte", "de", "<p>Les étudiants et les entreprises.</p>", 0],
+    ["code", "de", `<code>${french}</code><pre>${french}</pre>`, 0],
+    ["caché", "de", `<p hidden>${french}</p><p style="display:none">${french}</p>`, 0],
+    ["lecteur d'écran", "de", `<span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">${french}</span>`, 0],
+    ["ambigu", "de", "<p>Paris Berlin London Madrid Rome Lisbon Oslo et Stockholm.</p>", 0],
+    ["noms propres", "de", "<p>Le Havre La Rochelle Le Mans La Baule</p>", 0],
+    ["lang incorrect", "de", `<p lang="en">${french}</p>`, 1],
+    ["vide", "de", "<p></p>", 0],
+    ["langue absente", "", `<p>${french}</p>`, 0],
+    ["langue inconnue", "es", `<p>${french}</p>`, 0],
+    ["anglais", "fr", "<p>The students are working with the companies for their future and their careers.</p>", 1],
+  ] as const) {
+    await client.send("Runtime.evaluate", { expression: `document.documentElement.lang = ${JSON.stringify(lang)}; document.body.innerHTML = ${JSON.stringify(html)}` });
+    const defects = (await controlerPage(client, { maxLiens: 0 })).filter(defect => defect.sorte === "texte_non_traduit");
+    assert.equal(defects.length, count, label);
+    if (count) assert.ok(defects[0].zone && defects[0].zone.largeur > 0 && defects[0].zone.hauteur > 0, label);
+    if (label === "français") {
+      assert.equal(defects[0].statut, "VERIFIED_FAIL");
+      assert.equal(defects[0].selecteur, "#foreign");
+      assert.equal(defects[0].valeur, "1 bloc en français ; le plus long : 12 mots, 6 mots outils français, 0 allemands ; page déclarée de");
+      assert.ok(defects[0].zone);
+    }
+  }
+  await client.send("Runtime.evaluate", { expression: `document.documentElement.lang = 'de'; document.body.innerHTML = ${JSON.stringify(`<p>${french}</p><p id="largest">${french} ${french}</p><p>The students are working with the companies for their future and their careers.</p>`)}` });
+  const grouped = (await controlerPage(client, { maxLiens: 0 })).filter(defect => defect.sorte === "texte_non_traduit");
+  assert.equal(grouped.length, 1);
+  assert.equal(grouped[0].selecteur, "#largest");
+  assert.equal(grouped[0].message, "2 blocs en français, 1 bloc en anglais ; le plus long : 24 mots, 12 mots outils français, 0 allemands ; page déclarée de");
+  assert.equal(grouped[0].valeur, grouped[0].message);
+  assert.ok(grouped[0].zone);
+  await navigate("/healthy");
+  const healthy = await controlerPage(client);
+  assert.equal(healthy.length, 1);
+  assert.equal(healthy[0].statut, "SUSPECTED");
+  assert.equal(healthy[0].sorte, "texte_rogne");
+  assert.match(healthy[0].message, /2 textes coupés/);
   await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = '<main>' + ['code', 'pre', 'kbd', 'samp', 'var'].map(tag => '<' + tag + '>null <span>undefined <span>NULL</span></span></' + tag + '>').join('') + '</main>'` });
   assert.ok(!(await controlerPage(client, { maxLiens: 0 })).some(defect => defect.sorte === "texte_erreur"));
   await client.send("Runtime.evaluate", { expression: `document.querySelector('main').insertAdjacentHTML('beforeend', '<p id="error">Erreur : undefined</p>')` });
@@ -211,8 +260,35 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
   \`` });
   const clippedText = (await controlerPage(client, { maxLiens: 0 })).filter(defect => defect.sorte === "texte_rogne");
   t.diagnostic(`Textes rognés : ${clippedText.map(defect => defect.selecteur).join(", ")}`);
-  assert.deepEqual(clippedText.map(defect => defect.selecteur), ["#german", "#multiline", "#clipping-parent", "#inline-clipping-parent"]);
-  assert.ok(clippedText.every(defect => defect.zone && defect.statut === "VERIFIED_FAIL"));
+  assert.deepEqual(clippedText.filter(defect => defect.statut === "VERIFIED_FAIL").map(defect => defect.selecteur), ["#german", "#multiline", "#clipping-parent", "#inline-clipping-parent"]);
+  const intentionalCuts = clippedText.filter(defect => defect.statut === "SUSPECTED");
+  assert.equal(intentionalCuts.length, 3);
+  assert.ok(intentionalCuts.some(defect => defect.selecteur === "#ellipsis"));
+  assert.ok(intentionalCuts.some(defect => defect.selecteur === "#line-clamp"));
+  assert.ok(intentionalCuts.every(defect => defect.zone && /sans doute voulu, à confirmer/.test(defect.raison ?? "")));
+  await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = \`
+    <style>.cut { width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap } .clamp { width:100px; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; font:16px/20px sans-serif }</style>
+    <section><article><p id="card-1" class="cut">Un premier texte beaucoup trop long pour une carte</p></article><article><p id="card-2" class="cut">Une deuxième description trop longue</p></article><article><p id="card-3" class="cut">Une troisième description beaucoup trop longue</p></article><article><p id="card-4" class="cut">Une quatrième description trop longue</p></article></section>
+    <div id="ancestor-clamp" class="clamp"><p id="child" style="margin:0">Première ligne deuxième ligne troisième ligne quatrième ligne cinquième ligne sixième ligne</p></div>
+    <p id="fits" class="cut">Oui</p>
+    <div class="sr-only"><p class="cut">Un texte réservé aux lecteurs d’écran beaucoup trop long</p></div>
+    <div style="width:1px;height:1px;overflow:hidden"><p class="cut">Un texte masqué dans une boîte d’un pixel</p></div>
+    <div style="clip-path:inset(50%)"><p class="cut">Un texte masqué par un chemin de découpe</p></div>
+  \`` });
+  const truncations = (await controlerPage(client, { maxLiens: 0 })).filter(defect => ["debordement", "texte_rogne"].includes(defect.sorte));
+  assert.equal(truncations.length, 2);
+  assert.ok(truncations.every(defect => defect.statut === "SUSPECTED" && defect.raison && defect.zone && defect.zone.largeur > 1 && defect.zone.hauteur > 1));
+  const cards = truncations.find(defect => defect.selecteur?.includes("#card-1"))!;
+  assert.equal(cards.selecteur, "#card-1, #card-2, #card-3, #card-4");
+  assert.match(cards.message, /4 textes coupés/);
+  for (let index = 1; index <= 4; index++) assert.match(cards.message, new RegExp(`#card-${index}`));
+  assert.ok(truncations.some(defect => defect.selecteur === "#ancestor-clamp"), "le conteneur tronquant couvre aussi son enfant");
+  await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = \`
+    <div id="fitting-ellipsis" style="width:300px;overflow:hidden;text-overflow:ellipsis"><button id="really-cut" style="width:80px;height:28px;white-space:nowrap;overflow:hidden;font:16px/20px sans-serif;padding:0;border:0">Une longue étiquette de bouton vraiment coupée</button></div>
+    <div id="quiet-parent" style="width:300px;overflow:hidden;text-overflow:ellipsis"><div id="clipped-child" style="width:100px;overflow:hidden;white-space:nowrap;font:16px/20px sans-serif">Un texte long déjà coupé par le conteneur enfant</div></div>
+  \`` });
+  const nestedCuts = (await controlerPage(client, { maxLiens: 0 })).filter(defect => ["debordement", "texte_rogne"].includes(defect.sorte));
+  assert.deepEqual(nestedCuts.map(defect => [defect.selecteur, defect.statut]), [["#really-cut", "VERIFIED_FAIL"], ["#clipped-child", "VERIFIED_FAIL"]]);
   await navigate("/many");
   started = Date.now();
   const many = await controlerPage(client);
@@ -244,7 +320,7 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
   await navigate("/error");
   assert.ok((await controlerPage(client)).some(defect => defect.sorte === "page_en_erreur" && defect.valeur === 500));
   await navigate("/healthy");
-  assert.deepEqual(await controlerPage(client), []);
+  assert.deepEqual((await controlerPage(client)).map(defect => [defect.sorte, defect.statut]), [["texte_rogne", "SUSPECTED"]]);
 
   const sent: string[] = [];
   const callerEvents: string[] = [];
@@ -268,5 +344,5 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
   await new Promise(resolve => setTimeout(resolve, 100));
   assert.ok(callerEvents.includes("Erreur de démonstration") && callerEvents.includes("Après le contrôle"));
   await navigate("/healthy");
-  assert.deepEqual(await controlerPage(caller, { connexionAppelant: true }), []);
+  assert.deepEqual((await controlerPage(caller, { connexionAppelant: true })).map(defect => [defect.sorte, defect.statut]), [["texte_rogne", "SUSPECTED"]]);
 });

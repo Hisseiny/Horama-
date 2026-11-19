@@ -8,7 +8,7 @@ import type { ExplorerOptions } from "./explorer.ts";
 export const HELP = `Usage : pnpm --filter @horama/agent explorer -- --url adresse [options]
   --url adresse       Adresse HTTP(S) requise, visite sans connexion ni formulaire
   --site identifiant  Remplace le nom du site dérivé de l’hôte (lettres, chiffres, - et _)
-  --max 15            Plafond de pages ; avec --max 8, le passage vise 2 à 3 min
+  --max 15            Plafond de pages ; lecture bornée à 5 petits pas puis grands trajets
   --pages-cliquees 4  Pages à atteindre par clic (entier ≥ 0)
   --sortie chemin     Sortie (.orchestrateur/exploration du dépôt par défaut)
   --vault chemin      Vault (vault-horama du dépôt par défaut)

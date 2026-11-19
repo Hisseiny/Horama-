@@ -11,7 +11,7 @@ export interface CdpClient {
 export interface Defaut {
   // SUSPECTED: the measure is real but does not prove a defect for a visitor (raison says why); a human settles it.
   statut: "VERIFIED_FAIL" | "SUSPECTED";
-  sorte: "page_en_erreur" | "image_cassee" | "defilement_horizontal" | "debordement" | "texte_rogne" | "lien_casse" | "texte_erreur" | "erreur_console";
+  sorte: "page_en_erreur" | "image_cassee" | "defilement_horizontal" | "debordement" | "texte_rogne" | "lien_casse" | "texte_erreur" | "erreur_console" | "texte_non_traduit";
   message: string;
   selecteur?: string;
   zone?: Zone;
@@ -73,6 +73,62 @@ function inspectDocument() {
   const status = (performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined)?.responseStatus;
   if (status && status >= 400) add("page_en_erreur", "Le document renvoie une erreur HTTP.", status);
   const root = document.documentElement;
+  const functionWords = {
+    fr: new Set("le la les des du de un une et est sont pour avec dans sur qui que nous vous au aux ce cette ces ses leur mais ou par en".split(" ")),
+    de: new Set("der die das den dem des ein eine einer einem einen und ist sind für mit im auf von zu zum zur wir sie sich nicht auch als bei aus oder".split(" ")),
+    en: new Set("the and is are for with of to from we you your our their that this these those which who not by".split(" ")),
+  };
+  const names = { fr: "français", de: "allemands", en: "anglais" };
+  type Language = keyof typeof functionWords;
+  const declared = root.lang.toLowerCase().split("-")[0] as Language;
+  if (Object.hasOwn(functionWords, declared)) {
+    const blocks = new Map<Element, string[]>();
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const parent = node.parentElement;
+      if (!parent || parent.closest("code,pre,kbd,samp,var,script,style,noscript,template") || !node.textContent?.trim()) continue;
+      let block: Element = parent;
+      while (block.parentElement && block !== document.body && ["inline", "contents"].includes(getComputedStyle(block).display) && !block.hasAttribute("lang")) block = block.parentElement;
+      let boxed: Element = parent;
+      while (boxed.parentElement && getComputedStyle(boxed).display === "contents") boxed = boxed.parentElement;
+      if (!visible(boxed)) continue;
+      let clippedText = false;
+      for (let ancestor: Element | null = parent; ancestor; ancestor = ancestor.parentElement) {
+        const style = getComputedStyle(ancestor);
+        if (style.clip !== "auto" || style.clipPath !== "none" || style.visibility !== "visible" || Number(style.opacity) === 0 || style.contentVisibility === "hidden") clippedText = true;
+      }
+      if (clippedText) continue;
+      const language = parent.closest("[lang]");
+      if (language && language !== root && block.contains(language)) block = language;
+      const words = blocks.get(block) ?? [];
+      words.push(...(node.textContent.match(/\p{L}+/gu) ?? []));
+      blocks.set(block, words);
+    }
+    const foreignBlocks: Array<{ block: Element; length: number; language: Language; measure: string }> = [];
+    for (const [block, original] of blocks) {
+      if (original.length < 8 || original.every(word => /^\p{Lu}/u.test(word))) continue;
+      const words = original.map(word => word.toLowerCase());
+      const counts = (Object.keys(functionWords) as Language[]).map(language => ({ language, words: words.filter(word => functionWords[language].has(word) && !Object.entries(functionWords).some(([other, list]) => other !== language && list.has(word))) }));
+      const total = counts.reduce((sum, count) => sum + count.words.length, 0);
+      const foreign = counts.find(count => count.language !== declared && count.words.length >= 3 && new Set(count.words).size >= 2 && count.words.length > total / 2);
+      if (!foreign) continue;
+      if (block.closest("[lang]")?.getAttribute("lang")?.toLowerCase().split("-")[0] === foreign.language) continue;
+      const measure = `${words.length} mots, ${foreign.words.length} mots outils ${names[foreign.language]}, ${counts.find(count => count.language === declared)!.words.length} ${names[declared]} ; page déclarée ${declared}`;
+      foreignBlocks.push({ block, length: words.length, language: foreign.language, measure });
+    }
+    const largest = foreignBlocks.sort((a, b) => b.length - a.length)[0];
+    if (largest) {
+      const languages = { fr: "français", de: "allemand", en: "anglais" };
+      const summary = (Object.keys(languages) as Language[]).flatMap(language => {
+        const count = foreignBlocks.filter(block => block.language === language).length;
+        return count ? [`${count} bloc${count > 1 ? "s" : ""} en ${languages[language]}`] : [];
+      }).join(", ");
+      const measure = `${summary} ; le plus long : ${largest.measure}`;
+      let element = largest.block;
+      while (element.parentElement && getComputedStyle(element).display === "contents") element = element.parentElement;
+      add("texte_non_traduit", measure, measure, element);
+    }
+  }
   const clipped = [root, document.body].some(element => ["hidden", "clip"].includes(getComputedStyle(element).overflowX));
   if (!clipped && root.scrollWidth > root.clientWidth) add("defilement_horizontal", "La page dépasse la largeur du document.", `${root.scrollWidth} > ${root.clientWidth}`, root);
   for (const image of document.images) {
@@ -119,6 +175,30 @@ function inspectDocument() {
     }
     return bounds;
   };
+  const truncations: Element[] = [];
+  const truncationMeasures = new Map<Element, boolean>();
+  const isTruncated = (element: Element) => {
+    if (truncationMeasures.has(element)) return truncationMeasures.get(element)!;
+    const box = element.getBoundingClientRect();
+    const scaleX = box.width / (element as HTMLElement).offsetWidth || 1, scaleY = box.height / (element as HTMLElement).offsetHeight || 1;
+    const left = box.left + element.clientLeft * scaleX, top = box.top + element.clientTop * scaleY;
+    const right = left + element.clientWidth * scaleX, bottom = top + element.clientHeight * scaleY;
+    const overflowing = element.scrollWidth > element.clientWidth + 1 || element.scrollHeight > element.clientHeight + 1;
+    const ink = overflowing && !masked(element) ? textBounds(element, true) : undefined;
+    const truncated = !!ink && element.clientWidth > 1 && element.clientHeight > 1 && box.width > 1 && box.height > 1
+      && right + scrollX > 0 && bottom + scrollY > 0 && ink.right > left && ink.left < right && ink.bottom > top && ink.top < bottom
+      && (ink.right > right + scaleX || ink.bottom > bottom + scaleY);
+    truncationMeasures.set(element, truncated);
+    return truncated;
+  };
+  const truncationOwner = (element: Element) => {
+    for (let ancestor: Element | null = element; ancestor; ancestor = ancestor.parentElement) {
+      const css = getComputedStyle(ancestor);
+      if (((css.textOverflow === "ellipsis" && css.overflowX !== "visible")
+        || (Number(css.webkitLineClamp) > 0 && css.webkitBoxOrient === "vertical" && ["-webkit-box", "-webkit-inline-box", "flow-root"].includes(css.display))) && isTruncated(ancestor)) return ancestor;
+    }
+    return undefined;
+  };
   const pattern = /(?<![\p{L}\p{N}_])(?:undefined|NaN|null|lorem\s+ipsum)(?![\p{L}\p{N}_])|\{\{/iu;
   for (const element of [document.body, ...document.body.querySelectorAll("*")]) {
     if (!visible(element) || element.matches("script,style,noscript,template")) continue;
@@ -129,6 +209,11 @@ function inspectDocument() {
     if (match) add("texte_erreur", "Un texte d’erreur est affiché.", match[0], element, value ? undefined : "Le mot technique est dans un texte rédigé (phrase ou titre) : il peut s'agir du texte voulu.");
     if (!(element.textContent ?? "").trim()) continue;
     const style = getComputedStyle(element);
+    const owner = truncationOwner(element);
+    if (owner) {
+      if (owner === element) truncations.push(element);
+      continue;
+    }
     const clippedX = ["hidden", "clip"].includes(style.overflowX) && element.scrollWidth > element.clientWidth + 1;
     const clippedY = ["hidden", "clip"].includes(style.overflowY) && element.scrollHeight > element.clientHeight + 1;
     const lineClamped = Number(style.webkitLineClamp) > 0 && style.webkitBoxOrient === "vertical" && ["-webkit-box", "-webkit-inline-box", "flow-root"].includes(style.display);
@@ -161,9 +246,6 @@ function inspectDocument() {
     if ([style.overflowX, style.overflowY].some(value => ["hidden", "clip", "auto", "scroll"].includes(value)) || style.textOverflow === "ellipsis" || lineClamped) continue;
     if (element.clientWidth <= 1 || element.clientHeight <= 1 || (element.scrollWidth <= element.clientWidth + 1 && element.scrollHeight <= element.clientHeight + 1)) continue;
     if (masked(element)) continue;
-    let clampedAncestor = false;
-    for (let ancestor = element.parentElement; ancestor && !clampedAncestor; ancestor = ancestor.parentElement) clampedAncestor = Number(getComputedStyle(ancestor).webkitLineClamp) > 0;
-    if (clampedAncestor) continue;
     const box = element.getBoundingClientRect();
     if (box.right + scrollX <= 0 || box.bottom + scrollY <= 0) continue;
     const ink = textBounds(element);
@@ -179,6 +261,35 @@ function inspectDocument() {
         carousel(element) ? "Le texte est dans un carrousel ou un bandeau défilant, dont les éléments débordent volontairement."
           : element.closest('[aria-hidden="true"]') ? "Le texte est décoratif (aria-hidden) : son débordement peut être voulu." : undefined);
     }
+  }
+  const repeated = new Map<Element, Map<string, Element[]>>();
+  const paths = new Map<Element, Element[][]>();
+  for (const element of truncations) {
+    const candidates: Element[][] = [];
+    let path = "";
+    for (let node: Element | null = element; node?.parentElement && node !== document.body; node = node.parentElement) {
+      const parent = node.parentElement;
+      const groups = repeated.get(parent) ?? new Map<string, Element[]>();
+      repeated.set(parent, groups);
+      const key = `${node.localName}/${path}`;
+      const group = groups.get(key) ?? [];
+      groups.set(key, group); group.push(element); candidates.push(group);
+      path = `${node.localName}:nth-child(${Array.from(parent.children).indexOf(node) + 1})/${path}`;
+    }
+    paths.set(element, candidates);
+  }
+  const emitted = new Set<Element>();
+  for (const element of truncations) {
+    if (emitted.has(element)) continue;
+    const group = paths.get(element)?.find(items => items.length > 1) ?? [element];
+    const elements = group.filter(item => !emitted.has(item));
+    for (const item of elements) emitted.add(item);
+    const selectors = elements.map(selector);
+    defects.push({ statut: "SUSPECTED", sorte: "texte_rogne",
+      message: `${elements.length} texte${elements.length > 1 ? "s" : ""} coupé${elements.length > 1 ? "s" : ""} par troncature CSS. Éléments : ${selectors.join(", ")}.`,
+      valeur: elements.map(item => `${item.scrollWidth}×${item.scrollHeight} > ${item.clientWidth}×${item.clientHeight}`).join(" ; "),
+      ...proof(element), selecteur: selectors.join(", "),
+      raison: "Texte coupé par des points de suspension ou une limite de lignes : sans doute voulu, à confirmer." });
   }
   const rank = (link: Element) => link.closest("main,[role=main]") ? 0 : link.closest("header,nav,footer,aside,[role=banner],[role=navigation],[role=contentinfo]") ? 2 : 1;
   const links = Array.from(document.querySelectorAll<HTMLAnchorElement>("a[href]")).filter(link => {
