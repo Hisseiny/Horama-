@@ -48,9 +48,19 @@ type IndexPassage = { passage: string | null; date: string; site: string; previs
   commit: string; reponse: string | null; etat: string | null; totaux?: { pages_visitees?: number; pages_trouvees?: number; defauts?: number; doutes?: number } | null;
   constats: IndexConstat[] };
 
+// The language check written by its measure in passages published before 19/11 (« 1 bloc en français ; … ; page
+// déclarée de »): said as a sentence, as automatisation/scene/recapitulatif.mjs does since.
+const LANGUES: Record<string, string> = { de: "allemand", fr: "français", en: "anglais", es: "espagnol", it: "italien", nl: "néerlandais", pt: "portugais" };
+export function phrase(texte: string): string {
+  const mesure = /^(\d+) blocs? en ([a-zàâçéèêëîïôûùüÿœ]+) ; .*page déclarée ([a-z]{2})\b/i.exec(texte);
+  if (!mesure) return texte;
+  const [, blocs, langue, code] = mesure;
+  return `${Number(blocs) > 1 ? `${blocs} blocs sont restés` : "Un bloc est resté"} en ${langue} sur une page déclarée en ${LANGUES[code.toLowerCase()] ?? code}.`;
+}
+
 function fromIndex(item: IndexPassage): Passage {
   const constats: Constat[] = (item.constats ?? []).map((c) => ({
-    id: c.id, genre: c.statut === "VERIFIED_FAIL" ? "defaut" : "doute", page: c.page ?? "", texte: c.texte ?? "", preuve: c.preuve ?? null,
+    id: c.id, genre: c.statut === "VERIFIED_FAIL" ? "defaut" : "doute", page: c.page ?? "", texte: phrase(c.texte ?? ""), preuve: c.preuve ?? null,
     zone: c.zone ?? null, taille: null, capture: c.capture ?? null, entouree: true,
     decision: c.decision ? { choix: c.decision.choix, par: c.decision.par ?? null, le: c.decision.le ?? null } : null,
   }));

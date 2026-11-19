@@ -1,58 +1,27 @@
+// The tower of control (#149), online: three screens of the prototype of Axil (11.8, 11.4, 11.6) on real data. The
+// screens without a real source (11.1, 11.2, 11.3, 11.5, 11.7) and the login are not served: no example data online.
 import { useEffect, useState } from "react";
-import CoverageScreen from "../interface/screen-11-1/Screen";
-import TestValidationScreen from "../interface/screen-11-2/Screen";
-import LivePassageScreen from "../interface/screen-11-3/Screen";
-import PassageReportScreen from "../interface/screen-11-4/Screen";
-import InvoiceComparisonScreen from "../interface/screen-11-5/Screen";
-import ReviewScreen from "../interface/screen-11-6/Screen";
-import DocumentationCorrectionScreen from "../interface/screen-11-7/Screen";
-import PassageHistoryScreen from "../interface/screen-11-8/Screen";
-import LoginScreen from "../interface/login/Screen";
-
-function currentRoute() {
-  return window.location.hash.replace("#", "").split("?")[0];
-}
+import { charger, type Chargement } from "./donnees";
+import { lireRoute } from "./tour/Commun";
+import Passages from "./tour/Passages";
+import Rapport from "./tour/Rapport";
+import ARelire from "./tour/ARelire";
 
 export default function App() {
-  const [route, setRoute] = useState(currentRoute);
-
+  const [route, setRoute] = useState(lireRoute);
+  const [data, setData] = useState<Chargement | null>(null);
   useEffect(() => {
-    const syncRoute = () => setRoute(currentRoute());
-    window.addEventListener("hashchange", syncRoute);
-    return () => window.removeEventListener("hashchange", syncRoute);
+    const sync = () => {
+      setRoute(lireRoute());
+      window.scrollTo(0, 0);
+    };
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
   }, []);
-
-  if (route === "login") {
-    return <LoginScreen />;
-  }
-
-  if (route === "screen-11-2") {
-    return <TestValidationScreen />;
-  }
-
-  if (route === "screen-11-3") {
-    return <LivePassageScreen />;
-  }
-
-  if (route === "screen-11-4") {
-    return <PassageReportScreen />;
-  }
-
-  if (route === "screen-11-5") {
-    return <InvoiceComparisonScreen />;
-  }
-
-  if (route === "screen-11-6") {
-    return <ReviewScreen />;
-  }
-
-  if (route === "screen-11-7") {
-    return <DocumentationCorrectionScreen />;
-  }
-
-  if (route === "screen-11-8") {
-    return <PassageHistoryScreen />;
-  }
-
-  return <CoverageScreen />;
+  useEffect(() => {
+    charger().then(setData, (error) => setData({ passages: [], erreurs: [`Chargement impossible (${error.message}).`] }));
+  }, []);
+  if (route.ecran === "rapport") return <Rapport route={route} data={data} />;
+  if (route.ecran === "relire") return <ARelire route={route} data={data} />;
+  return <Passages route={route} data={data} />;
 }

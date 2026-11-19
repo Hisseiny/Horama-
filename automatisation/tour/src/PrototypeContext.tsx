@@ -88,7 +88,7 @@ export function PrototypeProvider({ children }: { children: ReactNode }) {
 
   const upsertJournalEntry = useCallback((entry: Omit<JournalEntry, "date" | "author">) => {
     setJournalEntries((current) => [
-      { ...entry, date: currentJournalDate(), author: "Jane Doe" },
+      { ...entry, date: currentJournalDate(), author: "" },
       ...current.filter((item) => item.id !== entry.id),
     ]);
   }, []);

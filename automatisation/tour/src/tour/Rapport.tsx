@@ -45,7 +45,7 @@ export default function Rapport({ route, data }: { route: Route; data: Chargemen
                 <Fold value={String(p.defauts)} label={p.defauts > 1 ? "défauts prouvés" : "défaut prouvé"} status="defect" />
                 <Fold value={String(p.doutes)} label="doutes à trancher" status="suspect" />
                 <Fold value={p.pages.visitees !== null ? String(p.pages.visitees) : "?"} label="pages visitées" detail={p.pages.trouvees ? `sur ${p.pages.trouvees} trouvées` : undefined} />
-                <Fold value={dureeCout(p.duree_s, p.cout_usd)} label="durée et coût" />
+                {(p.duree_s !== null || p.cout_usd !== null) && <Fold value={dureeCout(p.duree_s, p.cout_usd)} label="durée et coût" />}
               </div>
               <section className="report-table-card" aria-label="Constats du passage">
                 <div className="report-table-scroll">
@@ -63,7 +63,7 @@ export default function Rapport({ route, data }: { route: Route; data: Chargemen
                         <Statut genre={c.genre} />
                         <span className="report-test"><strong>{c.texte}</strong></span>
                         <span>{c.page}</span>
-                        <span className={`report-proof is-${c.genre === "defaut" ? "defect" : "suspect"}`}>{c.preuve ?? "—".replace("—", "")}</span>
+                        <span className={`report-proof is-${c.genre === "defaut" ? "defect" : "suspect"}`}>{c.preuve ?? ""}</span>
                         <span className="report-measure">{c.decision ? `${c.decision.choix}${c.decision.par ? `, par ${c.decision.par}` : ""}` : "pas tranché"}</span>
                       </a>
                     ))}
