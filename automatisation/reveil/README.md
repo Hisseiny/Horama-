@@ -30,7 +30,9 @@ Un impact vide est écrit, annoncé et ne lance pas la scène (qui refuserait un
 
 Sur la base de cette PR, `site-eugenia/` est absent et les notes Eugenia portent `code: []`. Il faut que le couloir du site fournisse la copie locale, son serveur, et que le couloir du vault relie les vrais fichiers aux notes (`code: [site-eugenia/…]`) ou ajoute une fiche de changement. Sans ces liens, impact peut retenir zéro test : le réveil le dit, il n'invente aucune sélection. Les références doivent correspondre au navigateur de démo. Les essais de ce module utilisent une copie isolée, jamais une modification du vrai site ou vault.
 
-## Vercel (option, non implémentée)
+## Vercel : le réveil par une PR (voir plus bas)
+
+Ce paragraphe date d'avant le réveil par une PR. La prévisualisation Vercel d'une PR est lue aujourd'hui par `pr.mjs` (section suivante), en simple lecture de GitHub, sans clé Vercel. Le texte qui suit décrit l'ancienne piste d'un réveil par déploiement, qui n'a pas été construite.
 
 Le repli local est utilisable sans compte ni clé. Après accord de l'école, une source Vercel devra fournir **le SHA du déploiement READY, celui du déploiement précédent et l'adresse de prévisualisation** à la même suite `wakeCommit({ before, after, baseUrl, output })` ; le vault sera lu au SHA déployé. Il faudra l'identifiant du projet (et de l'équipe si applicable), l'accès en lecture aux déploiements et une authentification autorisée pour un projet privé, ainsi qu'une adresse accessible à Chrome (protection de prévisualisation à traiter par l'équipe). Rien n'est publié ici, aucune API Vercel n'est appelée, aucun secret n'est nécessaire pour le local.
 
