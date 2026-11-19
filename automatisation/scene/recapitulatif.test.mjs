@@ -2,7 +2,7 @@
 // no network. Run from this folder: node --test recapitulatif.test.mjs
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { bilanExploration, dejaVoulu, revoir } from "./recapitulatif.mjs";
+import { attenteLecture, bilanExploration, dejaVoulu, lisible, revoir, selecteursDe } from "./recapitulatif.mjs";
 
 // The site blocked by its anti-robot (as in docs/tests/2026-11-18-a67-anti-robot.md, skema.edu): no page, no H session.
 const bloquee = {
@@ -90,4 +90,18 @@ test("revoir : --choix sans répétition laisse la question en trop à l'humain 
   };
   assert.deepEqual(await run(false), { asked: ["voulu", "bug"], made: ["voulu", "bug", "bug"] }, "la troisième question attend l'humain");
   assert.deepEqual(await run(true), { asked: ["voulu", "bug", "voulu"], made: ["voulu", "bug", "voulu"] }, "--repeter-choix reprend les réponses");
+});
+
+// Never a selector on the screen (passage of 19/11 on the German clone: a question of 6 to 8 lines of CSS selectors,
+// read in 40 s): the number of elements and their visible texts, short and without repeats; 6 s at most to answer.
+test("lisible : un constat groupé dit le nombre d'éléments et leurs textes visibles, jamais leurs sélecteurs", () => {
+  const description = "Le texte dépasse la boîte de son conteneur. Éléments : html > body:nth-child(3) > main > ol > li:nth-child(1) > span, html > body:nth-child(3) > main > ol > li:nth-child(2) > span, html > body:nth-child(3) > main > ol > li:nth-child(3) > span.";
+  assert.equal(selecteursDe(description).length, 3);
+  assert.equal(lisible(description, ["Studienjahr", "Studienjahr", " Studienjahr\n"]), "Le texte dépasse la boîte de son conteneur. 3 éléments : « Studienjahr ».");
+  assert.equal(lisible(description, []), "Le texte dépasse la boîte de son conteneur. 3 éléments.");
+  assert.equal(lisible(description, ["a", "b", "c", "d"]), "Le texte dépasse la boîte de son conteneur. 3 éléments : « a », « b », « c », ….");
+  assert.doesNotMatch(lisible(description, ["x".repeat(80)]), /html|nth-child/);
+  assert.equal(lisible("Un texte semble coupé.", []), "Un texte semble coupé.");
+  assert.equal(attenteLecture("x".repeat(700)), 6000);
+  assert.equal(attenteLecture("x".repeat(20)), 3500);
 });
