@@ -16,20 +16,22 @@ Navigation branchée : « Tests à valider » ouvre 11.2, « ▷ Lancer un passa
 
 ## Ce qui a été appliqué
 
-- **Coque** : barre latérale Papier `#FFFDF6` avec contour encre (voir plus bas), logo « H[œil]rama » en Tilt Warp couleur encre, sélecteur « Facturation Pro · version testée : v13 », bouton ailé « ▷ Lancer un passage », menu (Couverture, Tests à valider, Passages & Rapports, À relire), quota « 14 / 40 passages · PRO », « Agent disponible », profil « Jane Doe ».
+- **Coque** : barre latérale Soleil clair `#FFE39A` en mode clair, Encre en mode sombre, avec contour encre (voir plus bas), logo « H[œil]rama » en Tilt Warp couleur encre, sélecteur « Facturation Pro · version testée : v13 », bouton ailé « ▷ Lancer un passage », menu (Couverture, Tests à valider, Passages & Rapports, À relire), quota « 14 / 40 passages · PRO », « Agent disponible », profil « Jane Doe ».
 - **Zone principale** : fond engobe `#FBF5E6`, cartes papier `#FFFDF6` avec contour encre de 2,5 px, aucune ombre ni dégradé, titres en Tilt Warp, texte en Funnel Sans, mesures en Spline Sans Mono.
 - **États** : miltos `#B8321F` (défaut prouvé), ocre `#C48A1E` (suspect), olivier `#2E7D55` (conforme), toujours avec leur signe.
 - **Mascotte** : le dessin de `docs/da/mascotte.js` (ailes lilas pointues, trait `#1C1C1C`), fixe en bas à droite ; seuls l'iris et le badge changent selon l'écran.
 
 Les demandes envoyées à Figma Make sont dans `demande-figma-coque.txt`, `demande-figma-barre-papier.txt` et `demandes-ecrans-11-3-a-11-7.txt`. Les captures ont été prises sur l'aperçu du fichier, à 1440 × 900.
 
-## Barre latérale : décision du 18/11
+## Barre latérale : décisions du 18 et du 19/11
 
-La barre latérale n'est **jamais violette**. Elle est en Papier `#FFFDF6`, avec un contour encre de 2,5 px et des textes encre : voir `barre-laterale.md`.
+La barre latérale n'est **jamais violette**. En mode clair, elle est en Soleil clair `#FFE39A`, pour se détacher du fond et des cartes. En mode sombre, elle est en Encre `#1C1C1C`. Voir `barre-laterale.md`.
+
+À quoi sert chaque écran : voir `ecrans.md`.
 
 ## Ce qui reste
 
 - Le dossier `interface/` du dépôt n'est pas modifié : ces écrans vivent dans Figma Make (fichiers du CPO).
 - Une restauration de version dans Figma Make avait effacé les écrans 11.3 et 11.4 et remis l'ancien logo sur 11.1 : ils ont été recréés le 18/11 au soir. Avant de restaurer une version, vérifiez qu'elle contient les dossiers `interface/screen-11-3` à `screen-11-7`.
-- L'ancien écran « Tests à valider » du deuxième fichier Figma Make ([lien](https://www.figma.com/make/6bnlfg9sPF3qDLPWshYQLO)) reste en place, avec la barre Papier ; il n'est plus la référence.
+- Le deuxième fichier Figma Make (ancien écran « Tests à valider ») n'est plus la référence et n'est plus mis à jour : seul le fichier principal compte.
 - Les tableaux reproduits dans les maquettes (11.3, 11.5, 11.7) affichent « à mesurer » là où la spécification ne donne pas de valeur.

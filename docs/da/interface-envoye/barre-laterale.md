@@ -2,18 +2,23 @@
 
 La barre latérale suit la direction graphique « L'envoyé » (`docs/da/charte-graphique.pdf`). Ces règles valent pour tous les écrans de l'application, de 11.1 à 11.7.
 
-**Décision de la CDO (18/11) : la barre latérale n'est jamais violette.** Elle est en Papier `#FFFDF6`, et non en Nuit `#2A2647`.
+**Décisions de la CDO :**
+
+- 18/11 : la barre latérale n'est jamais violette. Elle n'est plus en Nuit `#2A2647`.
+- 19/11 : en mode clair, elle est en Soleil clair `#FFE39A`, pour se détacher du fond Engobe et des cartes Papier. En mode sombre, elle reste Encre `#1C1C1C`.
 
 ## Coque
 
 - Position fixe à gauche.
 - Largeur desktop : 240 px.
 - Hauteur : toute la hauteur de l'écran.
-- Fond Papier : `#FFFDF6`.
+- Fond en mode clair : Soleil clair `#FFE39A`.
 - Bordure droite : 2,5 px solid `#1C1C1C`.
 - Padding : 28 px 16 px 24 px.
 - Aucun dégradé, aucune ombre portée.
-- La barre reste Papier en mode clair. En mode sombre, elle passe en Encre `#1C1C1C`, jamais en violet.
+- En mode sombre, la barre est en Encre `#1C1C1C`, jamais en violet.
+- Sur le fond Soleil clair, le sélecteur de projet, l'avatar et les compteurs standards gardent un fond Papier `#FFFDF6`. Le séparateur du pied est en Encre secondaire à 30 %.
+- Aucun texte gris plus clair que `#5C5546` sur la barre.
 - Les textes gardent un contraste d'au moins 4,5:1.
 
 ## Typographies
@@ -27,7 +32,8 @@ La barre latérale suit la direction graphique « L'envoyé » (`docs/da/charte-
 
 | Rôle | Couleur |
 |---|---|
-| Papier, fond de la barre | `#FFFDF6` |
+| Soleil clair, fond de la barre en mode clair | `#FFE39A` |
+| Papier, sélecteur, avatar, compteurs | `#FFFDF6` |
 | Encre, texte principal, boutons et contours | `#1C1C1C` |
 | Encre secondaire, texte secondaire | `#5C5546` |
 | Engobe, texte sur l'entrée active et sur le bouton | `#FBF5E6` |
