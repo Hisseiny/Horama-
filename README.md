@@ -19,6 +19,7 @@ Pour le jury, à distance, sans terminal : Horama cherche les défauts d'un site
 5. **Lire le récapitulatif.**
    - Un **défaut prouvé** a été vérifié par le code (lien qui répond en erreur, texte qui déborde de sa boîte, image cassée, texte resté dans une autre langue…) : il vient avec sa capture entourée et sa mesure (« mesuré : … », « attendu : … »).
    - Un **doute** vient du regard du modèle visuel Holo : rien n'est prouvé, c'est à vous de trancher « bug » ou « voulu ».
+   - Sous chaque constat, deux boutons : « C'est voulu » ou « C'est un bug ». Votre réponse reste dans votre navigateur (aucun compte, rien n'est envoyé) ; un second clic l'annule.
 6. **Revenir à vos passages.** La tour de contrôle, https://horama-gold.vercel.app/tour/, liste les explorations envoyées depuis votre navigateur et les passages déclenchés par une PR (les PR du clone d'Eugenia School), chacun avec ses constats sur leur capture et les décisions déjà prises.
 
 **Ce qui peut arriver**

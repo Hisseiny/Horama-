@@ -56,6 +56,30 @@ function proofOf(constat) {
   return [];
 }
 
+// Bug, or intended? The answer of the reader on each finding, kept in this browser only (no account, nothing sent):
+// localStorage « horama-decisions:<id of the exploration> » = { <id of the finding>: "bug" | "voulu" }.
+const KEY = `horama-decisions:${id}`;
+const readDecisions = () => { try { return JSON.parse(localStorage.getItem(KEY) ?? "{}") ?? {}; } catch { return {}; } };
+function decide(constat) {
+  const box = element("div", "trancher");
+  const said = element("p", "dit second");
+  const buttons = [["voulu", "C'est voulu"], ["bug", "C'est un bug"]].map(([value, label]) =>
+    Object.assign(element("button", `choix ${value}`, label), { type: "button", onclick: () => show(readDecisions()[constat.id] === value ? null : value) }));
+  const show = (value) => {
+    const all = readDecisions();
+    if (value === undefined) value = all[constat.id] ?? null;
+    else {
+      if (value) all[constat.id] = value; else delete all[constat.id];
+      try { localStorage.setItem(KEY, JSON.stringify(all)); } catch { /* shown anyway, not kept */ }
+    }
+    for (const button of buttons) button.setAttribute("aria-pressed", String(button.classList.contains(value ?? "")));
+    said.textContent = value ? `Tranché : ${value === "bug" ? "un bug" : "voulu"}. Gardé dans ce navigateur ; cliquez à nouveau pour annuler.` : "Bug, ou voulu ? À vous de trancher.";
+  };
+  box.append(...buttons, said);
+  show(undefined);
+  return box;
+}
+
 function card(service, report, constat, genre) {
   const page = report.pages.find((candidate) => candidate.ecran === constat.ecran);
   const path = page ? new URL(page.url).pathname : constat.ecran;
@@ -69,6 +93,7 @@ function card(service, report, constat, genre) {
   const shot = capture(`${service}/explorations/${encodeURIComponent(id)}/${constat.capture}`, constat.zone, size, genre);
   item.append(bar, shot.box, element("h3", "", constat.description), where, ...proofOf(constat).map((line) => element("p", "preuve", line)));
   if (!constat.zone) item.append(element("p", "ou second", "Emplacement non mesuré sur la capture."));
+  item.append(decide(constat));
   return { item, ring: shot.ring };
 }
 
