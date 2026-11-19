@@ -1,10 +1,10 @@
-# Les 7 écrans de Horama : à quoi sert chacun
+# Les 8 écrans de Horama : à quoi sert chacun
 
 Horama lit la documentation d'une équipe produit (un vault Obsidian) et en tire des tests. Un humain valide ces tests. L'agent H les joue sur le vrai logiciel, et le code vérifie les valeurs relevées. Chaque décision humaine met ensuite le vault à jour.
 
 Les 7 écrans suivent ce chemin, dans l'ordre : **voir où on en est → valider les tests → regarder le passage → lire le rapport → comparer → trancher → corriger la doc.**
 
-Ils sont tous dans le fichier Figma Make principal ([lien](https://www.figma.com/make/95kAUa9u4Rg2A525f5OHtf)), et on passe de l'un à l'autre par le menu de gauche. La source est `docs/cadrage.md`, section 11.
+Ils sont tous dans le fichier Figma Make de référence ([lien](https://www.figma.com/make/OiXoK1VpUbFpsu7oPAIZEU), équipe de la CDO depuis le 19/11), et on passe de l'un à l'autre par le menu de gauche. La source est `docs/cadrage.md`, section 11.
 
 | # | Écran | La question à laquelle il répond | Mascotte |
 |---|---|---|---|
@@ -15,6 +15,9 @@ Ils sont tous dans le fichier Figma Make principal ([lien](https://www.figma.com
 | 11.5 | Comparaison des versions | Qu'est-ce qui a changé entre deux versions ? | trouve |
 | 11.6 | À relire | C'est un bug, ou c'est voulu ? | doute |
 | 11.7 | Dérive documentaire | La doc est-elle encore juste ? | fini |
+| 11.8 | Passages et historique | Qu'est-ce qui s'est passé, quand, et qui a tranché ? | regarde |
+
+L'écran 11.8 a été ajouté le 19/11 pour la fonctionnalité F35 (historique). Il ne fait pas partie des 7 écrans du cadrage. Les améliorations prévues pour tous les écrans, dont le journal détaillé de l'agent, sont dans `ameliorations.md`.
 
 Les chiffres affichés sur les maquettes (28 règles conformes sur 36, 8 cas à relire, 312 zones différentes, quota, coûts, durées) sont des valeurs d'exemple, pas des mesures. Seul l'écart 1 240,00 € / 1 420,00 € vient d'un passage réel (`docs/tests/2026-11-17-c4-coureur.md`).
 
@@ -124,7 +127,7 @@ D'autres surfaces existent dans le dépôt. Ce sont des pages web et une extensi
 
 Le cadrage ne prévoit pas d'autre écran d'application que ces 7.
 
-**Écran manquant repéré (19/11) : un historique.** La fonctionnalité F35 du cadrage (« historique par écran et par règle : quand ça a cassé, qui a tranché ») n'a pas d'écran. Aujourd'hui, l'entrée « Passages & Rapports » ouvre directement un seul rapport : il n'y a pas de liste des passages, ni de journal des décisions. Les données existent déjà dans le vault, rangées par logiciel (`passages/` et `decisions/`).
+**Historique (19/11) :** la fonctionnalité F35 du cadrage n'avait pas d'écran. C'est l'écran 11.8 « Passages et historique », ouvert par « Passages & Rapports » : la liste des passages, chacun menant à son rapport, et le journal des décisions, filtrable par écran et par règle.
 
 ## Ce que fait chaque bouton
 
@@ -141,6 +144,7 @@ Toutes les actions du prototype mènent quelque part (vérifié le 19/11 en cliq
 | 11.2 | une réponse à la question | « Réponse enregistrée dans le vault », la ligne Verification se met à jour |
 | 11.3 | « Voir le rapport → » | ouvre 11.4 |
 | 11.4 | « Exporter au format H (.md) » | télécharge le rapport en Markdown |
+| 11.4 | « ← Tous les passages » | ouvre 11.8 |
 | 11.4 | ligne « Défaut prouvé » | ouvre 11.6 |
 | 11.4 | ligne « Suspect » ou « Conforme » | ouvre 11.5 |
 | 11.5 | « Côte à côte », « Rideau », « Pixels bruts » | change la vue |
@@ -149,6 +153,8 @@ Toutes les actions du prototype mènent quelque part (vérifié le 19/11 en cliq
 | 11.6 | « C'est voulu » | la décision est gardée, puis ouvre 11.7 pour corriger la doc |
 | 11.6 | tous les cas tranchés | « Tout est tranché. Horama ne reposera pas ces questions. » |
 | 11.7 | « Corriger la note et ouvrir la PR » ou « Laisser la note telle quelle » | confirmation, puis retour à 11.6 |
+| 11.8 | une ligne de passage | ouvre son rapport 11.4 |
+| 11.8 | une décision du journal | « bug » ouvre 11.6, « voulu » avec note corrigée ouvre 11.7 ; les filtres par écran et par règle trient le journal |
 | partout | liens « Replay » | ouvrent le hub de H Company dans un nouvel onglet (pas encore le vrai replay de la session) |
 
 Ce sont des confirmations simulées : le prototype n'écrit rien dans le vault et n'ouvre aucune vraie PR.
