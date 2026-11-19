@@ -1,7 +1,9 @@
 // The report of one exploration, in a tab of the extension, in the charter « L'envoyé »: the file horama-exploration-1
 // read every 500 ms (docs/decisions/2026-11-17-format-exploration.md), the pages one by one with the square of their
 // state, then what is proven, on its sheet with the stroke of miltos of the charter (trait.js), and apart what is only a
-// doubt, with its ochre dots. Nothing here is particular to a site.
+// doubt, with its ochre dots. While the service films the tab of the agent (field direct, #164), the last image of
+// /direct on top, every 300 ms. Nothing here is particular to a site. The same file serves the page of welcome
+// (accueil/rapport/, copied by extension/copier-rapport.sh).
 import { poserDoute, tracerDefaut } from "./lib/trait.js";
 
 const id = new URLSearchParams(location.search).get("id");
@@ -62,7 +64,8 @@ function card(service, report, constat, genre) {
   const bar = element("div", "barre");
   bar.append(element("i"), element("span", "", page?.url ?? path));
   const where = element("p", "ou second");
-  where.append("Page ", Object.assign(element("a", "", path), { href: page?.url ?? "#", target: "_blank", rel: "noopener" }));
+  // Only an http(s) address becomes a link: the report comes from a service, and a page served on the web reads it too.
+  where.append("Page ", Object.assign(element("a", "", path), { href: /^https?:\/\//.test(page?.url ?? "") ? page.url : "#", target: "_blank", rel: "noopener" }));
   const shot = capture(`${service}/explorations/${encodeURIComponent(id)}/${constat.capture}`, constat.zone, size, genre);
   item.append(bar, shot.box, element("h3", "", constat.description), where, ...proofOf(constat).map((line) => element("p", "preuve", line)));
   if (!constat.zone) item.append(element("p", "ou second", "Emplacement non mesuré sur la capture."));
@@ -151,10 +154,45 @@ function render(service, report) {
   $("#bilan").hidden = false;
 }
 
+// The direct (#164): while the service says direct, its last image every 300 ms. The next image is loaded and decoded
+// before it replaces the one shown, so nothing blinks. 404: no image yet, the place stays hidden; 410 or the end of the
+// exploration: the direct goes and the place goes back to the report.
+const live = { on: false, over: false };
+async function watch(service) {
+  if (live.on || live.over) return;
+  live.on = true;
+  const shown = $("#direct img");
+  let previous = null;
+  while (!live.over) {
+    const started = Date.now();
+    const response = await fetch(`${service}/explorations/${encodeURIComponent(id)}/direct`, { cache: "no-store" }).catch(() => null);
+    if (response?.status === 410) break;
+    if (response?.ok) {
+      const url = URL.createObjectURL(await response.blob());
+      const next = new Image();
+      next.src = url;
+      if (!live.over && (await next.decode().then(() => true, () => false))) {
+        shown.src = url;
+        $("#direct").hidden = false;
+        if (previous) URL.revokeObjectURL(previous);
+        previous = url;
+      } else URL.revokeObjectURL(url);
+    }
+    await new Promise((done) => setTimeout(done, Math.max(0, 300 - (Date.now() - started))));
+  }
+  stopLive();
+}
+function stopLive() {
+  live.over = true;
+  $("#direct").hidden = true;
+}
+
 async function follow() {
   const service = await serviceAddress();
   for (;;) {
     const { status, body } = await ask(`${service}/explorations/${encodeURIComponent(id)}`);
+    if (status === 200 && body.direct === true) watch(service);
+    else if (live.on && (status !== 200 || body.etat !== "en_cours")) stopLive();
     if (status === 200 && body.etat === "en_file") $("#etat").textContent = body.place > 0 ? `En attente : ${count(body.place, "exploration passe", "explorations passent")} avant celle-ci.` : "Départ…";
     else if (status === 200 && body.format === "horama-exploration-1") {
       render(service, body);

@@ -8,12 +8,14 @@
 //
 // Usage: node automatisation/reveil/pr.mjs --depot <propriétaire/dépôt> --logiciel <logiciel du vault> [--intervalle 20]
 //          [--une-fois] [--a-blanc] [--vault vault-horama] [--sortie .orchestrateur/reveil-pr] [--faux-github <fichier.json>]
-//          [--max 8] [--pages-cliquees 4] [--sans-exploration] [--commenter] [--captures-sur-branche horama/captures]
+//          [--max 8] [--pages-cliquees 8] [--sans-exploration] [--commenter] [--captures-sur-branche horama/captures]
 //          [-- options des deux scènes, par exemple --vitrine]
 // --commenter: one answer on the PR, once both scenes are done (the part of each scene).
 // --captures-sur-branche <branche>: with --commenter, the captures ringed of the exploration are put on this branch of
 // the target repository (created if needed, never merged) and shown in the answer.
-// --max, --pages-cliquees: the exploration of the preview (pages at most, pages the agent reaches by a click);
+// --max, --pages-cliquees: the exploration of the preview (pages at most, pages the agent reaches by a click: 8 by
+// default, every page after the page of departure, as the explorer caps it at the number of pages minus one; a page
+// opened by its address is a jump on the screen, a click is a gesture the audience follows);
 // --sans-exploration: the vault tests only.
 // --a-blanc: one look at the repository, nothing played (no scene, no H, nothing written): the open PRs, the preview of
 // their last commit (where it was found, whether it opens without a Vercel login), their files and the tests they would
@@ -267,7 +269,7 @@ function runNode(args) {
 // exploration of the whole site of the preview (exploration.mjs, public mode: mechanical checks and Holo), unless
 // `exploration` is null. Everything in <sortie>/pr-<numéro>-<sha court>/. A scene that fails is written in the report,
 // never thrown: the other one still runs, and the wake-up goes on with the next PR.
-export async function jouerPr({ pr, fichiers, vault, logiciel, socle, sortie, sceneArgs = [], exploration = { max: 8, pagesCliquees: 4 }, langue = langueDePage, commenter = false, publier = publierCommentaire,
+export async function jouerPr({ pr, fichiers, vault, logiciel, socle, sortie, sceneArgs = [], exploration = { max: 8, pagesCliquees: 8 }, langue = langueDePage, commenter = false, publier = publierCommentaire,
   captures = null, televerser = televerserCapture }, run = runNode) {
   const started = performance.now();
   const folder = join(sortie, `pr-${pr.numero}-${pr.tete.slice(0, 7)}`);
@@ -353,7 +355,7 @@ async function main() {
   const { values } = parseArgs({ args: process.argv.slice(2, separator < 0 ? undefined : separator), options: {
     depot: { type: "string" }, logiciel: { type: "string" }, intervalle: { type: "string", default: "20" }, "une-fois": { type: "boolean" }, "a-blanc": { type: "boolean" },
     vault: { type: "string", default: "vault-horama" }, sortie: { type: "string", default: ".orchestrateur/reveil-pr" }, "faux-github": { type: "string" },
-    max: { type: "string", default: "8" }, "pages-cliquees": { type: "string", default: "4" }, "sans-exploration": { type: "boolean" }, commenter: { type: "boolean" }, "captures-sur-branche": { type: "string" },
+    max: { type: "string", default: "8" }, "pages-cliquees": { type: "string", default: "8" }, "sans-exploration": { type: "boolean" }, commenter: { type: "boolean" }, "captures-sur-branche": { type: "string" },
   } });
   if (!values.logiciel || (!values.depot && !values["faux-github"])) throw new Error("--logiciel et --depot (ou --faux-github) sont requis");
   if (values.depot && !/^[\w.-]+\/[\w.-]+$/.test(values.depot)) throw new Error("--depot attend propriétaire/dépôt");

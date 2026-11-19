@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { ReleveCapture } from "./coureur.ts";
@@ -29,6 +29,12 @@ export interface BrowserRuntime {
   }>;
   navigateur(): Promise<NavigateurSession>;
   close(): void;
+}
+
+// A bridge whose Selenium lost its tab answers "invalid session id" to every command while it keeps running.
+export function lostBrowser(logFile: string): string | null {
+  try { return /invalid session id/i.test(readFileSync(logFile, "utf8")) ? "Le pont H a perdu l'onglet du navigateur (invalid session id)." : null; }
+  catch { return null; }
 }
 
 export async function ouvrirNavigateur({ port, scene, findHolo, startBridge }: {
@@ -73,12 +79,13 @@ export async function ouvrirNavigateur({ port, scene, findHolo, startBridge }: {
       const channel = randomUUID();
       const folder = join(homedir(), ".horama", "ponts");
       mkdirSync(folder, { recursive: true });
-      const bridge = startBridge({ holo, port, channel, logFile: join(folder, `${channel}.log`) });
+      const logFile = join(folder, `${channel}.log`);
+      const bridge = startBridge({ holo, port, channel, logFile });
       bridges.add(bridge);
       try {
         if (!await bridge.ready(20_000) || bridge.failed) throw new Error("Le pont H n’est pas prêt ; consulter ~/.horama/ponts/.");
       } catch (error) { bridge.stop(); bridges.delete(bridge); throw error; }
-      return { channel, stop() { bridge.stop(); bridges.delete(bridge); }, failed: () => bridge.failed };
+      return { channel, stop() { bridge.stop(); bridges.delete(bridge); }, failed: () => bridge.failed ?? lostBrowser(logFile) };
     },
     close() { for (const bridge of bridges) bridge.stop(); bridges.clear(); page.close(); },
   };

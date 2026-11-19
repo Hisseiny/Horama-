@@ -99,6 +99,22 @@ export async function prepareCapture(client: ExplorationCdp): Promise<"refusee" 
   return result.result?.value === true ? "refusee" : "aucune";
 }
 
+export interface PageLink { texte: string; href: string; visible: boolean }
+export function pageLinks(): PageLink[] {
+  const links: PageLink[] = [];
+  for (const anchor of document.querySelectorAll<HTMLAnchorElement>("a[href]")) {
+    const texte = (anchor.innerText || anchor.textContent || anchor.getAttribute("aria-label") || anchor.title || "").replace(/\s+/g, " ").trim().slice(0, 80);
+    if (!texte || !/^https?:/.test(anchor.href)) continue;
+    const rect = anchor.getBoundingClientRect();
+    links.push({ texte, href: anchor.href, visible: rect.width > 0 && rect.height > 0 && getComputedStyle(anchor).visibility === "visible" });
+  }
+  return links.slice(0, 500);
+}
+export async function readLinks(client: ExplorationCdp): Promise<PageLink[]> {
+  const result = await client.send("Runtime.evaluate", { expression: `(${pageLinks.toString()})()`, returnByValue: true });
+  return Array.isArray(result.result?.value) ? result.result.value : [];
+}
+
 export async function captureDefect(client: ExplorationCdp, zone: { x: number; y: number; largeur: number; hauteur: number }, scroll: [number, number]) {
   const evaluate = async (expression: string) => (await client.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true })).result?.value;
   try {

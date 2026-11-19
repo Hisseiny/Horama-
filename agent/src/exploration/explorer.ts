@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFile
 import { join } from "node:path";
 import type { EcartVisuel, ResultatVerification, Statut } from "@horama/contrats";
 import { verifierReleve } from "@horama/jugement";
-import { ecrireRapportPassage, ecrireReference, lireDecisions, lireNotes, lireReferences } from "@horama/memoire";
+import { ecrireRapportPassage, lireDecisions, lireNotes, lireReferences } from "@horama/memoire";
 import type { BasePassages } from "../base.ts";
 import type { BrowserRuntime } from "../browser.ts";
 import { COURSE_RULES, END_TOOL } from "../consigne.ts";
@@ -11,9 +11,11 @@ import type { Consigne } from "../consigne.ts";
 import { creerCoureur } from "../coureur.ts";
 import type { ReleveCapture } from "../coureur.ts";
 import type { ResultatSession, Session, SessionEnCours } from "../session.ts";
-import { captureDefect, connecterCdp, dismissCookies, prepareCapture, verifierClics } from "./cdp.ts";
+import { captureDefect, connecterCdp, dismissCookies, prepareCapture, readLinks, verifierClics } from "./cdp.ts";
+import type { PageLink } from "./cdp.ts";
 import type { ExplorationCdp } from "./cdp.ts";
 import { controlerPage } from "./controles.ts";
+import type { Defaut } from "./controles.ts";
 import { askHolo } from "./holo.ts";
 import { discoverPages, normalizePageQuery, renderPage } from "./pages.ts";
 import { fetchPublic } from "./reseau.ts";
@@ -63,8 +65,9 @@ export function explorationPassageId(date: Date): string {
 
 export const exclusionLabel = (reason: string) => reason === "section-limit" ? "limite de pages par rubrique atteinte" : reason;
 
+const pathOf = (address: string) => { const parsed = new URL(address); return parsed.pathname + parsed.search; };
 function clickInstruction(pages: Array<{ ecran: string; url: string }>): string {
-  return `Après relever, fais 1 ou 2 défilements au plus avec scroll_web sur une page atteinte par clic, en grands défilements, avant de cliquer. Pour la page de départ, conserve la limite de 3 défilements au plus jusqu'en bas. Ne répète pas les défilements déjà faits sur la page courante ; aucun défilement demandé sur les autres pages atteintes par adresse. Puis sans go_to clique un lien visible de la page courante (menu, corps ou pied de page) vers une page pas encore relevée de cette liste : ${pages.map(page => `${page.ecran} : ${page.url}`).join(" ; ")}. Attends le chargement puis appelle relever avec l'ecran de la page atteinte. Si aucun lien visible ne mène à une page de la liste : ouvre ${pages[0]?.url} avec go_to puis appelle relever(ecran="${pages[0]?.ecran}", vue="defaut").`;
+  return `Après relever, fais 1 ou 2 défilements au plus avec scroll_web sur une page atteinte par clic, en grands défilements, avant de cliquer. Pour la page de départ, conserve la limite de 3 défilements au plus jusqu'en bas. Ne répète pas les défilements déjà faits sur la page courante ; aucun défilement demandé sur les autres pages atteintes par adresse. Puis sans go_to clique un lien visible de la page courante (menu, corps ou pied de page) vers une page pas encore relevée de cette liste : ${pages.map(page => `${page.ecran} : chemin ${pathOf(page.url)} (${page.url})`).join(" ; ")}. Choisis le lien par son adresse (son chemin), pas par son nom : un lien au nom proche peut mener ailleurs. Attends le chargement puis appelle relever avec l'ecran de la page atteinte. Si aucun lien visible ne mène à une page de la liste : ouvre ${pages[0]?.url} avec go_to puis appelle relever(ecran="${pages[0]?.ecran}", vue="defaut").`;
 }
 
 export function construireExploration(pages: Array<{ ecran: string; url: string }>, site: string, version: string, pagesCliquees = 4): Consigne {
@@ -74,7 +77,8 @@ export function construireExploration(pages: Array<{ ecran: string; url: string 
   const course = pages.map((page, index) => ({ ecran: page.ecran, vue: "defaut", key: `${page.ecran}--defaut`, part: index + 1,
     test_id: tests[index].id, address: page.url, here: `location.href === ${JSON.stringify(page.url)}` }));
   return { tests, course, dropped: [], start: pages[0].url,
-    instructions: [...COURSE_RULES, "Si une bannière de cookies apparaît, refuse-la (Refuser / Tout refuser / Continuer sans accepter / Reject all), ne l’accepte jamais.", "Simple visiteur : ne remplis et ne soumets aucun formulaire, ne te connecte jamais. N'ouvre aucun onglet ni fenêtre."].join("\n"),
+    instructions: [...COURSE_RULES, "Si une bannière de cookies apparaît, refuse-la (Refuser / Tout refuser / Continuer sans accepter / Reject all), ne l’accepte jamais.", "Simple visiteur : ne remplis et ne soumets aucun formulaire, ne te connecte jamais. N'ouvre aucun onglet ni fenêtre.",
+      `Reste sur le site ${new URL(pages[0].url).origin} : ne suis aucun lien vers un autre domaine ou sous-domaine. Si tu y arrives quand même, tu es ramené sur le site.`].join("\n"),
     task: ["Nouveau passage : aucune page n'a encore été relevée dans cette session. La page déjà ouverte ne prouve aucun avancement. Commence à la partie 1, même si le navigateur affiche une partie ultérieure.", ...pages.map((page, index) => `Partie ${index + 1} : ${index === 0
       ? `si l'onglet n'affiche pas ${page.url}, ouvre cette adresse avec go_to. Appelle relever(ecran="${page.ecran}", vue="defaut"), puis fais 3 défilements au plus jusqu'en bas avec scroll_web, en grands défilements comme un visiteur qui la lit.`
       : index <= clicked ? clickInstruction(pages.slice(1))
@@ -93,6 +97,25 @@ function overlap(a: Zone, b: Zone): boolean {
   const height = Math.max(0, Math.min(a.y + a.hauteur, b.y + b.hauteur) - Math.max(a.y, b.y));
   return 2 * width * height > Math.min(a.largeur * a.hauteur, b.largeur * b.hauteur);
 }
+function sameControlZone(a: Zone | undefined, b: Zone | undefined): boolean {
+  if (!a || !b) return a === b;
+  return Math.abs(a.x - b.x) <= 1 && Math.abs(a.y - b.y) <= 1
+    && Math.abs(a.largeur - b.largeur) <= 1 && Math.abs(a.hauteur - b.hauteur) <= 1;
+}
+function groupControls(defects: Defaut[]) {
+  const groups: { defect: Defaut; measure: string; selectors: Set<string> }[] = [];
+  for (const defect of defects) {
+    const measure = String(defect.valeur ?? defect.message);
+    const group = groups.find(item => item.defect.sorte === defect.sorte && item.defect.statut === defect.statut && item.measure === measure && sameControlZone(item.defect.zone, defect.zone));
+    if (group) {
+      if (defect.selecteur) group.selectors.add(defect.selecteur);
+    } else groups.push({ defect, measure, selectors: new Set(defect.selecteur ? [defect.selecteur] : []) });
+  }
+  return groups;
+}
+function controlDescription(message: string, selectors: Set<string>): string {
+  return selectors.size > 1 ? `${message} Éléments : ${[...selectors].join(", ")}.` : message;
+}
 function pageStatus(findings: Finding[]): Statut {
   return (["VERIFIED_FAIL", "SUSPECTED", "INCONCLUSIVE"] as Statut[]).find(status => findings.some(finding => finding.statut === status && !findings.some(other => other.id === finding.explique_par))) ?? "PASS";
 }
@@ -104,7 +127,7 @@ const expected = { page_en_erreur: "Une réponse HTTP inférieure à 400.", imag
 export async function explorer(options: ExplorerOptions, deps: ExplorerDependencies) {
   const { url, max, vault, sortie, port } = options;
   const { base, runtime, session, signal, log = console.log } = deps;
-  const navigation = { arrivees: {} as Record<string, "clic" | "adresse" | "depart">, clics: 0, defilements: 0, goTo: 0, defilementsDepart: 0 };
+  const navigation = { arrivees: {} as Record<string, "clic" | "adresse" | "depart">, clics: 0, defilements: 0, goTo: 0, defilementsDepart: 0, sorties: 0 };
   let clickedPages = 0, hadClick = false, hadGoTo = false, currentScreen: string | undefined;
   const onglets = deps.onglets ?? (async () => {
     const response = await fetch(`http://127.0.0.1:${port}/json`, { signal: AbortSignal.timeout(5000) });
@@ -142,9 +165,16 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
   const site = options.site ?? new URL(url).hostname.replace(/^www\./, "").replaceAll(".", "-");
   if (options.site !== undefined && !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(site)) throw new Error("Site invalide : utiliser lettres, chiffres, tirets ou soulignements.");
   const folder = join(vault, site, "passages");
-  const version = String((existsSync(folder) ? readdirSync(folder).filter(name => name.endsWith(".md")).length : 0) + 1);
-  const references = lireReferences(vault, site).filter(ref => ref.vue === "defaut" && Number(ref.version) < Number(version)).sort((a, b) => Number(b.version) - Number(a.version));
+  const passages = existsSync(folder) ? readdirSync(folder, { withFileTypes: true }).filter(entry => entry.isFile() && entry.name.endsWith(".md")) : [];
+  const referenceEntries = lireReferences(vault, site).filter(ref => ref.vue === "defaut");
+  const references = referenceEntries.filter(ref => Number.isSafeInteger(Math.floor(Number(ref.version)))).sort((a, b) => Number(b.version) - Number(a.version));
   const versionReference = references[0]?.version ?? null;
+  const latestVersion = passages.reduce((latest, entry) => {
+    const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(readFileSync(join(folder, entry.name), "utf8"))?.[1];
+    const recorded = Number(/^version_testee:[ \t]*(?:"(\d+)"|(\d+))[ \t]*\r?$/m.exec(frontmatter ?? "")?.slice(1).find(Boolean));
+    return Number.isSafeInteger(recorded) ? Math.max(latest, recorded) : latest;
+  }, Math.max(passages.length, Math.floor(Number(versionReference))));
+  const version = String(latestVersion + 1);
   const notes = lireNotes(vault, site);
   const decisions = lireDecisions(vault, site);
   let sitemap = false;
@@ -221,6 +251,33 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
       } catch { finalUrls.set(page.url, null); }
     }
     return finalUrls.get(page.url);
+  };
+  const originOf = (address: string) => { try { const parsed = new URL(address); return /^https?:$/.test(parsed.protocol) ? parsed.origin : null; } catch { return null; } };
+  const offSite = (address: string) => {
+    const origin = originOf(address);
+    return !!origin && ![url, ...pages.flatMap(page => [page.url, page.url_finale ?? page.url])].some(item => originOf(item) === origin);
+  };
+  let lastOnSite: string | null = null, offSiteNote = "", links: PageLink[] = [];
+  const bringBack = async (address: string) => {
+    const target = lastOnSite ?? pages[0].url;
+    navigation.sorties++;
+    log(`Sortie du site : ${address} ; retour sur ${target}.`);
+    let client: ExplorationCdp | undefined, back = false;
+    try { client = await (deps.connecter ?? connecterCdp)(port, address); await client.send("Page.navigate", { url: target }); back = true; }
+    catch { log(`Retour sur le site impossible depuis ${address}.`); }
+    finally { client?.close(); }
+    offSiteNote = `Tu étais sorti du site (${address}) : cette page n'est ni relevée ni contrôlée. ${back
+      ? `Tu es ramené sur ${target} : appelle wait_web pour voir la page avant d'agir`
+      : `Ouvre ${target} avec go_to`} ; reste sur ${new URL(pages[0].url).origin}.`;
+  };
+  const linkHints = (targets: ExplorationPage[]) => {
+    const lines = targets.flatMap(page => {
+      const wanted = [page.url, ...(page.url_finale ? [page.url_finale] : [])].map(address => normalized(address, true));
+      const labels = [...new Set(links.filter(link => { try { return wanted.includes(normalized(link.href, true)); } catch { return false; } })
+        .map(link => `« ${link.texte} »${link.visible ? "" : " (menu replié)"}`))].slice(0, 3);
+      return labels.length ? [`${page.ecran} (${pathOf(page.url)}) : ${labels.join(", ")}`] : [];
+    });
+    return lines.length ? ` Liens de la page courante dont l'adresse mène aux pages restantes : ${lines.join(" ; ")}.` : "";
   };
   const acquired = new Map<string, ReleveCapture>();
   const pending = new Map<string, { findings: Finding[]; http: number | null; holo: ExplorationPage["holo"] }>();
@@ -317,6 +374,10 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
       return returned;
     }
     let launches = 0;
+    const withNote = (response: string) => {
+      const note = offSiteNote; offSiteNote = "";
+      return note ? `${note}\n${response}` : response;
+    };
     const unfinished = () => pages.filter(page => page.etat !== "visitee" && page.etat !== "non_visitee");
     const trackedSession: Session = async input => {
       let active: SessionEnCours | undefined;
@@ -331,6 +392,11 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
           const maxSteps = explorationStepBudget(plan.course.length, clicked);
           active = await session({ ...input, consigne: plan, maxSteps, maxTimeS: explorationTimeBudget(maxSteps),
             async onStep(step) {
+              try {
+                const address = await urlCourante();
+                if (address && offSite(address)) await bringBack(address);
+                else if (address && originOf(address)) lastOnSite = address;
+              } catch { /* L'adresse courante reste contrôlée au relevé. */ }
               for (const action of step.action.split(/\s*,\s*/)) {
                 if (action === "Clique") { navigation.clics++; hadClick = true; }
                 if (action === "Ouvre une page") { navigation.goTo++; hadGoTo = true; }
@@ -345,17 +411,18 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
               agent.session_id = sessionId; agent.etat = "en_cours"; save();
               await input.onCreated(sessionId);
             },
-            async onTool(name, args) {
+            onTool: async (name, args) => withNote(await (async () => {
               if (blocage) return input.onTool("terminer", { etat: "echec", raison: blocage });
               const remaining = () => {
                 const page = unfinished()[0];
-                if (page && clickedPages < clicked) return `${pages.filter(page => page.etat === "visitee").length}/${pages.length} pages relevées dans ce passage. ${clickInstruction(unfinished())} Ne termine pas avant les relevés restants.`;
+                if (page && clickedPages < clicked) return `${pages.filter(page => page.etat === "visitee").length}/${pages.length} pages relevées dans ce passage. ${clickInstruction(unfinished())}${linkHints(unfinished())} Ne termine pas avant les relevés restants.`;
                 return page ? `${pages.filter(page => page.etat === "visitee").length}/${pages.length} pages relevées dans ce passage. Ouvre ${page.url} avec go_to puis appelle relever(ecran="${page.ecran}", vue="defaut"). Ne termine pas avant les relevés restants.` : 'Tous les relevés sont acquis. Appelle terminer(etat="reussi").';
               };
               if (name === "terminer" && args.etat === "reussi" && unfinished().length) return `Fin refusée : des pages restent à visiter. ${remaining()}`;
               if (name === "relever") {
                 let address: string | null = null;
                 try { address = await urlCourante(); } catch { /* Le hook contrôle le relevé si l'onglet est illisible. */ }
+                if (address && offSite(address)) { await bringBack(address); return remaining(); }
                 if (address) {
                   let matched: ExplorationPage | undefined;
                   try {
@@ -410,7 +477,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
               }
               if (name === "terminer") completed = args.etat === "reussi";
               return name === "relever" ? `${response}\n${remaining()}` : response;
-            },
+            })()),
           });
           return active;
         } catch {
@@ -530,7 +597,10 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
         try {
           const actual = new URL(capture.url_page);
           if (!/^https?:$/.test(actual.protocol)) reason = "La page n'a pas pu être chargée.";
-          else if (actual.origin !== new URL(page.url).origin) reason = `La page redirige vers un autre site : ${capture.url_page}`;
+          else if (actual.origin !== new URL(page.url).origin) {
+            if (offSite(capture.url_page) && await resolveFinal(page, hookSignal)) await bringBack(capture.url_page);
+            else reason = `La page redirige vers un autre site : ${capture.url_page}`;
+          }
         } catch { reason = "La page n'a pas pu être chargée."; }
         if (!accepted && !reason) {
           const final = await resolveFinal(page, hookSignal);
@@ -548,11 +618,14 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
         }
         const step = consigne.course.find(step => step.ecran === ecran);
         if (step) step.address = capture.url_page;
+        lastOnSite = capture.url_page;
+        try { links = client ? await readLinks(client) : []; } catch { links = []; }
         acquired.set(ecran, capture);
         writeFileSync(join(sortie, `captures/${ecran}.png`), capture.png);
         const findings: Finding[] = [];
         if (consentFailed) inconclusive(page, "controle", findings, "La revérification du consentement avant capture a échoué.");
         const controlZones = new Map<string, Zone>();
+        const recapturedControls: { item: Finding; message: string; selectors: Set<string> }[] = [];
         let http: number | null = null;
         const hookFetch: typeof fetch = (address, init) => (deps.fetch ?? fetch)(address, { ...init, ...(hookSignal ? { signal: init?.signal ? AbortSignal.any([hookSignal, init.signal]) : hookSignal } : {}) });
         const linkFetch: typeof fetch = (address, init) => siteFetch(address, { ...init, ...(hookSignal ? { signal: init?.signal ? AbortSignal.any([hookSignal, init.signal]) : hookSignal } : {}) });
@@ -563,9 +636,9 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
           http = status.result.value;
           const verifierClic = (urls: string[]) => verifierClics(port, capture.url_page, urls, { ...(hookSignal ? { signal: hookSignal } : {}) });
           const defects = await (deps.controler ?? controlerPage)(client, { fetch: linkFetch, verifierClic });
-          for (const defect of defects) {
-            const item = finding(page, "controle", findings, { sorte: sorts[defect.sorte], statut: defect.statut, description: defect.message, ...(defect.raison ? { raison: defect.raison } : {}),
-              preuve: { ...(defect.selecteur ? { element: defect.selecteur } : {}), mesure: String(defect.valeur ?? defect.message), attendu: expectedText(defect.sorte),
+          for (const { defect, measure, selectors } of groupControls(defects)) {
+            const item = finding(page, "controle", findings, { sorte: sorts[defect.sorte], statut: defect.statut, description: controlDescription(defect.message, selectors), ...(defect.raison ? { raison: defect.raison } : {}),
+              preuve: { ...(defect.selecteur ? { element: defect.selecteur } : {}), mesure: measure, attendu: expectedText(defect.sorte),
                 ...(["image_cassee", "lien_casse"].includes(defect.sorte) ? { url: String(defect.valeur).replace(/ : \d+$/, "") } : {}),
                 ...(defect.sorte === "erreur_console" ? { console: String(defect.valeur).slice(0, 300) } : {}) },
               textes_a_surligner: defect.sorte === "texte_erreur" ? [String(defect.valeur)] : [],
@@ -573,7 +646,6 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
             if (item.zone) {
               const documentZone = item.zone;
               const zone = { ...documentZone, x: documentZone.x - capture.defilement[0], y: documentZone.y - capture.defilement[1] };
-              controlZones.set(item.id, zone);
               item.zone = zone;
               if (zone.x < 0 || zone.y < 0 || zone.x + zone.largeur > 1280 || zone.y + zone.hauteur > 900) {
                 delete item.zone;
@@ -589,11 +661,20 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
                     } catch { /* Repli sur la capture CDP. */ }
                   }
                   extra ??= await captureDefect(client, documentZone, capture.defilement);
+                  const duplicate = extra.zone && recapturedControls.find(({ item: other }) =>
+                    other.sorte === item.sorte && other.preuve.mesure === measure && sameControlZone(other.zone, extra.zone));
+                  if (duplicate) {
+                    for (const selector of selectors) duplicate.selectors.add(selector);
+                    duplicate.item.description = controlDescription(duplicate.message, duplicate.selectors);
+                    continue;
+                  }
                   const file = `captures/${item.id}.png`;
                   writeFileSync(join(sortie, file), extra.png);
                   item.capture = file; item.zone = extra.zone;
+                  if (extra.zone) recapturedControls.push({ item, message: defect.message, selectors });
                 } catch { /* Le constat reste prouvé sans zone hors image. */ }
               }
+              controlZones.set(item.id, zone);
             }
             findings.push(item);
           }
@@ -671,7 +752,12 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
             inconclusive(page, "controle", report.constats, "La capture de cette page est indisponible.");
             await base.enregistrerResultat(markResult(page, id)); continue;
           }
-          if (!references.some(ref => ref.ecran === page.ecran)) ecrireReference(vault, site, page.ecran, "defaut", version, capture.png);
+          if (!referenceEntries.some(ref => ref.ecran === page.ecran)) {
+            const folder = join(vault, site, "references", page.ecran);
+            mkdirSync(folder, { recursive: true });
+            try { writeFileSync(join(folder, `defaut--v${version}.png`), capture.png, { flag: "wx" }); }
+            catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
+          }
           if (!notes.some(note => note.entete.ecran === page.ecran)) {
             const product = join(vault, site, "produit"); mkdirSync(product, { recursive: true });
             const file = join(product, `${page.ecran}.md`);
