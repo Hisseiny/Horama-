@@ -129,8 +129,8 @@ function pageStatus(findings: Finding[]): Statut {
 }
 const kinds = { "cut-off-text": "texte-coupe", "overlapping-text": "chevauchement", "misaligned-element": "decalage", "distorted-image": "image-deformee", "unreadable-contrast": "contraste-illisible", "unfilled-control-group": "groupe-incomplet" };
 const descriptions = { "cut-off-text": "Un texte semble coupé.", "overlapping-text": "Des textes semblent se chevaucher.", "misaligned-element": "Un élément semble décalé.", "distorted-image": "Une image semble déformée.", "unreadable-contrast": "Un texte semble difficile à lire.", "unfilled-control-group": "Un groupe de boutons semble ne pas remplir son cadre." };
-const sorts = { page_en_erreur: "page-erreur", image_cassee: "image-cassee", defilement_horizontal: "defilement-horizontal", debordement: "debordement", texte_rogne: "texte-rogne", lien_casse: "lien-casse", texte_erreur: "texte-erreur", erreur_console: "erreur-console", texte_non_traduit: "texte-non-traduit" };
-const expected = { page_en_erreur: "Une réponse HTTP inférieure à 400.", image_cassee: "Une image décodable.", defilement_horizontal: "La page tient dans la largeur du document.", debordement: "Le contenu tient dans sa boîte.", texte_rogne: "Le texte reste lisible sans être rogné.", lien_casse: "Une réponse HTTP inférieure à 400.", texte_erreur: "Aucun texte d'erreur affiché.", erreur_console: "Aucune erreur JavaScript.", texte_non_traduit: "Le texte respecte la langue déclarée de la page ou du bloc." };
+const sorts = { page_en_erreur: "page-erreur", image_cassee: "image-cassee", defilement_horizontal: "defilement-horizontal", debordement: "debordement", debordement_traduction: "debordement-traduction", texte_rogne: "texte-rogne", lien_casse: "lien-casse", texte_erreur: "texte-erreur", erreur_console: "erreur-console", texte_non_traduit: "texte-non-traduit" };
+const expected = { page_en_erreur: "Une réponse HTTP inférieure à 400.", image_cassee: "Une image décodable.", defilement_horizontal: "La page tient dans la largeur du document.", debordement: "Le contenu tient dans sa boîte.", debordement_traduction: "Le contenu tient dans sa boîte dans les deux langues.", texte_rogne: "Le texte reste lisible sans être rogné.", lien_casse: "Une réponse HTTP inférieure à 400.", texte_erreur: "Aucun texte d'erreur affiché.", erreur_console: "Aucune erreur JavaScript.", texte_non_traduit: "Le texte respecte la langue déclarée de la page ou du bloc." };
 
 export async function explorer(options: ExplorerOptions, deps: ExplorerDependencies) {
   const { url, max, vault, sortie, port } = options;
@@ -704,14 +704,20 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
           const status = await client.send("Runtime.evaluate", { expression: "performance.getEntriesByType('navigation')[0]?.responseStatus || null", returnByValue: true });
           http = status.result.value;
           const verifierClic = (urls: string[]) => verifierClics(port, capture.url_page, urls, { ...(hookSignal ? { signal: hookSignal } : {}) });
-          const defects = await (deps.controler ?? controlerPage)(client, { fetch: linkFetch, verifierClic });
+          const defects = await (deps.controler ?? controlerPage)(client, { fetch: linkFetch, verifierClic,
+            traduction: { port, fetch: linkFetch, signal: hookSignal, unavailable: reason => inconclusive(page, "controle", findings, `Comparaison des langues impossible : ${reason}`) } });
           for (const { defect, measure, selectors } of groupControls(defects)) {
             const item = finding(page, "controle", findings, { sorte: sorts[defect.sorte], statut: defect.statut, description: controlDescription(defect.message, selectors), ...(defect.raison ? { raison: defect.raison } : {}),
               preuve: { ...(defect.selecteur ? { element: defect.selecteur } : {}), mesure: measure, attendu: expectedText(defect.sorte),
-                ...(["image_cassee", "lien_casse"].includes(defect.sorte) ? { url: String(defect.valeur).replace(/ : \d+$/, "") } : {}),
+                ...(defect.comparaison ? { url: defect.comparaison.url } : ["image_cassee", "lien_casse"].includes(defect.sorte) ? { url: String(defect.valeur).replace(/ : \d+$/, "") } : {}),
                 ...(defect.sorte === "erreur_console" ? { console: String(defect.valeur).slice(0, 300) } : {}) },
               textes_a_surligner: defect.sorte === "texte_erreur" ? [String(defect.valeur)] : [],
               ...(!["page_en_erreur", "erreur_console", "defilement_horizontal"].includes(defect.sorte) && defect.zone ? { zone: defect.zone } : {}) });
+            if (defect.comparaison?.image) {
+              const file = `captures/${item.id}-traduction.png`;
+              writeFileSync(join(sortie, file), defect.comparaison.image);
+              item.preuve.capture_comparaison = file;
+            }
             if (item.zone) {
               const documentZone = item.zone;
               const zone = { ...documentZone, x: documentZone.x - capture.defilement[0], y: documentZone.y - capture.defilement[1] };

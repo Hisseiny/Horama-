@@ -89,7 +89,7 @@ export function refuseCookies(): boolean {
   return false;
 }
 
-export async function dismissCookies(client: ExplorationCdp): Promise<boolean> {
+export async function dismissCookies(client: CdpClient): Promise<boolean> {
   const result = await client.send("Runtime.evaluate", {
     expression: `(async () => {
       const clicked = (${refuseCookies.toString()})();
@@ -132,7 +132,7 @@ export async function waitForVisibleStable(): Promise<void> {
   }
 }
 
-export async function prepareCapture(client: ExplorationCdp): Promise<"refusee" | "aucune"> {
+export async function prepareCapture(client: CdpClient): Promise<"refusee" | "aucune"> {
   const result = await client.send("Runtime.evaluate", {
     expression: `(async () => {
       const deadline = Date.now() + 15000;
@@ -180,7 +180,7 @@ async function scrollSmooth(left: number, top: number): Promise<void> {
   throw new Error("Le défilement doux ne s'est pas stabilisé en 5 secondes.");
 }
 
-export async function captureDefect(client: ExplorationCdp, zone: { x: number; y: number; largeur: number; hauteur: number }, scroll: [number, number], options: { doux?: boolean } = {}) {
+export async function captureDefect(client: CdpClient, zone: { x: number; y: number; largeur: number; hauteur: number }, scroll: [number, number], options: { doux?: boolean } = {}) {
   const evaluate = async (expression: string) => {
     const result = await client.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
     if (options.doux && result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description ?? result.exceptionDetails.text);
@@ -212,8 +212,8 @@ export async function connecterCdp(port: number, address: string): Promise<Explo
   const response = await fetch(`http://127.0.0.1:${port}/json`, { signal: AbortSignal.timeout(5000) });
   if (!response.ok) throw new Error("Liste des onglets CDP inaccessible.");
   const tabs = await response.json() as Array<{ type: string; url: string; webSocketDebuggerUrl: string }>;
-  const tab = tabs.find(tab => tab.type === "page" && tab.url === address)
-    ?? (tabs.filter(tab => tab.type === "page").length === 1 ? tabs.find(tab => tab.type === "page") : undefined);
+  const pages = tabs.filter(tab => tab.type === "page");
+  const tab = pages.find(tab => tab.url === address) ?? (pages.length === 1 ? pages[0] : undefined);
   if (!tab) throw new Error("Onglet du relevé introuvable.");
   const socket = new WebSocket(tab.webSocketDebuggerUrl);
   const pending = new Map<number, { resolve(value: any): void; reject(error: Error): void; timer: ReturnType<typeof setTimeout> }>();
@@ -252,11 +252,12 @@ export async function connecterCdp(port: number, address: string): Promise<Explo
 
 export type IssueClic = "navigue" | "intercepte" | "introuvable";
 
-// Clicks each link in a hidden tab of a separate browser context (the visitor's tab and profile stay untouched) and reports
-// whether the click really requests its address. Navigations are aborted before any request leaves Chrome.
-export async function verifierClics(port: number, pageUrl: string, urls: string[], { delaiMs = 20_000, attenteMs = 2_000, signal }: { delaiMs?: number; attenteMs?: number; signal?: AbortSignal } = {}): Promise<Map<string, IssueClic>> {
-  const deadline = Date.now() + delaiMs;
-  const version = await (await fetch(`http://127.0.0.1:${port}/json/version`, { signal: AbortSignal.timeout(5000) })).json() as { webSocketDebuggerUrl: string };
+export async function withBackgroundTab<T>(port: number, use: (client: CdpClient) => Promise<T>,
+  { timeoutMs, signal, render = false }: { timeoutMs: number; signal?: AbortSignal; render?: boolean }): Promise<T> {
+  const deadline = Date.now() + timeoutMs;
+  const timeout = AbortSignal.timeout(timeoutMs);
+  const lifetime = signal ? AbortSignal.any([timeout, signal]) : timeout;
+  const version = await (await fetch(`http://127.0.0.1:${port}/json/version`, { signal: lifetime })).json() as { webSocketDebuggerUrl: string };
   const socket = new WebSocket(version.webSocketDebuggerUrl);
   const pending = new Map<number, { resolve(value: any): void; reject(error: Error): void }>();
   const listeners = new Map<string, (params: any) => void>();
@@ -274,39 +275,55 @@ export async function verifierClics(port: number, pageUrl: string, urls: string[
   });
   const send = (method: string, params: object = {}, sessionId?: string) => new Promise<any>((resolve, reject) => {
     const remaining = deadline - Date.now();
-    if (remaining <= 0 || signal?.aborted) { reject(new Error("Vérification des clics hors délai.")); return; }
+    if (remaining <= 0 || lifetime.aborted) { reject(new Error("Onglet CDP hors délai.")); return; }
     const key = ++id;
     const timer = setTimeout(() => { pending.delete(key); reject(new Error(`CDP hors délai : ${method}`)); }, remaining);
     pending.set(key, { resolve: value => { clearTimeout(timer); resolve(value); }, reject: error => { clearTimeout(timer); reject(error); } });
     socket.send(JSON.stringify({ id: key, method, params, ...(sessionId ? { sessionId } : {}) }));
   });
-  const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, Math.max(0, Math.min(ms, deadline - Date.now()))));
-  const strip = (address: string) => { try { const url = new URL(address); url.hash = ""; return url.href; } catch { return address; } };
-  const results = new Map<string, IssueClic>();
-  signal?.addEventListener("abort", () => socket.close(), { once: true });
+  const close = () => socket.close();
+  lifetime.addEventListener("abort", close, { once: true });
   try {
+    lifetime.throwIfAborted();
     await new Promise<void>((resolve, reject) => {
       socket.addEventListener("open", () => resolve(), { once: true });
       socket.addEventListener("error", () => reject(new Error("Connexion CDP impossible.")), { once: true });
+      socket.addEventListener("close", () => reject(new Error("Connexion CDP fermée.")), { once: true });
     });
     const { browserContextId } = await send("Target.createBrowserContext", { disposeOnDetach: true });
-    const { targetId } = await send("Target.createTarget", { url: "about:blank", browserContextId, hidden: true, background: true })
-      .catch(() => send("Target.createTarget", { url: "about:blank", browserContextId, background: true }));
+    const target = { url: "about:blank", browserContextId, background: true };
+    const { targetId } = render ? await send("Target.createTarget", target)
+      : await send("Target.createTarget", { ...target, hidden: true }).catch(() => send("Target.createTarget", target));
     const { sessionId } = await send("Target.attachToTarget", { targetId, flatten: true });
-    const tab = (method: string, params: object = {}) => send(method, params, sessionId);
+    try {
+      return await use({ send: (method, params = {}) => send(method, params, sessionId), on: (event, listener) => { listeners.set(`${sessionId} ${event}`, listener); } });
+    } finally { await send("Target.disposeBrowserContext", { browserContextId }).catch(() => {}); }
+  } finally {
+    lifetime.removeEventListener("abort", close);
+    socket.close();
+  }
+}
+
+// Clicks links in a separate browser context. Navigations are aborted before any request leaves Chrome.
+export async function verifierClics(port: number, pageUrl: string, urls: string[], { delaiMs = 20_000, attenteMs = 2_000, signal }: { delaiMs?: number; attenteMs?: number; signal?: AbortSignal } = {}): Promise<Map<string, IssueClic>> {
+  const deadline = Date.now() + delaiMs;
+  const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, Math.max(0, Math.min(ms, deadline - Date.now()))));
+  const strip = (address: string) => { try { const url = new URL(address); url.hash = ""; return url.href; } catch { return address; } };
+  return withBackgroundTab(port, async ({ send: tab, on }) => {
+    const results = new Map<string, IssueClic>();
     await tab("Page.enable");
-    const loaded = new Promise(resolve => listeners.set(`${sessionId} Page.loadEventFired`, resolve));
+    const loaded = new Promise(resolve => on("Page.loadEventFired", resolve));
     await tab("Page.navigate", { url: pageUrl });
     await Promise.race([loaded, wait(10_000)]);
     await wait(1000);
     const main = (await tab("Page.getFrameTree")).frameTree.frame.id;
     const requested: string[] = [];
-    listeners.set(`${sessionId} Fetch.requestPaused`, params => {
+    on("Fetch.requestPaused", params => {
       if (params.frameId === main) requested.push(params.request.url);
       tab("Fetch.failRequest", { requestId: params.requestId, errorReason: "Aborted" }).catch(() => {});
     });
-    listeners.set(`${sessionId} Page.frameRequestedNavigation`, params => { if (params.frameId === main) requested.push(params.url); });
-    listeners.set(`${sessionId} Page.windowOpen`, params => requested.push(params.url));
+    on("Page.frameRequestedNavigation", params => { if (params.frameId === main) requested.push(params.url); });
+    on("Page.windowOpen", params => requested.push(params.url));
     await tab("Fetch.enable", { patterns: [{ urlPattern: "*", resourceType: "Document", requestStage: "Request" }] });
     for (const url of urls) {
       if (deadline - Date.now() < attenteMs) break;
@@ -330,7 +347,6 @@ export async function verifierClics(port: number, pageUrl: string, urls: string[
       }
       results.set(url, outcome);
     }
-    await send("Target.disposeBrowserContext", { browserContextId }).catch(() => {});
-  } finally { socket.close(); }
-  return results;
+    return results;
+  }, { timeoutMs: delaiMs, signal });
 }
