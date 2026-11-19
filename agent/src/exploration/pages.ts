@@ -1,12 +1,94 @@
+import { connecterCdp, waitForVisibleStable } from "./cdp.ts";
+import type { ExplorationCdp } from "./cdp.ts";
+
 export interface DiscoveryOptions {
   max?: number;
+  sectionMax?: number;
   fetch?: typeof globalThis.fetch;
+  render?: (url: string, allowed: (url: string) => boolean) => Promise<{ body: string; url: string } | undefined>;
+}
+
+export function allowsRenderResource(target: string, page: string): boolean {
+  const address = new URL(target), origin = new URL(page);
+  if (address.host === origin.host) return true;
+  const host = address.hostname.toLowerCase().replace(/\.$/, "");
+  return !(/^(?:localhost|.*\.localhost)$/.test(host)
+    || /^(?:127\.|0\.0\.0\.0$|10\.|172\.(?:1[6-9]|2\d|3[01])\.|192\.168\.|169\.254\.)/.test(host)
+    || /^\[(?:::1|::|f[cd][\da-f]{2}:.*|fe[89ab][\da-f]:.*|::ffff:.*)\]$/.test(host));
+}
+
+export async function renderPage(port: number, url: string, allowed: (url: string) => boolean = () => true): Promise<{ body: string; url: string }> {
+  const endpoint = `http://127.0.0.1:${port}`;
+  let tab: { id: string } | undefined, client: ExplorationCdp | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const response = await fetch(`${endpoint}/json/version`, { signal: AbortSignal.timeout(2000) });
+    if (!response.ok) throw new Error("Version du navigateur CDP inaccessible.");
+    const version = await response.json() as { webSocketDebuggerUrl: string };
+    const socket = new WebSocket(version.webSocketDebuggerUrl);
+    try {
+      tab = await new Promise<{ id: string }>((resolve, reject) => {
+        timer = setTimeout(() => reject(new Error("Création de l'onglet CDP hors délai (2 s).")), 2000);
+        socket.addEventListener("open", () => {
+          socket.send(JSON.stringify({ id: 1, method: "Target.createTarget", params: { url: "about:blank#horama-discovery", background: true } }));
+        }, { once: true });
+        socket.addEventListener("message", event => {
+          const message = JSON.parse(String(event.data));
+          if (message.id !== 1) return;
+          if (message.error) reject(new Error(message.error.message));
+          else if (!message.result?.targetId) reject(new Error("Création de l'onglet CDP impossible."));
+          else resolve({ id: message.result.targetId });
+        });
+        socket.addEventListener("error", () => reject(new Error("Connexion au navigateur CDP impossible.")), { once: true });
+        socket.addEventListener("close", () => reject(new Error("Connexion au navigateur CDP fermée.")), { once: true });
+      });
+    } finally {
+      clearTimeout(timer);
+      socket.close();
+    }
+    return await Promise.race([
+      (async () => {
+        client = await connecterCdp(port, "about:blank#horama-discovery");
+        const cdp = client;
+        cdp.on("Fetch.requestPaused", event => {
+          const accept = allowsRenderResource(event.request.url, url)
+            && (event.resourceType !== "Document" || (event.request.method === "GET" && allowed(event.request.url)));
+          void cdp.send(accept ? "Fetch.continueRequest" : "Fetch.failRequest", { requestId: event.requestId, ...(accept ? {} : { errorReason: "BlockedByClient" }) }).catch(() => {});
+        });
+        await cdp.send("Fetch.enable", { patterns: [{ urlPattern: "*", requestStage: "Request" }] });
+        const navigation = await cdp.send("Page.navigate", { url });
+        if (navigation.errorText) throw new Error(navigation.errorText);
+        const result = await cdp.send("Runtime.evaluate", { expression: `(async () => {
+          while (document.readyState !== "complete") await new Promise(resolve => setTimeout(resolve, 100));
+          await (${waitForVisibleStable.toString()})();
+          return { body: document.documentElement.outerHTML, url: location.href };
+        })()`, awaitPromise: true, returnByValue: true });
+        if (!result.result?.value) throw new Error("DOM rendu indisponible.");
+        return result.result.value as { body: string; url: string };
+      })(),
+      new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("Rendu CDP hors délai (15 s).")), 15000); }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+    client?.close();
+    if (tab) {
+      const response = await fetch(`${endpoint}/json/close/${encodeURIComponent(tab.id)}`, { signal: AbortSignal.timeout(2000) });
+      if (!response.ok) throw new Error("Fermeture de l'onglet CDP impossible.");
+    }
+  }
 }
 
 export interface PageDiscovery {
   pages: string[];
   excluded: Array<{ url: string; reason: string }>;
   errors: Array<{ url: string; message: string }>;
+}
+
+export function normalizePageQuery(url: URL): void {
+  for (const key of [...url.searchParams.keys()]) {
+    if (/^(utm_.*|gclid|dclid|fbclid|msclkid|gbraid|wbraid|mc_cid|mc_eid|_ga|_gl|_hsenc|_hsmi|hsctatracking|hsa_.*)$/i.test(key)) url.searchParams.delete(key);
+  }
+  url.searchParams.sort();
 }
 
 function decodeEntities(value: string): string {
@@ -66,15 +148,22 @@ function robots(text: string): { rules: RobotRule[]; sitemaps: string[] } {
 }
 
 // URLs are candidates, not visual verdicts; network failures stay visible to the caller.
-export async function discoverPages(url: string, { max = 15, fetch: request = globalThis.fetch }: DiscoveryOptions = {}): Promise<PageDiscovery> {
+export async function discoverPages(url: string, { max = 15, sectionMax = 2, fetch: request = globalThis.fetch, render }: DiscoveryOptions = {}): Promise<PageDiscovery> {
   if (!Number.isSafeInteger(max) || max < 0) throw new Error("max doit être un entier positif ou nul.");
+  if (!Number.isSafeInteger(sectionMax) || sectionMax < 1) throw new Error("sectionMax doit être un entier strictement positif.");
   const start = new URL(url);
   if (!/^https?:$/.test(start.protocol) || start.username || start.password) throw new Error("Adresse HTTP(S) sans identifiants requise.");
   const result: PageDiscovery = { pages: [], excluded: [], errors: [] };
   if (max === 0) return result;
   const site = start.hostname.replace(/^www\./, "");
   const root = new URL("/", start).href;
-  const exclusions = new Set<string>(), seen = new Set<string>(), fetched = new Set<string>();
+  const locale = start.pathname.match(/^\/([a-z]{2}(?:-[a-z]{2})?)(?:\/([a-z]{2}(?:-[a-z]{2})?))?(?=\/|\.html?$|$)/i)?.[0];
+  function sameLocale(address: string): boolean {
+    if (!locale) return true;
+    const path = new URL(address).pathname;
+    return path === locale || path === `${locale}.html` || path === `${locale}.htm` || path.startsWith(`${locale}/`);
+  }
+  const exclusions = new Set<string>(), seen = new Set<string>(), fetched = new Set<string>(), formActions = new Set<string>();
   let rules: RobotRule[] = [];
 
   function exclude(address: string, reason: string) {
@@ -90,14 +179,12 @@ export async function discoverPages(url: string, { max = 15, fetch: request = gl
       parsed.username = ""; parsed.password = "";
       exclude(parsed.href, "credentials"); return;
     }
+    if (/(?:^|\.)(?:hsforms\.com|typeform\.com|forms\.gle|formstack\.com|jotform\.com)$/.test(parsed.hostname)) { exclude(parsed.href, "form"); return; }
     if (parsed.hostname.replace(/^www\./, "") !== site || parsed.port !== start.port) { exclude(parsed.href, "external"); return; }
     parsed.protocol = start.protocol;
     parsed.host = start.host;
     parsed.hash = "";
-    for (const key of [...parsed.searchParams.keys()]) {
-      if (/^(utm_.*|gclid|dclid|fbclid|msclkid|gbraid|wbraid|mc_cid|mc_eid|_ga|_gl|_hsenc|_hsmi|hsctatracking|hsa_.*)$/i.test(key)) parsed.searchParams.delete(key);
-    }
-    parsed.searchParams.sort();
+    normalizePageQuery(parsed);
     return parsed;
   }
 
@@ -118,10 +205,11 @@ export async function discoverPages(url: string, { max = 15, fetch: request = gl
     let path: string;
     try { path = decodeURIComponent(parsed.pathname).toLowerCase(); } catch { exclude(parsed.href, "invalid-url"); return; }
     const destination = path + parsed.search.toLowerCase();
-    if (/(?:^|[^a-z])(candidatur\w*|brochures?|contacts?|hubspot|hsforms|apply|application|admissions?|postuler|formulaire\w*|forms?)(?:[^a-z]|$)/.test(destination)) { exclude(parsed.href, "form"); return; }
+    if (/(?:^|\/)(?:submit|form-submit|submit-form)(?:\.[a-z]+)?\/?$/.test(path)) { exclude(parsed.href, "form"); return; }
     if (/(?:^|[^a-z])(log-?in|sign-?in|sign-?up|connexion|auth|logout|deconnexion|register|inscription)(?:[^a-z]|$)/.test(destination)) { exclude(parsed.href, "login"); return; }
     if (/\.[a-z\d]{1,10}\/?$/i.test(path) && !/\.(?:html?|php|aspx?)\/?$/i.test(path)) { exclude(parsed.href, "file"); return; }
     parsed.pathname = parsed.pathname.replace(/\/+$/, "") || "/";
+    if (formActions.has(parsed.href)) { exclude(parsed.href, "form"); return; }
     if (!permitted(parsed)) return;
     return parsed.href;
   }
@@ -168,7 +256,57 @@ export async function discoverPages(url: string, { max = 15, fetch: request = gl
     const candidate = pageAddress(address, base);
     if (candidate && !seen.has(candidate)) { seen.add(candidate); queue.push(candidate); }
   }
-  enqueue(root, root);
+  enqueue(start.href, root);
+  const initial = queue[0];
+  if (initial && initial !== root) enqueue(root, root);
+  const homepage = initial ? await read(normalize(start.href, root)!.href, "page") : undefined;
+  const navigationLinks = new Set<string>();
+  function links(document: { body: string; url: string }, priorityOnly = false) {
+    const html = document.body.replace(/<!--[\s\S]*?-->|<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, "");
+    const baseTag = html.match(/<base\b[^>]*>/i)?.[0];
+    const href = baseTag && attribute(baseTag, "href");
+    let base = document.url;
+    if (href) { try { base = new URL(href, base).href; } catch { /* Keep the document URL for an invalid base. */ } }
+    let source = priorityOnly ? [...html.matchAll(/<(nav|header|footer)\b[^>]*>[\s\S]*?<\/\1\s*>/gi)].map((match) => match[0]).join("") : html;
+    if (priorityOnly) {
+      const navigation = [...html.matchAll(/<nav\b[^>]*>[\s\S]*?<\/nav\s*>/gi)].map((match) => match[0]).join("") || source;
+      const groups = [...navigation.matchAll(/<(ul|ol)\b[^>]*>(?:(?!<(?:ul|ol)\b)[\s\S])*?<\/\1\s*>/gi)]
+        .map((match) => [...match[0].matchAll(/<(?:a|area)\b[^>]*>/gi)].map((anchor) => anchor[0]));
+      const balanced: string[] = [];
+      while (groups.some((group) => group.length)) {
+        for (const group of groups) { const first = group.shift(); if (first) balanced.push(first); }
+        for (const group of groups) { const last = group.pop(); if (last) balanced.push(last); }
+      }
+      source = balanced.join("") + navigation + source;
+    }
+    for (const match of html.matchAll(/<form\b[^>]*>/gi)) {
+      const action = attribute(match[0], "action");
+      const parsed = action && normalize(action, base);
+      if (parsed) {
+        parsed.pathname = parsed.pathname.replace(/\/+$/, "") || "/";
+        formActions.add(parsed.href); exclude(parsed.href, "form");
+      }
+    }
+    if (priorityOnly) {
+      for (const navigation of html.matchAll(/<nav\b[^>]*>[\s\S]*?<\/nav\s*>/gi)) {
+        for (const anchor of navigation[0].matchAll(/<(?:a|area)\b[^>]*>/gi)) {
+          if (/\sdownload(?:\s|=|>)/i.test(anchor[0])) continue;
+          const target = attribute(anchor[0], "href");
+          const candidate = target && pageAddress(target, base);
+          if (candidate) navigationLinks.add(candidate);
+        }
+      }
+    }
+    for (const match of source.matchAll(/<(a|area)\b[^>]*>/gi)) {
+      const tag = match[0], target = attribute(tag, "href");
+      if (!target) continue;
+      const parsed = normalize(target, base);
+      if (!parsed) continue;
+      if (/\sdownload(?:\s|=|>)/i.test(tag)) exclude(parsed.href, "file");
+      else enqueue(target, base);
+    }
+  }
+  if (homepage) links(homepage, true);
   const sitemaps = [new URL("sitemap.xml", root).href, ...parsedRobots.sitemaps];
   const seenMaps = new Set<string>();
   async function readSitemap(address: string, base: string): Promise<void> {
@@ -187,31 +325,81 @@ export async function discoverPages(url: string, { max = 15, fetch: request = gl
     }
   }
   for (const sitemap of sitemaps) await readSitemap(sitemap, root);
-  enqueue(start.href, root);
+  if (homepage) links(homepage);
   let attempts = 0;
+  const fallback = !!render && queue.length < Math.min(max, 3);
+  async function rendered(address: string) {
+    if (!render || !pageAddress(address, address)) return;
+    if (++attempts > max * 3) { exclude(address, "request-limit"); return; }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const document = await Promise.race([
+        render(address, target => permitted(new URL(target)) && !!pageAddress(target, address)),
+        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("Rendu hors délai (20 s).")), 20000); }),
+      ]);
+      if (!document) throw new Error("Rendu indisponible.");
+      if (pageAddress(document.url, address)) return document;
+    } catch (error) {
+      result.errors.push({ url: address, message: `Rendu : ${error instanceof Error ? error.message : String(error)}` });
+    } finally { clearTimeout(timer); }
+  }
+  const renderedHome = fallback && homepage ? await rendered(homepage.url) : undefined;
+  if (renderedHome) { links(renderedHome, true); links(renderedHome); }
+  const sectionCounts = new Map<string, number>();
+  function sections(address: string): string[] {
+    const parts = new URL(address).pathname.split("/").filter(Boolean);
+    return parts.slice(0, -1).map((_, index) => "/" + parts.slice(0, index + 1).join("/") + "/");
+  }
+  const repeated = new Set<string>();
+  const candidates = new Map<string, number>();
+  for (const address of queue) for (const prefix of sections(address)) candidates.set(prefix, (candidates.get(prefix) ?? 0) + 1);
+  for (const [prefix, count] of candidates) {
+    if ((locale && (prefix === `${locale}/` || locale.startsWith(prefix))) || count > (queue.length - 1) / 2) continue;
+    const children = [...candidates.keys()].filter((child) => child.startsWith(prefix) && child !== prefix);
+    if (count > sectionMax && !children.some((child) => (candidates.get(child) ?? 0) > sectionMax)) repeated.add(prefix);
+  }
+  function sectionOf(address: string): string | undefined {
+    return sections(address).find((prefix) => repeated.has(prefix));
+  }
+  const preferredSections = queue.filter(sameLocale);
   for (let index = 0; index < queue.length; index++) {
+    const pinned = queue[index] === initial || queue[index] === root;
+    if (!pinned && locale && result.pages.length < max && attempts < max * 3 && !sameLocale(queue[index])) {
+      const offset = queue.slice(index + 1).findIndex(sameLocale);
+      if (offset >= 0) queue.splice(index, 0, queue.splice(index + 1 + offset, 1)[0]);
+    }
+    if (!pinned && result.pages.length < max && attempts < max * 3) {
+      const reserved = new Set<string>();
+      for (const address of preferredSections) {
+        const section = sectionOf(address);
+        if (section && !sectionCounts.has(section) && address !== initial && reserved.size < max - 1) reserved.add(section);
+      }
+      const pending = new Map<string, number>();
+      for (let position = index; position < queue.length; position++) {
+        const section = sectionOf(queue[position]);
+        if (section && reserved.has(section) && !sectionCounts.has(section) && !pending.has(section)) pending.set(section, position);
+      }
+      if (max - result.pages.length <= pending.size && !navigationLinks.has(queue[index])) {
+        const position = pending.values().next().value;
+        if (position !== undefined && position > index) queue.splice(index, 0, queue.splice(position, 1)[0]);
+      }
+    }
     const address = queue[index];
     if (result.pages.includes(address)) continue;
+    if (!pageAddress(address, address)) continue;
+    const section = address === initial ? undefined : sectionOf(address);
+    if (section && (sectionCounts.get(section) ?? 0) >= sectionMax) { exclude(address, "section-limit"); continue; }
     if (result.pages.length >= max) { exclude(address, "limit"); continue; }
     if (++attempts > max * 3) { exclude(address, "request-limit"); continue; }
-    const document = await read(address, "page");
+    const document = address === initial ? homepage : await read(address, "page");
     if (!document) continue;
-    const final = pageAddress(document.url, document.url)!;
+    const dom = address === initial ? renderedHome : fallback ? await rendered(document.url) : undefined;
+    const final = pageAddress(dom?.url ?? document.url, document.url);
+    if (!final) continue;
     if (!result.pages.includes(final)) result.pages.push(final);
-    const html = document.body.replace(/<!--[\s\S]*?-->|<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, "");
-    const baseTag = html.match(/<base\b[^>]*>/i)?.[0];
-    const href = baseTag && attribute(baseTag, "href");
-    let base = document.url;
-    if (href) { try { base = new URL(href, base).href; } catch { /* Keep the document URL for an invalid base. */ } }
-    for (const match of html.matchAll(/<(a|area|form)\b[^>]*>/gi)) {
-      const tag = match[0], form = match[1].toLowerCase() === "form";
-      const target = attribute(tag, form ? "action" : "href");
-      if (!target) continue;
-      if (form || /\sdownload(?:\s|=|>)/i.test(tag)) {
-        const parsed = normalize(target, base);
-        if (parsed) exclude(parsed.href, form ? "form" : "file");
-      } else enqueue(target, base);
-    }
+    if (section) sectionCounts.set(section, (sectionCounts.get(section) ?? 0) + 1);
+    if (dom) { links(dom, true); links(dom); }
+    else links(document);
   }
   return result;
 }

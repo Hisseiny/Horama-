@@ -1,0 +1,51 @@
+/* Le rapport dans la charte : le bandeau ciel du récapitulatif, le titre en Tilt Warp, trois chiffres, chaque défaut
+   sur sa feuille avec le trait miltos (ou les points ocre d'un doute), les pages avec le carré de leur état. */
+.haut { height: 150px; }
+.haut .astre { left: 50%; top: 52px; width: 260px; height: 260px; margin-left: -130px; }
+.haut .mot { left: max(24px, calc(50% - 470px)); top: 22px; font-size: 30px; }
+.haut .m { left: 50%; top: 22px; width: 104px; height: 104px; margin-left: -52px; }
+main { max-width: 980px; margin: 0 auto; padding: 28px 24px 72px; }
+h1 { font: 400 56px/1 var(--affiche); letter-spacing: -.012em; margin: 0; }
+h2 { font: 400 34px/1 var(--affiche); margin: 44px 0 8px; }
+.site { margin: 10px 0 0; font: 500 14px var(--mesure); color: var(--encre-2); overflow-wrap: anywhere; }
+#etat { margin: 10px 0 0; font-weight: 600; }
+/* le direct (#164) : l'onglet que l'agent H pilote, image après image, sur sa feuille ; le rond de la barre bat */
+#direct { margin: 22px 0 0; }
+#direct .barre i { background: var(--miltos); animation: bat 1.2s ease-in-out infinite; }
+#direct img { display: block; width: 100%; aspect-ratio: 1280 / 800; object-fit: contain; background: var(--engobe-2); }
+.chiffres { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 26px 0 0; }
+.chiffres div { font-size: 15px; line-height: 1.3; font-weight: 600; }
+.chiffres b { display: block; margin-bottom: 18px; font: 400 76px/.9 var(--affiche); }
+.chiffres .t b { color: var(--miltos); }
+.chiffres .d b { margin-bottom: 24px; color: var(--ocre); }
+.chiffres .d b span { padding-bottom: 10px; background-image: radial-gradient(circle, var(--ocre) 3px, transparent 3.5px); background-size: 12px 9px; background-repeat: repeat-x; background-position: 2px 100%; }
+#bilan-texte { margin: 12px 0 0; font-size: 15px; }
+.cartes { display: grid; gap: 22px; margin-top: 14px; }
+.carte { padding: 0 0 16px; }
+.carte h3 { margin: 14px 18px 4px; font: 600 18px/1.35 var(--texte); }
+.carte .ou { margin: 0 18px; font-size: 14.5px; }
+.carte .preuve { margin: 6px 18px 0; font: 500 13px/1.45 var(--mesure); color: var(--encre); overflow-wrap: anywhere; }
+.carte .preuve + .preuve { color: var(--encre-2); }
+.capture { position: relative; overflow: hidden; background: var(--engobe-2); border-bottom: var(--trait) solid var(--encre); }
+.capture .vue { position: absolute; left: 0; right: 0; overflow: hidden; background: #fff; border-top: 2px solid var(--filet); border-bottom: 2px solid var(--filet); }
+.capture img { position: absolute; left: 0; top: 0; max-width: none; }
+.capture svg.marques { position: absolute; left: 0; top: 0; overflow: visible; }
+#non-verifie ul { margin: 8px 0 0; padding-left: 20px; color: var(--encre-2); }
+#pages ol { margin: 10px 0 0; padding: 0; list-style: none; border-top: 2px dashed var(--filet); }
+#pages li { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 2px dashed var(--filet); font-size: 14.5px; }
+#pages li code { flex: 1; font: 500 13px var(--mesure); overflow-wrap: anywhere; }
+#pages li .second { text-align: right; }
+#pages li.a_visiter code { color: var(--encre-2); }
+@media (max-width: 640px) {
+  .haut { height: 120px; }
+  .haut .astre { top: 44px; width: 200px; height: 200px; margin-left: -100px; }
+  .haut .mot { left: 16px; top: 16px; font-size: 24px; }
+  .haut .m { top: 34px; width: 84px; height: 84px; margin-left: -42px; }
+  main { padding: 22px 16px 56px; }
+  h1 { font-size: 44px; }
+  h2 { font-size: 28px; margin-top: 36px; }
+  .chiffres b { font-size: 54px; }
+  .chiffres div { font-size: 13.5px; }
+  #pages li { flex-wrap: wrap; }
+  #pages li .second { flex-basis: 100%; padding-left: 28px; text-align: left; }
+}

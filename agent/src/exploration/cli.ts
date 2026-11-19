@@ -7,11 +7,15 @@ import type { ExplorerOptions } from "./explorer.ts";
 
 export const HELP = `Usage : pnpm --filter @horama/agent explorer -- --url adresse [options]
   --url adresse       Adresse HTTP(S) requise, visite sans connexion ni formulaire
-  --max 15            Plafond de pages
+  --site identifiant  Remplace le nom du site dérivé de l’hôte (lettres, chiffres, - et _)
+  --max 15            Plafond de pages ; lecture bornée à 5 petits pas puis grands trajets
+  --pages-cliquees 4  Pages à atteindre par clic (entier ≥ 0)
   --sortie chemin     Sortie (.orchestrateur/exploration du dépôt par défaut)
   --vault chemin      Vault (vault-horama du dépôt par défaut)
   --sans-base         Base en mémoire, aucune écriture Supabase
   --chrome-port 9333  Chrome dédié déjà lancé, 1280 × 900, DPR 1
+  --reseau-public     Refuse robots, sitemaps, pages et liens vers une adresse privée,
+                      même après résolution DNS (activé par le conteneur)
   --help              Cette aide, sans session
 Variables : HAI_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, HOLO_BIN.
 Les captures et notes sont conservées dans le vault, même avec --sans-base.`;
@@ -22,8 +26,8 @@ export function lireArguments(args: string[]): (ExplorerOptions & { sansBase: bo
   const values = new Map<string, string>();
   for (let index = 0; index < args.length; index++) {
     const name = args[index];
-    if (!["--url", "--max", "--sortie", "--vault", "--sans-base", "--chrome-port"].includes(name) || values.has(name)) throw new Error("Option inconnue ou répétée ; utiliser --help.");
-    if (name === "--sans-base") { values.set(name, "true"); continue; }
+    if (!["--url", "--site", "--max", "--pages-cliquees", "--sortie", "--vault", "--sans-base", "--chrome-port", "--reseau-public"].includes(name) || values.has(name)) throw new Error("Option inconnue ou répétée ; utiliser --help.");
+    if (name === "--sans-base" || name === "--reseau-public") { values.set(name, "true"); continue; }
     const value = args[++index];
     if (!value || value.startsWith("--")) throw new Error(`Valeur requise pour ${name}.`);
     values.set(name, value);
@@ -34,9 +38,13 @@ export function lireArguments(args: string[]): (ExplorerOptions & { sansBase: bo
   if (!/^https?:$/.test(url.protocol) || url.username || url.password) throw new Error("Adresse HTTP(S) sans identifiants requise.");
   const max = Number(values.get("--max") ?? 15), port = Number(values.get("--chrome-port") ?? 9333);
   if (!Number.isSafeInteger(max) || max < 0) throw new Error("--max attend un entier positif ou nul.");
+  const pagesCliquees = Number(values.get("--pages-cliquees") ?? 4);
+  if (!Number.isSafeInteger(pagesCliquees) || pagesCliquees < 0) throw new Error("--pages-cliquees attend un entier positif ou nul.");
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("Port Chrome invalide.");
-  return { url: address, max, port, sortie: values.get("--sortie") ?? fileURLToPath(new URL("../../../.orchestrateur/exploration", import.meta.url)),
-    vault: values.get("--vault") ?? fileURLToPath(new URL("../../../vault-horama", import.meta.url)), sansBase: values.has("--sans-base") };
+  const site = values.get("--site");
+  if (site !== undefined && !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(site)) throw new Error("Site invalide : utiliser lettres, chiffres, tirets ou soulignements.");
+  return { url: address, max, port, pagesCliquees, ...(site !== undefined ? { site } : {}), sortie: values.get("--sortie") ?? fileURLToPath(new URL("../../../.orchestrateur/exploration", import.meta.url)),
+    vault: values.get("--vault") ?? fileURLToPath(new URL("../../../vault-horama", import.meta.url)), sansBase: values.has("--sans-base"), reseauPublic: values.has("--reseau-public") };
 }
 
 export async function lancerExploration(options: ExplorerOptions & { sansBase: boolean }) {

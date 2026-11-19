@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { ouvrirNavigateur } from "./src/browser.ts";
+import { rmSync, writeFileSync } from "node:fs";
+import { lostBrowser, ouvrirNavigateur } from "./src/browser.ts";
 import type { Bridge, Scene } from "./src/browser.ts";
 
 function fixture() {
@@ -36,6 +37,27 @@ test("capture CDP sans navigation et nouveau pont pour chaque tentative", async 
   assert.equal(setup.closed, true);
 });
 
+test("revérification juste avant PNG et texte relu après fermeture", async () => {
+  const setup = fixture();
+  const events: string[] = [];
+  setup.scene.evaluate = async () => {
+    events.push("lecture");
+    return { texte: events.includes("fermeture") ? "Sans bannière" : "Cookies", url_page: "https://example.org/", largeur: 1280, hauteur: 900, densite: 1, defilement: [0, 0] };
+  };
+  const runtime = await ouvrirNavigateur(setup);
+  const result = await runtime.relever("accueil", "defaut", async () => {
+    assert.ok(!setup.calls.some(([method]) => method === "Page.captureScreenshot"));
+    events.push("fermeture");
+  });
+  assert.equal(result.texte, "Sans bannière");
+  assert.deepEqual(events, ["lecture", "fermeture", "lecture"]);
+  assert.equal(setup.calls.at(-1)?.[0], "Page.captureScreenshot");
+  setup.calls.length = 0;
+  await assert.rejects(runtime.relever("accueil", "defaut", async () => { throw new Error("Revérification indisponible"); }), /Revérification indisponible/);
+  assert.ok(!setup.calls.some(([method]) => method === "Page.captureScreenshot"));
+  runtime.close();
+});
+
 test("CLI absente, connexion vide, dimensions et pont invalides échouent sans fuite", async () => {
   const missing = fixture();
   await assert.rejects(ouvrirNavigateur({ ...missing, findHolo: () => null }), /holo introuvable/);
@@ -55,4 +77,21 @@ test("CLI absente, connexion vide, dimensions et pont invalides échouent sans f
   await assert.rejects(runtime.relever("factures", "defaut"), /Dimensions/);
   runtime.close();
   assert.equal(failed.closed, true);
+});
+
+test("pont dont Selenium a perdu l'onglet : signalé en échec, le pont suivant repart d'un journal neuf", async () => {
+  const setup = fixture();
+  const logs: string[] = [];
+  const runtime = await ouvrirNavigateur({ ...setup, startBridge: options => { logs.push(options.logFile); return setup.bridge; } });
+  const first = await runtime.navigateur();
+  assert.equal(first.failed!(), null);
+  writeFileSync(logs[0], "selenium.common.exceptions.InvalidSessionIdException: Message: invalid session id\n");
+  assert.match(first.failed!() ?? "", /invalid session id/);
+  assert.equal(lostBrowser(`${logs[0]}.absent`), null);
+  first.stop();
+  const second = await runtime.navigateur();
+  assert.notEqual(logs[1], logs[0]);
+  assert.equal(second.failed!(), null);
+  runtime.close();
+  rmSync(logs[0], { force: true });
 });

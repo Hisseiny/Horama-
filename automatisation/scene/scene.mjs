@@ -97,7 +97,37 @@ export async function connectTab(port) {
   await page.send("Page.enable");
   await page.send("Runtime.enable");
   await page.send("Page.bringToFront");
+  const stopGuard = await oneTab(port, tabs[0].id, page);
+  const close = page.close;
+  page.close = () => {
+    stopGuard();
+    close();
+  };
   return page;
+}
+
+// One tab only. A link with target=_blank, or window.open, clicked in the tab of the scene would open a second tab in
+// front: the tab of the scene goes to the background, where Chrome answers its input and its captures late or not at
+// all (measured on 18/11 on an article of albertschool.com: 5,7 s per capture instead of 0,14 s, and up to the 15 s
+// limit of CDP in a real passage, issue #91). Such a tab is closed as soon as its address is known, and the address
+// opens in the tab of the scene, put back in front. Tabs opened otherwise (by CDP) are left alone.
+async function oneTab(port, tabId, page) {
+  const version = await chromeVersion(port);
+  if (!version?.webSocketDebuggerUrl) return () => {};
+  const browser = await connect(version.webSocketDebuggerUrl);
+  const handled = new Set();
+  const follow = async ({ targetInfo: info }) => {
+    if (info.type !== "page" || info.openerId !== tabId || handled.has(info.targetId)) return;
+    if (!/^https?:/.test(info.url)) return; // about:blank first: the address comes with Target.targetInfoChanged
+    handled.add(info.targetId);
+    await browser.send("Target.closeTarget", { targetId: info.targetId }).catch(() => {});
+    await page.send("Page.navigate", { url: info.url }).catch(() => {});
+    await page.send("Page.bringToFront").catch(() => {});
+  };
+  browser.on("Target.targetCreated", (params) => void follow(params));
+  browser.on("Target.targetInfoChanged", (params) => void follow(params));
+  await browser.send("Target.setDiscoverTargets", { discover: true });
+  return () => browser.close();
 }
 
 async function run(page, expression, context = {}) {
@@ -166,8 +196,8 @@ export async function fitViewport(page) {
 const WORLD = "horama";
 const worlds = new WeakMap(); // per tab: its main frame and the id of the world of the layer in its current page
 
-// Puts the Horama layer (couche-horama.js) in every page to come, with the code of rough-notation beside it (nothing
-// is fetched by the page). onPress receives what the layer reports at each press of the agent, and again when a held
+// Puts the Horama layer (couche-horama.js) in every page to come, with the signs of proof of the charter beside it (the
+// page fetches nothing for it, only the fonts of the charter at the end). onPress receives what the layer reports at each press of the agent, and again when a held
 // click is given back to the page ({ rejoue, retard_ms }); onChoice receives { id, choix } at the end of the course.
 // `passage` names the course (the layer forgets what another course left in the tab), `titre` is its banner, `direct`
 // leaves the clicks alone instead of holding them while the cursor travels.
@@ -190,9 +220,27 @@ export async function installLayer(page, onPress, { passage = "", titre = "", di
   page.on("Runtime.bindingCalled", ({ name, payload }) => (name === "horamaPress" ? onPress : name === "horamaChoix" ? onChoice : null)?.(JSON.parse(payload)));
   const read = (file) => readFileSync(new URL(file, import.meta.url), "utf8");
   await page.send("Page.addScriptToEvaluateOnNewDocument", {
-    source: `(() => {\n${read("./node_modules/rough-notation/lib/rough-notation.iife.js")};\n${read("./couche-horama.js")}(${JSON.stringify(passage)}, ${JSON.stringify(titre)}, ${JSON.stringify({ direct })}, RoughNotation.annotate);\n})();`,
+    source: `(() => {\n${signes()}\n${read("./couche-horama.js")}(${JSON.stringify(passage)}, ${JSON.stringify(titre)}, ${JSON.stringify({ direct })}, { tracerDefaut, poserDoute }, ${JSON.stringify(mascotte())});\n})();`,
     worldName: WORLD,
   });
+  // The scroll of the page by the bridge of H, eased (defilement-h.js): in the page itself, where the bridge calls it.
+  await page.send("Page.addScriptToEvaluateOnNewDocument", { source: read("./defilement-h.js") });
+}
+
+// The two signs of proof of the charter (docs/da/trait.js: tracerDefaut, one stroke of miltos; poserDoute, a row of
+// ochre dots), its functions put in the scope of the layer (the module's exports become plain declarations).
+export function signes(file = new URL("../../docs/da/trait.js", import.meta.url)) {
+  return readFileSync(file, "utf8").replace(/^export /gm, "");
+}
+
+// The five states of the mascot of the charter (docs/da/mascotte/, PR #130), as inline SVG for the layer. Drawn at
+// 512 × 512 in the units of mascotte.js (the eye of radius 20 at 48, 48, wings from 2 to 94): shown with the frame
+// 0 0 96 96 in the 96 px box of the layer, the eye keeps the size and the place it had.
+export const EXPRESSIONS = ["observe", "trouve", "doute", "bloquee", "fini"];
+export function mascotte(folder = new URL("../../docs/da/mascotte/", import.meta.url)) {
+  return Object.fromEntries(EXPRESSIONS.map((name) => [name, readFileSync(new URL(`${name}.svg`, folder), "utf8")
+    .replace(/<\?xml[^>]*>\s*/, "").replace(/<title>[^<]*<\/title>\s*/, "")
+    .replace(/<svg\b[^>]*>/, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">')]));
 }
 
 // Evaluates in the world of the layer, in the current page of the main frame.
@@ -216,7 +264,9 @@ export async function layer(page, command, ...args) {
 }
 
 // Our own capture of the page, layer hidden. Field names follow Capture of contrats/types.ts.
-export async function capture(page) {
+// beforeCapture (optional, 3rd argument of relever since PR #102): called once the page is still, just before the
+// screenshot, layer still hidden; the explorer rechecks the cookie banner there. The text is read again after it.
+export async function capture(page, beforeCapture) {
   try {
     await inLayer(page, "window.__horama?.masquer()").catch(() => {});
     // No hover in a capture: the pointer left on a button (last click, or the real mouse over the window) would colour
@@ -233,9 +283,46 @@ export async function capture(page) {
       await frames();
       return { texte_page: document.body.innerText, url_page: location.href, defilement: [scrollX, scrollY] };
     })()`);
+    if (beforeCapture) {
+      await beforeCapture();
+      Object.assign(seen, await evaluate(page, "({ texte_page: document.body.innerText, url_page: location.href, defilement: [scrollX, scrollY] })"));
+    }
     const { data } = await page.send("Page.captureScreenshot", { format: "png" });
     const png = Buffer.from(data, "base64");
     return { png, largeur: png.readUInt32BE(16), hauteur: png.readUInt32BE(20), ...seen, prise_le: new Date().toISOString() };
+  } finally {
+    await inLayer(page, "window.__horama?.montrer()").catch(() => {});
+  }
+}
+
+// The capture of a zone out of the first screen (hook capturerZone of the explorer, PR #85): the page scrolls once,
+// smoothly, as the audience sees it, until the zone is in the middle of the screen (the end of the scroll is awaited,
+// 1,5 s at most, whatever « scroll-behavior » the site declares); then the layer is hidden and the pointer put out for
+// the capture only, and the page stays there: the line around the defect is drawn at that place, with no jump back.
+// zone: pixels of the document. Returns the PNG, the zone in pixels of the capture (absent when it is not in the image)
+// and the scroll.
+export async function captureZone(page, zone) {
+  const defilement = await evaluate(page, `(async () => {
+    const root = document.documentElement;
+    const top = Math.round(Math.max(0, Math.min(${zone.y + zone.hauteur / 2} - innerHeight / 2, root.scrollHeight - innerHeight)));
+    scrollTo({ left: 0, top, behavior: "smooth" });
+    for (const end = performance.now() + 1500; performance.now() < end && Math.abs(scrollY - top) >= 1; ) await new Promise((done) => setTimeout(done, 50));
+    if (Math.abs(scrollY - top) >= 1) scrollTo({ left: 0, top, behavior: "instant" });
+    await new Promise((done) => { requestAnimationFrame(() => requestAnimationFrame(done)); setTimeout(done, 300); });
+    return [scrollX, scrollY];
+  })()`);
+  try {
+    await inLayer(page, "window.__horama?.masquer()").catch(() => {});
+    await page.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: -10, y: 450 }).catch(() => {});
+    await evaluate(page, "new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)))");
+    const { data } = await page.send("Page.captureScreenshot", { format: "png" });
+    const png = Buffer.from(data, "base64");
+    const [width, height] = [png.readUInt32BE(16), png.readUInt32BE(20)];
+    const x = Math.max(0, zone.x - defilement[0]);
+    const y = Math.max(0, zone.y - defilement[1]);
+    const largeur = Math.min(width, zone.x - defilement[0] + zone.largeur) - x;
+    const hauteur = Math.min(height, zone.y - defilement[1] + zone.hauteur) - y;
+    return { png, ...(largeur > 0 && hauteur > 0 ? { zone: { x, y, largeur, hauteur } } : {}), defilement };
   } finally {
     await inLayer(page, "window.__horama?.montrer()").catch(() => {});
   }

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { ReleveCapture } from "./coureur.ts";
@@ -23,9 +23,18 @@ export interface Bridge {
 }
 
 export interface BrowserRuntime {
-  relever(ecran: string, vue: string): Promise<ReleveCapture>;
+  relever(ecran: string, vue: string, beforeCapture?: () => Promise<void>): Promise<ReleveCapture>;
+  capturerZone?(zone: { x: number; y: number; largeur: number; hauteur: number }): Promise<{
+    png: Buffer; zone?: { x: number; y: number; largeur: number; hauteur: number }; defilement: [number, number];
+  }>;
   navigateur(): Promise<NavigateurSession>;
   close(): void;
+}
+
+// A bridge whose Selenium lost its tab answers "invalid session id" to every command while it keeps running.
+export function lostBrowser(logFile: string): string | null {
+  try { return /invalid session id/i.test(readFileSync(logFile, "utf8")) ? "Le pont H a perdu l'onglet du navigateur (invalid session id)." : null; }
+  catch { return null; }
 }
 
 export async function ouvrirNavigateur({ port, scene, findHolo, startBridge }: {
@@ -43,11 +52,11 @@ export async function ouvrirNavigateur({ port, scene, findHolo, startBridge }: {
     if (area.largeur !== 1280 || area.hauteur !== 900 || area.densite !== 1) throw new Error("Chrome doit afficher 1280 × 900, DPR 1 (--force-device-scale-factor=1).");
   } catch (error) { page.close(); throw error; }
   return {
-    async relever() {
+    async relever(_ecran, _vue, beforeCapture) {
       // No hover in a capture: H leaves its pointer where it clicked. Out by the side, not the top (« exit intent »
       // pop-ups watch the top); not put back, H sends the point of each action. Then hover transitions end, 1 s at most.
       await page.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: -10, y: 450 });
-      const seen = await scene.evaluate(page, `(async () => {
+      let seen = await scene.evaluate(page, `(async () => {
         await document.fonts.ready;
         scrollTo(0, 0);
         const frames = () => new Promise((done) => { requestAnimationFrame(() => requestAnimationFrame(done)); setTimeout(done, 300); });
@@ -57,6 +66,10 @@ export async function ouvrirNavigateur({ port, scene, findHolo, startBridge }: {
         await frames();
         return { texte: document.body.innerText, url_page: location.href, largeur: innerWidth, hauteur: innerHeight, defilement: [scrollX, scrollY], densite: devicePixelRatio };
       })()`);
+      if (beforeCapture) {
+        await beforeCapture();
+        seen = await scene.evaluate(page, "({ texte: document.body.innerText, url_page: location.href, largeur: innerWidth, hauteur: innerHeight, defilement: [scrollX, scrollY], densite: devicePixelRatio })");
+      }
       if (seen.largeur !== 1280 || seen.hauteur !== 900 || seen.densite !== 1) throw new Error("Dimensions de capture incompatibles.");
       const { data } = await page.send("Page.captureScreenshot", { format: "png", fromSurface: true, captureBeyondViewport: false });
       return { texte: seen.texte, url_page: seen.url_page, largeur: seen.largeur, hauteur: seen.hauteur, defilement: seen.defilement,
@@ -66,12 +79,13 @@ export async function ouvrirNavigateur({ port, scene, findHolo, startBridge }: {
       const channel = randomUUID();
       const folder = join(homedir(), ".horama", "ponts");
       mkdirSync(folder, { recursive: true });
-      const bridge = startBridge({ holo, port, channel, logFile: join(folder, `${channel}.log`) });
+      const logFile = join(folder, `${channel}.log`);
+      const bridge = startBridge({ holo, port, channel, logFile });
       bridges.add(bridge);
       try {
         if (!await bridge.ready(20_000) || bridge.failed) throw new Error("Le pont H n’est pas prêt ; consulter ~/.horama/ponts/.");
       } catch (error) { bridge.stop(); bridges.delete(bridge); throw error; }
-      return { channel, stop() { bridge.stop(); bridges.delete(bridge); }, failed: () => bridge.failed };
+      return { channel, stop() { bridge.stop(); bridges.delete(bridge); }, failed: () => bridge.failed ?? lostBrowser(logFile) };
     },
     close() { for (const bridge of bridges) bridge.stop(); bridges.clear(); page.close(); },
   };

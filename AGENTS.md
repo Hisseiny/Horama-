@@ -25,7 +25,7 @@ Avant de coder, lis :
 | `jugement/` | Leslie (CAIO) |
 | `vault-horama/`, `banc/`, `base/` | Inès (CDO) |
 | `interface/` | Axil (CPO) |
-| `automatisation/`, `faux-saas/` | Nathan (CAO) |
+| `automatisation/`, `faux-saas/`, `extension/` | Nathan (CAO) |
 | `pitch/` | Noé (CEO) |
 | `docs/` | Tous (une décision = un fichier daté dans `docs/decisions/`) |
 

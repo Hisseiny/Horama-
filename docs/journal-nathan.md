@@ -503,3 +503,64 @@ Orchestrateur : Claude Code (Opus 5.5). Mission : J0 à J4 (scène branchée sur
 - **`exploration.mjs`** : le moteur `explorer` d'Ali dans la scène (Chrome, captures couche masquée, pont H), lecture de `exploration.json` toutes les 250 ms, trait sur la page en direct (sélecteur du contrôle, sinon textes, sinon zone ; défaut hors écran amené à l'écran), récapitulatif, décisions C5 dans la mémoire du site. `--sans-agent`, `--sans-holo` (aucun coût).
 - Mesuré, sans H ni Holo : mode dev sur Eugenia, code 0, 1 doute (Bachelor 10 183 px), captures à 0 pixel hors zone ignorée de l'accueil ; mode grand public sur eugeniaschool.com, code 0, 15 pages en 110 s, le lien 404 entouré en direct puis au récapitulatif. Preuve : `docs/tests/2026-11-18-squelette-scene.md`, clip `docs/tests/captures/2026-11-18-squelette-scene/squelette-mode-dev.mp4`. `pnpm -r check` code 0.
 - Pas fait : passage avec l'agent H (dépense, accord de Nathan), autre site du banc (sites de Nathan sur #67), vraie souris sur le panneau.
+
+### 18/11, 11 h 45 : check de dev pour la PR 12, note du passage (#71 point 2), scène sur deux sites du banc
+- Nathan a validé le squelette et fusionné la PR #80. Check demandé par « hackaton » sur `origin/dev` 9ea7428 (PR 62, 66, 80), dans un worktree jetable (`pnpm install --offline`, 0 téléchargement) : code 0 ; agent 150 (149 réussis, 1 ignoré), jugement 79, memoire 34, faux-saas 10, interface 8. Worktree retiré.
+- `note-passage.mjs` : la note `passages/<id>.md` du coureur est complétée après les décisions (tests rejoués et écartés, ou pages ; chaque constat avec sa capture entourée dans `passages/<id>/` et sa décision ; PR par `--pr`). Branché dans `parcours.mjs` et `exploration.mjs`.
+- Banc (sites de #67) sans H ni Holo : albertschool.com/fr code 0, 10 pages, aucun constat ; skema.edu/fr code 1 (accueil redirigé refusé par le moteur, passage `interrompu`), 7 débordements que je juge faux (texte en arc autour du bouton vidéo), bannière de cookies non refusée. À signaler à Ali (#67). Preuve : `docs/tests/2026-11-18-note-passage-et-banc.md`.
+- Pas branché : lien de la PR de documentation (`ouvrirPrDoc` non appelé par la scène), `--pr` passé par le réveil.
+
+### 18/11, 12 h 30 : départ depuis l'article, PR de documentation, PR 85, README
+- Départ depuis l'onglet de l'article (décision de démo de Nathan), sans H ni Holo : avec `dev` seul, l'article n'est pas visité ; avec la PR #81, il l'est en premier, 404 entouré en direct et au récapitulatif (code 0, 142 s, 15 pages).
+- PR #85 d'Ali (worktree jetable dev + #85 + #81 + dev-nathan) : scène compatible, 404 entouré en direct ; mais `captureDefect` donne une capture non centrée et sans zone (le site déclare `scroll-behavior: smooth`, le `scrollTo` est animé) et la couche de la scène dessus (connexion CDP du moteur). Verdict envoyé à « hackaton » pour Ali.
+- `--pr-doc` : `ouvrirPrDoc` après une correction acceptée, lien ou raison d'échec dans la note du passage, échec sans blocage. Essayé sur un dépôt Git nu local, faux module de correction, faux `gh` : branche à un commit d'une ligne, code 0 ; échec (dépôt absent) : code 0, raison dans la note. Aucune PR réelle.
+- README racine (couloir d'Ali, sur consigne de la coordination) : service décidé (#68, conteneur sur Railway, étapes d'Ali), « Évolutions prévues » (plusieurs agents après le hackathon, consignes de Holo spécialisées), parcours du mode grand public à un agent.
+- Preuve : `docs/tests/2026-11-18-depart-article-et-pr-doc.md`.
+
+### 18/11, 14 h : crochet capturerZone (part scène), squelette de l'extension
+- `captureZone` (`scene.mjs`) et `runtime.capturerZone` (`exploration.mjs`), forme validée par Ali sur la PR #85 : défilement instantané, couche masquée, retour au défilement d'avant ; `capture-zone.test.mjs` sur un vrai Chrome (port 9334), qui échoue bien sans masquage ou sans défilement instantané. Poussé (e981a06), sans PR, pour le Devin d'Ali ; surveillance d'origin en attendant sa branche.
+- **Extension** (`extension/`, décision de Nathan relayée par « hackaton ») : Manifest V3, `activeTab` et `storage` seulement, fenêtre (adresse, Lancer), onglet de rapport (file, progression, défauts prouvés avec capture entourée et preuve, « À vérifier » à part, non vérifié), options (adresse du service). Contrat : six points proposés dans #68 (CORS, réponses du POST, file, captures par lien, identifiant, 429). Faux service sans dépendance qui rejoue l'exploration enregistrée depuis l'article.
+- Essai dans un Chrome séparé à profil jetable, extension chargée par CDP (`--load-extension` refusé par Chrome 157) : 404 affiché à 5,9 s, fin à 34,2 s ; 429, 503 et service absent affichés. « À vérifier » vu seulement avec un constat synthétique hors dépôt. Preuve : `docs/tests/2026-11-18-extension-squelette.md`.
+
+### 18/11, 12 h 50 : PAUSE (Nathan change de réseau). Reprendre ici.
+- **Fait depuis 11 h 45** : la répétition réelle (code 0, 15/15 pages, 262 s, 0,0827 $, `docs/tests/2026-11-18-repetition-reelle.md`) ; le diagnostic chiffré des retours de Nathan (0 clic de H, 15 `goto`) ; les corrections 3 (page de départ ouverte d'emblée) et B (un seul défilement doux jusqu'au défaut, sans aller-retour), dans la **PR #92**, ouverte et non fusionnée.
+- **Vitrine en cours** (`automatisation/scene/vitrine.mjs`, option `--vitrine` d'`exploration.mjs`), commitée « Vitrine : en cours », sans PR. Mesuré en scripté (0 $, 6 pages, depuis l'article) :
+  - code 0 ;
+  - 6 148 images reçues, 6 118 affichées, 73,9 par seconde ;
+  - délai de l'image dessinée à l'image affichée : médiane 12 ms, p95 14 ms (4 et 14 ms au premier essai) ;
+  - vitrine en plein écran 2560 × 1440, scène agrandie 1,6 fois avec bandes noires, texte lisible un peu adouci ;
+  - captures de vérification identiques au pixel près avec et sans vitrine, sur 6 pages sur 7. La 7e (l'article) diffère par son fil d'Ariane (« TECH HUB » ou « CONSEILS D'ORIENTATION »), qui change d'un passage à l'autre : c'est le site, pas la vitrine ;
+  - repli essayé : port 9400 occupé, « Vitrine indisponible », la scène continue (code 0).
+  Clip et capture : `docs/tests/captures/2026-11-18-vitrine/`.
+- **Prochaine action exacte (vitrine)** :
+  1. écrire `docs/tests/2026-11-18-vitrine.md` avec les mesures ci-dessus ;
+  2. essayer de fermer la vitrine en plein passage : la scène doit continuer ;
+  3. ajouter `--vitrine` à `passage-reel.sh` si Nathan le veut ;
+  4. ouvrir la PR de la vitrine (séparée de #92, à fusionner après elle).
+  Pas de passage avec H sous vitrine pour l'instant.
+- **Passage réel de 13 h 30** : `bash automatisation/demo/passage-reel.sh`, **seulement après le go de Nathan tapé dans la session de l'orchestrateur** (vérification d'avant-départ d'abord, environ 0,08 $). Nathan règle son écran externe en 1920 × 1080 pour une scène plus grande.
+- Pour #91 (Ali), côté scène : appeler `relever` avant de faire défiler, sinon la page remonte d'un coup pour la capture.
+
+### 18/11, reprise après la pause : vitrine finie
+- #92 fusionnée sans la vitrine. Vitrine : fermée en plein passage, la scène va au bout (code 0) ; options anti-ralentissement ajoutées au Chrome de la vitrine (81 images affichées sur 5 888 en plein écran caché sur l'écran du Mac seul, puis 5 066 sur 5 086). Rapport : `docs/tests/2026-11-18-vitrine.md`. Ensuite : brancher la PR #93 d'Ali (#91) dans la scène.
+
+### 18/11, 13 h 35 : PR de la vitrine (#94), branchement de #93
+- PR #94 (vitrine) ouverte depuis `dev-nathan`. Branchement de #93 sur une branche à part `nathan-91-scene` (depuis `dev`) : `--pages-cliquees`, `passage-reel.sh` en `--max 8 --pages-cliquees 4 --vitrine` (la vitrine prend effet quand #94 est fusionnée), le champ `arrivee` affiché s'il est présent (scène, note du passage, extension). Essai scripté avec #93 : code 0. Le champ n'est pas encore écrit par #93 (une ligne côté Ali).
+
+### 18/11, soir : FIN DE JOURNÉE. Reprendre ici.
+- **Fusionné depuis 13 h 35**, dans `dev` :
+  - mode dev sur le clone : vault du clone (#103), références reprises sur sa production (#137), réveil à blanc (#105), réveil par le statut, le contrôle et le commentaire de Vercel (#114, #128), exploration de tout le site après les tests du vault (#123), langue changée = tests écartés (#125), réponse sur la PR avec les « voulu » retenus (#126), captures sur la branche `horama/captures` du clone (#129) ;
+  - scène : un seul onglet (#110), cookies avant capture (#104), raison quand rien n'est visité (#118), mascotte de la charte animée (#138), charte « L'envoyé » et ses détails (#140, #142) ;
+  - extension dans la charte (#144) ; page d'accueil et charte (#131) ; machine de démo (#146) ; « Essayer Horama » et paquet de l'extension (#147) ; doc de Noé (#141).
+- **Ouverte** : #150, la page d'accueil branchée sur le service. `accueil/service.js` contient `SERVICE` et `RAPPORT_URL` (vide : suivi en texte ; remplie : envoi vers le tableau de bord, construit à part).
+- **Ce qui attend Ali** :
+  - couper la barre d'outils Vercel des prévisualisations du clone (sinon un écart d'image sur chaque page) ;
+  - la PR qui traduit le clone en allemand (#122) ;
+  - l'adresse du service sur Railway (#68) ;
+  - la page d'accueil en ligne sur Vercel (#136).
+- **Ce que je fais dès que ça arrive** :
+  1. **PR en allemand** : `node automatisation/reveil/pr.mjs --depot Hisseiny/eugenia-school-website --logiciel eugenia-clone --a-blanc` (tests du vault écartés pour la langue, prévisualisation ouverte), puis le passage réel avec H **seulement sur le go de Nathan tapé dans cette session**.
+  2. **Adresse Railway** : une ligne dans `DEFAULT_SERVICE` (`extension/service.js`) et une dans `SERVICE` (`accueil/service.js`), puis `sh extension/empaqueter.sh` ; release GitHub du `.zip` sur go de Nathan.
+  3. Puis #132 (déroulé de la démo, avec Nathan) et, jeudi soir, la PR `dev` vers `main` (#134), fusionnée par Nathan.
+- **Règles qui tiennent** : aucune session H ni dépense sans le go de Nathan tapé ici ; sur le clone, seule la branche `horama/captures` est autorisée (go de Nathan), rien d'autre ; plus de `pnpm store prune` ; `bash automatisation/demo/verifier-machine.sh` avant la répétition.
+- **État de la machine** : aucun serveur ni Chrome laissé tourner, ports 9333, 9400 et 8787 libres. Les patchs de démonstration du clone (régression « 4 ans », titre « Bachelor IA ») restent en local dans `automatisation/demo/clone/`, non versionnés.

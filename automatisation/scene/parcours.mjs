@@ -25,7 +25,11 @@ import { libelleAction } from "../../agent/src/session.ts";
 import { appliquerCorrection, ecrireDecision, ecrireReference, lireDecisions, lireNotes, lireReferences, refuserCorrection } from "../../memoire/index.ts";
 import { findHolo, startBridge, stopIfMissing } from "./agent-h.mjs";
 import { creerEcrivainMemoire, creerEcrivainSupabase } from "./decisions.mjs";
-import { dataUrl, revoir, sizeOf } from "./recapitulatif.mjs";
+import { ecrireCommentaire, publierCommentaire } from "../pr-doc/commentaire.mjs";
+import { ouvrirPrDoc } from "../pr-doc/index.mjs";
+import { completerNote } from "./note-passage.mjs";
+import { revoir, sizeOf } from "./recapitulatif.mjs";
+import { ouvrirVitrine } from "./vitrine.mjs";
 import { HEIGHT, WIDTH, capture, clickAt, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, layer, navigate, openChrome, option, say, sleep, waitFor } from "./scene.mjs";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
@@ -50,6 +54,21 @@ const PAR = option("par", "Nathan");
 const CHECK_FILE = resolve(option("verification", join(HERE, "../../jugement/verification/index.ts")));
 const CORRECTION_FILE = resolve(option("correction", join(HERE, "../../jugement/correction/index.ts")));
 const CORRECTION_CHOICE = option("correction-choix");
+// The PR whose deployment woke the passage (given by the wake-up), written in the report of the passage.
+const PR = option("pr", null);
+// The PR of documentation for each accepted correction of a note (automatisation/pr-doc/): only with --pr-doc
+// <propriétaire/dépôt>, the repository of the documentation. --pr-doc-remote: another remote (a local bare repository
+// for a trial), --pr-doc-base: its branch, --pr-doc-vault: the folder of this software in it, --lien-passage: the link
+// to the passage written in the PR (default: the interface in local).
+const PR_DOC = option("pr-doc", null);
+const PR_DOC_CONFIG = PR_DOC && {
+  repository: PR_DOC,
+  base: option("pr-doc-base", "dev"),
+  vaultPath: option("pr-doc-vault", `vault-horama/${LOGICIEL}`),
+  passageUrl: option("lien-passage", `http://localhost:3000/passages/${ID}`),
+  ...(flag("pr-doc-remote") ? { remote: option("pr-doc-remote") } : {}),
+};
+const prDoc = []; // per accepted correction: { label, url } for the note of the passage
 // The choice of the tests made from a change (docs/decisions/2026-11-17-format-impact.md): shown before the course,
 // and, without --tests, the tests the scene plays.
 const IMPACT_FILE = option("impact") ? resolve(option("impact")) : null;
@@ -153,6 +172,7 @@ const chrome = await openChrome({ bin: CHROME_BIN, port: PORT, profile: PROFILE 
 say(chrome.started ? `Chrome dédié lancé (${chrome.version}, port ${PORT}, profil ${PROFILE}).` : `Un Chrome écoute déjà sur le port ${PORT} (${chrome.version}) : réutilisé.`);
 let page = null;
 let filming = false;
+let vitrine = null; // the showcase (--vitrine, vitrine.mjs): the scene enlarged to a whole screen in a separate Chrome
 const bridges = new Set(); // the bridges of the sessions not yet ended
 let launched = 0; // H sessions asked by the runner (one more when a mute session is relaunched)
 const stop = async () => {
@@ -476,6 +496,8 @@ try {
   if (area.largeur !== WIDTH || area.hauteur !== HEIGHT || area.densite !== 1) {
     throw new Error(`zone de page ${area.largeur} × ${area.hauteur} à la densité ${area.densite} au lieu de ${WIDTH} × ${HEIGHT} à la densité 1 (émulation refusée ou zoom de page) : parcours non joué`);
   }
+  // The page of the scene stays 1280 × 900; the showcase only retransmits it. If it fails, the scene goes on.
+  if (flag("vitrine")) vitrine = await ouvrirVitrine(page, { chromeBin: CHROME_BIN, profil: resolve(option("profil-vitrine", "/Users/nathan/Code/projet/horama/.orchestrateur/chrome-vitrine")), debugPort: flag("vitrine-debug") ? Number(option("vitrine-debug")) : null, say });
   if (FILM) film();
   // What the change asks to replay: said in the terminal now, shown in the summary at the end (nothing on screen
   // before the agent starts).
@@ -506,7 +528,8 @@ await queue;
 const complete = course.every((step) => taken.has(step.key));
 const final = totals();
 const kept = consolidated.filter((constat) => revealed.has(constat.id) && open(constat));
-const review = flag("sans-fin") ? [] : [...kept.filter((constat) => constat.statut === "VERIFIED_FAIL"), ...kept.filter((constat) => constat.statut === "SUSPECTED")];
+const toDecide = [...kept.filter((constat) => constat.statut === "VERIFIED_FAIL"), ...kept.filter((constat) => constat.statut === "SUSPECTED")];
+const review = flag("sans-fin") ? [] : toDecide;
 const sentences = (parts) => parts.filter(Boolean).map((part) => (part.endsWith(".") ? part : `${part}.`)).join(" ");
 const outcome = [
   [final.problemes && count(final.problemes, "problème", "problèmes"), final.doutes && count(final.doutes, "doute", "doutes")].filter(Boolean).join(" et ") || (complete && !final.sans_conclusion ? "Tout est bon" : ""),
@@ -524,7 +547,7 @@ const itemOf = (constat) => {
   const text = question ?? resultat;
   const { png } = taken.get(`${constat.ecran}--${constat.vue}`);
   const [etat, genre] = KIND[constat.statut];
-  return { id: constat.id, genre, etat, texte: resultat, image: dataUrl(png), zones: marks.get(constat.id)?.rects ?? (constat.zone ? [constat.zone] : []), page: sizeOf(png),
+  return { id: constat.id, genre, etat, texte: resultat, png, zones: marks.get(constat.id)?.rects ?? (constat.zone ? [constat.zone] : []), page: sizeOf(png),
     textes: [annonce, !text.startsWith(resultat) && resultat].filter(Boolean), question: text };
 };
 // The choice of the tests: the change and its reasons (--impact), else the tests played.
@@ -532,11 +555,20 @@ const selection = impact
   ? { titre: `Tests choisis pour ce changement${impact.vers ? ` (${String(impact.vers).slice(0, 7)})` : ""}`,
     lignes: [...impact.retenus.map(({ id, raisons }) => `${id} : rejoué${raisons?.length ? `, ${raisons.join(" ; ")}` : ""}`), ...impact.ecartes.map(({ id, raison }) => `${id} : écarté${raison ? `, ${raison}` : ""}`)] }
   : { titre: "Tests joués", lignes: tests.map((test) => test.id) };
+const items = new Map(toDecide.filter((constat) => taken.has(`${constat.ecran}--${constat.vue}`)).map((constat) => [constat.id, itemOf(constat)]));
 if (page) {
   try {
-    const recap = { titre: "Récapitulatif", lignes: [summary, ...(review.length ? [review.length > 1 ? "On les regarde ensemble." : "On le regarde ensemble."] : [])], selection };
-    say(`Récapitulatif : ${recap.lignes.join(" ")}`);
-    const choices = (await revoir({ mascot, recap, items: review.map(itemOf), choix: CHOICES, presentation: !SANS_PRESENTATION, witness, say }, () => new Promise((resolve) => (chosen = resolve))))
+    // The card of the charter: the title, the address in mono, three figures (proven, to decide, tests played), the
+    // choice of the tests in small at the end.
+    const recap = { titre: complete ? "J'ai fini." : "Je n'ai pas pu finir le parcours.", site: BASE,
+      chiffres: [
+        { valeur: final.problemes ?? 0, libelle: (final.problemes ?? 0) > 1 ? "défauts prouvés" : "défaut prouvé", genre: "defaut" },
+        { valeur: final.doutes ?? 0, libelle: "à trancher", genre: "doute" },
+        { valeur: tests.length, libelle: tests.length > 1 ? "tests rejoués" : "test rejoué" },
+      ],
+      lignes: final.sans_conclusion ? [`${count(final.sans_conclusion, "point", "points")} que je n'ai pas pu vérifier.`] : [], selection };
+    say(`Récapitulatif : ${summary}`);
+    const choices = (await revoir({ mascot, recap, items: review.map((constat) => items.get(constat.id)), choix: CHOICES, presentation: !SANS_PRESENTATION, witness, say }, () => new Promise((resolve) => (chosen = resolve))))
       .map(({ item, choix }) => {
         const constat = review.find((candidate) => candidate.id === item.id);
         return { constat, choix, question: formuler(constat).question };
@@ -590,6 +622,26 @@ if (page) {
               await witness(`correction-${decision.correction_de_note.statut}`);
             }
             await mascot("bulle", null);
+            // The accepted correction goes to the documentation as a PR. A failure is said and the scene goes on.
+            if (!failure && PR_DOC_CONFIG && decision.correction_de_note?.statut === "acceptee") {
+              const { fichier, avant, apres } = decision.correction_de_note;
+              let opened;
+              try {
+                opened = await ouvrirPrDoc({ passage_id: ID, fichier, avant, apres, decision }, PR_DOC_CONFIG);
+              } catch (error) {
+                opened = { status: "INCONCLUSIVE", reason: error.message };
+              }
+              if (opened.status === "opened") {
+                prDoc.push({ label: `PR de documentation (${fichier})`, url: opened.url });
+                say(`PR de documentation ouverte : ${opened.url}`);
+                await speak("J'ai ouvert la PR de documentation.", "pr-doc-ouverte");
+              } else {
+                // In the note, the last line of the error (git's « fatal: … »); the whole message in the terminal.
+                prDoc.push({ label: `PR de documentation non ouverte (${fichier})`, url: opened.reason.trim().split("\n").at(-1) });
+                say(`PR de documentation non ouverte : ${opened.reason}${opened.branch ? ` (branche ${opened.branch})` : ""}`);
+                await speak("Je n'ai pas pu ouvrir la PR de documentation : la note est corrigée ici, pas encore dans le dépôt.", "pr-doc-echec");
+              }
+            }
           } else if (proposal) {
             say(proposal.raison);
             await speak(proposal.raison, "correction-absente");
@@ -613,6 +665,34 @@ if (page) {
     }
   } catch (error) {
     errors.push(`Fin du parcours : ${error.message}`);
+  }
+}
+// The report the runner wrote in the vault, completed with what only the scene knows (issue #71, point 2): the tests
+// replayed and set aside, each defect and doubt with its capture ringed, the decision of the human, the PR.
+const rejoues = impact ? impact.retenus.map(({ id, raisons }) => `${id}${raisons?.length ? ` (${raisons.join(" ; ")})` : ""}`) : tests.map((test) => test.id);
+const ecartes = [...(impact?.ecartes ?? []), ...dropped].map(({ id, raison }) => `${id}${raison ? ` (${raison})` : ""}`);
+let notePath = null;
+if (report) {
+  try {
+    const note = notePath = completerNote({ vault: VAULT, logiciel: LOGICIEL, passage: ID, tests: { titre: "Tests", lignes: [...rejoues.map((line) => `Rejoué : ${line}`), ...ecartes.map((line) => `Écarté : ${line}`)] }, items: [...items.values()], decisions, pr: [...(PR ? [{ label: "PR qui a déclenché le passage", url: PR }] : []), ...prDoc] });
+    say(note ? `Note du passage complétée : ${join(VAULT, note)}.` : `Aucune note du coureur pour ${ID} : rien à compléter.`);
+  } catch (error) {
+    errors.push(`Note du passage : ${error.message}`);
+  }
+}
+// The answer on the PR that woke the passage (with --pr): written in passage.json (commentaire_corps, the wake-up puts
+// it in one answer with the exploration of the site), posted with gh only with --commenter. A failure is said, the
+// scene goes on and its exit does not change.
+let commentaire = null;
+let commentaireCorps = null;
+if (PR && report) {
+  const entry = (constat) => ({ id: constat.id, ecran: constat.ecran, texte: formuler(constat).resultat });
+  commentaireCorps = ecrireCommentaire({ passage: ID, rejoues, ecartes, prouves: toDecide.filter((constat) => constat.statut === "VERIFIED_FAIL").map(entry),
+    doutes: toDecide.filter((constat) => constat.statut === "SUSPECTED").map(entry), decisions: decisions.map(({ decision }) => decision),
+    note: `vault-horama/${notePath ?? `${LOGICIEL}/passages/${ID}.md`}`, complet: complete });
+  if (flag("commenter")) {
+    commentaire = await publierCommentaire(PR, commentaireCorps);
+    say(commentaire.status === "publie" ? `Commentaire publié sur la PR : ${commentaire.url}` : `Commentaire non publié sur la PR : ${commentaire.reason}`);
   }
 }
 // The decisions of the human, then the state of the passage, in the base, only when the runner rendered the
@@ -641,6 +721,9 @@ if (report?.passage.etat === "joue") {
   }
 } else say(`Passage ${report?.passage.etat ?? "non rendu"} : aucune décision ni état « verifie » en base.`);
 filming = false;
+const showcase = vitrine?.mesures() ?? null;
+if (showcase) say(`Vitrine : ${showcase.images_recues} images reçues, ${showcase.images_affichees} affichées, ${showcase.images_par_seconde} par seconde ; délai de l'image dessinée à l'image affichée : médiane ${showcase.delai_total_ms.mediane} ms, p95 ${showcase.delai_total_ms.p95} ms.`);
+await vitrine?.stop({ fermer: flag("fermer-chrome") });
 const delays = clics.map((click) => click.retard_ms).filter((ms) => ms !== undefined);
 // The totals come from rapport.passage; the steps, the session and the replay are repeated in each test entry.
 const { duree_s: dureeS = null, cout_usd: coutUsd = null } = report?.passage ?? {};
@@ -672,6 +755,9 @@ writeFileSync(join(OUT, "passage.json"), `${JSON.stringify({
   settle_s: SANS_AGENT ? null : SETTLE_S,
   fin_s: finMs === null ? null : finMs / 1000,
   film: FILM ? { dossier: FILM, images, duree_s: filmedMs / 1000 } : null,
+  vitrine: showcase,
+  commentaire,
+  commentaire_corps: commentaireCorps,
   debut: started.toISOString(),
   fin: new Date().toISOString(),
   duree_s: dureeS,

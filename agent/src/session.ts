@@ -19,13 +19,15 @@ export interface ResultatSession {
 }
 export interface SessionInput {
   consigne: Consigne;
+  maxSteps?: number;
+  maxTimeS?: number;
   cle: "dev" | "demo";
   signal?: AbortSignal;
   onCreated(id: string): Promise<void>;
   onStep(etape: EtapeSession): Promise<void>;
   onTool(name: string, args: Record<string, unknown>): Promise<string>;
 }
-export interface SessionEnCours { id: string; fin: Promise<ResultatSession>; stop?(): Promise<void> }
+export interface SessionEnCours { id: string; fin: Promise<ResultatSession>; stop?(): Promise<void>; confirmStopped?(): Promise<void> }
 export type Session = (input: SessionInput) => Promise<SessionEnCours>;
 export interface NavigateurSession {
   channel: string;
@@ -46,7 +48,7 @@ const TERMINAL = ["completed", "failed", "timed_out", "interrupted"];
 const API = "https://agp.eu.hcompany.ai/api/v2";
 
 export function libelleAction(names: string[]): string {
-  const labels: Record<string, string> = { go_to: "Ouvre une page", click: "Clique", click_web: "Clique", wait_web: "Attend la page", scroll_web: "Défile", relever: "Relève l'écran", terminer: "Termine le parcours" };
+  const labels: Record<string, string> = { go_to: "Ouvre une page", go_to_web: "Ouvre une page", click: "Clique", click_web: "Clique", wait_web: "Attend la page", scroll_web: "Défile", relever: "Relève l'écran", terminer: "Termine le parcours" };
   return (names.length ? names.map((name) => labels[name] ?? "Agit dans le navigateur").join(", ") : "Agit dans le navigateur").slice(0, 100);
 }
 
@@ -54,6 +56,9 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
   if (!Number.isFinite(settle_s) || settle_s < 0) throw new Error("settle_s doit être un nombre positif ou nul de secondes.");
   let previous = false;
   return async (input) => {
+    if (input.maxSteps !== undefined && (!Number.isSafeInteger(input.maxSteps) || input.maxSteps < 1)) throw new Error("maxSteps doit être un entier positif.");
+    const maxTimeS = input.maxTimeS ?? 240;
+    if (!Number.isSafeInteger(maxTimeS) || maxTimeS < 1) throw new Error("maxTimeS doit être un entier positif.");
     const secret = key ?? (input.cle === "demo" ? process.env.HAI_API_KEY_DEMO : process.env.HAI_API_KEY);
     if (!secret) throw new Error("Clé H absente pour ce passage.");
     if (!navigateur) throw new Error("Le couloir scène doit fournir le navigateur et son pont local (navigateur).");
@@ -103,17 +108,21 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
           environments: [{ id: "browser", kind: "web", host: "user_device", session_id: browser.channel, settle_s, mode: { type: "visual", markdown: true } }],
           tools: input.consigne.tools,
         },
-        messages: [{ type: "user_message", message: input.consigne.task }], queue: false, max_time_s: 240, max_steps: 40,
+        messages: [{ type: "user_message", message: input.consigne.task }], queue: false, max_time_s: maxTimeS, max_steps: input.maxSteps ?? 40,
       });
     } catch (error) { await closeBrowser(browser); throw error; }
     const id: string = session.id;
     let status: string = session.status?.status ?? "";
     let stopping: Promise<void> | undefined;
+    let stopFailure: Error | undefined;
     const stop = () => stopping ??= (async () => {
       const closed = closeBrowser(browser);
       if (!TERMINAL.includes(status)) {
         try { await h("DELETE", `/sessions/${id}`, undefined, true); }
-        catch { signaler(`Session ${id} : arrêt H non confirmé ; session abandonnée.`); }
+        catch {
+          stopFailure = new Error(`Session ${id} : arrêt H non confirmé ; session abandonnée.`);
+          signaler(stopFailure.message);
+        }
       }
       await closed;
     })();
@@ -133,7 +142,7 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
       let next = 0;
       let muted = false;
       let erreur: string | undefined;
-      let deadline = created + 330_000;
+      let deadline = created + (maxTimeS + 90) * 1000;
       let lastActivity = created;
       const handled = new Set<string>();
       try {
@@ -197,6 +206,28 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
       }
       return { id, muted, cout_usd: metrics?.total_cost ?? null, etapes, ...(erreur ? { erreur } : {}), ...(replay_url ? { replay_url } : {}) };
     })();
-    return { id, fin, stop };
+    return { id, fin, stop, async confirmStopped() {
+      await stop();
+      let remoteStatus = "illisible";
+      let observedActive = false;
+      // H n'applique l'arrêt qu'après la fin de l'outil en cours, ce qui peut prendre jusqu'à une minute.
+      for (let attempt = 0; attempt < 16; attempt++) {
+        try {
+          const remote = await h("GET", `/sessions/${id}`, undefined, true);
+          remoteStatus = remote?.status?.status ?? "illisible";
+          if ([...TERMINAL, "idle"].includes(remoteStatus)) return;
+          if (remoteStatus !== "illisible") observedActive = true;
+          if (attempt < 3) await h("DELETE", `/sessions/${id}`, undefined, true);
+        } catch { /* L'état doit être confirmé même si une requête échoue. */ }
+        if (attempt < 15) await pause(attempt < 3 ? 1000 : 5000);
+      }
+      if (TERMINAL.includes(status) && !observedActive) {
+        signaler(`Session ${id} : lectures distantes indisponibles ; état terminal déjà connu : ${status}.`);
+        return;
+      }
+      const failure = new Error(`Session ${id} : arrêt H non confirmé ; état distant : ${remoteStatus}.`);
+      signaler(failure.message);
+      throw stopFailure ?? failure;
+    } };
   };
 }

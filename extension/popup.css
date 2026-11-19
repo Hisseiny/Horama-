@@ -1,0 +1,16 @@
+/* La fenêtre de 360 px de la charte : bandeau ciel avec le soleil, le mot de marque et la mascotte (84 px), l'adresse
+   de l'onglet en mono, le bouton ailé. */
+body { width: 360px; margin: 0; }
+.haut { height: 112px; }
+.haut .astre { right: 34px; top: 34px; width: 150px; height: 150px; }
+.haut .mot { left: 18px; top: 16px; font-size: 26px; }
+.haut .m { right: 67px; top: 16px; width: 84px; height: 84px; }
+form { padding: 18px 18px 16px; }
+label { display: block; margin-bottom: 7px; font: 600 13.5px var(--texte); }
+.adresse { display: block; width: 100%; height: 46px; padding: 0 16px; background: var(--papier); border: 2.5px solid var(--encre); border-radius: 999px;
+  font: 500 13.5px var(--mesure); color: var(--encre); text-overflow: ellipsis; }
+.adresse:focus { outline: 3px solid var(--iris); outline-offset: 2px; }
+.bouton { width: calc(100% - 34px); height: 52px; margin: 16px 17px 4px; }
+.bouton:disabled { opacity: 0.45; cursor: default; }
+#message { min-height: 20px; margin: 10px 0 0; font-size: 14px; }
+.pied { margin: 4px 0 0; font-size: 13px; color: var(--encre-2); }

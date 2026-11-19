@@ -1,0 +1,1017 @@
+{
+  "format": "horama-exploration-1",
+  "etat": "fini",
+  "passage_id": "2026-11-18-10h08-ef2f",
+  "adresse": "https://www.eugeniaschool.com/blog/fin-de-parcoursup-ce-qui-change-premiere-terminale",
+  "site": "eugeniaschool-com",
+  "version": "1",
+  "version_reference": null,
+  "le": "2026-11-18T10:08:34.468Z",
+  "fin": "2026-11-18T10:10:27.358Z",
+  "duree_s": 112.89,
+  "cout_usd": null,
+  "trouvees": {
+    "par": "sitemap",
+    "plafond": 15,
+    "nombre": 15,
+    "exclues": [
+      {
+        "url": "https://www.facebook.com/EugeniaSchoolGroupeAGDS/?profile_tab_item_selected=about&_rdr",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.instagram.com/eugenia.school/",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.youtube.com/@EugeniaSchool",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.linkedin.com/school/eugenia-school/?viewAsMember=true",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/docs/qualianor-certification.pdf",
+        "raison": "pdf"
+      },
+      {
+        "url": "https://albert-school.notion.site/Data-Privacy-Politique-de-confidentialit-747674845ae54dafa6e41193471129b4?pvs=4",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://albert-school.notion.site/Mentions-L-gales-Eugenia-School-9a44309e169a4d99ba8ffbdb443ed6bc",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.publicsenat.fr/actualites/education/parcoursup-effectif-des-classes-emplois-du-temps-les-reponses-du-gouvernement-a-la-mobilisation-lyceenne",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://lcp.fr/actualites/parcoursup-transforme-suppressions-de-postes-annulees-les-reponses-du-gouvernement-a-la",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.parcoursup.gouv.fr/",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.planetegrandesecoles.com/fin-de-parcoursup",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.enseignementsup-recherche.gouv.fr/",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.franceinfo.fr/societe/education/blocage-des-lycees/ce-qui-va-changer-pour-les-lyceens-apres-l-annonce-du-remplacement-de-parcoursup_8255467.html",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fwww.eugeniaschool.com%2Fblog%2Ffin-de-parcoursup-ce-qui-change-premiere-terminale.html",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://twitter.com/intent/tweet?url=https%3A%2F%2Fwww.eugeniaschool.com%2Fblog%2Ffin-de-parcoursup-ce-qui-change-premiere-terminale.html&text=Fin%20de%20Parcoursup%20%3A%20ce%20qui%20change%20en%20Premi%C3%A8re%20et%20en%20Terminale",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fwww.eugeniaschool.com%2Fblog%2Ffin-de-parcoursup-ce-qui-change-premiere-terminale.html",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://youtu.be/vUuCjUozquI?si=IgVf5KxgPgAtO1G1",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.youtube.com/watch?v=9BEP0tw1iPs",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.francecompetences.fr/recherche/rncp/41993/",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.studyrama.com/salons/salon-studyrama-grandes-ecoles-paris-28",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.planetegrandesecoles.com/gem-eugenia-school-partenariat-ia-business",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://grandes-ecoles.studyrama.com/ecoles-commerce/actualites/gem-x-euginia-school-alliance-inedite",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.grenoble-em.com/actualites/gem-x-eugenia-school-une-alliance-d-avant-garde-inedite-pour-une-formation-a-la-pointe-de-l-intelligence-artificielle-appliquee-au-business/",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://25517078.fs1.hubspotusercontent-eu1.net/hubfs/25517078/Eugenia/CP_EugeniaSchool%20X%20GEM%20_%20mai%2025.pdf",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://objectif-ast.fr/eugenia-school-bachelor/",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.maddyness.com/2024/10/16/eugenia-school-la-petite-soeur-dalbert-school/",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.studyrama.com/formations/specialites/informatique-numerique/eugenia-school-ouvre-bachelor-applied",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://25517078.fs1.hubspotusercontent-eu1.net/hubfs/25517078/Eugenia/CP%20cr%C3%A9ation%20Eugenia.pdf",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.youtube.com/watch?v=W2Fd3UjRrpU",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.youtube.com/watch?v=Pgv0g9DsiKY",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.youtube.com/watch?v=zQFialKVcKU",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.youtube.com/watch?v=vUuCjUozquI",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.youtube.com/watch?v=n094k7YwggM",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.linkedin.com/in/victor-phouangsavath-00775120a/",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.linkedin.com/in/nina-lemoine-/",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.linkedin.com/in/noah-segonds/",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.linkedin.com/in/hisseiny/",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.linkedin.com/in/victoria-ifrah-5a981523b/",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.linkedin.com/in/lenja-schuster/",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.linkedin.com/in/bastian-bellard-ba6ba9357/",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.linkedin.com/in/maximewz/",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.youtube.com/watch?v=8CyThSy1jss",
+        "raison": "autre domaine"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/campus/paris",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/projets-entreprises",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/financement",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/conseils-orientation",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/certification-concepteur-solutions-no-code",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/portfolio",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/candidature",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/programme/bachelor-ia-business-3eme-annee-alternance",
+        "raison": "section-limit"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/approche-pedagogique",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/alternance",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/vie-etudiante",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/simulateur-trajectoire",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/entrepreneuriat",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/contact",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/brochure",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/7-idees-de-business-a-lancer-pendant-ses-etudes",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/agents-ia-tout-savoir-sur-ces-assistants-dintelligence-artificielle-et-leurs-applications-metiers",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/algorithme-parcoursup-classement-2027",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/chatgpt-vs-mistral-ai-deux-visions-de-lintelligence-artificielle",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/choix-ecole-ia",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/comment-lintelligence-artificielle-revolutionne-t-elle-lentrepreneuriat-dans-le-e-commerce-en-2025",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/comment-trouver-premier-stage",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/creer-agent-ia-sans-coder-tutoriel",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/data-analyst-data-scientist-data-engineer-quelles-differences-et-quel-role-dans-le-cycle-de-la-donnee",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/excel-vs-power-bi-vs-tableau-quel-outil-de-data-visualisation-choisir",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/focus-sur-le-metier-de-sales-ops-en-startup",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/gemini-chatgpt-claude-quelle-ia-choisir-pour-ses-etudes",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/geniathon-x-carrefour-links-un-defi-tech-et-business-releve-par-nos-etudiants",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/hackathon-welcome-to-the-jungle-x-eugenia-school-reinventer-la-vie-au-bureau-des-lecole",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/ia-embauches-jeunes-diplomes-metiers-exposes",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/importance-esprit-critique-decrypter-enjeux-monde",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/intelligence-artificielle-revolutionne-education",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/le-ghibli-style-et-lia",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/les-erreurs-classiques-des-jeunes-entrepreneurs-et-comment-les-eviter",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/maintenir-attentin-etudiants-enseignement-superieur",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/master-of-science-ai-applied-to-business-une-formation-pensee-pour-laction",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/msc-alternance-data-ia-salaire-rythme-contrat",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/orientation-post-bac-ces-chiffres-qui-montrent-quon-peut-et-doit-changer-de-cap",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/orientation-post-bac-comment-garder-le-cap-en-attendant-parcoursup",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/parcoursup-ne-decide-pas-de-tout-ces-ecoles-qui-recrutent-autrement",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/parcoursup-nest-pas-une-fin-en-soi-explorez-dautres-voies-vers-la-reussite",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/parcoursup-que-faire-maintenant-que-les-voeux-sont-clos",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/pourquoi-choisir-un-msc-en-alternance",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/projet-de-formation-motive-parcoursup-ia",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/que-faire-apres-un-bac-stmg",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/que-recherchent-vraiment-les-entreprises-chez-un-alternant-en-master",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/retour-sur-le-hackathon-des-3m",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/retour-sur-le-hackathon-go-fusion",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/stmg-specialisation-gf---une-voie-vers-les-metiers-de-la-gestion",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/stmg-specialisation-mercatique-un-tremplin-vers-le-marketing-et-lentrepreneuriat",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/top-5-des-debouches-apres-un-master-en-business-data",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/blog/vibe-coding-lancer-side-project-weekend",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/evenements/atelier-coaching-m1---trouver-son-alternance",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/evenements/atelier-entrepreneur",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/evenements/creer-une-marque-avec-lia-generative",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/evenements/event-4l-trophy-x-mario-kart",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/evenements/immersion-du-6-decembre-2025",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/evenements/job-dating",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/evenements/job-dating-2",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/evenements/job-dating-paris---special-alternance",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/evenements/journee-portes-ouvertes-12-dec",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/evenements/journee-portes-ouvertes-decouverte",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/evenements/journee-portes-ouvertes-decouverte-de-lia-du-samedi-6-juin-2026",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/evenements/journee-portes-ouvertes-decouverte-de-lia-samedi-14-mars-2026",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/evenements/journee-portes-ouvertes-du-6-decembre-2025",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/evenements/journee-portes-ouvertes-du-7-fevrier-2026",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/evenements/matinee-portes-ouvertes",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/evenements/matinee-portes-ouvertes-15-novembre",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/evenements/webinaire-pedagogique",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/evenements/webinaire-rencontrez-le-directeur-deugenia-school",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/evenements/webinaire-summer-bootcamp-ia-albert-school-eugenia-school",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/evenements/webinar-candidature",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/evenements/webinar-parcoursup-quelles-alternatives",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/evenements/webinar-pedagogique-hackathon-des-3m-les-coulisses",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/evenements/workshop-e-commerce-ia",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/methode-eugenia",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/projets-entreprises/mistral-ai-hackathon",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/projets-entreprises/openai-hackathon",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/evenements/journee-portes-ouvertes-14-nov",
+        "raison": "au-delà du plafond"
+      },
+      {
+        "url": "https://www.eugeniaschool.com/cdn-cgi/l/email-protection",
+        "raison": "au-delà du plafond"
+      }
+    ]
+  },
+  "agents": [
+    {
+      "agent": 1,
+      "session_id": "script-2026-11-18-11h08-143f",
+      "etat": "fini",
+      "pages": [
+        "blog-fin-de-parcoursup-ce-qui-change-premiere-terminale",
+        "programme-bachelor-ia-business",
+        "notre-adn",
+        "entreprises-partenaires",
+        "processus-admission",
+        "evenements",
+        "tech-hub",
+        "certification-architecte-ia",
+        "carrieres",
+        "recruter-nos-etudiants",
+        "faq",
+        "presse",
+        "programme-master-ia-business-alternance",
+        "evenements-apres-midi-portes-ouvertes",
+        "projets-entreprises-dust-hackathon"
+      ],
+      "replay_url": null,
+      "duree_s": 111.374,
+      "cout_usd": null,
+      "raison": null
+    }
+  ],
+  "pages": [
+    {
+      "ecran": "blog-fin-de-parcoursup-ce-qui-change-premiere-terminale",
+      "url": "https://www.eugeniaschool.com/blog/fin-de-parcoursup-ce-qui-change-premiere-terminale",
+      "ordre": 1,
+      "trouvee_par": "sitemap",
+      "agent": 1,
+      "etat": "visitee",
+      "http": 200,
+      "debut": "2026-11-18T10:08:39.177Z",
+      "fin": "2026-11-18T10:08:40.424Z",
+      "capture": {
+        "fichier": "captures/blog-fin-de-parcoursup-ce-qui-change-premiere-terminale.png",
+        "url": "http://localhost/storage/v1/object/public/captures/2026-11-18-10h08-ef2f/exploration--blog-fin-de-parcoursup-ce-qui-change-premiere-terminale/blog-fin-de-parcoursup-ce-qui-change-premiere-terminale--defaut.png",
+        "largeur": 1280,
+        "hauteur": 900,
+        "defilement": [
+          0,
+          0
+        ]
+      },
+      "reference": null,
+      "holo": {
+        "etat": "fait",
+        "modele": "holo4-27b",
+        "duree_ms": 0,
+        "ecartes_sans_zone": 0
+      },
+      "statut": "VERIFIED_FAIL"
+    },
+    {
+      "ecran": "programme-bachelor-ia-business",
+      "url": "https://www.eugeniaschool.com/programme/bachelor-ia-business",
+      "ordre": 2,
+      "trouvee_par": "sitemap",
+      "agent": 1,
+      "etat": "visitee",
+      "http": 200,
+      "debut": "2026-11-18T10:08:46.670Z",
+      "fin": "2026-11-18T10:08:47.857Z",
+      "capture": {
+        "fichier": "captures/programme-bachelor-ia-business.png",
+        "url": "http://localhost/storage/v1/object/public/captures/2026-11-18-10h08-ef2f/exploration--programme-bachelor-ia-business/programme-bachelor-ia-business--defaut.png",
+        "largeur": 1280,
+        "hauteur": 900,
+        "defilement": [
+          0,
+          0
+        ]
+      },
+      "reference": null,
+      "holo": {
+        "etat": "fait",
+        "modele": "holo4-27b",
+        "duree_ms": 0,
+        "ecartes_sans_zone": 0
+      },
+      "statut": "PASS"
+    },
+    {
+      "ecran": "notre-adn",
+      "url": "https://www.eugeniaschool.com/notre-adn",
+      "ordre": 3,
+      "trouvee_par": "sitemap",
+      "agent": 1,
+      "etat": "visitee",
+      "http": 200,
+      "debut": "2026-11-18T10:08:54.085Z",
+      "fin": "2026-11-18T10:08:55.193Z",
+      "capture": {
+        "fichier": "captures/notre-adn.png",
+        "url": "http://localhost/storage/v1/object/public/captures/2026-11-18-10h08-ef2f/exploration--notre-adn/notre-adn--defaut.png",
+        "largeur": 1280,
+        "hauteur": 900,
+        "defilement": [
+          0,
+          0
+        ]
+      },
+      "reference": null,
+      "holo": {
+        "etat": "fait",
+        "modele": "holo4-27b",
+        "duree_ms": 0,
+        "ecartes_sans_zone": 0
+      },
+      "statut": "PASS"
+    },
+    {
+      "ecran": "entreprises-partenaires",
+      "url": "https://www.eugeniaschool.com/entreprises-partenaires",
+      "ordre": 4,
+      "trouvee_par": "sitemap",
+      "agent": 1,
+      "etat": "visitee",
+      "http": 200,
+      "debut": "2026-11-18T10:09:01.423Z",
+      "fin": "2026-11-18T10:09:02.976Z",
+      "capture": {
+        "fichier": "captures/entreprises-partenaires.png",
+        "url": "http://localhost/storage/v1/object/public/captures/2026-11-18-10h08-ef2f/exploration--entreprises-partenaires/entreprises-partenaires--defaut.png",
+        "largeur": 1280,
+        "hauteur": 900,
+        "defilement": [
+          0,
+          0
+        ]
+      },
+      "reference": null,
+      "holo": {
+        "etat": "fait",
+        "modele": "holo4-27b",
+        "duree_ms": 0,
+        "ecartes_sans_zone": 0
+      },
+      "statut": "PASS"
+    },
+    {
+      "ecran": "processus-admission",
+      "url": "https://www.eugeniaschool.com/processus-admission",
+      "ordre": 5,
+      "trouvee_par": "sitemap",
+      "agent": 1,
+      "etat": "visitee",
+      "http": 200,
+      "debut": "2026-11-18T10:09:09.187Z",
+      "fin": "2026-11-18T10:09:10.196Z",
+      "capture": {
+        "fichier": "captures/processus-admission.png",
+        "url": "http://localhost/storage/v1/object/public/captures/2026-11-18-10h08-ef2f/exploration--processus-admission/processus-admission--defaut.png",
+        "largeur": 1280,
+        "hauteur": 900,
+        "defilement": [
+          0,
+          0
+        ]
+      },
+      "reference": null,
+      "holo": {
+        "etat": "fait",
+        "modele": "holo4-27b",
+        "duree_ms": 0,
+        "ecartes_sans_zone": 0
+      },
+      "statut": "PASS"
+    },
+    {
+      "ecran": "evenements",
+      "url": "https://www.eugeniaschool.com/evenements",
+      "ordre": 6,
+      "trouvee_par": "sitemap",
+      "agent": 1,
+      "etat": "visitee",
+      "http": 200,
+      "debut": "2026-11-18T10:09:16.404Z",
+      "fin": "2026-11-18T10:09:17.351Z",
+      "capture": {
+        "fichier": "captures/evenements.png",
+        "url": "http://localhost/storage/v1/object/public/captures/2026-11-18-10h08-ef2f/exploration--evenements/evenements--defaut.png",
+        "largeur": 1280,
+        "hauteur": 900,
+        "defilement": [
+          0,
+          0
+        ]
+      },
+      "reference": null,
+      "holo": {
+        "etat": "fait",
+        "modele": "holo4-27b",
+        "duree_ms": 0,
+        "ecartes_sans_zone": 0
+      },
+      "statut": "PASS"
+    },
+    {
+      "ecran": "tech-hub",
+      "url": "https://www.eugeniaschool.com/tech-hub",
+      "ordre": 7,
+      "trouvee_par": "sitemap",
+      "agent": 1,
+      "etat": "visitee",
+      "http": 200,
+      "debut": "2026-11-18T10:09:23.563Z",
+      "fin": "2026-11-18T10:09:26.854Z",
+      "capture": {
+        "fichier": "captures/tech-hub.png",
+        "url": "http://localhost/storage/v1/object/public/captures/2026-11-18-10h08-ef2f/exploration--tech-hub/tech-hub--defaut.png",
+        "largeur": 1280,
+        "hauteur": 900,
+        "defilement": [
+          0,
+          0
+        ]
+      },
+      "reference": null,
+      "holo": {
+        "etat": "fait",
+        "modele": "holo4-27b",
+        "duree_ms": 0,
+        "ecartes_sans_zone": 0
+      },
+      "statut": "PASS"
+    },
+    {
+      "ecran": "certification-architecte-ia",
+      "url": "https://www.eugeniaschool.com/certification-architecte-ia",
+      "ordre": 8,
+      "trouvee_par": "sitemap",
+      "agent": 1,
+      "etat": "visitee",
+      "http": 200,
+      "debut": "2026-11-18T10:09:33.066Z",
+      "fin": "2026-11-18T10:09:33.922Z",
+      "capture": {
+        "fichier": "captures/certification-architecte-ia.png",
+        "url": "http://localhost/storage/v1/object/public/captures/2026-11-18-10h08-ef2f/exploration--certification-architecte-ia/certification-architecte-ia--defaut.png",
+        "largeur": 1280,
+        "hauteur": 900,
+        "defilement": [
+          0,
+          0
+        ]
+      },
+      "reference": null,
+      "holo": {
+        "etat": "fait",
+        "modele": "holo4-27b",
+        "duree_ms": 0,
+        "ecartes_sans_zone": 0
+      },
+      "statut": "PASS"
+    },
+    {
+      "ecran": "carrieres",
+      "url": "https://www.eugeniaschool.com/carrieres",
+      "ordre": 9,
+      "trouvee_par": "sitemap",
+      "agent": 1,
+      "etat": "visitee",
+      "http": 200,
+      "debut": "2026-11-18T10:09:40.144Z",
+      "fin": "2026-11-18T10:09:41.115Z",
+      "capture": {
+        "fichier": "captures/carrieres.png",
+        "url": "http://localhost/storage/v1/object/public/captures/2026-11-18-10h08-ef2f/exploration--carrieres/carrieres--defaut.png",
+        "largeur": 1280,
+        "hauteur": 900,
+        "defilement": [
+          0,
+          0
+        ]
+      },
+      "reference": null,
+      "holo": {
+        "etat": "fait",
+        "modele": "holo4-27b",
+        "duree_ms": 0,
+        "ecartes_sans_zone": 0
+      },
+      "statut": "PASS"
+    },
+    {
+      "ecran": "recruter-nos-etudiants",
+      "url": "https://www.eugeniaschool.com/recruter-nos-etudiants",
+      "ordre": 10,
+      "trouvee_par": "sitemap",
+      "agent": 1,
+      "etat": "visitee",
+      "http": 200,
+      "debut": "2026-11-18T10:09:47.310Z",
+      "fin": "2026-11-18T10:09:48.148Z",
+      "capture": {
+        "fichier": "captures/recruter-nos-etudiants.png",
+        "url": "http://localhost/storage/v1/object/public/captures/2026-11-18-10h08-ef2f/exploration--recruter-nos-etudiants/recruter-nos-etudiants--defaut.png",
+        "largeur": 1280,
+        "hauteur": 900,
+        "defilement": [
+          0,
+          0
+        ]
+      },
+      "reference": null,
+      "holo": {
+        "etat": "fait",
+        "modele": "holo4-27b",
+        "duree_ms": 0,
+        "ecartes_sans_zone": 0
+      },
+      "statut": "PASS"
+    },
+    {
+      "ecran": "faq",
+      "url": "https://www.eugeniaschool.com/faq",
+      "ordre": 11,
+      "trouvee_par": "sitemap",
+      "agent": 1,
+      "etat": "visitee",
+      "http": 200,
+      "debut": "2026-11-18T10:09:54.351Z",
+      "fin": "2026-11-18T10:09:55.163Z",
+      "capture": {
+        "fichier": "captures/faq.png",
+        "url": "http://localhost/storage/v1/object/public/captures/2026-11-18-10h08-ef2f/exploration--faq/faq--defaut.png",
+        "largeur": 1280,
+        "hauteur": 900,
+        "defilement": [
+          0,
+          0
+        ]
+      },
+      "reference": null,
+      "holo": {
+        "etat": "fait",
+        "modele": "holo4-27b",
+        "duree_ms": 0,
+        "ecartes_sans_zone": 0
+      },
+      "statut": "PASS"
+    },
+    {
+      "ecran": "presse",
+      "url": "https://www.eugeniaschool.com/presse",
+      "ordre": 12,
+      "trouvee_par": "sitemap",
+      "agent": 1,
+      "etat": "visitee",
+      "http": 200,
+      "debut": "2026-11-18T10:10:01.372Z",
+      "fin": "2026-11-18T10:10:02.507Z",
+      "capture": {
+        "fichier": "captures/presse.png",
+        "url": "http://localhost/storage/v1/object/public/captures/2026-11-18-10h08-ef2f/exploration--presse/presse--defaut.png",
+        "largeur": 1280,
+        "hauteur": 900,
+        "defilement": [
+          0,
+          0
+        ]
+      },
+      "reference": null,
+      "holo": {
+        "etat": "fait",
+        "modele": "holo4-27b",
+        "duree_ms": 0,
+        "ecartes_sans_zone": 0
+      },
+      "statut": "PASS"
+    },
+    {
+      "ecran": "programme-master-ia-business-alternance",
+      "url": "https://www.eugeniaschool.com/programme/master-ia-business-alternance",
+      "ordre": 13,
+      "trouvee_par": "sitemap",
+      "agent": 1,
+      "etat": "visitee",
+      "http": 200,
+      "debut": "2026-11-18T10:10:08.734Z",
+      "fin": "2026-11-18T10:10:09.716Z",
+      "capture": {
+        "fichier": "captures/programme-master-ia-business-alternance.png",
+        "url": "http://localhost/storage/v1/object/public/captures/2026-11-18-10h08-ef2f/exploration--programme-master-ia-business-alternance/programme-master-ia-business-alternance--defaut.png",
+        "largeur": 1280,
+        "hauteur": 900,
+        "defilement": [
+          0,
+          0
+        ]
+      },
+      "reference": null,
+      "holo": {
+        "etat": "fait",
+        "modele": "holo4-27b",
+        "duree_ms": 0,
+        "ecartes_sans_zone": 0
+      },
+      "statut": "PASS"
+    },
+    {
+      "ecran": "evenements-apres-midi-portes-ouvertes",
+      "url": "https://www.eugeniaschool.com/evenements/apres-midi-portes-ouvertes",
+      "ordre": 14,
+      "trouvee_par": "sitemap",
+      "agent": 1,
+      "etat": "visitee",
+      "http": 200,
+      "debut": "2026-11-18T10:10:16.123Z",
+      "fin": "2026-11-18T10:10:17.096Z",
+      "capture": {
+        "fichier": "captures/evenements-apres-midi-portes-ouvertes.png",
+        "url": "http://localhost/storage/v1/object/public/captures/2026-11-18-10h08-ef2f/exploration--evenements-apres-midi-portes-ouvertes/evenements-apres-midi-portes-ouvertes--defaut.png",
+        "largeur": 1280,
+        "hauteur": 900,
+        "defilement": [
+          0,
+          0
+        ]
+      },
+      "reference": null,
+      "holo": {
+        "etat": "fait",
+        "modele": "holo4-27b",
+        "duree_ms": 0,
+        "ecartes_sans_zone": 0
+      },
+      "statut": "PASS"
+    },
+    {
+      "ecran": "projets-entreprises-dust-hackathon",
+      "url": "https://www.eugeniaschool.com/projets-entreprises/dust-hackathon",
+      "ordre": 15,
+      "trouvee_par": "sitemap",
+      "agent": 1,
+      "etat": "visitee",
+      "http": 200,
+      "debut": "2026-11-18T10:10:23.303Z",
+      "fin": "2026-11-18T10:10:24.335Z",
+      "capture": {
+        "fichier": "captures/projets-entreprises-dust-hackathon.png",
+        "url": "http://localhost/storage/v1/object/public/captures/2026-11-18-10h08-ef2f/exploration--projets-entreprises-dust-hackathon/projets-entreprises-dust-hackathon--defaut.png",
+        "largeur": 1280,
+        "hauteur": 900,
+        "defilement": [
+          0,
+          0
+        ]
+      },
+      "reference": null,
+      "holo": {
+        "etat": "fait",
+        "modele": "holo4-27b",
+        "duree_ms": 0,
+        "ecartes_sans_zone": 0
+      },
+      "statut": "PASS"
+    }
+  ],
+  "constats": [
+    {
+      "id": "blog-fin-de-parcoursup-ce-qui-change-premiere-terminale--controle--1",
+      "ecran": "blog-fin-de-parcoursup-ce-qui-change-premiere-terminale",
+      "vue": "defaut",
+      "source": "controle",
+      "sorte": "lien-casse",
+      "statut": "VERIFIED_FAIL",
+      "description": "Le lien interne renvoie HTTP 404.",
+      "textes_a_surligner": [],
+      "preuve": {
+        "element": "html > body:nth-child(3) > main:nth-child(5) > div:nth-child(1) > article:nth-child(1) > div:nth-child(3) > div:nth-child(1) > p:nth-child(19) > a:nth-child(1)",
+        "mesure": "https://www.eugeniaschool.com/evenements/journee-portes-ouvertes-14-nov : 404",
+        "attendu": "Une réponse HTTP inférieure à 400.",
+        "url": "https://www.eugeniaschool.com/evenements/journee-portes-ouvertes-14-nov"
+      },
+      "capture": "captures/blog-fin-de-parcoursup-ce-qui-change-premiere-terminale--controle--1.png",
+      "agent": 1,
+      "page": {
+        "largeur": 802,
+        "hauteur": 56
+      },
+      "zone": {
+        "x": 0,
+        "y": 0,
+        "largeur": 801.03125,
+        "hauteur": 55.5
+      }
+    }
+  ],
+  "totaux": {
+    "pages_trouvees": 15,
+    "pages_visitees": 15,
+    "defauts": 1,
+    "doutes": 0,
+    "sans_conclusion": 0,
+    "par_sorte": {
+      "lien-casse": 1
+    }
+  }
+}

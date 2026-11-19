@@ -98,6 +98,27 @@ test("timeout du crochet : aucune capture tardive, C4 ciblé, rapport et PATCH f
   assert.equal(base.fichiers.size, 2);
 });
 
+test("exception du crochet : relevé non concluant avec sa raison, H continue et la session est fermée", { timeout: 2000 }, async () => {
+  const { runner, base, messages, fake } = setup({ relever: async (ecran) => {
+    if (ecran === "detail-facture") throw new Error("CDP sans réponse : Page.captureScreenshot");
+    return fixture(ecran);
+  } });
+  const { passage_id } = await runner.lancerPassage(input);
+  const report = await runner.attendreFin(passage_id);
+  const failure = "Relevé impossible pour detail-facture/defaut, la capture a échoué : CDP sans réponse : Page.captureScreenshot";
+  assert.ok(fake.toolResults.includes(`${failure} Continue les autres relevés, puis termine le parcours.`));
+  assert.ok(!fake.toolResults.some((message) => message.includes("Réessaie")));
+  assert.equal(base.captures.size, 2);
+  assert.deepEqual(report.tests.map(({ etat }) => etat), ["termine", "non_concluant"]);
+  assert.equal(report.tests[1].raison, failure);
+  assert.deepEqual(base.resultats.map(({ statut }) => statut), ["PASS", "INCONCLUSIVE"]);
+  assert.equal(base.resultats[1].raison, failure);
+  assert.equal(report.passage.etat, "echec");
+  assert.match(messages.join("\n"), /Page\.captureScreenshot/);
+  assert.equal(fake.stops(), 1);
+  assert.match(readFileSync(join(vault, "facturo/passages", `${passage_id}.md`), "utf8"), /Page\.captureScreenshot/);
+});
+
 test("le timeout du crochet est plafonné par timeout_s des tests concernés", { timeout: 2000 }, async () => {
   const file = join(vault, "facturo/tests/ca-du-mois-egal-total.md");
   writeFileSync(file, readFileSync(file, "utf8").replace(/timeout_s: \d+/, "timeout_s: 0.01"));

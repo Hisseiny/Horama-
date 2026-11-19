@@ -1,7 +1,7 @@
 // Horama layer, put in every page by Page.addScriptToEvaluateOnNewDocument (see installLayer in scene.mjs). Two
 // characters: the cursor, an arrow that travels to each click of the agent and presses there, and the mascot, which
 // waits in a corner and changes its look. While the agent works, nothing else: no text, no label, no counter; a line
-// drawn as with a felt pen (rough-notation) rings what is wrong, at the moment it is found. All the text comes at the
+// of the charter (one stroke of miltos, or ochre dots for a doubt) marks what is wrong, at the moment it is found. All the text comes at the
 // end, in a panel: the summary (the choice of the tests, each defect and doubt with its capture ringed), each question
 // « bug » or « voulu », the correction of a note in the bubble of the mascot, and what was written.
 // From the cursor layer of the T7 probe (itself from Nami, extension/agent-overlay.js): the closed Shadow DOM, the
@@ -11,47 +11,41 @@
 // nor the bindings horamaPress and horamaChoix, which only exist in that world.
 // This file is one function expression: installLayer calls it with the id of the course (a new id forgets what an
 // earlier course left), a title ("" in the probe: the cursor alone, shown at the first click, no mascot), the options
-// ({ direct }: the click is not held) and `annotate` of rough-notation.
-(function horamaLayer(PASSAGE, TITLE, OPTIONS, annotate) {
+// ({ direct }: the click is not held), the two signs of proof of the charter (SIGNS: tracerDefaut and poserDoute of
+// docs/da/trait.js) and the expressions of the mascot (MASCOT: one SVG per expression, docs/da/mascotte/), read by
+// installLayer.
+(function horamaLayer(PASSAGE, TITLE, OPTIONS, SIGNS, MASCOT) {
   if (window.top !== window || window.__horama) return;
-  // rough-notation would add its keyframes to the head of the page: they are in the Shadow DOM below instead.
-  window.__rno_kf_s = true;
-
-  // ---------- The mascot: one block per state, each replaceable by an image (see README) ----------
-  // Skeleton (issue #69): the colours below are provisional and neutral; the art direction comes after, by /taste.
-  const M = 96; // side of the box of a state, in px
-  const INK = "#1C1C1C";
-  const PAPER = "#FFFFFF";
-  const GREY = "#6B6B6B";
-  const IRIS = "#7F77DD"; // iris of the mascot at rest
+  // ---------- The mascot: the eye with wings of Inès (docs/da/mascotte/, PR #116), one drawing per expression ----------
+  const M = 96; // side of the box of an expression, in px: the drawings share its frame, an expression never jumps
+  // The charter « L'envoyé » (docs/da/charte-graphique.md, chosen by Nathan on 18/11): its palette, its three voices,
+  // its two signs of proof. Miltos, ocre and olivier only say a state.
+  const INK = "#1C1C1C"; // encre
+  const PAPER = "#FFFDF6"; // papier: cards, folds
+  const ENGOBE = "#FBF5E6"; // the ground of a panel
+  const GREY = "#5C5546"; // encre secondaire
+  const FILET = "#E2D6B8";
+  const SUN = "#FFC93C";
+  const SKY = "#E3E0F9"; // ciel: where the envoy flies
   const WING = "#AFA9EC";
-  // One colour for a proven defect, another for a doubt.
-  const COLORS = { conforme: "#2E9E5B", defaut: "#E5484D", doute: "#E8A33D" };
+  const IRIS = "#7F77DD"; // iris of the mascot, for the ripple of a click
+  const COLORS = { conforme: "#2E7D55", defaut: "#B8321F", doute: "#C48A1E" }; // olivier, miltos, ocre
   const STAMPS = { bug: "Bug noté", voulu: "Voulu" };
-  // Two wings and one eye. The pupils (class « pupils ») are moved by the layer towards what the mascot looks at.
-  const wings = `<g fill="${WING}" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round">
-    <path class="wing wing-l" d="M30 46C24 30 10 24 2 28c6 3 7 7 5 10 5 1 7 5 5 8 5 1 8 5 7 9 5-1 9-4 11-9Z"/>
-    <path class="wing wing-r" d="M66 46C72 30 86 24 94 28c-6 3-7 7-5 10-5 1-7 5-5 8-5 1-8 5-7 9-5-1-9-4-11-9Z"/></g>`;
-  const eye = (iris) => `<g class="eyeball"><circle cx="48" cy="48" r="20" fill="#fff" stroke="${INK}" stroke-width="3"/>
-    <g class="pupils"><g class="scan"><circle cx="48" cy="48" r="10.5" fill="${iris}"/><circle cx="48" cy="48" r="4.6" fill="${INK}"/><circle cx="51.6" cy="44.4" r="2.2" fill="#fff"/></g></g></g>`;
-  const badge = (colour, inside) => `<g class="badge"><rect x="66" y="6" width="22" height="22" fill="${colour}" stroke="${INK}" stroke-width="2.5"/>${inside}</g>`;
-  const sign = (text) => `<text x="77" y="23.5" fill="${INK}" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="800" text-anchor="middle">${text}</text>`;
-  const svg = (inside) => `<svg viewBox="0 0 96 96">${wings}${inside}</svg>`;
-  const SPRITES = {
-    repos: svg(eye(IRIS)),
-    // Reading: a frame closes around the eye.
-    verification: svg(`<path d="M22 31v-9h9M65 22h9v9M74 65v9h-9M31 74h-9v-9" fill="none" stroke="${IRIS}" stroke-width="4"/>` + eye(IRIS)),
-    interrogation: svg(eye(IRIS) + badge(COLORS.doute, sign("?"))),
-    defaut: svg(eye(COLORS.defaut) + badge(COLORS.defaut, sign("!"))),
-    conforme: svg(eye(COLORS.conforme) + badge(COLORS.conforme, `<path d="M71 17.5l4 4 7.5-8" fill="none" stroke="${INK}" stroke-width="3"/>`)),
-  };
+  // observe (the course), trouve (a proven defect ringed), doute (a finding of Holo), bloquee (the course stops for a
+  // reason), fini (the summary opens); hesite (just before a click of the agent) only with a drawing for it, which the
+  // charter has not: the mascot then keeps observing. The names of the first skeleton still work.
+  const ALIASES = { repos: "observe", verification: "observe", interrogation: "doute", defaut: "trouve", conforme: "fini", hesite: "observe" };
+  const expression = (name) => (MASCOT[name] ? name : ALIASES[name] ?? "observe");
 
   // ---------- Sizes and times ----------
   const TIP = { x: 7, y: 5 }; // point of the cursor arrow in its 40 px box
   const PRESS = 120; // ms the arrow stays pressed before the click is given back to the page
+  const HOVER = 170; // ms the arrow rests on its target, as a hand does, before it presses
   const STROKE = 800; // ms to draw the line around a zone
   const GAP = 16; // between the mascot and its bubble
-  const FONT = '"Segoe UI", "Avenir Next", Arial, sans-serif';
+  const FONT = '"Funnel Sans", system-ui, sans-serif'; // the text
+  const AFFICHE = '"Tilt Warp", "Arial Black", sans-serif'; // titles and figures
+  const MESURE = '"Spline Sans Mono", ui-monospace, monospace'; // what the code measured, and addresses
   const PANEL = 1000; // width of the panel of the end
 
   const host = document.createElement("div");
@@ -61,94 +55,126 @@
   shadow.innerHTML = `<style>
     * { pointer-events: none !important; box-sizing: border-box; }
     [hidden] { display: none !important; }
+    :host { --miltos: ${COLORS.defaut}; --ocre: ${COLORS.doute}; }
     .zones { position: absolute; left: 0; top: 0; }
-    .zone { position: absolute; }
-    .zone.old { margin: -7px; padding: 7px; box-sizing: content-box; border: 3px dashed ${GREY}; opacity: 0; transition: opacity 300ms ease-out; }
-    .zone.old.done { opacity: 0.6; }
-    .dim { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); opacity: 0; transition: opacity 400ms ease-out; }
+    .zone { position: absolute; transition: opacity 160ms ease-out; }
+    .zone.covered { opacity: 0 !important; } /* over .zone.old.done (three classes): a dashed old place hides too */
+    .zone > svg, .shot .mark > svg { position: absolute; left: 0; top: 0; overflow: visible; }
+    .zone.old { margin: -7px; padding: 7px; box-sizing: content-box; border: 3px dashed ${INK}; opacity: 0; transition: opacity 300ms ease-out; }
+    .zone.old.done { opacity: 0.45; }
+    .dim { position: fixed; inset: 0; background: rgba(42, 38, 71, 0.72); /* nuit */ opacity: 0; transition: opacity 400ms ease-out; }
     .dim.on { opacity: 1; }
-    .mascot { position: fixed; left: 0; top: 0; width: ${M}px; height: ${M}px; will-change: transform; }
+    .mascot { position: fixed; left: 0; top: 0; width: ${M}px; height: ${M}px; will-change: transform; transition: opacity 250ms ease-out; }
+    .mascot.away { opacity: 0; }
     .body { width: ${M}px; height: ${M}px; transform-origin: 50% 80%; animation: hover 3.6s ease-in-out infinite; }
+    .body.pop { animation: hover 3.6s ease-in-out infinite, pop 350ms cubic-bezier(0.3, 1.6, 0.5, 1); }
+    /* The mascot moves (decision of Nathan, 18/11): the wings flap in opposite directions around their roots, the eye
+       blinks around its centre; the pupils follow the arrow (look, below). */
+    .wing { transform-box: view-box; animation: flap 480ms ease-in-out infinite alternate; }
+    .wing-l { --dir: -1; transform-origin: 30px 46px; }
+    .wing-r { --dir: 1; transform-origin: 66px 46px; }
+    .eyeball { transform-box: view-box; transform-origin: 48px 48px; animation: blink 4.2s ease-in-out infinite; }
     .body > * { display: block; width: ${M}px; height: ${M}px; transform-origin: 50% 50%; overflow: visible; }
-    .wing { transform-box: fill-box; animation: flap 520ms ease-in-out infinite alternate; }
-    .wing-l { transform-origin: 100% 60%; }
-    .wing-r { transform-origin: 0 60%; }
-    .verification .wing, .defaut .wing { animation-duration: 220ms; }
-    .eyeball { transform-box: fill-box; transform-origin: 50% 50%; animation: blink 4.8s ease-in-out infinite; }
-    .pupils { transform: translate(var(--look-x, 0px), var(--look-y, 0px)); transition: transform 160ms ease-out; }
-    .verification .scan { animation: read 1.1s ease-in-out infinite; }
-    .interrogation .scan { transform: translate(4px, -3px); transition: transform 300ms ease-out; }
-    .badge { transform-box: fill-box; transform-origin: 50% 50%; animation: thunk 350ms cubic-bezier(0.3, 1.6, 0.5, 1); }
-    .interrogation .body > * { animation: tilt 260ms ease-out forwards; }
-    .defaut .body > * { animation: shake 420ms ease-in-out; }
-    .conforme .body > * { animation: spin 640ms cubic-bezier(0.3, 1.2, 0.5, 1); }
-    .jolt .body { animation: jolt 420ms cubic-bezier(0.3, 1.6, 0.5, 1); }
     .bubble { position: absolute; left: 0; top: 0; width: max-content; max-width: 470px; padding: 16px 22px; background: ${PAPER}; color: ${INK};
-      font: 600 24px/1.28 ${FONT}; white-space: normal; opacity: 0; transform: scale(0.96); transition: opacity 180ms ease-out, transform 180ms ease-out; }
+      border: 3px solid ${INK}; border-radius: 14px; font: 600 22px/1.3 ${FONT}; white-space: normal; opacity: 0; transform: scale(0.96); transition: opacity 180ms ease-out, transform 180ms ease-out; }
     .bubble.on { opacity: 1; transform: none; }
     .bubble::before { content: ""; position: absolute; top: var(--tail); width: 0; height: 0; margin-top: -11px; border: 11px solid transparent; }
-    .bubble.right::before { left: -22px; border-right-color: ${PAPER}; }
-    .bubble.left::before { right: -22px; border-left-color: ${PAPER}; }
-    .bubble.ask { max-width: 640px; padding: 24px 28px 28px; }
-    .correction-file { margin-bottom: 18px; overflow-wrap: anywhere; color: ${GREY}; font-size: 17px; }
-    .correction-before { display: block; opacity: 0.7; text-decoration-thickness: 2px; }
-    .correction-after { margin: 18px 0 0; }
-    .rank { margin-bottom: 10px; color: ${GREY}; font: 700 15px/1 ${FONT}; letter-spacing: 0.1em; text-transform: uppercase; }
-    .choices { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 20px; }
-    .choice { flex: 1; padding: 15px 20px; border: 0; color: ${PAPER}; font: 700 20px/1 ${FONT}; white-space: nowrap; pointer-events: auto !important; cursor: pointer;
-      transition: opacity 200ms ease-out, transform 200ms ease-out; }
-    .choice.bug { background: ${COLORS.defaut}; }
-    .choice.voulu { background: ${COLORS.conforme}; }
+    .bubble.right::before { left: -25px; border-right-color: ${INK}; }
+    .bubble.left::before { right: -25px; border-left-color: ${INK}; }
+    .bubble.ask { max-width: 640px; padding: 22px 26px 26px; }
+    .correction-file { margin-bottom: 16px; overflow-wrap: anywhere; color: ${GREY}; font: 500 14px/1.4 ${MESURE}; }
+    .correction-before { display: block; color: ${GREY}; text-decoration-thickness: 2px; }
+    .correction-after { margin: 16px 0 0; }
+    .rank { margin-bottom: 10px; color: ${GREY}; font: 500 13.5px/1 ${MESURE}; }
+    .choices { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
+    .choice { flex: 1; height: 52px; padding: 0 22px; border: 2.5px solid ${INK}; border-radius: 999px; background: ${PAPER}; color: ${INK}; font: 600 18px/1 ${FONT};
+      white-space: nowrap; pointer-events: auto !important; cursor: pointer; transition: opacity 200ms ease-out, transform 200ms ease-out; }
+    .choice.bug { background: ${COLORS.defaut}; color: #fff; }
     .choice:hover { transform: translateY(-2px); }
     .choices.made .choice { opacity: 0.3; pointer-events: none !important; }
     .choices.made .choice.chosen { opacity: 1; }
-    .stamp { display: inline-block; padding: 3px 9px; border: 3px solid currentColor; background: ${PAPER}; font: 800 18px/1.2 ${FONT}; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; transform: rotate(-6deg); }
+    .stamp { display: inline-block; padding: 4px 10px; border: 3px solid currentColor; border-radius: 6px; background: ${PAPER}; font: 600 15px/1.2 ${MESURE}; text-transform: uppercase; white-space: nowrap; transform: rotate(-6deg); }
     .stamp.voulu, .stamp.conforme { color: ${COLORS.conforme}; }
     .stamp.bug { color: ${COLORS.defaut}; }
-    .bubble > .stamp, .panel > .stamp { position: absolute; right: 24px; top: -18px; animation: thunk 350ms cubic-bezier(0.3, 1.6, 0.5, 1); }
-    .panel { position: fixed; left: 50%; top: 50%; width: ${PANEL}px; max-height: calc(100% - 24px); padding: 26px 32px 30px; background: ${PAPER}; color: ${INK};
-      font: 500 18px/1.4 ${FONT}; opacity: 0; transform: translate(-50%, -48%); transition: opacity 300ms ease-out, transform 300ms ease-out; }
+    .bubble > .stamp { position: absolute; right: 24px; top: -18px; animation: thunk 350ms cubic-bezier(0.3, 1.6, 0.5, 1); }
+    .panel > .stamp { position: absolute; right: 28px; top: 20px; z-index: 1; animation: thunk 350ms cubic-bezier(0.3, 1.6, 0.5, 1); }
+    /* The card of the end (charter, « récapitulatif »): a band of sky with the sun and the mascot, then the body. */
+    .panel { position: fixed; left: 50%; top: 50%; width: ${PANEL}px; max-height: calc(100% - 24px); overflow: hidden; background: ${ENGOBE}; color: ${INK};
+      border: 3px solid ${INK}; border-radius: 16px; font: 400 18px/1.5 ${FONT}; opacity: 0; transform: translate(-50%, -48%); transition: opacity 300ms ease-out, transform 300ms ease-out; }
     .panel.on { opacity: 1; transform: translate(-50%, -50%); }
-    .panel h1 { margin: 0 0 8px; font: 700 30px/1.15 ${FONT}; }
-    .panel h2 { margin: 18px 0 8px; color: ${GREY}; font: 700 14px/1 ${FONT}; letter-spacing: 0.1em; text-transform: uppercase; }
+    .haut { position: relative; height: 128px; background: ${SKY}; border-bottom: 3px solid ${INK}; overflow: hidden; }
+    .examen .haut { height: 96px; }
+    .astre { position: absolute; left: 50%; top: 40px; width: 240px; height: 240px; margin-left: -120px; border-radius: 50%; background: ${SUN}; border: 3px solid ${INK}; }
+    .examen .astre { top: 30px; width: 200px; height: 200px; margin-left: -100px; }
+    .haut .dessin { position: absolute; left: 50%; top: 6px; width: ${M}px; height: ${M}px; margin-left: ${-M / 2}px; }
+    .examen .haut .dessin { top: 0; }
+    .haut .dessin svg { display: block; width: ${M}px; height: ${M}px; overflow: visible; }
+    .corps { padding: 22px 32px 28px; }
+    .panel h1 { margin: 0; font: 400 52px/1 ${AFFICHE}; letter-spacing: -0.012em; }
+    .panel h2 { margin: 20px 0 8px; color: ${GREY}; font: 500 13.5px/1 ${MESURE}; }
     .panel p { margin: 0 0 4px; }
-    .panel ul { margin: 0; padding: 0 0 0 20px; }
+    .panel .site { margin: 8px 0 0; color: ${GREY}; font: 500 14px/1.4 ${MESURE}; overflow-wrap: anywhere; }
+    .panel .lignes { margin: 10px 0 0; }
+    .panel ul { margin: 0; padding: 0 0 0 20px; color: ${GREY}; font-size: 15px; }
     .panel li { margin: 0 0 2px; }
-    .panel .files { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; list-style: none; }
-    .panel .files li { padding: 5px 9px; background: #EEE; font: 500 15px/1.3 ui-monospace, Consolas, monospace; overflow-wrap: anywhere; }
-    .items { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 16px; }
-    .item p { margin-top: 6px; font-size: 15px; line-height: 1.3; }
-    .tag { display: inline-block; width: 12px; height: 12px; margin-right: 7px; border-radius: 50%; vertical-align: 0; }
-    .tag.defaut { background: ${COLORS.defaut}; }
-    .tag.doute { background: ${COLORS.doute}; }
-    .shot { position: relative; overflow: hidden; background: #E9E9E9; }
+    .chiffres { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 20px 0 0; }
+    .chiffres div { font-size: 15px; line-height: 1.3; font-weight: 600; }
+    .chiffres b { display: block; margin-bottom: 14px; font: 400 64px/0.9 ${AFFICHE}; }
+    .chiffres .defaut b { color: ${COLORS.defaut}; }
+    .chiffres .doute b { margin-bottom: 18px; color: ${COLORS.doute}; }
+    .chiffres .doute b span { padding-bottom: 10px; background-image: radial-gradient(circle, ${COLORS.doute} 3px, transparent 3.5px); background-size: 12px 9px; background-repeat: repeat-x; background-position: 2px 100%; }
+    .releves { display: grid; gap: 10px; margin: 20px 0 0; }
+    .releve { display: flex; align-items: center; gap: 12px; padding: 11px 14px; background: ${PAPER}; border: 2.5px solid ${INK}; border-radius: 10px; font-size: 15.5px; }
+    .releve span { flex: 1; font-weight: 600; }
+    .releve code { color: ${GREY}; font: 500 12.5px ${MESURE}; white-space: nowrap; }
+    .signe { flex: none; width: 20px; height: 20px; border: 2.2px solid ${INK}; color: #fff; font: 800 13px/15.6px ${FONT}; text-align: center; }
+    .signe.defaut { background: ${COLORS.defaut}; }
+    .signe.doute { background: ${COLORS.doute}; }
+    .suite { margin: 10px 0 0; color: ${GREY}; font-size: 15px; }
+    /* The winged button of the charter: ink, a wing of the mascot on each side. */
+    .aile-bouton { position: relative; isolation: isolate; display: inline-flex; align-items: center; height: 52px; margin: 22px 0 0 18px; padding: 0 28px; border-radius: 999px; background: ${INK}; color: ${ENGOBE}; font: 600 17px/1 ${FONT}; }
+    .aile-bouton svg { position: absolute; z-index: -1; top: 50%; width: 32px; height: 35px; margin-top: -24px; overflow: visible; fill: ${WING}; stroke: ${INK}; stroke-width: 2.6; stroke-linejoin: round; }
+    .aile-bouton svg.g { left: -19px; transform-origin: 100% 75%; transform: rotate(6deg); }
+    .aile-bouton svg.d { right: -19px; transform-origin: 0% 75%; transform: rotate(-6deg); }
+    .shot { position: relative; overflow: hidden; background: ${PAPER}; border: 2.5px solid ${INK}; border-radius: 10px; }
     .shot img { position: absolute; left: 0; top: 0; max-width: none; }
     .shot .mark { position: absolute; }
-    .examen .shot { margin: 4px 0 14px; }
-    .examen .texts p { font-size: 20px; }
-    .examen .question { margin-top: 10px; font: 700 24px/1.25 ${FONT}; }
+    .examen .shot { margin: 6px 0 14px; }
+    .examen .texts p { font-size: 19px; }
+    .examen .texts p.preuve { color: ${GREY}; font: 500 14.5px/1.45 ${MESURE}; }
+    .examen .question { margin-top: 10px; font: 600 22px/1.3 ${FONT}; }
+    .panel .files { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; list-style: none; }
+    .panel .files li { padding: 5px 10px; background: ${PAPER}; border: 2px solid ${FILET}; border-radius: 8px; color: ${INK}; font: 500 13.5px/1.3 ${MESURE}; overflow-wrap: anywhere; }
     .cursor { position: fixed; left: 0; top: 0; width: 40px; height: 40px; will-change: transform; }
     .cursor svg { display: block; width: 40px; height: 40px; transform-origin: ${TIP.x}px ${TIP.y}px; transition: transform 90ms ease-out; }
-    .cursor.press svg { transform: scale(0.78); }
-    .ripple { position: fixed; width: 28px; height: 28px; margin: -14px; border: 3px solid ${IRIS}; border-radius: 50%; animation: ripple 460ms ease-out forwards; }
-    @keyframes rough-notation-dash { to { stroke-dashoffset: 0; } }
+    .cursor.press svg { transform: scale(0.7); }
+    .echo { position: fixed; left: 0; top: 0; width: 40px; height: 40px; opacity: 0; transition: opacity 120ms; }
+    .echo svg { display: block; width: 40px; height: 40px; }
+    .cursor.wheel svg { animation: wheel 380ms ease-in-out; }
+    @keyframes wheel { 40% { transform: translateY(calc(var(--wheel, 1) * 5px)) scale(0.94); } }
+    .ripple { position: fixed; width: 28px; height: 28px; margin: -14px; border: 3px solid ${IRIS}; border-radius: 50%; background: ${IRIS}33; animation: ripple 460ms ease-out forwards; }
+    .ripple.second { background: transparent; border-width: 2px; animation: ripple 560ms ease-out 120ms both; }
+    .mascot .body { transition: rotate 220ms ease-out; }
     @keyframes hover { 50% { transform: translateY(-5px); } }
-    @keyframes flap { from { transform: rotate(0deg); } to { transform: rotate(-16deg) scaleY(0.88); } }
-    .wing-r { animation-name: flap-r; }
-    @keyframes flap-r { from { transform: rotate(0deg); } to { transform: rotate(16deg) scaleY(0.88); } }
-    @keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(0.12); } }
-    @keyframes read { 0%, 100% { transform: translateX(-4px); } 50% { transform: translateX(4px); } }
-    @keyframes tilt { to { transform: rotate(8deg); } }
-    @keyframes shake { 15%, 55% { transform: translateX(-6px); } 35%, 75% { transform: translateX(6px); } }
-    @keyframes spin { from { transform: rotateY(0deg); } to { transform: rotateY(360deg); } }
+    @keyframes pop { from { scale: 0.82; } to { scale: 1; } }
+    @keyframes flap { from { transform: rotate(0deg); } to { transform: rotate(calc(var(--dir) * 16deg)) scaleY(0.9); } }
+    @keyframes blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
     @keyframes thunk { from { opacity: 0; transform: rotate(-6deg) scale(1.8); } to { opacity: 1; transform: rotate(-6deg) scale(1); } }
     @keyframes ripple { from { transform: scale(0.5); opacity: 1; } to { transform: scale(3); opacity: 0; } }
-    @keyframes jolt { 35% { transform: translateY(-14px) scale(1.06); } 70% { transform: translateY(2px); } }
   </style>
   <div class="zones"></div><div class="dim"></div><div class="panel"></div>
   <div class="mascot" hidden><div class="body"></div><div class="bubble"></div></div>
   <div class="cursor" hidden><svg viewBox="0 0 24 24"><path d="M4.2 3v16.2l4.3-4 2.9 6.6 2.9-1.3-2.9-6.5h6.1Z" fill="${INK}" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg></div>`;
   const [zonesBox, dim, panel, mascot, body, bubble, cursor] = ["zones", "dim", "panel", "mascot", "body", "bubble", "cursor"].map((name) => shadow.querySelector(`.${name}`));
+  // Three echoes of the arrow behind it while it travels to a gesture of H (S2): the trace of the hand, nothing else.
+  const echoes = [0.32, 0.2, 0.1].map((opacity) => {
+    const echo = document.createElement("div");
+    echo.className = "echo";
+    echo.dataset.opacity = String(opacity);
+    echo.innerHTML = cursor.innerHTML;
+    shadow.insertBefore(echo, cursor);
+    return echo;
+  });
 
   // ---------- State, kept across pages (sessionStorage is refused on about:blank) ----------
   const stored = () => {
@@ -159,7 +185,7 @@
       return null;
     }
   };
-  const state = stored() ?? { passage: PASSAGE, cursor: null, travel: null, mascot: null, etat: "repos", bulle: null, zones: {}, revue: false };
+  const state = stored() ?? { passage: PASSAGE, cursor: null, travel: null, mascot: null, etat: "observe", avant_clic: null, bulle: null, zones: {}, revue: false };
   const save = () => {
     try {
       sessionStorage.setItem("horama", JSON.stringify(state));
@@ -187,14 +213,42 @@
   let goal = state.mascot ?? corners()[0];
   const at = { ...goal, vx: 0, vy: 0 };
   let cursorAt = state.cursor;
+  // The reading of the page by the mascot while H thinks (see « Reading » below): its timer, the title it reads.
+  let readTimer = 0, reading = null, readIndex = -1;
+  // At a stroke (S3): where the mascot looks (the zone), and until when its expression is kept at least.
+  let lookAt = null, held3 = 0, stroke = 0;
   let frame = 0;
   let last = 0;
-  // A curve from one point to the other, bowed to one side, slow at both ends.
-  const along = ({ from, to }, t) => {
-    const e = t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2;
-    const cx = (from.x + to.x) / 2 - (to.y - from.y) * 0.16;
-    const cy = (from.y + to.y) / 2 + (to.x - from.x) * 0.16;
-    return { x: (1 - e) ** 2 * from.x + 2 * (1 - e) * e * cx + e * e * to.x, y: (1 - e) ** 2 * from.y + 2 * (1 - e) * e * cy + e * e * to.y };
+  // The way of a hand from one point to the point H chose, never another point: a curve bowed to one side (how much and
+  // which side follow from the two points), the speed of a reach (fast early, slow at the end), a small overshoot past
+  // the target, then the correction back onto it. The duration grows with the distance as for a pointing hand (Fitts).
+  const course = (from, to) => {
+    const d = Math.hypot(to.x - from.x, to.y - from.y);
+    if (d < 2) return { from, to, ms: 0, over: to, ctrl: to };
+    const ux = (to.x - from.x) / d, uy = (to.y - from.y) / d;
+    const seed = Math.abs(Math.sin(from.x * 12.9898 + from.y * 78.233 + to.x * 37.719 + to.y * 4.581)); // 0..1, from the points
+    const bow = (seed < 0.5 ? -1 : 1) * (0.07 + 0.11 * (seed * 2 % 1)) * d;
+    const past = Math.min(11, 0.035 * d);
+    return {
+      from, to,
+      // 800 ms at most: with the hover and the press, the click reaches the page 1.09 s after H's at the latest, before
+      // H looks at the page again (1.53 s after its click at the soonest, bridge log of 18/11).
+      ms: Math.round(Math.min(800, 280 + 120 * Math.log2(1 + d / 24))),
+      over: { x: to.x + ux * past - uy * past * 0.35, y: to.y + uy * past + ux * past * 0.35 },
+      ctrl: { x: (from.x + to.x) / 2 - uy * bow, y: (from.y + to.y) / 2 + ux * bow },
+    };
+  };
+  const REACH = 0.84; // share of the time spent reaching the overshoot point; the rest corrects onto the target
+  const along = (travel, t) => {
+    const { from, to } = travel;
+    const over = travel.over ?? to, ctrl = travel.ctrl ?? { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
+    if (t >= REACH) {
+      const c = (t - REACH) / (1 - REACH), e = c * c * (3 - 2 * c);
+      return { x: over.x + (to.x - over.x) * e, y: over.y + (to.y - over.y) * e };
+    }
+    // Minimum jerk on a time bent forward: the peak of speed comes before the middle, the end is long and slow.
+    const w = (t / REACH) ** 0.8, e = w ** 3 * (10 - 15 * w + 6 * w * w);
+    return { x: (1 - e) ** 2 * from.x + 2 * (1 - e) * e * ctrl.x + e * e * over.x, y: (1 - e) ** 2 * from.y + 2 * (1 - e) * e * ctrl.y + e * e * over.y };
   };
   const putCursor = (point) => {
     cursorAt = point;
@@ -203,50 +257,66 @@
   // The arrow presses where it arrives, with a ripple. Once the page has reacted (a menu that opens), the mascot checks
   // that it hides nothing.
   const land = () => {
+    const pressing = state.travel?.clic !== false;
     state.travel = null;
+    if (!pressing) return save();
+    // The click is given: the mascot takes back the expression it had before it.
+    if (state.avant_clic) {
+      const before = state.avant_clic;
+      state.avant_clic = null;
+      if (state.etat === "hesite") setEtat(before);
+    }
     save();
-    if (TITLE) setTimeout(() => state.revue || stepAside(busy()), PRESS + 350);
-    cursor.classList.add("press");
-    setTimeout(() => cursor.classList.remove("press"), PRESS + 120);
-    const ring = element("div", "ripple");
-    ring.style.left = `${cursorAt.x}px`;
-    ring.style.top = `${cursorAt.y}px`;
-    ring.addEventListener("animationend", () => ring.remove(), { once: true });
-    shadow.append(ring);
-  };
-  // The eyes look at the cursor while the agent works; straight ahead at the end.
-  const look = () => {
-    const target = state.bulle || state.revue ? null : cursorAt;
-    const dx = target ? target.x - at.x - M / 2 : 0;
-    const dy = target ? target.y - at.y - M / 2 : 0;
-    const reach = (4.2 * Math.min(1, Math.hypot(dx, dy) / 80)) / (Math.hypot(dx, dy) || 1);
-    mascot.style.setProperty("--look-x", `${dx * reach}px`);
-    mascot.style.setProperty("--look-y", `${dy * reach}px`);
+    if (TITLE) setTimeout(() => state.revue || stepAside(busy()), HOVER + PRESS + 350);
+    // The arrow rests on its target a moment, then presses.
+    setTimeout(() => {
+      cursor.classList.add("press");
+      setTimeout(() => cursor.classList.remove("press"), PRESS + 120);
+      // A filled ripple and a second ring just after (S2: the click was more visible on 16/11, before the ring alone).
+      for (const name of ["ripple", "ripple second"]) {
+        const ring = element("div", name);
+        ring.style.left = `${cursorAt.x}px`;
+        ring.style.top = `${cursorAt.y}px`;
+        ring.addEventListener("animationend", () => ring.remove(), { once: true });
+        shadow.append(ring);
+      }
+    }, HOVER);
   };
   const wake = () => {
     frame ||= requestAnimationFrame(tick);
   };
   function tick(now) {
     frame = 0;
+    // The clock of the page, not the one of the frame: the flight goes on when the animations are frozen (a test).
+    now = performance.now();
     const dt = Math.min(0.034, (now - last) / 1000);
     last = now;
     let moving = false;
     if (state.travel) {
       const t = Math.min(1, (Date.now() - state.travel.at) / (state.travel.ms || 1));
       putCursor(along(state.travel, t));
+      echoes.forEach((echo, i) => {
+        const p = along(state.travel, Math.max(0, t - (i + 1) * 0.06));
+        echo.style.transform = `translate(${p.x - TIP.x}px, ${p.y - TIP.y}px)`;
+        echo.style.opacity = t < 1 && state.travel.ms > 0 ? echo.dataset.opacity : "0";
+      });
+      // The mascot leans toward where the arrow goes (8 degrees at most), straight again when it lands.
+      if (TITLE) body.style.rotate = t < 1 ? `${Math.max(-8, Math.min(8, (state.travel.to.x - (at.x + M / 2)) / 40))}deg` : "0deg";
       if (t < 1) moving = true;
       else land();
-    }
+    } else for (const echo of echoes) echo.style.opacity = "0";
     // A spring a little under critical damping: it settles without bouncing back and forth.
-    at.vx += (130 * (goal.x - at.x) - 19 * at.vx) * dt;
-    at.vy += (130 * (goal.y - at.y) - 19 * at.vy) * dt;
+    // While it reads the page (calm), a slow spring: a quiet flight from one title to the next.
+    const [k, c] = reading ? [36, 11.4] : [130, 19];
+    at.vx += (k * (goal.x - at.x) - c * at.vx) * dt;
+    at.vy += (k * (goal.y - at.y) - c * at.vy) * dt;
     at.x += at.vx * dt;
     at.y += at.vy * dt;
     if (Math.abs(goal.x - at.x) + Math.abs(goal.y - at.y) + Math.abs(at.vx) + Math.abs(at.vy) > 0.4) moving = true;
     else Object.assign(at, goal, { vx: 0, vy: 0 });
     mascot.style.transform = `translate(${at.x}px, ${at.y}px)`;
     look();
-    if (moving) wake();
+    if (moving || reading) wake();
   }
   const goTo = (spot) => {
     goal = { x: spot.x, y: spot.y };
@@ -257,21 +327,51 @@
   const arrived = async () => {
     for (const until = Date.now() + 900; Date.now() < until && Math.hypot(goal.x - at.x, goal.y - at.y) > 3; ) await wait(30);
   };
+  let pupil = null;
+  // The drawings of the charter (docs/da/mascotte/, PR #130) carry their moving parts by class: .wing-l and .wing-r
+  // flap (CSS below), .eyeball blinks, .pupils follows the arrow (look). Nothing of the drawing is changed.
+  const animate = () => {
+    pupil = body.querySelector(".pupils");
+  };
+  // The pupil looks where the arrow of the agent is going (its target while it travels) while it works (4 units at most from its place), straight ahead at the end.
+  const look = () => {
+    if (!pupil) return;
+    // Reading: the eye goes along the title it reads, slowly, from its start to its end.
+    const sweep = reading ? { x: reading.start ? reading.left + reading.width * Math.min(1, (performance.now() - reading.start) / reading.lire) : reading.left, y: reading.look.y } : null;
+    const target = state.bulle || state.revue ? null : sweep ?? state.travel?.to ?? lookAt ?? cursorAt;
+    const dx = target ? target.x - at.x - M / 2 : 0;
+    const dy = target ? target.y - at.y - M / 2 : 0;
+    const distance = Math.hypot(dx, dy) || 1;
+    const reach = target ? Math.min(1, distance / 220) * 4 : 0;
+    pupil.setAttribute("transform", `translate(${((dx / distance) * reach).toFixed(2)} ${((dy / distance) * reach).toFixed(2)})`);
+  };
   const setEtat = (name) => {
-    state.etat = name;
+    const shown = expression(name);
+    const changed = shown !== state.etat || !body.firstChild;
+    state.etat = shown;
     save();
-    mascot.className = `mascot ${name}`;
-    body.innerHTML = SPRITES[name];
+    mascot.className = `mascot ${shown}`;
+    body.innerHTML = MASCOT[shown];
+    animate();
+    look();
+    // A small jolt when the expression changes; the mascot keeps floating.
+    if (changed) {
+      body.classList.remove("pop");
+      void body.offsetWidth;
+      body.classList.add("pop");
+    }
   };
 
   // ---------- Where the mascot stands: hiding as little as it can ----------
   // Room kept free around the cursor, or around the point where it is about to land.
   const clearance = ({ x, y }) => ({ left: x - 70, top: y - 70, right: x + 110, bottom: y + 120, weight: 60 });
-  // What must stay readable: the texts and the controls of the page, and far more the zones and the cursor.
+  // What must stay readable: the texts and the controls of the page (a hard rule, weight 10), the pictures (above all
+  // their upper half), and far more the zones and the cursor.
   const busy = () => {
     const boxes = [];
     for (const control of document.querySelectorAll("a, button, summary, input, select, textarea")) {
-      for (const { left, top, right, bottom } of control.getClientRects()) boxes.push({ left: left - 6, top: top - 6, right: right + 6, bottom: bottom + 6, weight: 10 });
+      // A control keeps a wider margin than a text: the mascot does not brush a button or the edge of a card.
+      for (const { left, top, right, bottom } of control.getClientRects()) boxes.push({ left: left - 14, top: top - 14, right: right + 14, bottom: bottom + 14, weight: 10 });
     }
     const range = document.createRange();
     const walker = document.body && document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
@@ -279,6 +379,15 @@
       if (!node.nodeValue.trim()) continue;
       range.selectNodeContents(node);
       for (const { left, top, right, bottom } of range.getClientRects()) boxes.push({ left: left - 6, top: top - 6, right: right + 6, bottom: bottom + 6, weight: 10 });
+    }
+    // The pictures of the page: never on the upper half of one (where the faces are, weight 40), on its lower half only
+    // when the background has no room (weight 4). A bare background comes first.
+    for (const media of document.querySelectorAll("img, video, canvas, picture, [style*='background-image']")) {
+      for (const { left, top, right, bottom, width, height } of media.getClientRects()) {
+        if (width < 60 || height < 60 || bottom < 0 || top > innerHeight) continue;
+        const middle = top + height / 2;
+        boxes.push({ left, top, right, bottom: middle, weight: 40 }, { left, top: middle, right, bottom, weight: 4 });
+      }
     }
     for (const zone of state.zones[here()] ?? []) boxes.push(box(zone, 24, 60));
     if (state.cursor && !state.revue) boxes.push(clearance(state.cursor));
@@ -306,6 +415,37 @@
     }
     return best;
   }
+  // The companion (all along the course): a place on a ring around a point (where the arrow goes, or a finding being
+  // drawn), that hides as little as it can of the page, nothing of the arrow, of its target or of the way to it, and
+  // not too far from where the mascot already is, so that it flies a short way beside the arrow.
+  // `near`: while it reads, being close to the title counts more than a short flight.
+  // `rings` and `textOk` (at a stroke, S3): a nearer ring, and a text of the page may be covered (never the zone, the
+  // arrow or its way, which stay in `boxes` with a higher weight).
+  const nearSpot = (point, boxes, from, near = false, { rings = [130, 170, 220, 280, 350, 430, 560, 700], textOk = false } = {}) => {
+    const p = { x: Math.max(0, Math.min(innerWidth, point.x)), y: Math.max(0, Math.min(innerHeight, point.y)) };
+    const way = from ? [0.2, 0.4, 0.6, 0.8].map((t) => ({ x: from.x + (p.x - from.x) * t, y: from.y + (p.y - from.y) * t }))
+      .map(({ x, y }) => ({ left: x - 34, top: y - 34, right: x + 34, bottom: y + 34, weight: 60 })) : [];
+    const all = [...(textOk ? boxes.filter(({ weight }) => weight !== 10) : boxes), clearance(p), ...way];
+    // What must stay readable (texts, links, buttons: weight 10) is a hard rule: a place that covers none of it wins over
+    // any place that covers some, even farther from the point; among free places, the cheapest.
+    // At a stroke (textOk), the hard rule is the zone, the arrow and its way (weight 60 and more): a nearby text is only a
+    // cost (review of #190).
+    const readable = textOk ? all.filter(({ weight }) => weight >= 60) : boxes.filter(({ weight }) => weight === 10);
+    let best = null;
+    for (const r of rings) {
+      for (let a = 0; a < 24; a++) {
+        const x = Math.round(p.x + Math.cos((a / 24) * 2 * Math.PI) * r - M / 2);
+        const y = Math.round(p.y + Math.sin((a / 24) * 2 * Math.PI) * r - M / 2);
+        if (x < 8 || y < 8 || x > innerWidth - M - 8 || y > innerHeight - M - 8) continue;
+        const covered = hidden(x, y, M, M, readable);
+        const cost = hidden(x, y, M, M, all) + (near ? 1 : 6) * Math.hypot(x - goal.x, y - goal.y) + (near ? 12 : 4) * r;
+        if (!best || (covered === 0) > (best.covered === 0) || ((covered === 0) === (best.covered === 0) && (covered === 0 ? cost < best.cost : covered < best.covered || (covered === best.covered && cost < best.cost)))) best = { x, y, cost, covered };
+      }
+    }
+    // With textOk, no place free of the zone and of the arrow: none (the caller does not fly there).
+    if (textOk) return best && best.covered === 0 ? best : null;
+    return best ?? corner(all);
+  };
   // The corner that hides the least of these boxes; the nearest one when several hide nothing.
   const corner = (boxes) => corners().reduce((best, spot) => {
     const cost = hidden(spot.x, spot.y, M, M, boxes) + 0.01 * Math.hypot(spot.x - goal.x, spot.y - goal.y);
@@ -357,17 +497,21 @@
     goTo(spot);
     if (live) await arrived();
     if (mine !== turn) return;
-    look();
     bubble.classList.add("on");
     if (live) await wait(200);
   }
   // The mascot steps aside when it or its bubble hides one of these boxes: where the cursor is about to land, or what
-  // a page shows once it has opened or reacted. Without a bubble (all along the course) it only leaves its corner for
-  // the cursor or a zone, and goes to the corner that hides the least.
+  // a page shows once it has opened or reacted. Without a bubble (all along the course) it keeps beside the arrow
+  // (nearSpot): it comes back when it is far, and moves when it hides the arrow, a zone or the page that reacted.
   const stepAside = (boxes) => {
     const spot = state.bulle?.spot;
     if (!spot) {
-      if (hidden(goal.x, goal.y, M, M, boxes.filter(({ weight }) => weight >= 60)) > 0) goTo(corner(busy()));
+      const arrow = state.cursor ?? { x: innerWidth / 2, y: innerHeight / 2 };
+      const far = !reading && Math.hypot(goal.x + M / 2 - arrow.x, goal.y + M / 2 - arrow.y) > 340;
+      const now = busy();
+      if (far || hidden(goal.x, goal.y, M, M, boxes.filter(({ weight }) => weight >= 60)) > 0 || hidden(goal.x, goal.y, M, M, now.filter(({ weight }) => weight === 10 || weight === 40)) > 0) {
+        goTo(nearSpot(reading?.look ?? arrow, now));
+      }
       return;
     }
     if (hidden(goal.x, goal.y, M, M, boxes) + hidden(goal.x + spot.left, goal.y + spot.top, bubble.offsetWidth, bubble.offsetHeight, boxes) === 0) return;
@@ -375,15 +519,23 @@
     renderBubble(false);
   };
 
-  // ---------- Zones (page coordinates): a line drawn as with a felt pen around each one, no text ----------
-  // A proven defect is circled, a doubt boxed, each in its colour; where the thing used to be, a grey dashed frame.
-  const pen = (genre, animate) => ({ type: genre === "defaut" ? "circle" : "box", color: COLORS[genre], strokeWidth: genre === "defaut" ? 4 : 3, padding: genre === "defaut" ? 12 : 8, iterations: genre === "defaut" ? 1 : 2, animate, animationDuration: STROKE });
+  // ---------- Zones (page coordinates): the signs of proof of the charter around each one, no text ----------
+  // A proven defect: one stroke of miltos, in one gesture (tracerDefaut); a doubt: a row of ochre dots under it
+  // (poserDoute); where the thing used to be, a dashed ink frame. sign() draws in a box of w × h px, on its own svg.
+  const sign = (w, h, genre, animate) => {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("width", w);
+    svg.setAttribute("height", h);
+    if (genre === "defaut") SIGNS.tracerDefaut(svg, { x: 0, y: 0, w, h }, { duree: STROKE, instant: !animate });
+    else SIGNS.poserDoute(svg, { x: 0, y: 0, w, h }, { instant: !animate });
+    return svg;
+  };
   const drawn = [];
   async function drawZone(zone, animate) {
     const frameOf = element("div", `zone${zone.trait ? " old" : ""}`);
     frameOf.style.cssText = `left:${zone.x}px;top:${zone.y}px;width:${zone.largeur}px;height:${zone.hauteur}px`;
     zonesBox.append(frameOf);
-    const item = { zone, element: frameOf };
+    const item = { zone, element: frameOf, under: underOf(zone) };
     drawn.push(item);
     if (zone.trait) {
       void frameOf.offsetWidth;
@@ -394,12 +546,42 @@
     if (animate) await wait(STROKE + 250);
   }
   function ring(item, animate) {
-    item.annotation = annotate(item.element, pen(item.zone.genre, animate));
-    item.annotation.show();
+    item.sign = sign(item.zone.largeur, item.zone.hauteur, item.zone.genre, animate);
+    item.element.append(item.sign);
   }
   const follow = () => {
     zonesBox.style.transform = `translate(${-scrollX}px, ${-scrollY}px)`;
   };
+  // ---------- A stroke belongs to its page and to what it surrounds (S6, louvre.fr 19/11) ----------
+  // The element under the middle of a zone, when the zone is on the screen (page coordinates in, null out of it).
+  function underOf(zone) {
+    const x = zone.x + zone.largeur / 2 - scrollX, y = zone.y + zone.hauteur / 2 - scrollY;
+    return x >= 0 && y >= 0 && x < innerWidth && y < innerHeight ? document.elementFromPoint(x, y) : null;
+  }
+  // A site that changes page without a new document (its own router): the strokes of the address left go, those of the
+  // new address come. Something put over a zone (a menu that opens, a window, a sticky bar): its stroke hides while it is
+  // covered, and comes back once it is clear. Checked every 300 ms and after each scroll.
+  let drawnFor = here();
+  function watchStrokes() {
+    if (!started) return;
+    if (here() !== drawnFor) {
+      drawnFor = here();
+      for (const item of drawn.splice(0)) item.element.remove();
+      for (const zone of state.zones[drawnFor] ?? []) drawZone(zone, false);
+      return;
+    }
+    for (const item of drawn) {
+      const now = underOf(item.zone);
+      if (!now) continue; // out of the screen: nothing to tell
+      // The element kept is gone (a cookie banner closed, a part of the page drawn again): the zone takes what is there now,
+      // else its stroke would stay hidden for ever.
+      if (!item.under?.isConnected) item.under = now;
+      const covered = !(item.under.isConnected && (item.under === now || item.under.contains(now) || now.contains(item.under)));
+      item.element.classList.toggle("covered", covered);
+    }
+  }
+  setInterval(watchStrokes, 300);
+  window.addEventListener("scrollend", watchStrokes, true);
 
   // ---------- The panel of the end: all the text, and the captures with their zone ringed ----------
   // A capture of the course (a data: address), cropped around its zones (pixels of the capture), shown w × h px, the zones
@@ -409,7 +591,8 @@
     frameOf.style.cssText = `width:${w}px;height:${h}px`;
     if (!image) return { element: frameOf, show() {} };
     const all = zones.length ? zones.reduce((a, z) => ({ x: Math.min(a.x, z.x), y: Math.min(a.y, z.y), r: Math.max(a.r, z.x + z.largeur), b: Math.max(a.b, z.y + z.hauteur) }), { x: Infinity, y: Infinity, r: -Infinity, b: -Infinity }) : null;
-    const scale = all ? Math.min(1, w / (all.r - all.x + 200), h / (all.b - all.y + 150)) : Math.min(w / page.largeur, h / page.hauteur);
+    // The whole width of the page, never a crop through the middle of a line; the height centred on the zones.
+    const scale = Math.min(w / page.largeur, all ? h / (all.b - all.y + 150) : h / page.hauteur);
     const [rw, rh] = [w / scale, h / scale];
     const from = (centre, size, full) => (size >= full ? (full - size) / 2 : Math.max(0, Math.min(centre - size / 2, full - size)));
     const rx = all ? from((all.x + all.r) / 2, rw, page.largeur) : (page.largeur - rw) / 2;
@@ -421,21 +604,53 @@
       const mark = element("div", "mark");
       mark.style.cssText = `left:${(zone.x - rx) * scale}px;top:${(zone.y - ry) * scale}px;width:${zone.largeur * scale}px;height:${zone.hauteur * scale}px`;
       frameOf.append(mark);
-      return mark;
+      return { mark, w: zone.largeur * scale, h: zone.hauteur * scale };
     });
-    // rough-notation measures the element: the rings are drawn once the panel is shown.
-    return { element: frameOf, show: (animate) => marks.forEach((mark) => annotate(mark, pen(genre, animate)).show()) };
+    // The signs are drawn once the panel is shown.
+    return { element: frameOf, show: (animate) => marks.forEach(({ mark, w, h }) => mark.append(sign(w, h, genre, animate))) };
   }
-  const placeBeside = () => {
-    const card = panel.getBoundingClientRect();
-    goTo({ x: Math.max(8, card.left - M - 12), y: Math.max(8, card.top) });
+  // The three voices of the charter, from Google Fonts like the landing, asked for at the end only: during the course
+  // the page loads nothing more than itself (a font refused by the site would be an error of its console). Without them,
+  // the fallbacks of FONT, AFFICHE and MESURE.
+  const fonts = () => {
+    if (document.getElementById("horama-polices") || !document.head) return;
+    const link = Object.assign(document.createElement("link"), { id: "horama-polices", rel: "stylesheet",
+      href: "https://fonts.googleapis.com/css2?family=Tilt+Warp&family=Funnel+Sans:wght@400;600;700&family=Spline+Sans+Mono:wght@500;600&display=swap" });
+    document.head.append(link);
   };
-  async function showPanel(children, shots = []) {
+  // The wings of the winged button: the symbols aile-g and aile-d of the charter (accueil/index.html), the wings of
+  // the mascot.
+  const WINGS = { g: ["0 22 32 35", "M30 46C24 30 10 24 2 28c6 3 7 7 5 10 5 1 7 5 5 8 5 1 8 5 7 9 5-1 9-4 11-9Z"],
+    d: ["64 22 32 35", "M66 46C72 30 86 24 94 28c-6 3-7 7-5 10-5 1-7 5-5 8-5 1-8 5-7 9-5-1-9-4-11-9Z"] };
+  const wingedButton = (text) => {
+    const button = element("div", "aile-bouton", text);
+    for (const [side, [viewBox, path]] of Object.entries(WINGS)) {
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("class", side);
+      svg.setAttribute("viewBox", viewBox);
+      svg.innerHTML = `<path d="${path}"/>`;
+      button.append(svg);
+    }
+    return button;
+  };
+  // The card of the end: a band of sky, the sun, the mascot in the expression of the moment (drawn and moving here, the
+  // roaming one steps away while the card is up), then the body.
+  const card = (etat, children) => {
+    const top = element("div", "haut");
+    const drawing = element("div", "dessin");
+    drawing.innerHTML = MASCOT[expression(etat)];
+    top.append(element("div", "astre"), drawing);
+    const body = element("div", "corps");
+    body.append(...children);
+    return [top, body];
+  };
+  async function showPanel(children, shots = [], etat = state.etat) {
+    fonts();
     panel.classList.remove("on");
-    panel.replaceChildren(...children);
+    panel.replaceChildren(...card(etat, children));
     void panel.offsetWidth;
     panel.classList.add("on");
-    placeBeside();
+    mascot.classList.add("away");
     await wait(320);
     for (const item of shots) item.show(true);
     // Resolves once the rings are drawn.
@@ -456,6 +671,7 @@
     if (started) return;
     // Once: what the page shows when it opens. The lines of a screen already annotated are there, not drawn again.
     started = true;
+    drawnFor = here();
     for (const zone of state.zones[here()] ?? []) drawZone(zone, false);
     if (state.bulle) renderBubble(false);
   };
@@ -469,7 +685,8 @@
   dim.classList.toggle("on", state.revue);
   setEtat(state.etat);
   mascot.hidden = !TITLE;
-  cursor.hidden = !state.cursor || state.revue;
+  // The arrow shows from the first gesture of the mouse of H, where it happens; before, there is nothing to show.
+  cursor.hidden = !state.cursor || !state.geste || state.revue;
   if (state.cursor) putCursor(state.travel ? state.travel.from : state.cursor);
   mascot.style.transform = `translate(${at.x}px, ${at.y}px)`;
   wake();
@@ -478,10 +695,19 @@
   // ---------- Commands called by the script (CDP Runtime.evaluate; a promise is awaited) ----------
   let examined = null; // id of the finding whose question is asked
   window.__horama = {
-    // repos, verification, interrogation, defaut, conforme. sursaut: the mascot jumps once as it takes this state.
-    etat(name, sursaut) {
+    // While the agent starts (the pages are found, the session of H opens: about 30 s): the mascot reads the page at
+    // once (see « reading »), until the first gesture of the mouse of H (or preparer(false)). The arrow does not move:
+    // it has done nothing yet.
+    preparer(on = true) {
+      state.prepare = Boolean(on);
+      save();
+      clearTimeout(readTimer);
+      if (on) readNext();
+      else stopReading();
+    },
+    // observe, trouve, doute, bloquee, fini (or a name of the first skeleton): a change in place, with a small jolt.
+    etat(name) {
       setEtat(name);
-      mascot.classList.toggle("jolt", Boolean(sursaut));
     },
     // One bubble at a time (end only), null to hide it. Resolves once the bubble is shown.
     bulle(texte) {
@@ -503,6 +729,15 @@
         })
         .filter((rect) => rect.largeur > 0 && rect.hauteur > 0);
     },
+    // The visible text of the first element the CSS selector finds, for the questions of the end ("" when there is none or
+    // it is not seen): a selector is never shown on the screen.
+    texte(selecteur) {
+      let found = null;
+      try {
+        found = document.querySelector(selecteur);
+      } catch {}
+      return found?.checkVisibility?.({ opacityProperty: true, visibilityProperty: true }) ? norm(found.innerText) : "";
+    },
     // The rectangle of the first element the CSS selector finds, in page coordinates; [] when there is none.
     element(selecteur) {
       let found = null;
@@ -510,7 +745,9 @@
         found = document.querySelector(selecteur);
       } catch {}
       const rect = found?.getBoundingClientRect();
-      return rect && rect.width > 0 && rect.height > 0 ? [rounded({ x: rect.left + scrollX, y: rect.top + scrollY, largeur: rect.width, hauteur: rect.height })] : [];
+      // An element that is not seen (hidden, transparent, or cut to a point for screen readers) has no zone.
+      if (found && !found.checkVisibility?.({ opacityProperty: true, visibilityProperty: true })) return [];
+      return rect && rect.width >= 4 && rect.height >= 4 ? [rounded({ x: rect.left + scrollX, y: rect.top + scrollY, largeur: rect.width, hauteur: rect.height })] : [];
     },
     // The element at the centre of a zone: its displayed text ("" when it is none or a whole block of the page) and the
     // rectangle that holds both the zone and that text, so that a line is drawn around the whole value, not half of it.
@@ -550,7 +787,9 @@
     // drawn now when it is this page. voir: a zone out of the screen is first scrolled into view (only where the agent
     // does not read the page after its relevé).
     async surligner(adresse, rects, genre, id, avant, voir) {
-      if ((state.zones[adresse] ?? []).some((zone) => zone.id === id)) return;
+      // Never around nothing: a zone under 4 px in one dimension (a text kept for screen readers, 1 px wide) is not drawn.
+      rects = rects.filter((rect) => rect.largeur >= 4 && rect.hauteur >= 4);
+      if (!rects.length || (state.zones[adresse] ?? []).some((zone) => zone.id === id)) return;
       const zones = [...rects.map((rect) => ({ id, genre, ...rounded(rect) })), ...(avant ? [{ id, genre, trait: "pointille", ...rounded(avant) }] : [])];
       (state.zones[adresse] ??= []).push(...zones);
       save();
@@ -561,20 +800,44 @@
         scrollTo({ top: Math.max(0, first.y - innerHeight / 3), behavior: "smooth" });
         await wait(600);
       }
-      // The mascot moves away first when it stands on what is about to be drawn: to another corner.
-      if (hidden(goal.x, goal.y, M, M, zones.map((zone) => box(zone, 14))) > 0) {
-        goTo(corner(busy()));
-        await arrived();
+      // S3: the expression first (a proven defect: trouve; a doubt: doute), then the mascot flies close to what is about
+      // to be drawn (110 to 260 px; it may cover a nearby text, never the zone nor the arrow) and looks at it, then the
+      // stroke comes. The expression stays until the next gesture of H, 3 s at least.
+      if (TITLE && first && !state.bulle) {
+        setEtat(genre === "defaut" ? "trouve" : "doute");
+        held3 = Date.now() + 3000;
+        stroke += 1; // a reset armed by a gesture after an earlier stroke must not clear this one (review of #190)
+        stopReading();
+        const marked = zones.map((zone) => box(zone, 14, 60));
+        const left = Math.min(...marked.map((b) => b.left)), top = Math.min(...marked.map((b) => b.top));
+        const right = Math.max(...marked.map((b) => b.right)), bottom = Math.max(...marked.map((b) => b.bottom));
+        lookAt = { x: (left + right) / 2, y: (top + bottom) / 2 };
+        // No place free of the zone and of the arrow (a zone that fills the screen): the mascot does not fly there.
+        const spot = nearSpot(lookAt, [...busy(), ...marked.map((b) => ({ ...b, weight: 200 }))], null, true, { rings: [110, 150, 200, 260], textOk: true });
+        if (spot) {
+          goTo(spot);
+          await arrived();
+        }
+        // Still on the zone (no free place, or it was there): it steps out of sight while the stroke is drawn.
+        if (hidden(at.x, at.y, M, M, marked) > 0) mascot.style.opacity = "0";
       }
       await Promise.all(zones.filter((zone) => !zone.trait).map((zone) => drawZone(zone, true)));
       for (const zone of zones.filter((candidate) => candidate.trait)) await drawZone(zone, true);
+      mascot.style.opacity = "";
+      // The stroke is drawn: the permission to cover a nearby text ends with it (passage on albertschool.com, 19/11: the
+      // mascot stayed 9 s on a title next to a doubt of the menu). On a text, it goes to a place without one, near the
+      // zone, keeping its expression.
+      if (TITLE && lookAt && !state.bulle) {
+        const now = busy();
+        if (hidden(goal.x, goal.y, M, M, now.filter(({ weight }) => weight === 10)) > 0) goTo(nearSpot(lookAt, now, null, true));
+      }
     },
     // A doubt that became a proven defect (or the reverse): its line changes colour and shape, on every page.
     requalifier(id, genre) {
       for (const zone of Object.values(state.zones).flat()) if (zone.id === id) zone.genre = genre;
       save();
       for (const item of drawn.filter((candidate) => candidate.zone.id === id && !candidate.zone.trait)) {
-        item.annotation?.remove();
+        item.sign?.remove();
         ring(item, true);
       }
     },
@@ -582,32 +845,54 @@
     revue(on) {
       state.revue = on;
       save();
-      cursor.hidden = on || !state.cursor;
+      cursor.hidden = on || !state.cursor || !state.geste;
       dim.classList.toggle("on", on);
+      if (!on) mascot.classList.remove("away");
     },
-    // The summary: { titre, lignes, selection, items }. lignes: sentences; selection: { titre, lignes } or null (the
-    // choice of the tests, development mode); items: { id, genre, texte, image, zones, page } for each defect and doubt.
-    async recap({ titre, lignes = [], selection = null, items = [] }) {
+    // The summary, card of the charter: { titre, site, chiffres, lignes, selection, items, bouton }. site: the address,
+    // in mono; chiffres: [{ valeur, libelle, genre }] (« defaut » in miltos, « doute » in ochre with its dots);
+    // lignes: sentences; items: { id, genre, texte, mesure } for each defect and doubt, one line each with its sign
+    // and its measure (or « bug, ou voulu ? »); selection: { titre, lignes } in small at the end (pages or tests);
+    // bouton: the winged button that announces the questions (« Les regarder un par un » when there are items).
+    async recap({ titre, site = null, chiffres = [], lignes = [], selection = null, items = [], bouton = items.length ? "Les regarder un par un" : null }) {
       this.revue(true);
+      setEtat(state.etat === "bloquee" ? "bloquee" : "fini");
       await this.bulle(null);
-      // Two rows of three at most: the others come one by one after.
-      const first = items.slice(0, 6);
-      const shots = first.map((item) => shot(item, 296, 168));
-      const children = [element("h1", "", typo(titre)), ...lignes.map((line) => element("p", "", typo(line)))];
-      if (selection) children.push(element("h2", "", selection.titre), list(selection.lignes));
-      if (items.length) {
-        const grid = element("div", "items");
-        grid.append(...first.map((item, index) => {
-          const card = element("div", "item");
-          const caption = element("p", "", typo(item.texte));
-          caption.prepend(element("span", `tag ${item.genre}`));
-          card.append(shots[index].element, caption);
-          return card;
+      const children = [element("h1", "", typo(titre))];
+      if (site) children.push(element("p", "site", site));
+      if (chiffres.length) {
+        const figures = element("div", "chiffres");
+        figures.append(...chiffres.map(({ valeur, libelle, genre }) => {
+          const cell = element("div", genre ?? "");
+          const value = element("b");
+          value.append(element("span", "", String(valeur)));
+          cell.append(value, document.createTextNode(typo(libelle)));
+          return cell;
         }));
-        children.push(element("h2", "", "À trancher"), grid);
-        if (items.length > first.length) children.push(element("p", "", `Et ${items.length - first.length} de plus, montrés un par un ensuite.`));
+        children.push(figures);
       }
-      await showPanel(children, shots);
+      if (lignes.length) {
+        const lines = element("div", "lignes");
+        lines.append(...lignes.map((line) => element("p", "", typo(line))));
+        children.push(lines);
+      }
+      if (items.length) {
+        // Four lines at most: the others come one by one after.
+        const shown = items.slice(0, 4);
+        const rows = element("div", "releves");
+        rows.append(...shown.map((item) => {
+          const row = element("div", "releve");
+          row.append(element("i", `signe ${item.genre}`, item.genre === "defaut" ? "!" : "?"), element("span", "", typo(item.texte)),
+            element("code", "", typo(item.mesure ?? (item.genre === "defaut" ? "prouvé" : "bug, ou voulu ?"))));
+          return row;
+        }));
+        children.push(rows);
+        if (items.length > shown.length) children.push(element("p", "suite", `Et ${items.length - shown.length} de plus, montrés un par un ensuite.`));
+      }
+      if (selection) children.push(element("h2", "", selection.titre), list(selection.lignes));
+      if (bouton) children.push(wingedButton(bouton));
+      panel.className = "panel recap";
+      await showPanel(children);
     },
     // One finding, its capture ringed in large, what was found, and the question with its two buttons. rang: « 1 sur 3 ».
     // The answer comes back through the CDP binding horamaChoix, from a real click on a button or from choisir().
@@ -618,21 +903,23 @@
       examined = id;
       choices.className = "choices";
       for (const button of choices.children) button.classList.remove("chosen");
-      const big = shot({ image, zones, page, genre }, PANEL - 64, 440);
+      const big = shot({ image, zones, page, genre }, PANEL - 70, 400);
       const texts = element("div", "texts");
-      texts.append(...textes.map((text) => element("p", "", typo(text))));
+      // The first text says what was found; the next ones (the proof, measured) are in mono.
+      texts.append(...textes.map((text, index) => element("p", index ? "preuve" : "", typo(text))));
       panel.className = "panel examen";
-      await showPanel([element("div", "rank", rang), big.element, texts, element("p", "question", typo(question)), choices], [big]);
+      await showPanel([element("div", "rank", rang), big.element, texts, element("p", "question", typo(question)), choices], [big], etat);
     },
     // Hides the panel.
     panneau() {
       panel.className = "panel";
       panel.replaceChildren();
+      mascot.classList.remove("away");
     },
     async correction({ id, file, before, after }) {
       this.revue(true);
       this.panneau();
-      setEtat("interrogation");
+      setEtat("doute");
       state.bulle = { correction: { id, file, before, after }, page: here() };
       save();
       return renderBubble(true);
@@ -649,7 +936,7 @@
     async correctionResult(status) {
       if (!state.bulle?.correction) return;
       state.bulle.correction.status = status;
-      setEtat(status === "acceptee" ? "conforme" : "repos");
+      setEtat(status === "acceptee" ? "fini" : "observe");
       save();
       return renderBubble(true);
     },
@@ -670,8 +957,10 @@
       panel.className = "panel";
       const files = element("ul", "files");
       files.append(...fichiers.map((file) => element("li", "", file.split(/[\\/]/).pop())));
-      setEtat("conforme");
-      await showPanel([element("h1", "", typo(titre)), element("p", "", typo(compte)), element("h2", "", legende), files]);
+      setEtat("fini");
+      const lines = element("div", "lignes");
+      lines.append(element("p", "", typo(compte)));
+      await showPanel([element("h1", "", typo(titre)), lines, element("h2", "", legende), files]);
     },
     masquer() {
       host.style.setProperty("display", "none", "important");
@@ -693,6 +982,11 @@
     held = null;
     window.horamaPress?.(JSON.stringify({ rejoue: heure, retard_ms: Math.round(performance.now() - since) }));
     const on = target.isConnected ? target : document.elementFromPoint(x, y);
+    // A link that would open another tab opens in this one: a second tab would take the front from the tab of the
+    // scene, and the bridge of H loses its tab when the scene closes it (passage on albertschool.com, 19/11: H asked to
+    // close the tab, its session became invalid). Same address, same click of H, one tab.
+    const link = on?.closest?.("a[target]");
+    if (link && !/^_(self|top|parent)$/i.test(link.target)) link.target = "_self";
     const init = { bubbles: true, cancelable: true, composed: true, view: window, clientX: x, clientY: y, button: 0, detail: 1 };
     on?.dispatchEvent(new PointerEvent("pointerdown", { ...init, buttons: 1, pointerId: 1, isPrimary: true }));
     on?.dispatchEvent(new MouseEvent("mousedown", { ...init, buttons: 1 }));
@@ -703,18 +997,31 @@
   };
   const press = (event) => {
     attach();
+    state.prepare = false;
+    gestured();
     if (held) replay();
+    clearTimeout(moving);
     const to = { x: event.clientX, y: event.clientY };
-    const from = cursorAt ?? to;
-    const ms = cursorAt ? Math.round(Math.min(800, 500 + 0.4 * Math.hypot(to.x - from.x, to.y - from.y))) : 0;
+    // From where the arrow is now (it may be on its way after a move of the mouse of H); the first gesture of H starts
+    // from the mascot (startOf), or where it happens without a mascot.
+    const first = !state.geste;
+    state.geste = true;
+    const way = course(first ? startOf(to) : cursorAt ?? to, to);
+    const ms = (first && !TITLE) || (!first && !cursorAt) ? 0 : way.ms;
     const heure = Date.now();
-    state.travel = { from, to, at: heure, ms };
+    state.travel = { ...way, ms, at: heure };
     state.cursor = to;
+    // Just before the click of the agent, while the arrow travels to it: the mascot hesitates.
+    if (TITLE && !state.revue && ms > 0 && MASCOT.hesite && state.etat !== "hesite") {
+      state.avant_clic = state.etat;
+      setEtat("hesite");
+    }
     save();
     cursor.hidden = false;
-    if (TITLE) stepAside([clearance(to)]);
+    if (TITLE && !state.bulle) goTo(nearSpot(to, busy(), cursorAt));
+    else if (TITLE) stepAside([clearance(to)]);
     wake();
-    if (!OPTIONS.direct) held = { target: event.target, ...to, heure, since: performance.now(), timer: setTimeout(replay, ms + PRESS) };
+    if (!OPTIONS.direct) held = { target: event.target, ...to, heure, since: performance.now(), timer: setTimeout(replay, ms + (ms ? HOVER : 0) + PRESS) };
     const under = document.elementFromPoint(to.x, to.y);
     const hit = under?.closest("a, summary, button") ?? under;
     window.horamaPress?.(JSON.stringify({
@@ -727,6 +1034,135 @@
       trajet_ms: ms,
     }));
   };
+  // The first gesture of H starts from the mascot, which hands the arrow over: the mouse of H has no known place before
+  // its first gesture, so where the arrow starts from is a convention (until 18/11, the middle of the screen); where it
+  // goes and when are those of H. Without a mascot (the probe), the arrow shows where the gesture happens.
+  const startOf = (to) => (TITLE ? { x: Math.round(at.x + M / 2), y: Math.round(at.y + M / 2) } : to);
+
+  // ---------- Reading: while H thinks, the mascot reads the page ----------
+  // Nothing of H moves while it thinks (8 to 15 s a step): the arrow stays where H left it. The mascot is ours: 2.5 s
+  // after the last gesture of H it flies slowly beside a title (or a paragraph) of the screen, reads it with its eye,
+  // rests 3.5 s, then the next one; a gesture of H brings it back beside the arrow at once. Never on a text.
+  const READ_AFTER = 2500, READ_PAUSE = 5000;
+  const readable = () => {
+    // The part of an element on the screen (a title larger than the screen counts by its visible part), 40 × 10 px at least.
+    const seen = (el, min = [40, 10]) => {
+      // A text by the box of its letters (a title in a wide block reads as long as its words), a picture by its own box.
+      let r = el.getBoundingClientRect();
+      if (!el.matches("img, picture, video")) {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const letters = range.getBoundingClientRect();
+        if (letters.width > 0 && letters.height > 0) r = letters;
+      }
+      const left = Math.max(r.left, 0), top = Math.max(r.top, 30), right = Math.min(r.right, innerWidth), bottom = Math.min(r.bottom, innerHeight - 30);
+      return right - left > min[0] && bottom - top > min[1] && el.checkVisibility?.({ opacityProperty: true, visibilityProperty: true }) !== false
+        ? { left, top, right, bottom, width: right - left, height: bottom - top, image: el.matches("img, picture, video") } : null;
+    };
+    const titles = [...document.querySelectorAll("h1, h2, h3, h4, [role=heading]")].map((el) => seen(el)).filter(Boolean);
+    if (titles.length >= 2) return titles;
+    // One title or none on the screen (S8, louvre.fr 19/11: « ÉDITIONS » alone, the mascot stayed on it 30 s): the title,
+    // then the paragraphs and the pictures of the screen, in the order of the page.
+    const paragraphs = [...document.querySelectorAll("p, li")].filter((el) => el.innerText?.trim().length >= 40).map((el) => seen(el)).filter(Boolean).slice(0, 4);
+    const pictures = [...document.querySelectorAll("img, picture, video")].map((el) => seen(el, [160, 100])).filter(Boolean).slice(0, 3);
+    return [...titles, ...paragraphs, ...pictures].slice(0, 7);
+  };
+  const stopReading = () => {
+    clearTimeout(readTimer);
+    if (reading) {
+      reading = null;
+      wake();
+    }
+  };
+  function readNext() {
+    clearTimeout(readTimer);
+    if (!TITLE || state.revue || state.bulle || held || state.travel) return void (readTimer = setTimeout(readNext, READ_AFTER));
+    const list = readable().sort((a, b) => a.top - b.top || a.left - b.left);
+    if (!list.length) return stopReading();
+    readIndex = (readIndex + 1) % list.length;
+    const r = list[readIndex];
+    const width = Math.min(r.width, 520);
+    reading = { look: { x: r.left + width / 2, y: r.top + r.height / 2 }, half: width / 2, left: r.left, width, start: null };
+    goTo(nearSpot(reading.look, busy(), null, true));
+    wake();
+    const mine = reading;
+    // Once it has landed, the eye goes along the text from its start to its end, then rests until the next one. Nothing
+    // is drawn: the only signs on the page are the stroke of miltos (a proven defect) and the ochre dots (a doubt). (A
+    // lilac line of reading, 19/11, was taken for a sign by Nathan: removed.)
+    arrived().then(() => {
+      if (reading !== mine) return;
+      mine.lire = Math.round(READ_PAUSE * 0.7);
+      mine.start = performance.now();
+    });
+    readTimer = setTimeout(readNext, READ_PAUSE + 1500);
+  }
+  // Each gesture of H: the reading stops, and starts again once H is quiet.
+  const gestured = () => {
+    stopReading();
+    lookAt = null;
+    if (state.etat === "trouve" || state.etat === "doute") {
+      const keep = held3 - Date.now();
+      const armedFor = stroke;
+      setTimeout(() => armedFor === stroke && (state.etat === "trouve" || state.etat === "doute") && !state.revue && !state.bulle && setEtat("observe"), Math.max(0, keep));
+    }
+    readTimer = setTimeout(readNext, READ_AFTER + 1100);
+  };
+  document.addEventListener("DOMContentLoaded", () => {
+    if (TITLE && !state.revue) readTimer = setTimeout(readNext, READ_AFTER);
+  });
+  // After a scroll of the page, the mascot leaves a text that slid under it.
+  window.addEventListener("scrollend", () => TITLE && !state.revue && !state.bulle && stepAside([]), true);
+
+  // The other gestures of the mouse of H, shown where they really happen and nowhere else. A move of its mouse with no
+  // press just after (the bridge moves it before a scroll, or the agent hovers): the arrow goes there without pressing.
+  // A turn of the wheel (a scroll of the agent, at the point of its mouse): the arrow goes there if it is not, and nods
+  // in the direction of the scroll. Nothing moves while the agent thinks: then it is the mascot that lives.
+  let moving = 0;
+  const goWithoutPress = (to) => {
+    state.prepare = false;
+    gestured();
+    if (state.revue || (state.geste && cursorAt && Math.hypot(to.x - (state.cursor?.x ?? cursorAt.x), to.y - (state.cursor?.y ?? cursorAt.y)) < 2)) return;
+    attach();
+    const first = !state.geste;
+    state.geste = true;
+    const way = course(first ? startOf(to) : cursorAt ?? to, to);
+    state.travel = { ...way, ms: (first && !TITLE) || (!first && !cursorAt) ? 0 : way.ms, at: Date.now(), clic: false };
+    state.cursor = to;
+    save();
+    cursor.hidden = false;
+    if (TITLE && !state.bulle) goTo(nearSpot(to, busy(), cursorAt));
+    else if (TITLE) stepAside([clearance(to)]);
+    wake();
+  };
+  window.addEventListener("mousemove", (event) => {
+    if (!event.isTrusted || event.target === host || held) return;
+    clearTimeout(moving);
+    const to = { x: event.clientX, y: event.clientY };
+    moving = setTimeout(() => goWithoutPress(to), 60);
+  }, true);
+  // The scroll of a turn of the wheel, the same distance, shown as a hand scrolls: smooth instead of a jump. The element
+  // that scrolls is the one the wheel would have scrolled (the nearest one under the mouse that can still go that way,
+  // else the page); the bridge of H waits for its « scrollend », so the agent sees the page once it has arrived.
+  const scroller = (from, dy) => {
+    for (let node = from instanceof Element ? from : null; node && node !== document.body && node !== document.documentElement; node = node.parentElement) {
+      const { overflowY } = getComputedStyle(node);
+      if (!/(auto|scroll|overlay)/.test(overflowY) || node.scrollHeight <= node.clientHeight + 1) continue;
+      if (dy > 0 ? node.scrollTop + node.clientHeight < node.scrollHeight - 1 : node.scrollTop > 0) return node;
+    }
+    return document.scrollingElement ?? document.documentElement;
+  };
+  window.addEventListener("wheel", (event) => {
+    if (!event.isTrusted || event.target === host || state.revue) return;
+    clearTimeout(moving);
+    goWithoutPress({ x: event.clientX, y: event.clientY });
+    cursor.style.setProperty("--wheel", event.deltaY < 0 ? -1 : 1);
+    cursor.classList.remove("wheel");
+    void cursor.offsetWidth;
+    cursor.classList.add("wheel");
+    if (event.ctrlKey || event.deltaMode !== 0 || Math.abs(event.deltaY) < 1 || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
+    event.preventDefault();
+    scroller(event.target, event.deltaY).scrollBy({ top: event.deltaY, behavior: "smooth" });
+  }, { capture: true, passive: false });
   for (const type of ["pointerdown", "mousedown", "pointerup", "mouseup", "click"]) {
     window.addEventListener(type, (event) => {
       if (!event.isTrusted || event.button !== 0 || event.target === host) return;

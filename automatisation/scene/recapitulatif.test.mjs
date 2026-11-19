@@ -1,0 +1,119 @@
+// bilanExploration (recapitulatif.mjs): what the summary says when an exploration could not visit (PR #117). No Chrome,
+// no network. Run from this folder: node --test recapitulatif.test.mjs
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { attenteLecture, bilanExploration, dejaVoulu, lisible, phraseDe, revoir, selecteursDe } from "./recapitulatif.mjs";
+
+// The site blocked by its anti-robot (as in docs/tests/2026-11-18-a67-anti-robot.md, skema.edu): no page, no H session.
+const bloquee = {
+  format: "horama-exploration-1", etat: "fini", adresse: "https://www.skema.edu/fr",
+  agents: [{ agent: 1, session_id: null, etat: "fini", raison: "ce site bloque les robots (_Incapsula_Resource)." }],
+  pages: [{ ecran: "accueil", url: "https://www.skema.edu/fr", etat: "non_visitee", raison: "ce site bloque les robots (_Incapsula_Resource)." }],
+  constats: [{ id: "accueil--controle--1", ecran: "accueil", statut: "INCONCLUSIVE", raison: "ce site bloque les robots (_Incapsula_Resource)." }],
+  totaux: { pages_trouvees: 1, pages_visitees: 0, defauts: 0, doutes: 0, sans_conclusion: 1, par_sorte: {} },
+};
+
+// A run that visited some pages and not others.
+const partielle = {
+  format: "horama-exploration-1", etat: "interrompu", adresse: "https://www.exemple.fr/",
+  agents: [{ agent: 1, etat: "tombe", raison: "Des pages n'ont pas été visitées." }],
+  pages: [
+    { ecran: "accueil", url: "https://www.exemple.fr/", etat: "visitee", raison: null },
+    { ecran: "tarifs", url: "https://www.exemple.fr/tarifs", etat: "non_visitee", raison: "La capture a échoué : CDP sans réponse : Page.captureScreenshot" },
+    { ecran: "compte", url: "https://www.exemple.fr/compte", etat: "non_visitee" },
+  ],
+  constats: [{ id: "compte--controle--1", ecran: "compte", statut: "INCONCLUSIVE", raison: "Cette page demande une connexion." }],
+  totaux: { pages_trouvees: 3, pages_visitees: 1, defauts: 0, doutes: 0, sans_conclusion: 1, par_sorte: {} },
+};
+
+test("aucune page visitée : la raison de l'agent, en une phrase", () => {
+  assert.deepEqual(bilanExploration(bloquee), {
+    aucune: true,
+    phrase: "Horama n'a pas pu visiter ce site : ce site bloque les robots (_Incapsula_Resource).",
+    nonVisitees: [{ chemin: "/fr", raison: "ce site bloque les robots (_Incapsula_Resource)." }],
+  });
+  // Without a reason of the agent: the reason of a page, with a capital letter put down; without any: the bare sentence.
+  const parPage = { ...bloquee, agents: [{ agent: 1, raison: null }], pages: [{ ...bloquee.pages[0], raison: "Page introuvable (404)." }] };
+  assert.equal(bilanExploration(parPage).phrase, "Horama n'a pas pu visiter ce site : page introuvable (404).");
+  const sans = { ...bloquee, agents: [], pages: [{ ...bloquee.pages[0], raison: null }], constats: [] };
+  assert.equal(bilanExploration(sans).phrase, "Horama n'a pas pu visiter ce site.");
+});
+
+test("des pages visitées : chaque page non visitée avec sa raison, celle de la page ou celle de son constat", () => {
+  assert.deepEqual(bilanExploration(partielle), {
+    aucune: false,
+    nonVisitees: [
+      { chemin: "/tarifs", raison: "La capture a échoué : CDP sans réponse : Page.captureScreenshot" },
+      { chemin: "/compte", raison: "Cette page demande une connexion." },
+    ],
+  });
+});
+
+test("exploration en cours : jamais « n'a pas pu visiter »", () => {
+  assert.equal(bilanExploration({ ...bloquee, etat: "en_cours" }).aucune, false);
+});
+
+test("déjà voulu : même page, même description, zones qui se recoupent ; une décision « bug » ne compte pas", () => {
+  const constat = { id: "programmes--controle--2", ecran: "programmes", description: "Le texte est rogné dans sa boîte.", zone: { x: 40, y: 600, largeur: 180, hauteur: 48 } };
+  const voulu = { id: "d1", decision: "voulu", ecran: "programmes", ecart: "Le texte est rogné dans sa boîte.", zone: { x: 44, y: 604, largeur: 180, hauteur: 48 } };
+  assert.equal(dejaVoulu(constat, [voulu]), voulu);
+  const sansZone = { ...voulu, zone: undefined };
+  assert.equal(dejaVoulu(constat, [sansZone]), sansZone, "décision sans zone : la page et la description suffisent");
+  assert.equal(dejaVoulu(constat, [{ ...voulu, decision: "bug" }]), null);
+  assert.equal(dejaVoulu(constat, [{ ...voulu, ecran: "accueil" }]), null);
+  assert.equal(dejaVoulu(constat, [{ ...voulu, ecart: "Le bouton déborde." }]), null);
+  assert.equal(dejaVoulu(constat, [{ ...voulu, zone: { x: 900, y: 100, largeur: 50, hauteur: 20 } }]), null);
+});
+
+// --choix and the questions without an answer (S9, review of #192). Without --repeter-choix, a question beyond the
+// answers waits for a real click (here a human answers « bug » after 300 ms); with it (filmed passage on a temporary
+// vault), the answers are taken again from the start: voulu, bug, voulu. A mascot that reports each choice as the layer.
+test("revoir : --choix sans répétition laisse la question en trop à l'humain ; --repeter-choix reprend les réponses", async () => {
+  const item = (id) => ({ id, genre: "doute", etat: "doute", texte: id, png: Buffer.from("png"), zones: [], page: null, textes: ["Un texte."], question: "Bug, ou voulu ?" });
+  const run = async (repeter) => {
+    let report = null;
+    const asked = [];
+    const mascot = async (command, value) => {
+      // The human answers this question (its own resolver), 300 ms later; an answer already given makes it a no-op.
+      if (command === "examen") {
+        const mine = report;
+        setTimeout(() => mine({ choix: "bug" }), 300);
+      }
+      if (command === "choisir") {
+        asked.push(value);
+        report?.({ choix: value });
+      }
+    };
+    const made = await revoir({ mascot, recap: {}, items: ["a", "b", "c"].map(item), choix: ["voulu", "bug"], repeter, presentation: false, witness: async () => {}, say: () => {} },
+      () => new Promise((resolve) => (report = resolve)));
+    return { asked, made: made.map(({ choix }) => choix) };
+  };
+  assert.deepEqual(await run(false), { asked: ["voulu", "bug"], made: ["voulu", "bug", "bug"] }, "la troisième question attend l'humain");
+  assert.deepEqual(await run(true), { asked: ["voulu", "bug", "voulu"], made: ["voulu", "bug", "voulu"] }, "--repeter-choix reprend les réponses");
+});
+
+// Never a selector on the screen (passage of 19/11 on the German clone: a question of 6 to 8 lines of CSS selectors,
+// read in 40 s): the number of elements and their visible texts, short and without repeats; 6 s at most to answer.
+test("lisible : un constat groupé dit le nombre d'éléments et leurs textes visibles, jamais leurs sélecteurs", () => {
+  const description = "Le texte dépasse la boîte de son conteneur. Éléments : html > body:nth-child(3) > main > ol > li:nth-child(1) > span, html > body:nth-child(3) > main > ol > li:nth-child(2) > span, html > body:nth-child(3) > main > ol > li:nth-child(3) > span.";
+  assert.equal(selecteursDe(description).length, 3);
+  assert.equal(lisible(description, ["Studienjahr", "Studienjahr", " Studienjahr\n"]), "Le texte dépasse la boîte de son conteneur. 3 éléments : « Studienjahr ».");
+  assert.equal(lisible(description, ["1.\nStudienjahr", "2. Studienjahr", "3) Studienjahr"]), "Le texte dépasse la boîte de son conteneur. 3 éléments : « Studienjahr ».");
+  assert.equal(lisible(description, []), "Le texte dépasse la boîte de son conteneur. 3 éléments.");
+  assert.equal(lisible(description, ["a", "b", "c", "d"]), "Le texte dépasse la boîte de son conteneur. 3 éléments : « a », « b », « c », ….");
+  assert.doesNotMatch(lisible(description, ["x".repeat(80)]), /html|nth-child/);
+  assert.equal(lisible("Un texte semble coupé.", []), "Un texte semble coupé.");
+  assert.equal(attenteLecture("x".repeat(700)), 6000);
+  assert.equal(attenteLecture("x".repeat(20)), 3500);
+});
+
+// The language check in a sentence (passage published on PR #16 of the clone, 19/11: « 1 bloc en français ; le plus
+// long : 28 mots… page déclarée de Mesuré : 1 bloc en français… »): readable, ended by a full stop, the measure apart.
+test("phraseDe : le constat de langue dit une phrase, les autres finissent par un point", () => {
+  const langue = { sorte: "texte-non-traduit", description: "1 bloc en français ; le plus long : 28 mots, 6 mots outils français, 0 allemands ; page déclarée de" };
+  assert.equal(phraseDe(langue), "Un bloc est resté en français sur une page déclarée en allemand.");
+  assert.equal(phraseDe({ ...langue, description: "3 blocs en anglais ; le plus long : 12 mots ; page déclarée fr" }), "3 blocs sont restés en anglais sur une page déclarée en français.");
+  assert.equal(phraseDe({ sorte: "debordement", description: "Le texte dépasse la boîte de son conteneur" }), "Le texte dépasse la boîte de son conteneur.");
+  assert.equal(phraseDe({ sorte: "debordement", description: "Le texte dépasse la boîte de son conteneur." }), "Le texte dépasse la boîte de son conteneur.");
+  assert.equal(lisible(phraseDe({ sorte: "debordement", description: "Le texte dépasse. Éléments : html > a, html > b." }), ["x"]), "Le texte dépasse. 2 éléments : « x ».");
+});
