@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { aBlanc, aJouer, adresseCommentaireVercel, adresseControleVercel, adresseTour, attendreDecisions, ecarterLangue, impactDePr, jouerPr, langueDePage, lecteurGithub, majEntreeIndex, ouverteSansConnexion, televerserCapture, entreeIndex, publierIndex } from "./pr.mjs";
+import { aBlanc, aJouer, marquerExistantes, adresseCommentaireVercel, adresseControleVercel, adresseTour, attendreDecisions, ecarterLangue, impactDePr, jouerPr, langueDePage, lecteurGithub, majEntreeIndex, ouverteSansConnexion, televerserCapture, entreeIndex, publierIndex } from "./pr.mjs";
 
 // A vault of trial: two screens of a site whose code we have, one test per screen.
 function vaultEssai(t) {
@@ -481,4 +481,15 @@ test("captures de chaque page visitée poussées et listées dans l'entrée de l
   assert.equal(report.captures.pages, 1);
   // Without the branch of the captures, no page is published and the entry keeps its old shape.
   assert.equal("pages" in entreeIndex({ pr: { numero: 1, adresse: "a", tete: "t", previsualisation: "p" }, logiciel: "l", report: { recu_le: "d" }, scene: null }), false);
+});
+
+test("--nouvelles-seulement : le commit présent au démarrage n'est pas rejoué, même prêt ; le suivant l'est", () => {
+  let tete = "89b74cf0000000000000000000000000000000000";
+  const lecteur = { prs: () => [{ numero: 16, adresse: "https://github.com/o/d/pull/16", base: "b", tete }],
+    previsualisation: () => ({ etat: "success", adresse: "https://site-git-branche.vercel.app" }) };
+  const faits = new Set();
+  assert.deepEqual(marquerExistantes(lecteur, faits), ["réveil PR : #16 (89b74cf) déjà là au démarrage, pas rejouée ; seul un commit poussé ensuite le sera."]);
+  assert.deepEqual(aJouer(lecteur, faits), [], "prévisualisation prête, mais commit présent au démarrage");
+  tete = "a1b2c3d0000000000000000000000000000000000";
+  assert.deepEqual(aJouer(lecteur, faits).map((pr) => `${pr.numero}@${pr.tete.slice(0, 7)}`), ["16@a1b2c3d"], "le commit poussé après le démarrage est joué");
 });
