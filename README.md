@@ -16,7 +16,7 @@ Le rendu, c'est ce README. `docs/` est notre journal de travail : décisions dat
 
 ## Essayer Horama
 
-Pour le jury, à distance, sans terminal : Horama cherche les défauts d'un site public de votre choix. Tout passe par le service d'exploration en ligne (Railway, https://explorations-production-70bf5b38.up.railway.app). Il suffit de Chrome. Le service reste en ligne jusqu'au [À CONFIRMER].
+Pour le jury, à distance, sans terminal : Horama cherche les défauts d'un site public de votre choix. Tout passe par le service d'exploration en ligne (Railway, https://explorations-production-70bf5b38.up.railway.app). Il suffit de Chrome. Le service reste en ligne jusqu'au samedi 21 novembre 2026 inclus.
 
 1. **Ouvrir Horama.** Sans rien installer : https://horama-gold.vercel.app. Ou l'extension Chrome : téléchargez https://horama-gold.vercel.app/horama-extension.zip, dézippez-le, ouvrez `chrome://extensions`, activez le « Mode développeur », cliquez « Charger l'extension non empaquetée » et choisissez le dossier dézippé.
 2. **Donner le site.** Sur la page d'accueil, collez l'adresse dans le champ. Avec l'extension, ouvrez le site puis cliquez sur l'icône Horama : l'adresse de l'onglet est déjà remplie.
@@ -223,7 +223,7 @@ Option A, décidée par Nathan : **un service sur notre serveur, dans un contene
 
 1. Un `Dockerfile` (Node, Chrome, `holo`, le moteur) et un passage réel sur eugeniaschool.com dans ce conteneur, avant tout déploiement.
 2. Le service HTTP et sa file d'attente, décrits ci-dessous.
-3. Le déploiement sur Railway, après deux conditions de sécurité : une clé H dédiée au service (supprimée après la démo de vendredi, jamais la clé de l'équipe) et Chrome sous un autre compte du conteneur que le moteur (ni la clé H ni les données du moteur ne lui sont visibles), prouvées par une commande dans le rapport.
+3. Le déploiement sur Railway, après deux conditions de sécurité : une clé H dédiée au service (supprimée à l'arrêt du service, après le samedi 21 novembre 2026, jamais la clé de l'équipe) et Chrome sous un autre compte du conteneur que le moteur (ni la clé H ni les données du moteur ne lui sont visibles), prouvées par une commande dans le rapport.
 
 #### Lancer le service en local
 
