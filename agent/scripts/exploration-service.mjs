@@ -43,7 +43,7 @@ async function readAddress(request) {
 }
 
 export function createExplorationService({ data, run, resolveAddress = resolvePublic, now = Date.now,
-  pendingLimit = 5, hourlyLimit = 12, clientHourlyLimit = 4, tour }) {
+  pendingLimit = 5, hourlyLimit = 12, clientHourlyLimit = 12, tour }) {
   const jobs = new Map();
   const waiting = [];
   const admissions = [];
