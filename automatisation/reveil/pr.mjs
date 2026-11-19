@@ -253,7 +253,7 @@ export async function televerserCapture({ depot, branche, chemin, fichier, messa
 // read through raw.githubusercontent.com: one entry per PR and commit played, the latest first. entreeIndex composes the
 // entry of a passage from what the scene wrote (scene.json: passage, decisions, elements of the answer) and what the
 // wake-up knows (PR, commit, preview, address of the answer, captures pushed).
-export function entreeIndex({ pr, logiciel, report, scene, images = {} }) {
+export function entreeIndex({ pr, logiciel, report, scene, images = {}, pages = null }) {
   const elements = scene?.commentaire?.elements ?? {};
   const decided = (id) => scene?.decisions?.find(({ decision }) => decision.ecart_id === id)?.decision ?? null;
   const constat = (statut, genre) => (entry) => {
@@ -266,6 +266,8 @@ export function entreeIndex({ pr, logiciel, report, scene, images = {} }) {
     pr: { numero: pr.numero, adresse: pr.adresse, titre: pr.titre ?? null }, commit: pr.tete,
     reponse: report.commentaire?.url ?? null, etat: report.exploration?.etat ?? null, totaux: elements.totaux ?? null,
     duree_s: elements.duree_s ?? null, cout_usd: elements.cout_usd ?? null,
+    // Every page visited with its raw capture (since 19/11 evening); absent from older entries.
+    ...(pages ? { pages } : {}),
     constats: [...(elements.prouves ?? []).map(constat("VERIFIED_FAIL", "defaut")), ...(elements.doutes ?? []).map(constat("SUSPECTED", "doute"))],
   };
 }
@@ -349,6 +351,15 @@ export const adresseTour = (tour, passage, commit) => {
   return url.href;
 };
 
+// The path of an address (« / », « /ecole »), as the findings of the index name their page.
+const cheminDe = (adresse) => {
+  try {
+    return new URL(adresse).pathname || "/";
+  } catch {
+    return adresse;
+  }
+};
+
 // gh api with a JSON body given through a file (a capture in base64 is too long for the command line).
 async function ghApi([method, path], body) {
   const folder = body ? mkdtempSync(join(tmpdir(), "horama-gh-")) : null;
@@ -424,6 +435,7 @@ export async function jouerPr({ pr, fichiers, vault, logiciel, socle, sortie, sc
       // Option a (--captures-sur-branche): the captures ringed of the exploration put on a branch of the target
       // repository, shown in the answer. A capture that cannot be put there leaves its finding in text.
       let images = null;
+      let pagesVues = null;
       if (captures) {
         images = {};
         const elements = (() => {
@@ -438,7 +450,23 @@ export async function jouerPr({ pr, fichiers, vault, logiciel, socle, sortie, sc
           if (sent.url) images[item.id] = sent.url;
           else console.log(`réveil PR : capture ${item.id} non poussée, ${sent.raison}`);
         }
-        report.captures = { branche: captures.branche, poussees: Object.keys(images).length };
+        // The raw capture of every page visited (not only the pages with a finding), for the comparison of one page
+        // between two passages in the tower of control (11.5, #238): a page fixed by a later commit has no finding
+        // left, but still its capture.
+        const explored = (() => {
+          try {
+            return JSON.parse(readFileSync(join(folder, "exploration", "exploration.json"), "utf8"));
+          } catch {
+            return null;
+          }
+        })();
+        pagesVues = [];
+        for (const page of (explored?.pages ?? []).filter((entry) => entry.etat === "visitee" && entry.capture?.fichier)) {
+          const sent = await televerser({ ...captures, chemin: `pr-${pr.numero}/${pr.tete.slice(0, 7)}/pages/${page.ecran}.png`, fichier: join(folder, "exploration", page.capture.fichier), message: `Horama : capture de la page ${page.ecran}, PR #${pr.numero} (${pr.tete.slice(0, 7)})` });
+          if (!sent.url) console.log(`réveil PR : capture de la page ${page.ecran} non poussée, ${sent.raison}`);
+          pagesVues.push({ ecran: page.ecran, page: cheminDe(page.url), adresse: page.url, capture: sent.url ?? null, largeur: page.capture.largeur ?? null, hauteur: page.capture.hauteur ?? null });
+        }
+        report.captures = { branche: captures.branche, poussees: Object.keys(images).length, pages: pagesVues.filter((page) => page.capture).length };
       }
       const scene = (() => {
         try {
@@ -448,7 +476,7 @@ export async function jouerPr({ pr, fichiers, vault, logiciel, socle, sortie, sc
         }
       })();
       const publishIndex = async () => {
-        report.index = await indexer({ depot: captures.depot, branche: captures.branche, entree: entreeIndex({ pr, logiciel, report, scene, images: images ?? {} }) });
+        report.index = await indexer({ depot: captures.depot, branche: captures.branche, entree: entreeIndex({ pr, logiciel, report, scene, images: images ?? {}, pages: pagesVues }) });
         console.log(report.index.url ? `réveil PR : index des passages à jour (${report.index.passages} passage(s)), ${report.index.url}` : `réveil PR : index non publié, ${report.index.raison}`);
       };
       // --trancher-dans-la-tour: the entry first, without decision; the tower on « À relire » of this passage; the

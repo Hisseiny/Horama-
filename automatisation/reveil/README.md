@@ -113,6 +113,8 @@ Une entrée par PR et par commit (rejouer le même commit la remplace), la plus 
 
 `duree_s` et `cout_usd` (durée et coût H de l'exploration, depuis le 19/11 au soir) valent `null` dans les entrées plus anciennes.
 
+`pages` (depuis le 19/11 au soir) liste chaque page visitée avec sa capture brute, poussée sur la même branche (`pr-<numéro>/<sha court>/pages/<écran>.png`) : `{ ecran, page, adresse, capture, largeur, hauteur }`, `capture` à `null` si GitHub l'a refusée. Elle sert à comparer une même page entre deux passages dans la tour (11.5), y compris une page corrigée qui n'a plus de constat. Absente des entrées plus anciennes.
+
 ## Trancher dans la tour (`--trancher-dans-la-tour`, #238)
 
 Pour le pitch : la scène ne pose plus la question « bug ou voulu ? », on tranche dans la tour de contrôle.
