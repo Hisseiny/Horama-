@@ -349,7 +349,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
       await base.terminerPassage(result);
       const costs = [...report.agents.flatMap(item => item.cout_usd === null ? [] : [item.cout_usd]),
         ...report.pages.flatMap(page => page.holo?.cout_usd == null ? [] : [page.holo.cout_usd])];
-      report.cout_usd = costs.length ? costs.reduce((sum, cost) => sum + cost, 0) : null; save();
+      report.cout_usd = report.agents.some(item => item.cout_usd === null) ? null : costs.length ? costs.reduce((sum, cost) => sum + cost, 0) : null; save();
     },
   };
   const returned = { ...report, navigation };

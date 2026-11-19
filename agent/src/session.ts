@@ -140,6 +140,7 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
     }
     const fin = (async (): Promise<ResultatSession> => {
       let metrics: { total_cost?: number } | null = null;
+      let metricsComplete = false;
       let etapes = 0;
       let next = 0;
       let muted = false;
@@ -159,7 +160,7 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
           const wait = terminal ? 2 : Math.min(etapes ? 20 : 5, Math.max(1, Math.ceil((45_000 - idle) / 1000)));
           const changes = await h("GET", `/sessions/${id}/changes?from_index=${next}&wait_for_seconds=${wait}`);
           if (stopping) break;
-          if (!changes?.new_events?.length && terminal) break;
+          if (!changes?.new_events?.length && terminal) { metricsComplete = true; break; }
           if (!changes) continue;
           const events = changes.new_events ?? [];
           if (events.length) lastActivity = maintenant();
@@ -210,7 +211,7 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
       } catch {
         if (!input.signal?.aborted) signaler(`Session ${id} : replay public indisponible ; aucun lien ajouté au rapport.`);
       }
-      return { id, muted, cout_usd: metrics?.total_cost ?? null, etapes, ...(erreur ? { erreur } : {}), ...(replay_url ? { replay_url } : {}) };
+      return { id, muted, cout_usd: metricsComplete ? metrics?.total_cost ?? null : null, etapes, ...(erreur ? { erreur } : {}), ...(replay_url ? { replay_url } : {}) };
     })();
     return { id, fin, stop, async confirmStopped() {
       await stop();

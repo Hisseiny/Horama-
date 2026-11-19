@@ -965,6 +965,26 @@ test("le coût total inclut Holo sans modifier le coût de la session H", async 
   assert.equal(result.pages[0].holo?.cout_usd, 0.001);
 });
 
+for (const cost of [null, 0, 0.202]) {
+  test(`coût H ${cost} : Holo seul ne devient pas le coût total`, async () => {
+    const { result } = await run({ deps: {
+      session: async input => {
+        await input.onCreated("cost");
+        return { id: "cost", fin: (async () => {
+          for (const step of input.consigne.course) await input.onTool("relever", { ecran: step.ecran, vue: "defaut" });
+          return { id: "cost", muted: false, cout_usd: cost, etapes: 2 };
+        })() };
+      },
+      runtime: { relever: async ecran => ({ png: original, texte: "Page", url_page: ecran === "accueil" ? "https://example.org/" : "https://example.org/faq", largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture" }), navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
+      holo: async () => ({ status: "SUSPECTED", model: "holo4-27b", durationMs: 3, findings: [], usage: null, cost_usd: 0.001 }),
+    } });
+    assert.equal(result.agents[0].cout_usd, cost);
+    assert.equal(result.cout_usd, cost === null ? null : cost + 0.002);
+    const saved = JSON.parse(readFileSync(join(root, "out", "exploration.json"), "utf8"));
+    assert.equal(saved.cout_usd, result.cout_usd);
+  });
+}
+
 test("défaut à 4583 : capture viewport dédiée et zone dans l’image ; défaut visible conservé", async () => {
   const { result } = await run({ deps: {
     connecter: async () => ({ on() {}, close() {}, async send(method, params) {

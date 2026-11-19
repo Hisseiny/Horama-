@@ -22,7 +22,7 @@ for (const duringTool of [false, true]) {
         if (path.endsWith("/share")) return json({ share_url: "https://example.org/replay" });
         if (path.endsWith("/tool_results")) { results++; return json({}); }
         polls++; polled();
-        if (duringTool) return json({ status: "running", pending_tool_calls: [{ id: "last", tool_name: "relever", args: {} }] });
+        if (duringTool) return json({ status: "running", metrics: { total_cost: 0.001 }, pending_tool_calls: [{ id: "last", tool_name: "relever", args: {} }] });
         return new Promise<Response>(() => {});
       } });
     running = await session({ ...defaults(), onTool: async () => { await polling; await running.stop?.(); return "Acquis"; } });
@@ -31,6 +31,7 @@ for (const duringTool of [false, true]) {
     const result = await running.fin;
     assert.equal(result.muted, false);
     assert.equal(result.erreur, undefined);
+    assert.equal(result.cout_usd, null);
     assert.equal(polls, 1);
     assert.equal(results, 0);
   });
