@@ -84,3 +84,8 @@ pnpm install && pnpm -r --if-present run check
 ```
 
 La preuve chronométrée et les limites de la scène réelle sont dans `docs/tests/2026-11-17-reveil-local.md`.
+
+## Une seule PR
+
+`--numero <n>` limite le réveil à la PR n du dépôt, quelles que soient les autres PR ouvertes : avec `--une-fois`, il joue cette PR et s'arrête. Utile pour un passage publié (`--commenter`) sur une PR précise, alors que le réveil prend sinon la plus récente d'abord (19/11 : trois PR ouvertes sur le clone, #18, #17 et #16).
+

@@ -7,7 +7,7 @@
 // Several pushes in a row: only the last commit of the PR is played, once its own preview is ready.
 //
 // Usage: node automatisation/reveil/pr.mjs --depot <propriétaire/dépôt> --logiciel <logiciel du vault> [--intervalle 20]
-//          [--une-fois] [--a-blanc] [--vault vault-horama] [--sortie .orchestrateur/reveil-pr] [--faux-github <fichier.json>]
+//          [--une-fois] [--a-blanc] [--numero <PR>] [--vault vault-horama] [--sortie .orchestrateur/reveil-pr] [--faux-github <fichier.json>]
 //          [--max 8] [--pages-cliquees 8] [--sans-exploration] [--commenter] [--captures-sur-branche horama/captures]
 //          [-- options des deux scènes, par exemple --vitrine]
 // --commenter: one answer on the PR, once both scenes are done (the part of each scene).
@@ -367,7 +367,7 @@ async function main() {
   const separator = process.argv.indexOf("--");
   const sceneArgs = separator < 0 ? [] : process.argv.slice(separator + 1);
   const { values } = parseArgs({ args: process.argv.slice(2, separator < 0 ? undefined : separator), options: {
-    depot: { type: "string" }, logiciel: { type: "string" }, intervalle: { type: "string", default: "20" }, "une-fois": { type: "boolean" }, "a-blanc": { type: "boolean" },
+    depot: { type: "string" }, logiciel: { type: "string" }, intervalle: { type: "string", default: "20" }, "une-fois": { type: "boolean" }, "a-blanc": { type: "boolean" }, numero: { type: "string" },
     vault: { type: "string", default: "vault-horama" }, sortie: { type: "string", default: ".orchestrateur/reveil-pr" }, "faux-github": { type: "string" },
     max: { type: "string", default: "8" }, "pages-cliquees": { type: "string", default: "8" }, "sans-exploration": { type: "boolean" }, commenter: { type: "boolean" }, "captures-sur-branche": { type: "string" },
   } });
@@ -388,7 +388,12 @@ async function main() {
   const vault = resolve(ROOT, values.vault);
   if (!existsSync(join(vault, values.logiciel))) throw new Error(`pas de dossier ${values.logiciel} dans le vault ${vault}`);
   const sortie = resolve(ROOT, values.sortie);
-  const lecteur = values["faux-github"] ? lecteurFaux(resolve(values["faux-github"])) : lecteurGithub(values.depot);
+  const lu = values["faux-github"] ? lecteurFaux(resolve(values["faux-github"])) : lecteurGithub(values.depot);
+  // --numero <n>: this PR only, whatever the other open PRs of the repository (a passage published on one PR must not
+  // play, nor answer on, a newer PR first).
+  const numero = values.numero === undefined ? null : Number(values.numero);
+  if (numero !== null && !(Number.isInteger(numero) && numero > 0)) throw new Error("--numero attend le numéro d'une PR");
+  const lecteur = numero === null ? lu : { ...lu, prs: () => lu.prs().filter((pr) => pr.numero === numero) };
   const socle = JSON.parse(readFileSync(join(ROOT, "automatisation/impact/socle.json"), "utf8"))[values.logiciel] ?? [];
   if (values["a-blanc"]) {
     console.log(`réveil PR, à blanc : ${values.depot ?? values["faux-github"]}, vault ${values.logiciel}, rien n'est joué.`);
