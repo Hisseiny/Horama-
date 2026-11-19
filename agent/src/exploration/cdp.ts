@@ -76,7 +76,7 @@ export function refuseCookies(): boolean {
       }
     }
     while (parent && parent !== document.body && parent !== document.documentElement) {
-      const vocabulary = ambiguous ? /cookie|consent|einwilligung|traceurs/ : /cookie|consent|rgpd|gdpr|privacy|confidentialit|datenschutz|einwilligung/;
+      const vocabulary = ambiguous ? /cookie|consent|einwilligung/ : /cookie|consent|rgpd|gdpr|privacy|confidentialit|datenschutz|einwilligung/;
       if (vocabulary.test(normalize([parent.id, parent.className, parent.getAttribute("aria-label"), ...[parent, ...descendants(parent)].map(node => [node.textContent, node.shadowRoot?.textContent].join(" "))].join(" ")))) {
         element.click();
         return true;
