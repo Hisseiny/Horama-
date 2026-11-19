@@ -2,6 +2,45 @@ import type { CdpClient } from "./controles.ts";
 
 export interface ExplorationCdp extends CdpClient { close(): void }
 
+export function maskConsentBanners() {
+  const saved: Array<{ element: HTMLElement; value: string; priority: string }> = [];
+  for (const element of document.querySelectorAll<HTMLElement>("body *")) {
+    const style = getComputedStyle(element), rect = element.getBoundingClientRect();
+    if (!["fixed", "sticky"].includes(style.position) || style.visibility !== "visible" || Number(style.opacity) === 0
+      || rect.width <= 0 || rect.height <= 0 || rect.height > innerHeight * 0.6 || rect.right <= 0 || rect.left >= innerWidth
+      || rect.bottom <= 0 || rect.top >= innerHeight || Math.abs(rect.top) > 12 && Math.abs(rect.bottom - innerHeight) > 12) continue;
+    if (!/cookie|consent|privacy|confidentialit|datenschutz|einwilligung/i.test(element.innerText || element.textContent || "")) continue;
+    saved.push({ element, value: element.style.getPropertyValue("visibility"), priority: element.style.getPropertyPriority("visibility") });
+    element.style.setProperty("visibility", "hidden", "important");
+  }
+  return { count: saved.length, restore() {
+    for (const { element, value, priority } of saved) {
+      if (value) element.style.setProperty("visibility", value, priority);
+      else element.style.removeProperty("visibility");
+    }
+  } };
+}
+
+export async function hideCaptureOverlays(client: ExplorationCdp, log: (message: string) => void = () => {}) {
+  await client.send("Input.dispatchKeyEvent", { type: "keyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
+  await client.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
+  const result = await client.send("Runtime.evaluate", { expression: `(${maskConsentBanners.toString()})()` });
+  if (result.exceptionDetails) throw new Error("Masquage du consentement impossible.");
+  const objectId = result.result?.objectId;
+  const restore = async () => {
+    if (!objectId) return;
+    try { await client.send("Runtime.callFunctionOn", { objectId, functionDeclaration: "function() { this.restore(); }" }); }
+    finally { await client.send("Runtime.releaseObject", { objectId }); }
+  };
+  try {
+    if (objectId) {
+      const count = await client.send("Runtime.callFunctionOn", { objectId, functionDeclaration: "function() { return this.count; }", returnByValue: true });
+      if (count.result?.value > 0) log(`${count.result.value} bandeau(x) de consentement masqué(s) temporairement pour la capture Holo, sans clic.`);
+    }
+    return restore;
+  } catch (error) { await restore(); throw error; }
+}
+
 export function refuseCookies(): boolean {
   const normalize = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase().replace(/\s+/g, " ");
   const refusals = new Set(["tout refuser", "refuser", "refuser tout", "continuer sans accepter", "reject all", "reject", "decline", "deny", "only necessary", "necessary only", "necessaires uniquement", "uniquement les necessaires", "reject all cookies", "refuser tous les cookies"]);

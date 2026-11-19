@@ -1,6 +1,6 @@
-# Persona : la responsable du site d'Eugenia School (cas réel de la cible « marketeur qui vibe-code »)
+# Persona : la responsable du site d'Eugenia School, le marketeur qui vibe-code
 
-Rendu du mercredi 18/11 à 17 h, issue [#73](https://github.com/Hisseiny/Horama-/issues/73) (parcours utilisateur). Seconde persona, à côté du [CTO de Troov](persona-cto-troov.md). Depuis le 19/11, Horama est un seul produit pour deux cibles prioritaires, le CTO d'un SaaS et le marketeur qui vibe-code le site de son entreprise ([décision](../docs/decisions/2026-11-19-un-seul-produit.md)) ; elle ne code pas, mais son cas est celui de la seconde cible. Elle n'est pas nommée. Ce qui vient de Noé est sourcé en bas de page ; ce qui n'est pas mesuré est écrit « à mesurer ».
+Rendu du mercredi 18/11 à 17 h, issue [#73](https://github.com/Hisseiny/Horama-/issues/73) (parcours utilisateur). Seconde persona, à côté du [CTO de Troov](persona-cto-troov.md). Depuis le 19/11, Horama est un seul produit pour deux cibles prioritaires, le CTO d'un SaaS et le marketeur qui vibe-code le site de son entreprise ([décision](../docs/decisions/2026-11-19-un-seul-produit.md)) ; elle est notre marketeur qui vibe-code (décision de Noé, 19/11). Elle n'est pas nommée. Ce qui vient de Noé est sourcé en bas de page ; ce qui n'est pas mesuré est écrit « à mesurer ».
 
 ## Profil
 

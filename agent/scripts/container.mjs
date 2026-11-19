@@ -102,7 +102,7 @@ async function main(args) {
   if (args.length === 1 && args[0] === "--service") {
     const port = bound(process.env.PORT, 8787, 1, 65535);
     const max = bound(process.env.HORAMA_MAX_PAGES, 8, 1, 8);
-    const clicked = bound(process.env.HORAMA_PAGES_CLIQUEES, 2, 0, 8);
+    const clicked = bound(process.env.HORAMA_PAGES_CLIQUEES, 4, 0, 8);
     const seconds = bound(process.env.HORAMA_MAX_SECONDS, 240, 1, 420);
     const data = await mkdtemp("/data/explorations-");
     const { server, stop } = createExplorationService({ data, run: async (job, shutdown) => {

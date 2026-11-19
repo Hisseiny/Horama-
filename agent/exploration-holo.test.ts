@@ -83,7 +83,9 @@ test("visible findings remain suspected and the request disables thinking withou
     assert.equal(body.model, "holo4-27b");
     assert.equal(body.temperature, 0);
     assert.equal(body.chat_template_kwargs.enable_thinking, false);
-    assert.equal(body.messages[0].content[1].image_url.url, `data:image/png;base64,${png.toString("base64")}`);
+    assert.equal(body.messages[0].content[2].image_url.url, `data:image/png;base64,${png.toString("base64")}`);
+    assert.match(body.messages[0].content[1].text, /open menu or dropdown/);
+    assert.match(body.messages[0].content[1].text, /selected\/active tab/);
     assert.ok(!JSON.stringify(body.response_format).includes("["));
     assert.match(body.messages[0].content[0].text, /1280x900/);
     assert.match(body.messages[0].content[0].text, /one short sentence in plain French for a non-technical visitor/);

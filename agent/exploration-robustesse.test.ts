@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { runInNewContext } from "node:vm";
-import { captureDefect, prepareCapture, refuseCookies } from "./src/exploration/cdp.ts";
+import { captureDefect, hideCaptureOverlays, prepareCapture, refuseCookies } from "./src/exploration/cdp.ts";
 import type { ExplorationCdp } from "./src/exploration/cdp.ts";
 import type { CdpClient } from "./src/exploration/controles.ts";
 import { controlerPage } from "./src/exploration/controles.ts";
@@ -133,6 +133,25 @@ test("refus des cookies sur de vraies pages Chrome locales", { skip: !available 
   });
 
   const surface = { ...client, close() {} };
+  await t.test("masquage générique réversible sans clic et fermeture du menu par Échap", async () => {
+    for (const [position, edge, text] of [["fixed", "bottom:0", "Cookies and privacy"], ["sticky", "top:0", "Consentement et confidentialité"], ["fixed", "top:0", "Datenschutz und Einwilligung"]]) {
+      await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = ${JSON.stringify(`<div id="banner" style="position:${position};${edge};height:80px;width:100%;visibility:visible!important">${text}<form><button>Accept all</button></form></div><main>Privacy policy in the page</main><div id="newsletter" style="position:fixed;bottom:0;right:0">Newsletter</div><div id="middle" style="position:fixed;top:200px">Cookies</div><div id="menu">Menu</div>`)};
+        window.clicked = 0; document.onclick = () => window.clicked++;
+        document.onkeydown = event => { if (event.key === 'Escape') document.querySelector('#menu').hidden = true; };` });
+      const logs: string[] = [];
+      const restore = await hideCaptureOverlays(surface, message => logs.push(message));
+      const state = await client.send("Runtime.evaluate", { expression: "[getComputedStyle(document.querySelector('#banner')).visibility, getComputedStyle(document.querySelector('main')).visibility, getComputedStyle(document.querySelector('#newsletter')).visibility, getComputedStyle(document.querySelector('#middle')).visibility, document.querySelector('#menu').hidden, window.clicked]", returnByValue: true });
+      assert.deepEqual(state.result.value, ["hidden", "visible", "visible", "visible", true, 0]);
+      assert.equal(logs.length, 1);
+      const shot = await client.send("Page.captureScreenshot", { format: "png" });
+      assert.ok(shot.data.length > 100);
+      await restore();
+      assert.deepEqual((await client.send("Runtime.evaluate", { expression: "[document.querySelector('#banner').style.getPropertyValue('visibility'), document.querySelector('#banner').style.getPropertyPriority('visibility'), window.clicked]", returnByValue: true })).result.value, ["visible", "important", 0]);
+    }
+    await client.send("Runtime.evaluate", { expression: "document.body.innerHTML = '<main>Page sans bandeau</main>'" });
+    const restore = await hideCaptureOverlays(surface, () => assert.fail("Aucun bandeau à journaliser"));
+    await restore();
+  });
   await t.test("bannière apparue pendant la stabilisation : fermeture avant la capture", async () => {
     await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = '<main>Page locale</main>'; window.accepted = 0; setTimeout(() => {
       document.body.insertAdjacentHTML('beforeend', '<section id="late"><p>Stockage de cookies</p><button aria-label="Fermer">×</button><button id="accept">Autoriser tous les cookies</button></section>');

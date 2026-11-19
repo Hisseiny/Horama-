@@ -194,6 +194,7 @@ export async function askHolo(png: Buffer, { url, fetch: request = fetch, timeou
             model, temperature: 0, chat_template_kwargs: { enable_thinking: false }, max_tokens: 700,
             messages: [{ role: "user", content: [
               { type: "text", text: `Inspect only visible visual defects in this ${width}x${height} screenshot of ${url}. Do not infer anything not visible. Allowed kinds: ${kinds.join(", ")}. Report cut-off or overlapping text, misaligned elements, distorted images, or unreadable contrast only. Return JSON with exactly d0, d1, d2, d3, d4, each a string. Each finding must use "kind | x,y,width,height | one short sentence in plain French for a non-technical visitor" with no other pipe characters. The zone is a tight bounding box around the affected element: four integers normalized to [0,1000] relative to the full image, origin top-left, NOT screenshot pixels. Width and height must be positive and the box fully inside the image. The caller converts these coordinates to screenshot pixels. Use an empty string for unused keys. These are doubts, not proven defects.` },
+              { type: "text", text: "Do not report an open menu or dropdown list as an overlap or visual defect. Do not report the selected/active tab in a tab bar as a misaligned element: its different styling is intentional." },
               { type: "image_url", image_url: { url: `data:image/png;base64,${png.toString("base64")}` } },
             ] }],
             response_format: { type: "json_schema", json_schema: { name: "visible_defects", schema: {
