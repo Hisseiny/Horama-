@@ -85,6 +85,10 @@ pnpm install && pnpm -r --if-present run check
 
 La preuve chronométrée et les limites de la scène réelle sont dans `docs/tests/2026-11-17-reveil-local.md`.
 
+## Une seule PR
+
+`--numero <n>` limite le réveil à la PR n du dépôt, quelles que soient les autres PR ouvertes : avec `--une-fois`, il joue cette PR et s'arrête. Utile pour un passage publié (`--commenter`) sur une PR précise, alors que le réveil prend sinon la plus récente d'abord (19/11 : trois PR ouvertes sur le clone, #18, #17 et #16).
+
 ## L'index des passages (tour de contrôle, #149)
 
 Avec `--commenter --captures-sur-branche <branche>`, après chaque réponse publiée, le réveil met à jour `index.json` à la racine de cette branche du dépôt cible (la même que les captures, publique pour le clone). Il se lit sans connexion : `https://raw.githubusercontent.com/<dépôt>/<branche>/index.json` (par exemple `https://raw.githubusercontent.com/Hisseiny/eugenia-school-website/horama/captures/index.json`, mis en cache quelques minutes par GitHub).

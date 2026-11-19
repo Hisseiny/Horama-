@@ -29,7 +29,6 @@
   const SKY = "#E3E0F9"; // ciel: where the envoy flies
   const WING = "#AFA9EC";
   const IRIS = "#7F77DD"; // iris of the mascot, for the ripple of a click
-  const AILE = "#AFA9EC"; // lilac of the wings: the line of reading (S4), never a sign of proof
   const COLORS = { conforme: "#2E7D55", defaut: "#B8321F", doute: "#C48A1E" }; // olivier, miltos, ocre
   const STAMPS = { bug: "Bug noté", voulu: "Voulu" };
   // observe (the course), trouve (a proven defect ringed), doute (a finding of Holo), bloquee (the course stops for a
@@ -59,11 +58,7 @@
     :host { --miltos: ${COLORS.defaut}; --ocre: ${COLORS.doute}; }
     .zones { position: absolute; left: 0; top: 0; }
     .zone { position: absolute; transition: opacity 160ms ease-out; }
-    .zone.covered { opacity: 0 !important; }
-    /* S4 : la ligne de lecture de la mascotte, fine, droite, lilas des ailes, qui se trace au rythme de l'œil puis
-       s'efface. Rien à voir avec les signes de preuve (le trait miltos à main levée, les points ocre). */
-    .lecture { position: absolute; height: 2px; border-radius: 1px; background: ${AILE}; opacity: 0; transform-origin: left center; transform: scaleX(0); transition: opacity 400ms ease-out; }
-    .lecture.on { opacity: 0.9; transform: scaleX(1); transition: opacity 300ms ease-out, transform var(--lire, 3000ms) linear; } /* over .zone.old.done (three classes): a dashed old place hides too */
+    .zone.covered { opacity: 0 !important; } /* over .zone.old.done (three classes): a dashed old place hides too */
     .zone > svg, .shot .mark > svg { position: absolute; left: 0; top: 0; overflow: visible; }
     .zone.old { margin: -7px; padding: 7px; box-sizing: content-box; border: 3px dashed ${INK}; opacity: 0; transition: opacity 300ms ease-out; }
     .zone.old.done { opacity: 0.45; }
@@ -1049,7 +1044,6 @@
   // after the last gesture of H it flies slowly beside a title (or a paragraph) of the screen, reads it with its eye,
   // rests 3.5 s, then the next one; a gesture of H brings it back beside the arrow at once. Never on a text.
   const READ_AFTER = 2500, READ_PAUSE = 5000;
-  const readLine = element("div", "lecture");
   const readable = () => {
     // The part of an element on the screen (a title larger than the screen counts by its visible part), 40 × 10 px at least.
     const seen = (el, min = [40, 10]) => {
@@ -1075,7 +1069,6 @@
   };
   const stopReading = () => {
     clearTimeout(readTimer);
-    readLine.classList.remove("on");
     if (reading) {
       reading = null;
       wake();
@@ -1089,24 +1082,17 @@
     readIndex = (readIndex + 1) % list.length;
     const r = list[readIndex];
     const width = Math.min(r.width, 520);
-    readLine.classList.remove("on");
     reading = { look: { x: r.left + width / 2, y: r.top + r.height / 2 }, half: width / 2, left: r.left, width, start: null };
     goTo(nearSpot(reading.look, busy(), null, true));
     wake();
     const mine = reading;
-    // Once it has landed: the eye goes along the text from its start to its end, and the line of reading is drawn under
-    // it at the same pace (a text only, not a picture), then both rest until the next one (S4: what it reads is seen).
+    // Once it has landed, the eye goes along the text from its start to its end, then rests until the next one. Nothing
+    // is drawn: the only signs on the page are the stroke of miltos (a proven defect) and the ochre dots (a doubt). (A
+    // lilac line of reading, 19/11, was taken for a sign by Nathan: removed.)
     arrived().then(() => {
       if (reading !== mine) return;
-      const lire = Math.round(READ_PAUSE * 0.7);
+      mine.lire = Math.round(READ_PAUSE * 0.7);
       mine.start = performance.now();
-      mine.lire = lire;
-      if (r.image) return;
-      readLine.style.cssText = `left:${r.left + scrollX}px;top:${r.bottom + scrollY + 4}px;width:${width}px;--lire:${lire}ms`;
-      attach();
-      if (!readLine.isConnected) zonesBox.append(readLine);
-      void readLine.offsetWidth;
-      readLine.classList.add("on");
     });
     readTimer = setTimeout(readNext, READ_PAUSE + 1500);
   }
