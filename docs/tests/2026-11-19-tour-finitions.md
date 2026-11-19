@@ -20,6 +20,6 @@ Captures : `2026-11-19-tour-finitions/`.
 
 ## À savoir
 
-- Barre repliée : « Envoyer Horama » et « Se connecter » ne sont accessibles qu'en la redépliant.
+- Barre repliée (retouche après relecture de la coordination) : au-dessus de 600 px, « Envoyer Horama » et « Se connecter » ou « Se déconnecter » restent dans la bande de 72 px, en icônes avec `aria-label` et infobulle (captures `p5b-*`, vérifié à 1440 et 768, connecté et déconnecté). Sur téléphone, la barre repliée n'est qu'une ligne, et la redéplier les montre.
 - À 1280 px barre ouverte, et de 721 à 1100 px, la mascotte est rangée faute de marge libre (plutôt que de recouvrir le contenu).
 - Testé dans Chromium seulement ; la barre repliée repose sur `:has()`.

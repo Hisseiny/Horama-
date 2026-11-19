@@ -3,6 +3,7 @@ import { readFile, rm } from "node:fs/promises";
 import { createServer } from "node:http";
 import { join } from "node:path";
 import { resolvePublic } from "../src/exploration/reseau.ts";
+import { createTourService, tourOrigin } from "./tour-service.mjs";
 
 const hour = 3_600_000;
 const addressError = "Adresse refusée : indique l’adresse HTTP(S) d’un site public, sans identifiants.";
@@ -10,25 +11,30 @@ const fullError = "Le service est complet : réessaie dans quelques minutes.";
 const rateError = "Trop de demandes en une heure : réessaie plus tard.";
 const runError = "L’exploration a été interrompue avant de produire un rapport complet.";
 
-function send(response, status, body, type = Buffer.isBuffer(body) ? "image/png" : "application/json; charset=utf-8", headers = {}) {
-  response.writeHead(status, { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Cache-Control": "no-store", "Content-Type": type,
+const explorationCors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Content-Type" };
+function send(response, status, body, type = Buffer.isBuffer(body) ? "image/png" : "application/json; charset=utf-8", headers = {}, cors = explorationCors) {
+  response.writeHead(status, { ...cors, "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Cache-Control": "no-store", "Content-Type": type,
     "X-Content-Type-Options": "nosniff", ...headers });
   response.end(status === 204 ? undefined : Buffer.isBuffer(body) ? body : JSON.stringify(body));
 }
 
-async function readAddress(request) {
+async function readJson(request, limit) {
   const chunks = [];
   let bytes = 0;
   for await (const chunk of request.iterator({ destroyOnReturn: false })) {
     bytes += chunk.length;
-    if (bytes > 4096) {
+    if (bytes > limit) {
       request.resume();
       throw new Error();
     }
     chunks.push(chunk);
   }
-  const { url } = JSON.parse(Buffer.concat(chunks).toString());
+  return JSON.parse(Buffer.concat(chunks).toString());
+}
+
+async function readAddress(request) {
+  const { url } = await readJson(request, 4096);
   if (typeof url !== "string") throw new Error();
   const address = new URL(url);
   if (!/^https?:$/.test(address.protocol) || address.username || address.password) throw new Error();
@@ -37,13 +43,32 @@ async function readAddress(request) {
 }
 
 export function createExplorationService({ data, run, resolveAddress = resolvePublic, now = Date.now,
-  pendingLimit = 5, hourlyLimit = 12, clientHourlyLimit = 4 }) {
+  pendingLimit = 5, hourlyLimit = 12, clientHourlyLimit = 4, tour }) {
   const jobs = new Map();
   const waiting = [];
   const admissions = [];
   let active;
   let validating = 0;
   let available = true;
+  const handleTour = createTourService({ ...tour, now, readJson, runtimeData: async () => ({
+    agent: { disponible: available && !active, file_attente: waiting.length },
+    explorations: await Promise.all([...jobs.values()].reverse().map(async job => {
+      const report = await readReport(job);
+      const address = new URL(job.url);
+      address.search = "";
+      return {
+        id: job.id, url: address.href, date: new Date(job.admitted).toISOString(),
+        etat: report?.etat ?? (job.finished !== undefined ? "interrompue" : job === active ? "en_cours" : "en_file"),
+        pages: report?.totaux?.pages_visitees ?? null, defauts: report?.totaux?.defauts ?? null,
+        doutes: report?.totaux?.doutes ?? null, duree_s: report?.duree_s ?? null, cout_usd: report?.cout_usd ?? null,
+      };
+    })),
+  }) });
+
+  async function readReport(job) {
+    const report = await readFile(join(job.directory, "exploration.json"), "utf8").then(JSON.parse).catch(() => null);
+    return report?.format === "horama-exploration-1" && (job.finished === undefined || report.etat !== "en_cours") ? report : null;
+  }
 
   function startNext() {
     if (active || !available || !waiting.length) return;
@@ -71,6 +96,18 @@ export function createExplorationService({ data, run, resolveAddress = resolvePu
 
   async function handle(request, response) {
     const { pathname } = new URL(request.url, "http://localhost");
+    if (pathname.startsWith("/tour/")) {
+      prune();
+      const origin = request.headers.origin;
+      const cors = { Vary: "Origin", "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        ...(tourOrigin(origin) ? { "Access-Control-Allow-Origin": origin } : {}) };
+      const reply = (status, body, headers) => send(response, status, body, undefined, headers, cors);
+      try {
+        return await handleTour(pathname, request, reply);
+      } catch {
+        if (!response.headersSent && !response.destroyed) return reply(503, { erreur: "Service de la tour indisponible." });
+      }
+    }
     if (request.method === "OPTIONS") return send(response, 204);
     if (request.method === "GET" && pathname === "/sante") return send(response, available ? 200 : 503, { ok: available });
     prune();
@@ -89,8 +126,8 @@ export function createExplorationService({ data, run, resolveAddress = resolvePu
       if (limited()) return send(response, 429, { erreur: rateError });
       if (!available || waiting.length >= pendingLimit) return send(response, 503, { erreur: fullError });
       const id = randomUUID();
-      const job = { id, url: address.href, directory: join(data, id) };
-      admissions.push({ ip, at: now() });
+      const job = { id, url: address.href, directory: join(data, id), admitted: now() };
+      admissions.push({ ip, at: job.admitted });
       jobs.set(id, job);
       waiting.push(job);
       startNext();
@@ -110,9 +147,8 @@ export function createExplorationService({ data, run, resolveAddress = resolvePu
       return capture ? send(response, 200, capture) : send(response, 404, { erreur: "Capture introuvable." });
     }
     const finished = job.finished !== undefined;
-    const report = await readFile(join(job.directory, "exploration.json"), "utf8")
-      .then(JSON.parse).catch(() => null);
-    if (report?.format === "horama-exploration-1" && (report.etat !== "en_cours" || !finished)) {
+    const report = await readReport(job);
+    if (report) {
       return send(response, 200, { ...report, ...(!finished && job.frame ? { direct: true } : {}) });
     }
     if (finished) return send(response, 503, { erreur: runError });
