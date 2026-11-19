@@ -672,7 +672,7 @@ test("constats de contrôle regroupés par type, mesure et zone à un pixel prè
   }
 });
 
-test("trois éléments hors écran recadrés au même endroit donnent un constat et une capture", async () => {
+test("trois éléments hors écran recadrés au même endroit gardent chacun leur constat et leur capture", async () => {
   let scrollY = 0;
   const { result, base } = await run({ deps: {
     connecter: async () => ({ send: async (method, params) => {
@@ -689,16 +689,16 @@ test("trois éléments hors écran recadrés au même endroit donnent un constat
       zone: { x: index === 3 ? 500 : 668.5, y, largeur: 96, hauteur: 89.1875 },
     })),
   } });
-  assert.equal(result.totaux.defauts, 4);
+  assert.equal(result.totaux.defauts, 8);
   for (const page of result.pages) {
     const findings = result.constats.filter(item => item.ecran === page.ecran && item.source === "controle");
-    assert.equal(findings.length, 2);
-    assert.match(findings[0].description, /#element-1, #element-2, #element-3/);
-    assert.equal(findings[1].preuve.element, "#element-4");
-    assert.ok(existsSync(join(root, "out", findings[0].capture)));
-    assert.ok(existsSync(join(root, "out", findings[1].capture)));
-    assert.equal(existsSync(join(root, "out/captures", `${page.ecran}--controle--3.png`)), false);
-    assert.equal(Object.keys(base.resultats.find(item => item.test_id === `exploration--${page.ecran}`)!.valeurs).length, 2);
+    assert.deepEqual(findings.map(item => item.preuve.element), ["#element-1", "#element-2", "#element-3", "#element-4"]);
+    assert.equal(new Set(findings.map(item => item.capture)).size, 4);
+    for (const item of findings) {
+      assert.ok(existsSync(join(root, "out", item.capture)));
+      assert.ok(item.zone);
+    }
+    assert.equal(Object.keys(base.resultats.find(item => item.test_id === `exploration--${page.ecran}`)!.valeurs).length, 4);
   }
 });
 

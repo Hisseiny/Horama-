@@ -39,7 +39,7 @@ const response = (body, status = 200) => Response.json(body, { status });
 const encoded = (text, sha) => ({ sha, encoding: "base64", content: Buffer.from(text).toString("base64") });
 const finding = () => ({ id: payload.constat, texte: "Le titre dépasse.", zone: { x: 1, y: 2, largeur: 3, hauteur: 4 }, decision: null });
 
-async function setup(t, { variables = env, run = async () => {} } = {}) {
+async function setup(t, { variables = env, run = async () => {}, log = () => {} } = {}) {
   let clock = Date.parse("2026-11-19T16:00:00Z");
   const directory = await mkdtemp(join(tmpdir(), "horama-tour-"));
   const state = {
@@ -122,7 +122,7 @@ async function setup(t, { variables = env, run = async () => {} } = {}) {
     return response({}, 404);
   }
   const { server, stop } = createExplorationService({
-    data: directory, now: () => clock, run, resolveAddress: async () => {}, tour: { env: variables, fetchGitHub },
+    data: directory, now: () => clock, run, resolveAddress: async () => {}, tour: { env: variables, fetchGitHub, log },
   });
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
@@ -259,6 +259,17 @@ test("an unknown passage or finding answers 404 without writing", async t => {
   assert.equal((await post("/tour/decision", { ...payload, passage: "inconnu" }, token)).status, 404);
   assert.equal((await post("/tour/decision", { ...payload, constat: "inconnu" }, token)).status, 404);
   assert.equal((await post("/tour/decision", { ...payload, decision: "peut-etre" }, token)).status, 400);
+  assert.deepEqual(state.writes, []);
+});
+
+test("a GitHub refusal answers 503 with its status and logs it", async t => {
+  const logs = [];
+  const { post, session, state } = await setup(t, { log: message => logs.push(message) });
+  state.beforeWrite = () => 403;
+  const reply = await post("/tour/decision", payload, await session());
+  assert.equal(reply.status, 503);
+  assert.match((await reply.json()).erreur, /GitHub 403/);
+  assert.deepEqual(logs, ["Tour /tour/decision : GitHub 403 : GitHub indisponible."]);
   assert.deepEqual(state.writes, []);
 });
 
