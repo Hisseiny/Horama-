@@ -19,3 +19,11 @@ Retour de Nathan sur les vidéos : la mascotte ne change pas d'expression quand 
 ## Ce qui n'est pas testé
 
 Avec H : passage filmé de vérification.
+
+## Après la relecture de Devin sur #190
+
+- Le retour à « observe » armé par un geste de H après un trait A est lié à ce trait : un trait B dessiné avant ne perd plus son expression (Devin l'avait reproduit : « doute » de B effacé 1,5 s après, sans geste). Test : deux traits de suite, l'expression de B reste ; sans le correctif, le test échoue (« le délai armé après le trait A n'efface pas l'expression du trait B »).
+- Au moment du trait, la zone, la flèche et son chemin restent une règle dure (poids 60 et plus) ; un texte voisin n'est plus qu'un coût, en repli.
+- Une zone qui remplit l'écran (aucune place libre de la zone et de la flèche) : la mascotte ne vole pas ; si elle est déjà sur la zone, elle disparaît le temps du trait. Test : pas de vol vers une zone de 1280 × 900.
+- `mascotte.test.mjs`, signalé en échec chez Devin en isolé (« seul l'œil change ») : 4 fois sur 4 sans échec sur le Mac sur la branche de S3. Échec non reproduit ici ; vraisemblablement l'instabilité connue (rendu ou fin du vol à 2,4 s), à confirmer sous Linux.
+- Tests de la scène : 9 fichiers, 0 échec.
