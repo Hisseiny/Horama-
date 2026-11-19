@@ -19,8 +19,10 @@ Les deux versions ont été construites avec `pnpm install --frozen-lockfile && 
 
 Sur `/ecole`, trois relevés locaux sans comparaison ont duré 26, 17 et 15 ms. Les trois relevés avec comparaison ont duré 1 752, 1 745 et 1 757 ms. Écart des médianes : **1 735 ms**. La comparaison a chargé une page FR par relevé, avec ses ressources, et consulté `robots.txt`. Coût API ajouté : **0**, aucun appel à H, Holo ou Hugging Face dans le contrôle. Le temps d'un parcours H complet n'a pas été mesuré ici.
 
+La mesure répétée après la revue de la PR #202 retrouve le paragraphe témoin sur la prévisualisation publique en 23 ms, ainsi que les mêmes résultats sur les quatre pages comparées. Les relevés sans comparaison durent 26, 18 et 16 ms. Avec comparaison, ils durent 1 748, 1 746 et 1 738 ms. L’écart des médianes est de **1 728 ms**.
+
 ## Cas Chrome sans réseau externe
 
-`node --test agent/exploration-controles.test.ts` exerce un serveur local. Bouton de deux mots identiques prouvé, mot isolé en doute, exclusions de visibilité et de contenu, débordement en DE seul avec PNG côte à côte, débordements ordinaires dans les deux versions ou sans composant apparié, aucun chargement FR en l’absence d’annonce.
+`node --test agent/exploration-controles.test.ts` exerce un serveur local. Bouton de deux mots identiques prouvé, mot isolé en doute, exclusions de visibilité et de contenu, débordement en DE seul avec PNG côte à côte, débordements ordinaires dans les deux versions ou sans composant apparié, aucun chargement FR en l’absence d’annonce. Deux cas couvrent la comparaison du texte autour d’un segment de langue explicite et avant une adresse.
 
 Le moteur compare une référence de même origine, lorsque le site indique un autre lien de langue unique ou une référence `x-default` non ambiguë. Un sélecteur fondé sur des liens de langue requiert aussi un lien retour. En l'absence de référence exploitable, le contrôle par mots outils peut encore signaler le texte long. La capture comparée est exposée dans la preuve du constat d'exploration.

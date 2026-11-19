@@ -123,8 +123,13 @@ function inspectComponents() {
 
 type Component = ReturnType<typeof inspectComponents>[number];
 
+function comparableText(text: string) {
+  const streetAddress = /(?:\b\d+[a-z]?\s+(?:rue|avenue|boulevard|street|road)\b|\b[\p{L}-]*(?:straße|strasse|weg|platz)\s+\d+[a-z]?\b)[^.!?;]*/giu;
+  const contactAddress = /(?:https?:\/\/|www\.)\S+|[\w.+-]+@[\w.-]+\.[a-z]{2,}/giu;
+  return text.replace(streetAddress, " ").replace(contactAddress, " ").replace(/\s+/g, " ").trim();
+}
+
 function wordsToCompare(text: string) {
-  if (/https?:\/\/|www\.|[^\s@]+@[^\s@]+\.[^\s@]+|^\+?[\d\s().-]+$|\b\d+\s+(?:rue|avenue|boulevard|street|road)\b|\b(?:straße|strasse|weg|platz)\s+\d+\b/iu.test(text)) return [];
   const words = text.match(/\p{L}+(?:['’\u2010-]\p{L}+)*/gu) ?? [];
   // Names without any sentence context are ambiguous. A single capitalized word is still only a doubt.
   if (words.length > 1 && words.every(word => /^\p{Lu}/u.test(word))) return [];
@@ -221,8 +226,9 @@ export async function compareTranslation(client: CdpClient, defects: Defaut[], o
       for (const component of translated) {
         const before = referenceComponents.get(component.key);
         if (!before) continue;
-        const { text, selector, zone } = component;
-        if (text === before.text) {
+        const { selector, zone } = component;
+        const text = comparableText(component.text);
+        if (text === comparableText(before.text)) {
           const words = wordsToCompare(text);
           if (!words.length) continue;
           const measure = `« ${text.slice(0, 240)} » (${words.length} mot${words.length === 1 ? "" : "s"}, ${reference.lang} / ${page.lang})`;
