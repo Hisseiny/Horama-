@@ -101,6 +101,7 @@ Chacun met à jour ses propres lignes, dans la pull request de la tâche.
 | 5.9 | Gel du soir : étiquette `demo-ok-jeudi` ; ensuite, seules les corrections de bug critiques, fusionnées par Ali | Ali | à faire |  |
 | 5.10 | README et « comment tester » en brouillon (trois façons de voir Horama, et le faux SaaS pour un développeur) | Ali | codé non testé | README et guide d'exécution livrés dans la [PR #16 fusionnée](https://github.com/Hisseiny/Horama-/pull/16) ; commandes vérifiées, [preuve](tests/2026-11-17-readme-architecture.md). Correction du README agent sur le partage incluse dans la [PR #26](https://github.com/Hisseiny/Horama-/pull/26) en relecture. validation par une autre personne à attester. |
 | 5.11 | Peer review du soir | Tous | à faire |  |
+| #238 | Service Railway de la tour en écriture | Léon | testé hors ligne | [Vérifications](tests/2026-11-19-tour-service.md). Correction de note en `501`. Déploiement et répétition à faire. |
 
 ## Phase 6. Vendredi : les livrables et le pitch
 

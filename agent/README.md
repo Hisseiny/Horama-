@@ -105,3 +105,26 @@ et les notes manquantes sont créées, sans écraser les notes existantes, même
 rapports de passages du site ; chaque écran compare sa dernière référence antérieure.
 Ctrl+C arrête la session et conserve une synthèse interrompue. Aucun passage réel ni
 contrôle visuel humain n'est attesté par les tests hors ligne.
+
+## Service Railway de la tour (#238)
+
+Configurer le compte d'équipe avec `TOUR_EMAIL` et `TOUR_NOM`. Mettre dans
+`TOUR_MOT_DE_PASSE_HASH` une chaîne `scrypt:<sel hex>:<clé hex>` produite avec
+un sel aléatoire de 16 octets et `scrypt` de Node (paramètres par défaut, clé de
+64 octets). Utiliser un secret aléatoire de 32 octets ou plus dans `TOUR_SECRET`.
+`GITHUB_TOKEN_TOUR` doit permettre la lecture et l'écriture du contenu des
+deux dépôts spécifiés dans [#238](https://github.com/Hisseiny/Horama-/issues/238).
+
+- `POST /tour/session` donne un jeton valide 12 h. Envoyer ce jeton dans
+  `Authorization: Bearer <jeton>` pour les écritures. Après cinq essais de
+  connexion par IP en une minute, le service répond `429`.
+- `GET /tour/donnees` renvoie l'index, les notes Markdown du vault du clone
+  (chemins relatifs au vault), et les explorations récentes avec leurs nombres
+  de pages visitées, défauts et doutes. Les mesures indisponibles valent `null`.
+- `POST /tour/decision` enregistre le choix dans l'index, puis sa note dans le
+  vault. Chaque écriture produit son propre commit. Après un `503`, rejouer la
+  demande. Si l'index avait été écrit, la note est complétée avant le `409`.
+- `POST /tour/test` prend l'identifiant du test comme valeur de `test`.
+  Pour `modifier`, fournir au moins une section (`task` ou `verification`),
+  avec son contenu Markdown. Le test modifié est accepté.
+- `POST /tour/doc` renvoie `501` après authentification.
