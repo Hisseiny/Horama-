@@ -13,7 +13,7 @@ export function maskConsentBanners() {
     const children = descendants(element);
     if (!/cookie|consent|privacy|confidentialit|datenschutz|einwilligung/i.test([element, ...children].map(node => [node.textContent, node.shadowRoot?.textContent].join(" ")).join(" "))) continue;
     const controls = children.filter(child => child.matches('button, [role="button"], a'));
-    if (![...controls].some(control => /\b(?:accepter|refuser|parametrer|personnaliser|autoriser|j['’]accepte|accept|reject|decline|manage|customize|preferences|allow|agree|let\s+me\s+choose|laissez-moi\s+choisir|choisir|options|no,?\s+thanks|non\s+merci|nein\s+danke|akzeptieren|ablehnen|einstellungen|zustimmen|erlauben)\b/i.test(
+    if (![...controls].some(control => /\b(?:accepter|refuser|parametrer|personnaliser|autoriser|j['’]accepte|accept|reject|decline|manage|customize|preferences|allow|agree|let\s+me\s+choose|laissez-moi\s+choisir|cookie\s+settings|parametres\s+des\s+cookies|gerer\s+les\s+cookies|no,?\s+thanks|non\s+merci|nein\s+danke|akzeptieren|ablehnen|einstellungen|zustimmen|erlauben)\b/i.test(
       [control.innerText || control.textContent, control.getAttribute("aria-label"), control.getAttribute("title")].join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "")))) continue;
     saved.push({ element, value: element.style.getPropertyValue("visibility"), priority: element.style.getPropertyPriority("visibility") });
     element.style.setProperty("visibility", "hidden", "important");

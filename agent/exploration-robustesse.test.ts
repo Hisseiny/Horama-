@@ -232,14 +232,18 @@ test("refus des cookies sur de vraies pages Chrome locales", { skip: !available 
     }
   });
   await t.test("carte à 20 px : choix de consentement masqué sans clic, OK seul ignoré", async () => {
-    for (const label of ["Let me choose", "Laissez-moi choisir", "Choisir", "Options", ""]) {
+    for (const label of ["Let me choose", "Laissez-moi choisir", "Cookie settings", "Paramètres des cookies", "Gérer les cookies", "Choisir", "Options", ""]) {
       await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = ${JSON.stringify(`<aside id="banner" style="position:fixed;bottom:20px;left:20px">Cookies <button>OK</button>${label ? `<button>${label}</button>` : ''}</aside>`)}; window.clicked = 0; document.onclick = () => window.clicked++;` });
       assert.equal((await client.send("Runtime.evaluate", { expression: `(${refuseCookies.toString()})()`, returnByValue: true })).result.value, false, label);
       const restore = await hideCaptureOverlays(surface);
-      assert.deepEqual((await client.send("Runtime.evaluate", { expression: "[getComputedStyle(document.querySelector('#banner')).visibility, window.clicked]", returnByValue: true })).result.value, [label ? "hidden" : "visible", 0], label);
+      assert.deepEqual((await client.send("Runtime.evaluate", { expression: "[getComputedStyle(document.querySelector('#banner')).visibility, window.clicked]", returnByValue: true })).result.value, [["", "Choisir", "Options"].includes(label) ? "visible" : "hidden", 0], label);
       await restore();
       assert.deepEqual((await client.send("Runtime.evaluate", { expression: "[getComputedStyle(document.querySelector('#banner')).visibility, window.clicked]", returnByValue: true })).result.value, ["visible", 0], label);
     }
+    await client.send("Runtime.evaluate", { expression: "document.body.innerHTML = '<header style=\"position:sticky;top:0\"><a href=\"#\">Privacy</a><button>Options</button></header>';" });
+    const restore = await hideCaptureOverlays(surface, () => assert.fail("La navigation ne doit pas être masquée"));
+    assert.equal((await client.send("Runtime.evaluate", { expression: "getComputedStyle(document.querySelector('header')).visibility", returnByValue: true })).result.value, "visible");
+    await restore();
   });
   await t.test("bannière apparue pendant la stabilisation : fermeture avant la capture", async () => {
     await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = '<main>Page locale</main>'; window.accepted = 0; setTimeout(() => {
