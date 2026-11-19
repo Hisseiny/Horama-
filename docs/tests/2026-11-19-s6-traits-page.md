@@ -16,3 +16,10 @@ Retour de Nathan sur la vidéo du Louvre : à 1:23, les quatre ronds de l'accuei
 ## Ce qui n'est pas testé
 
 Avec H, sur louvre.fr et le clone : passage filmé de vérification (après S2 et S9). Un carrousel qui fait glisser la zone cache aussi son trait (l'élément au milieu change) : voulu, à vérifier sur la vidéo.
+
+## Après la relecture de Devin sur #189
+
+- `.zone.covered` passe en `opacity: 0 !important` : `.zone.old.done` (trois classes, opacité 0,45) l'emportait, et le pointillé d'un ancien emplacement restait visible par-dessus un menu (1 518 pixels mesurés par Devin).
+- L'élément retenu sous une zone qui sort du document (bandeau de cookies fermé, partie de page redessinée) est remplacé par l'élément présent ; avant, le trait restait caché pour toujours. Nouvelle étape du test : la page redessine l'élément entouré, le trait reste ; sans le correctif, le test échoue (« le trait reste quand la page redessine l'élément entouré »).
+- Le filtre de couleur du test est resserré autour du miltos (r > 170, v < 70, b < 60) : sous Linux, les franges du lissage du texte noir passaient l'ancien filtre (échec 3 fois sur 3 chez Devin).
+- À noter pour la fusion de `dev` vers `main` : les tests de `automatisation/scene/` ne font pas partie de `pnpm -r check`, ils ne tournent qu'à la main (`node --test automatisation/scene/*.test.mjs`).
