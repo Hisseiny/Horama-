@@ -1,3 +1,5 @@
+import type { CdpClient } from "./controles.ts";
+
 export type HoloKind = "cut-off-text" | "overlapping-text" | "misaligned-element" | "distorted-image" | "unreadable-contrast";
 export type HoloModel = "holo4-27b" | "holo4-35b-a3b";
 export type HoloFinding = {
@@ -10,6 +12,89 @@ export interface HoloOptions {
   fetch?: typeof fetch;
   timeoutMs?: number;
   apiKey?: string;
+}
+export interface HoloElement {
+  selector: string;
+  text: string;
+  header: boolean;
+  visible: boolean;
+}
+
+export function sameHeaderElement(first: HoloElement, second: HoloElement): boolean {
+  return first.header && second.header && (first.text && second.text
+    ? first.text === second.text : first.selector === second.selector && !!first.selector);
+}
+
+export function isCutFinding(finding: HoloFinding): boolean {
+  return finding.kind !== "overlapping-text" && (finding.kind === "cut-off-text"
+    || /\b(masqu[ée]|coup[ée]|rogn[ée]|tronqu[ée]|hidden|clipped|cut.off|obscured)/i.test(finding.sentence));
+}
+
+export async function inspectHoloElement(client: CdpClient, finding: HoloFinding,
+  capture: { url: string; width: number; height: number; scroll: [number, number] }): Promise<HoloElement | null> {
+  if (!finding.zone) return null;
+  function inspect(zone: NonNullable<HoloFinding["zone"]>, expected: typeof capture): HoloElement | null {
+    if (location.href !== expected.url || Math.abs(scrollX - expected.scroll[0]) > 1 || Math.abs(scrollY - expected.scroll[1]) > 1
+      || innerWidth !== expected.width || innerHeight !== expected.height) return null;
+    const elements = Array.from(document.querySelectorAll("body *"));
+    const candidates = elements.flatMap(element => {
+      if (element.closest("svg") && !element.matches("svg")) return [];
+      if (!element.matches("img,svg,canvas,video,input") && !element.hasAttribute("aria-label")
+        && !Array.from(element.childNodes).some(node => node.nodeType === Node.TEXT_NODE && node.textContent?.trim())) return [];
+      const box = element.getBoundingClientRect();
+      const intersection = Math.max(0, Math.min(box.right, zone.x + zone.largeur) - Math.max(box.left, zone.x))
+        * Math.max(0, Math.min(box.bottom, zone.y + zone.hauteur) - Math.max(box.top, zone.y));
+      return intersection ? [{ element, box, score: intersection / (box.width * box.height + zone.largeur * zone.hauteur - intersection) }] : [];
+    }).sort((a, b) => b.score - a.score);
+    const best = candidates[0];
+    if (!best || best.score < 0.02 || candidates.some(other => other !== best && Math.abs(other.score - best.score) < 0.01
+      && !best.element.contains(other.element) && !other.element.contains(best.element))) return null;
+    const { element, box } = best;
+    const path: string[] = [];
+    for (let node: Element | null = element; node; node = node.parentElement) {
+      if (node.id && document.querySelectorAll(`#${CSS.escape(node.id)}`).length === 1) { path.unshift(`#${CSS.escape(node.id)}`); break; }
+      const siblings = node.parentElement ? Array.from(node.parentElement.children).filter(sibling => sibling.localName === node!.localName) : [];
+      path.unshift(`${node.localName}${siblings.length > 1 ? `:nth-of-type(${siblings.indexOf(node) + 1})` : ""}`);
+    }
+    let visible = box.width > 1 && box.height > 1 && box.left >= 0 && box.top >= 0 && box.right <= innerWidth && box.bottom <= innerHeight;
+    for (let node: Element | null = element; node; node = node.parentElement) {
+      const css = getComputedStyle(node);
+      if (css.visibility !== "visible" || Number(css.opacity) === 0 || css.clipPath !== "none" || css.clip !== "auto"
+        || css.maskImage !== "none" || node === element && (node.scrollWidth > node.clientWidth || node.scrollHeight > node.clientHeight)) visible = false;
+    }
+    for (const x of [box.left + Math.min(1, box.width / 4), box.left + box.width / 2, box.right - Math.min(1, box.width / 4)]) {
+      for (const y of [box.top + Math.min(1, box.height / 4), box.top + box.height / 2, box.bottom - Math.min(1, box.height / 4)]) {
+        const hit = document.elementFromPoint(x, y);
+        if (!hit || hit !== element && !element.contains(hit)) visible = false;
+      }
+    }
+    const paintedColor = (color: string) => color !== "transparent" && !/(?:^(?:rgba|hsla)\([^)]*,|\/)\s*0(?:\.0+)?%?\s*\)$/.test(color);
+    for (const other of elements) {
+      if (other === element || other.contains(element) || element.contains(other)) continue;
+      const css = getComputedStyle(other);
+      if (css.pointerEvents !== "none" || css.visibility !== "visible") continue;
+      const bounds = other.getBoundingClientRect();
+      if (bounds.width <= 0 || bounds.height <= 0 || bounds.right <= box.left || bounds.left >= box.right
+        || bounds.bottom <= box.top || bounds.top >= box.bottom) continue;
+      let hidden = false;
+      for (let node: Element | null = other; node; node = node.parentElement) {
+        if (Number(getComputedStyle(node).opacity) === 0) hidden = true;
+      }
+      if (hidden) continue;
+      const painted = paintedColor(css.backgroundColor) || css.backgroundImage !== "none" || other.matches("img,svg,canvas,video")
+        || paintedColor(css.color) && Array.from(other.childNodes).some(node => node.nodeType === Node.TEXT_NODE && node.textContent?.trim())
+        || ["top", "right", "bottom", "left"].some(side => parseFloat(css.getPropertyValue(`border-${side}-width`)) > 0
+          && paintedColor(css.getPropertyValue(`border-${side}-color`)));
+      if (painted) return null;
+    }
+    const text = (element.getAttribute("aria-label") || element.getAttribute("alt") || element.textContent || "").normalize("NFKC").replace(/\s+/g, " ").trim().toLowerCase();
+    return { selector: path.join(" > "), text, header: !!element.closest('header,[role="banner"]'), visible };
+  }
+  try {
+    const response = await client.send("Runtime.evaluate", { expression: `(${inspect.toString()})(${JSON.stringify(finding.zone)},${JSON.stringify(capture)})`, returnByValue: true });
+    const value = response.result?.value;
+    return value && typeof value.selector === "string" && typeof value.text === "string" && typeof value.header === "boolean" && typeof value.visible === "boolean" ? value : null;
+  } catch { return null; }
 }
 type HoloUsage = { prompt_tokens: number; completion_tokens: number };
 export type HoloResult = {
