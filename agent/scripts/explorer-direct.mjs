@@ -3,7 +3,7 @@ import { appendFileSync, mkdirSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { BaseMemoire } from "../src/base.ts";
+import { BaseMemoire, creerBaseSupabase } from "../src/base.ts";
 import { ouvrirNavigateur } from "../src/browser.ts";
 import { HELP, lireArguments } from "../src/exploration/cli.ts";
 import { explorer } from "../src/exploration/explorer.ts";
@@ -104,7 +104,7 @@ async function main(args) {
     };
     watch = (async () => { while (watching) { await poll(); await scene.sleep(250); } })();
     const noHolo = async () => ({ status: "SUSPECTED", findings: [], model: "holo4-27b", durationMs: 0 });
-    const report = await explorer(options, { base: new BaseMemoire(), runtime,
+    const report = await explorer(options, { base: options.sansBase ? new BaseMemoire() : creerBaseSupabase(), runtime,
       session: sansAgent ? scriptedSession : creerSessionH({ navigateur: runtime.navigateur }), signal: controller.signal,
       ...(sansAgent ? { holo: noHolo } : {}) });
     watching = false;
