@@ -160,3 +160,31 @@ n’infirme pas les timeouts signalés pendant les passages H.
 
 Les scripts et captures de mesure restent hors du dépôt ; les tests reproductibles
 sans réseau externe sont les trois fichiers de tests du diff.
+
+## Relecture de la PR #197
+
+HEAD local et distant vérifiés avant toute modification :
+`77f7e979baa2253cb3fa078dcdb148926c4e79d8`.
+
+### 1. Calque `pointer-events:none`
+
+Retour fondé : Chrome renvoie le texte dans `elementFromPoint`, même sous le
+calque noir. L’inspection cherche désormais aussi les éléments sans interaction
+qui chevauchent la cible, hors de sa chaîne ancêtre/descendant. S’ils sont visibles
+et peints (fond, image, texte ou bordure), le résultat est ambigu (`null`) et le
+doute reste conservé. Pas de prétention à prouver l’ordre de peinture : ce
+chevauchement suffit à interdire le retrait automatique.
+
+Test Chrome local ajouté : calque noir, semi-transparent ou avec image de fond
+→ ambigu ; fond transparent, opacité nulle, élément caché ou hors de la cible
+→ cible toujours visible. Le test vérifie explicitement que le hit-test seul
+continue à renvoyer le texte.
+
+`node --test exploration-controles.test.ts`, code 0 :
+
+```text
+# tests 1
+# pass 1
+# fail 0
+# skipped 0
+```

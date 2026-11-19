@@ -35,7 +35,8 @@ export async function inspectHoloElement(client: CdpClient, finding: HoloFinding
   function inspect(zone: NonNullable<HoloFinding["zone"]>, expected: typeof capture): HoloElement | null {
     if (location.href !== expected.url || Math.abs(scrollX - expected.scroll[0]) > 1 || Math.abs(scrollY - expected.scroll[1]) > 1
       || innerWidth !== expected.width || innerHeight !== expected.height) return null;
-    const candidates = Array.from(document.querySelectorAll("body *")).flatMap(element => {
+    const elements = Array.from(document.querySelectorAll("body *"));
+    const candidates = elements.flatMap(element => {
       if (element.closest("svg") && !element.matches("svg")) return [];
       if (!element.matches("img,svg,canvas,video,input") && !element.hasAttribute("aria-label")
         && !Array.from(element.childNodes).some(node => node.nodeType === Node.TEXT_NODE && node.textContent?.trim())) return [];
@@ -65,6 +66,25 @@ export async function inspectHoloElement(client: CdpClient, finding: HoloFinding
         const hit = document.elementFromPoint(x, y);
         if (!hit || hit !== element && !element.contains(hit)) visible = false;
       }
+    }
+    const paintedColor = (color: string) => color !== "transparent" && !/(?:^(?:rgba|hsla)\([^)]*,|\/)\s*0(?:\.0+)?%?\s*\)$/.test(color);
+    for (const other of elements) {
+      if (other === element || other.contains(element) || element.contains(other)) continue;
+      const css = getComputedStyle(other);
+      if (css.pointerEvents !== "none" || css.visibility !== "visible") continue;
+      const bounds = other.getBoundingClientRect();
+      if (bounds.width <= 0 || bounds.height <= 0 || bounds.right <= box.left || bounds.left >= box.right
+        || bounds.bottom <= box.top || bounds.top >= box.bottom) continue;
+      let hidden = false;
+      for (let node: Element | null = other; node; node = node.parentElement) {
+        if (Number(getComputedStyle(node).opacity) === 0) hidden = true;
+      }
+      if (hidden) continue;
+      const painted = paintedColor(css.backgroundColor) || css.backgroundImage !== "none" || other.matches("img,svg,canvas,video")
+        || paintedColor(css.color) && Array.from(other.childNodes).some(node => node.nodeType === Node.TEXT_NODE && node.textContent?.trim())
+        || ["top", "right", "bottom", "left"].some(side => parseFloat(css.getPropertyValue(`border-${side}-width`)) > 0
+          && paintedColor(css.getPropertyValue(`border-${side}-color`)));
+      if (painted) return null;
     }
     const text = (element.getAttribute("aria-label") || element.getAttribute("alt") || element.textContent || "").normalize("NFKC").replace(/\s+/g, " ").trim().toLowerCase();
     return { selector: path.join(" > "), text, header: !!element.closest('header,[role="banner"]'), visible };

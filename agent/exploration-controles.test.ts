@@ -142,6 +142,22 @@ test("contrôles mécaniques sur de vraies pages Chrome locales", { skip: !avail
       assert.equal(await inspectHoloElement(client, visual, { ...context, width: 1000 }), null);
     }
   }
+  const overlayFinding = { status: "SUSPECTED" as const, kind: "cut-off-text" as const, sentence: "Menu masqué.", zone: { x: 200, y: 30, largeur: 90, hauteur: 24 } };
+  await client.send("Runtime.evaluate", { expression: `document.body.insertAdjacentHTML('beforeend', '<div id="holo-overlay" style="position:absolute;left:200px;top:30px;width:90px;height:24px;pointer-events:none;z-index:99999"></div>')` });
+  for (const [style, ambiguous] of [
+    ["background:black", true], ["background:rgba(0,0,0,0.5)", true], ["background:rgba(255,0,0,0)", false],
+    ["background:transparent", false], ["background:black;opacity:0", false],
+    ["background:black;visibility:hidden", false], ["background:black;display:none", false],
+    ["background:black;left:500px", false], ["background-image:linear-gradient(black,black)", true],
+  ] as const) {
+    await client.send("Runtime.evaluate", { expression: `document.querySelector('#holo-overlay').style.cssText=${JSON.stringify(`position:absolute;left:200px;top:30px;width:90px;height:24px;pointer-events:none;z-index:99999;${style}`)}` });
+    const hit = await client.send("Runtime.evaluate", { expression: "document.elementFromPoint(220,40).id", returnByValue: true });
+    assert.equal(hit.result.value, "holo-menu", "elementFromPoint ignore le calque pointer-events:none");
+    const inspected = await inspectHoloElement(client, overlayFinding, context);
+    if (ambiguous) assert.equal(inspected, null, style);
+    else assert.equal(inspected?.visible, true, style);
+  }
+  await client.send("Runtime.evaluate", { expression: "document.querySelector('#holo-overlay').remove()" });
   assert.equal(await inspectHoloElement(client, { status: "SUSPECTED", kind: "cut-off-text", sentence: "Vide.", zone: { x: 1100, y: 700, largeur: 80, hauteur: 40 } }, context), null);
   await navigate("/healthy");
   await client.send("Runtime.evaluate", { expression: `document.body.innerHTML = '<main>' + ['code', 'pre', 'kbd', 'samp', 'var'].map(tag => '<' + tag + '>null <span>undefined <span>NULL</span></span></' + tag + '>').join('') + '</main>'` });
