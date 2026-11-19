@@ -63,10 +63,12 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
     if (!secret) throw new Error("Clé H absente pour ce passage.");
     if (!navigateur) throw new Error("Le couloir scène doit fournir le navigateur et son pont local (navigateur).");
     input.signal?.throwIfAborted();
+    const localStop = new AbortController();
+    const activitySignal = input.signal ? AbortSignal.any([input.signal, localStop.signal]) : localStop.signal;
     async function h(method: string, path: string, body?: unknown, cleanup = false): Promise<any> {
       for (let attempt = 1; ; attempt++) {
         const { response, text } = await withTimeout(async (deadline) => {
-          const signal = !cleanup && input.signal ? AbortSignal.any([input.signal, deadline]) : deadline;
+          const signal = cleanup ? deadline : AbortSignal.any([activitySignal, deadline]);
           signal.throwIfAborted();
           let response: Response;
           try {
@@ -77,7 +79,7 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
           } catch { throw new Error("H inaccessible (erreur réseau)."); }
           return { response, text: await withAbort(response.text(), signal) };
         }, cleanup ? 5_000 : 45_000);
-        if (!cleanup && response.status === 429 && attempt < 3) { await withAbort(pause(30_000, input.signal), input.signal); continue; }
+        if (!cleanup && response.status === 429 && attempt < 3) { await withAbort(pause(30_000, activitySignal), activitySignal); continue; }
         if (!response.ok) throw new Error(`H a répondu ${response.status} sur ${method} ${path.split("?")[0]}.`);
         return text ? JSON.parse(text) : null;
       }
@@ -195,6 +197,7 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
       if (status === "failed") erreur ??= "La session H a échoué.";
       let replay_url: string | undefined;
       try {
+        localStop.signal.throwIfAborted();
         input.signal?.throwIfAborted();
         const shared = await h("POST", `/sessions/${id}/share`);
         if (typeof shared?.share_url !== "string" || !shared.share_url.trim()) throw new Error("Lien absent.");
@@ -202,11 +205,11 @@ export function creerSessionH({ navigateur, settle_s = 0.5, key, requete = fetch
         if (link.protocol !== "https:") throw new Error("Lien invalide.");
         replay_url = link.href;
       } catch {
-        if (!input.signal?.aborted) signaler(`Session ${id} : replay public indisponible ; aucun lien ajouté au rapport.`);
+        if (!input.signal?.aborted && !localStop.signal.aborted) signaler(`Session ${id} : replay public indisponible ; aucun lien ajouté au rapport.`);
       }
       return { id, muted, cout_usd: metrics?.total_cost ?? null, etapes, ...(erreur ? { erreur } : {}), ...(replay_url ? { replay_url } : {}) };
     })();
-    return { id, fin, stop, async confirmStopped() {
+    return { id, fin, async stop() { localStop.abort(); await stop(); }, async confirmStopped() {
       await stop();
       let remoteStatus = "illisible";
       let observedActive = false;

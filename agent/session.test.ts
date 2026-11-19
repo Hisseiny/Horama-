@@ -14,6 +14,32 @@ test("go_to_web et go_to sont des ouvertures de page", () => {
   assert.equal(libelleAction(["scroll_web", "click_web", "go_to_web"]), "Défile, Clique, Ouvre une page");
 });
 
+for (const pending of ["changes", "429", "share"]) {
+  test(`arrêt local : annule l'attente ${pending} sans attendre la limite distante`, { timeout: 2000 }, async () => {
+    let ready!: () => void;
+    const waiting = new Promise<void>(resolve => { ready = resolve; });
+    let deletes = 0;
+    const session = creerSessionH({ key: "test-key", signaler() {}, navigateur: async () => ({ channel: "fake", stop() {} }),
+      pause: async () => { ready(); await new Promise<void>(() => {}); },
+      requete: async (url, init) => {
+        const path = new URL(String(url)).pathname;
+        if (path.endsWith("/sessions")) return json({ id: "stopping", status: { status: "running" } });
+        if (init?.method === "DELETE") { deletes++; return new Response(null, { status: 204 }); }
+        if (path.endsWith("/changes") && pending === "429") return new Response(null, { status: 429 });
+        if (path.endsWith("/changes") && pending === "share") throw new Error("Observation indisponible");
+        ready();
+        return new Promise<Response>(() => {});
+      },
+    });
+    const running = await session(defaults());
+    await waiting;
+    await running.stop?.();
+    const result = await running.fin;
+    assert.equal(deletes, 1);
+    assert.equal(result.replay_url, undefined);
+  });
+}
+
 test("suppression refusée : arrêt compatible mais confirmation de fermeture en échec", async () => {
   const session = creerSessionH({
     key: "test-key", navigateur: async () => ({ channel: "fake", stop() {} }), signaler() {}, pause: async () => {},

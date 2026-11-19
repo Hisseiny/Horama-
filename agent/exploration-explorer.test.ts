@@ -9,7 +9,7 @@ import { BaseMemoire } from "./src/base.ts";
 import { construireExploration, exclusionLabel, explorer, explorationPassageId, explorationStepBudget, explorationTimeBudget } from "./src/exploration/explorer.ts";
 import type { ExplorerDependencies } from "./src/exploration/explorer.ts";
 import { lireArguments } from "./src/exploration/cli.ts";
-import { libelleAction } from "./src/session.ts";
+import { creerSessionH, libelleAction } from "./src/session.ts";
 import type { Session } from "./src/session.ts";
 
 const original = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAACgAAAAKCAYAAADGmhxQAAAAI0lEQVR4nGP4P8gBw0A7gBAYdSClYNSBlIJRB1IKRh1IKQAAxLY6GzXsph8AAAAASUVORK5CYII=", "base64");
@@ -35,7 +35,7 @@ let root: string;
 beforeEach(() => { root = mkdtempSync(join(tmpdir(), "horama-explorer-")); });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-async function run({ png = original, skip = "", refuse = false, failure = false, lateError = false, earlyEnd = false, query = "", actual, retries = 1, defilement = [0, 0], deps = {}, site, doux }: { doux?: boolean; site?: string; actual?: (url: string) => string; retries?: number; defilement?: [number, number]; png?: Buffer; skip?: string; refuse?: boolean; failure?: boolean; lateError?: boolean; earlyEnd?: boolean; query?: string; deps?: Partial<ExplorerDependencies> } = {}) {
+async function run({ max = 15, png = original, skip = "", refuse = false, failure = false, lateError = false, earlyEnd = false, query = "", actual, retries = 1, defilement = [0, 0], deps = {}, site, doux }: { max?: number; doux?: boolean; site?: string; actual?: (url: string) => string; retries?: number; defilement?: [number, number]; png?: Buffer; skip?: string; refuse?: boolean; failure?: boolean; lateError?: boolean; earlyEnd?: boolean; query?: string; deps?: Partial<ExplorerDependencies> } = {}) {
   let address = "https://example.org/";
   const base = new BaseMemoire();
   const responses: string[] = [];
@@ -71,7 +71,7 @@ async function run({ png = original, skip = "", refuse = false, failure = false,
     })();
     return { id: "session-1", fin };
   };
-  const result = await explorer({ url: "https://example.org", max: 15, vault: join(root, "vault"), sortie: join(root, "out"), port: 9333, site, doux }, {
+  const result = await explorer({ url: "https://example.org", max, vault: join(root, "vault"), sortie: join(root, "out"), port: 9333, site, doux }, {
     base, session, urlCourante: async () => null, runtime: { relever: async () => ({ png, texte: "Page", url_page: address, largeur: 1280, hauteur: 900, defilement, phrase: "Capture enregistrée." }),
       navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
     fetch: async input => {
@@ -134,6 +134,52 @@ for (const failClose of [false, true]) {
     if (failClose) assert.match(saved.agents[0].raison, /fermeture.*confirmée/);
   });
 }
+
+test("Railway : huit relevés terminent la vraie session locale sans attendre H ni le plafond", { timeout: 2000 }, async () => {
+  const paths = ["/", "/research", "/h-platform", "/enterprise", "/use-cases", "/about", "/privacy-policy", "/technical-blog", "/pricing"];
+  let address = "https://example.org/", polls = 0, deleted = 0, closed = false, posted = 0;
+  const { result } = await run({ max: 8, deps: {
+    fetch: async input => {
+      const path = new URL(String(input)).pathname;
+      return new Response(path === "/robots.txt" ? "" : path === "/sitemap.xml" ? `<urlset>${paths.map(path => `<url><loc>https://example.org${path}</loc></url>`).join("")}</urlset>` : "<html>Page</html>",
+        { headers: { "Content-Type": path.endsWith(".xml") ? "application/xml" : "text/html" } });
+    },
+    runtime: { relever: async () => ({ png: original, texte: "Page", url_page: address, largeur: 1280, hauteur: 900, defilement: [0, 0], phrase: "Capture" }), navigateur: async () => ({ channel: "fake", stop() {} }), close() {} },
+    session: async input => creerSessionH({ key: "test-key", signaler() {},
+      navigateur: async () => ({ channel: "fake", stop() { closed = true; } }),
+      requete: async (url, init) => {
+        const path = new URL(String(url)).pathname;
+        const json = (value: unknown) => new Response(JSON.stringify(value));
+        if (path.endsWith("/sessions")) return json({ id: "railway", status: { status: "running" } });
+        if (init?.method === "DELETE") { deleted++; return new Response(null, { status: 204 }); }
+        if (path.endsWith("/changes")) {
+          assert.ok(polls < 8, "aucune attente de nouvel événement après le dernier relevé");
+          const step = input.consigne.course[polls++];
+          address = step.address;
+          return json({ status: "running", metrics: { total_cost: 0.2534648 }, new_events: [{ type: "MetricsUpdateEvent", data: { total_cost: 0.2534648 } }],
+            pending_tool_calls: [{ id: step.ecran, tool_name: "relever", args: { ecran: step.ecran, vue: "defaut" } }] });
+        }
+        if (path.endsWith("/tool_results")) {
+          posted++;
+          if (polls === 8) return new Promise<Response>(() => {});
+          return new Response(null, { status: 204 });
+        }
+        if (path.endsWith("/share")) return new Promise<Response>(() => {});
+        return json({ status: { status: "interrupted" } });
+      },
+    })(input),
+  } });
+  assert.equal(result.etat, "fini");
+  assert.equal(result.agents[0].etat, "fini");
+  assert.equal(result.agents[0].cout_usd, 0.2534648);
+  assert.equal(result.totaux.pages_visitees, 8);
+  assert.ok(result.pages.every(page => page.etat === "visitee"));
+  assert.ok(result.trouvees.exclues.some(page => page.raison === "au-delà du plafond"));
+  assert.equal(polls, 8);
+  assert.equal(posted, 7);
+  assert.equal(deleted, 1);
+  assert.equal(closed, true);
+});
 
 test("les redirections vers l’alias www restent sur le site", async () => {
   const { result, responses } = await run({ actual: address => address.replace("://example.org", "://www.example.org") });
