@@ -6,6 +6,7 @@ Le jury évalue Horama à distance, sans le Mac de Nathan : le mode grand public
 
 - `extension/manifest.json` : version 0.2.0 (charte, direct, rapport commun avec la page d'accueil, depuis la 0.1.0).
 - `accueil/horama-extension.zip` : le `.zip` de l'extension (`sh extension/empaqueter.sh`, 21 fichiers, 45 305 octets), servi avec la page d'accueil à l'adresse https://horama-gold.vercel.app/horama-extension.zip après la fusion dans `dev` (Vercel redéploie la page d'accueil). Le dépôt Horama est privé : une release GitHub ne serait pas téléchargeable par le jury.
+- `accueil/index.html` : sous le champ « Envoyer Horama » du haut de la page, la ligne qui renvoyait vers la page de la marque devient « Ou installez l'extension Chrome (.zip), à charger dans chrome://extensions », le lien téléchargeant le `.zip`. Captures à 1440 et 390 px : `captures/2026-11-19-release-extension/` (aucun débordement à 390 px, émulation mobile).
 - `README.md`, « Essayer Horama » : les deux chemins pour un jury à distance, sans rien installer (horama-gold) ou par l'extension (le `.zip` à télécharger) ; l'adresse du service réglée (Railway) ; comment refaire et publier le `.zip`.
 
 ## Ce qui a été lancé, et ce qui en est sorti
