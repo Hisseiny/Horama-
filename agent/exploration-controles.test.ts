@@ -20,6 +20,7 @@ function translationPage(german: boolean, announce: boolean) {
       <button data-testid="same">Candidater <strong>maintenant</strong></button>
       <p class="single">Candidater</p>
       <p id="number">123 456</p><p id="address">12 rue Victor Hugo</p><p id="name">Marie Dupont</p>
+      <p id="email">contact@école.fr</p><p id="international-email">élodie@例子.测试</p>
       <p id="language" lang="fr">Texte volontaire</p><pre id="code">Une valeur</pre>
       <p id="mixed-language">Prenez rendez-vous. <span lang="en">${german ? "This week" : "Tomorrow"}</span></p>
       <p id="mixed-address">Retrouvez notre équipe au ${german ? "12 rue Victor Hugo" : "8 rue de la Paix"}</p>

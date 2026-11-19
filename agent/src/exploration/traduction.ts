@@ -125,7 +125,7 @@ type Component = ReturnType<typeof inspectComponents>[number];
 
 function comparableText(text: string) {
   const streetAddress = /(?:\b\d+[a-z]?\s+(?:rue|avenue|boulevard|street|road)\b|\b[\p{L}-]*(?:straße|strasse|weg|platz)\s+\d+[a-z]?\b)[^.!?;]*/giu;
-  const contactAddress = /(?:https?:\/\/|www\.)\S+|[\w.+-]+@[\w.-]+\.[a-z]{2,}/giu;
+  const contactAddress = /(?:https?:\/\/|www\.)\S+|[\p{L}\p{M}\p{N}_.%'’+-]+@(?:[\p{L}\p{M}\p{N}-]+\.)+[\p{L}\p{M}\p{N}-]+/giu;
   return text.replace(streetAddress, " ").replace(contactAddress, " ").replace(/\s+/g, " ").trim();
 }
 
