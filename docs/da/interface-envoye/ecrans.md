@@ -2,9 +2,9 @@
 
 Horama lit la documentation d'une équipe produit (un vault Obsidian) et en tire des tests. Un humain valide ces tests. L'agent H les joue sur le vrai logiciel, et le code vérifie les valeurs relevées. Chaque décision humaine met ensuite le vault à jour.
 
-Les 7 écrans suivent ce chemin, dans l'ordre : **voir où on en est → valider les tests → regarder le passage → lire le rapport → comparer → trancher → corriger la doc.**
+Les écrans suivent ce chemin, dans l'ordre : **voir où on en est → valider les tests → regarder le passage → lire le rapport → comparer → trancher → corriger la doc → retrouver l'historique.**
 
-Ils sont tous dans le fichier Figma Make de référence ([lien](https://www.figma.com/make/OiXoK1VpUbFpsu7oPAIZEU), équipe de la CDO depuis le 19/11), et on passe de l'un à l'autre par le menu de gauche. La source est `docs/cadrage.md`, section 11.
+Ils sont tous dans le fichier Figma Make de référence ([lien](https://www.figma.com/make/zCoXOHbz3ijbLqUosBzAgj)), et on passe de l'un à l'autre par le menu de gauche. La source est `docs/cadrage.md`, section 11.
 
 | # | Écran | La question à laquelle il répond | Mascotte |
 |---|---|---|---|
@@ -111,6 +111,29 @@ Les chiffres affichés sur les maquettes (28 règles conformes sur 36, 8 cas à 
 - On clique « Corriger la note et ouvrir la PR », ou « Laisser la note telle quelle ».
 
 **Pourquoi c'est important.** La documentation reste vraie toute seule : chaque décision humaine la tient à jour.
+
+## 11.8 Passages et historique : ce qui s'est passé, et qui a tranché
+
+![Passages et historique](11-8-passages-et-historique.png)
+
+**À quoi il sert.** C'est la mémoire de Horama. On y retrouve tous les passages, et pour chacun le détail de ce que l'agent a fait. On y trouve aussi toutes les décisions humaines prises au fil du temps. On l'ouvre par « Passages & Rapports » dans le menu.
+
+**Ce qu'on y fait.**
+- **Passages** : la liste des passages, du plus récent au plus ancien, avec la version testée, le nombre de tests, le résultat et le coût. Un clic sur une ligne ouvre son rapport (11.4).
+- **Journal de l'agent** : la flèche d'une ligne la déplie. On y voit chaque étape de l'agent :
+  - l'heure exacte et le numéro d'étape ;
+  - le test en cours ;
+  - l'action de l'agent ;
+  - l'adresse de la page et l'écran reconnu ;
+  - la position de défilement ;
+  - une capture qu'on agrandit d'un clic ;
+  - l'état de la session (en cours, relancée, abandonnée) ;
+  - quand l'étape vérifie une règle, le résultat « mesuré / attendu ».
+
+  On filtre par test ou par statut, et on cherche une adresse ou un texte.
+- **Journal des décisions** : quand ça a cassé, qui a tranché. Chaque décision (bug ou voulu) montre l'écran, la règle, la version, la portée (« cet écart, cet écran, cette version »), le pourquoi, et si la note du vault a été corrigée. On filtre par écran et par règle. Les décisions prises dans le prototype s'y ajoutent en direct.
+
+**Pourquoi c'est important.** On sait exactement où et quand chaque chose s'est passée, et on peut la retrouver. Une étape non concluante dit pourquoi (session figée, relance, abandon), au lieu de disparaître.
 
 ---
 

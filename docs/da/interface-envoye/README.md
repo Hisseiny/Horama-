@@ -4,7 +4,7 @@ Les écrans de l'application, dans Figma Make, suivent la charte graphique « L'
 
 | Écran | Fichier Figma Make | Capture | Mascotte |
 |---|---|---|---|
-| 11.1 Couverture | [Horama, prototype de référence](https://www.figma.com/make/OiXoK1VpUbFpsu7oPAIZEU) | `11-1-couverture.png` | `regarde` (iris `#7F77DD`, sans badge) |
+| 11.1 Couverture | [Horama, prototype de référence](https://www.figma.com/make/zCoXOHbz3ijbLqUosBzAgj) | `11-1-couverture.png` | `regarde` (iris `#7F77DD`, sans badge) |
 | 11.2 Tests à valider (de la note au test) | même fichier, route `#screen-11-2` | `11-2-tests-a-valider.png` | `doute` (iris ocre, badge « ? ») |
 | 11.3 Passage en cours | même fichier que 11.1, route `#screen-11-3` | `11-3-passage-en-cours.png` | `regarde` |
 | 11.4 Rapport de passage | même fichier, route `#screen-11-4` | `11-4-rapport-de-passage.png` | `fini` (iris olivier, coche) |
@@ -13,7 +13,7 @@ Les écrans de l'application, dans Figma Make, suivent la charte graphique « L'
 | 11.7 Dérive documentaire | même fichier, route `#screen-11-7` | `11-7-derive-documentaire.png` | `fini` |
 | 11.8 Passages et historique | même fichier, route `#screen-11-8` | `11-8-passages-et-historique.png` | `regarde` |
 
-**Fichier de référence (19/11) :** les crédits d'IA de l'équipe du CPO étant épuisés, le prototype a été copié dans l'équipe de la CDO. C'est cette copie qui fait foi. L'ancien fichier de l'équipe du CPO s'arrête à la version 38, avant l'écran 11.8.
+**Fichier de référence (19/11) :** « Horama, interface L'envoyé (améliorations DA 11.1 à 11.8) », tenu par un membre de l'équipe qui avait encore des crédits d'IA Figma. Il reprend la copie de la CDO (écran 11.8 et journal détaillé de l'agent compris) et y ajoute toutes les améliorations de `ameliorations.md`. Les anciens fichiers (équipe du CPO, copie de la CDO, ancien 11.2 archivé) ne sont plus mis à jour.
 
 Navigation branchée : « Tests à valider » ouvre 11.2, « ▷ Lancer un passage » ouvre 11.3, « Passages & Rapports » ouvre 11.8 (la liste des passages, puis chaque rapport 11.4), la ligne « Suspect » du rapport ouvre 11.5, « À relire » et « Ouvrir la relecture → » ouvrent 11.6, « C'est voulu » sur le second cas ouvre 11.7. L'entrée active du menu suit l'écran affiché.
 

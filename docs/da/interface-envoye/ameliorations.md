@@ -2,7 +2,7 @@
 
 Cette analyse passe les 8 écrans du prototype Figma Make en revue. Pour chacun, elle note ce qui manque par rapport aux fonctionnalités du cadrage (`docs/cadrage.md`, F1 à F39) et aux contrats de données gelés (`contrats/types.ts`, C1 à C8). Rien ici n'ajoute de champ à un contrat : chaque information affichée existe déjà dans un contrat.
 
-**État : à faire.** Les crédits d'IA de Figma Make sont épuisés, dans l'équipe du CPO comme dans celle de la CDO. La demande prête à coller est dans `demande-figma-ameliorations.txt`.
+**État (19/11) : fait**, dans le fichier de référence ([lien](https://www.figma.com/make/zCoXOHbz3ijbLqUosBzAgj)). Vérifié en cliquant sur chaque écran : pastille et règles sans test (11.1), test 1 / 2 et lien vers la note (11.2), capture au clic sur une étape et session relancée (11.3), statut « non concluant » (11.4), valeurs relevées (11.5), pourquoi, portée et issue GitHub (11.6), journal détaillé de l'agent (11.8). Reste à corriger, demandé le 19/11 : les chemins `facturation-pro` en `facturo`, et l'adresse de l'appli testée (`https://facturo-demo.vercel.app/v13/…`) sur 11.3, 11.7 et 11.8.
 
 ## Priorité 1 : un journal détaillé de l'agent (11.8 et 11.3)
 
