@@ -15,6 +15,8 @@ Les écrans de l'application, dans Figma Make, suivent la charte graphique « L'
 
 **Fichier de référence (19/11) :** « Horama, interface L'envoyé (améliorations DA 11.1 à 11.8) », tenu par un membre de l'équipe qui avait encore des crédits d'IA Figma. Il reprend la copie de la CDO (écran 11.8 et journal détaillé de l'agent compris) et y ajoute toutes les améliorations de `ameliorations.md`. Les anciens fichiers (équipe du CPO, copie de la CDO, ancien 11.2 archivé) ne sont plus mis à jour.
 
+**Mise à jour du 19/11 au soir :** le prototype est maintenant tenu en code, sans l'IA de Figma Make. Son code est dans [`prototype/`](prototype/README.md), avec un écran de connexion (`#login`), la relecture 11.6 par passage et la mascotte recalée dans le coin. Fichier Figma Make à jour : https://www.figma.com/make/IZqTWw7BCIEb0oSnDcA945
+
 Navigation branchée : « Tests à valider » ouvre 11.2, « ▷ Lancer un passage » ouvre 11.3, « Passages & Rapports » ouvre 11.8 (la liste des passages, puis chaque rapport 11.4), la ligne « Suspect » du rapport ouvre 11.5, « À relire » et « Ouvrir la relecture → » ouvrent 11.6, « C'est voulu » sur le second cas ouvre 11.7. L'entrée active du menu suit l'écran affiché.
 
 ## Ce qui a été appliqué

@@ -1,0 +1,10 @@
+{
+  "description": "A visual QA platform for product teams to review automated tests, compare interface changes, and track coverage, anomalies, and documentation drift.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
