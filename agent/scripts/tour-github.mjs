@@ -1,6 +1,8 @@
 const indexFile = { repo: "Hisseiny/eugenia-school-website", branch: "horama/captures", path: "index.json" };
-const vault = { repo: "Hisseiny/Horama-", branch: "dev" };
 const vaultBranch = "horama/vault";
+const vault = { repo: "Hisseiny/Horama-", branch: vaultBranch };
+// The service never writes to dev or main: only these data branches, each in its own repository (#238).
+const writableBranches = new Map([[indexFile.repo, indexFile.branch], [vault.repo, vaultBranch]]);
 const vaultRoot = "vault-horama/eugenia-clone";
 const encodePath = path => path.split("/").map(encodeURIComponent).join("/");
 const fromBase64 = file => {
@@ -10,6 +12,10 @@ const fromBase64 = file => {
   return Buffer.from(file.content, "base64").toString("utf8");
 };
 
+export function assertWritableBranch(repo, branch) {
+  if (writableBranches.get(repo) !== branch) throw new Error(`Écriture refusée sur ${repo}@${branch}.`);
+}
+
 export const missingToken = "Jeton GitHub du service absent (variable GITHUB_TOKEN_TOUR) : lecture et écriture sur GitHub impossibles.";
 
 export function createTourGitHub({ token, fetchGitHub = fetch, now }) {
@@ -17,11 +23,12 @@ export function createTourGitHub({ token, fetchGitHub = fetch, now }) {
   let pending;
   let generation = 0;
   let vaultCache;
+  let vaultReady = false;
 
-  async function api(repo, path, body, { optional = false } = {}) {
+  async function api(repo, path, { method = "GET", body, optional = false } = {}) {
     if (!token) throw new Error(missingToken);
     const response = await fetchGitHub(`https://api.github.com/repos/${repo}/${path}`, {
-      method: body ? "PUT" : "GET",
+      method,
       headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${token}`,
         "X-GitHub-Api-Version": "2022-11-28", ...(body ? { "Content-Type": "application/json" } : {}) },
       body: body ? JSON.stringify(body) : undefined,
@@ -34,13 +41,28 @@ export function createTourGitHub({ token, fetchGitHub = fetch, now }) {
   }
 
   function readFile({ repo, branch, path }, optional = false) {
-    return api(repo, `contents/${encodePath(path)}?ref=${encodeURIComponent(branch)}`, undefined, { optional });
+    return api(repo, `contents/${encodePath(path)}?ref=${encodeURIComponent(branch)}`, { optional });
   }
 
   function writeFile({ repo, branch, path }, content, message, sha) {
-    return api(repo, `contents/${encodePath(path)}`, {
+    assertWritableBranch(repo, branch);
+    return api(repo, `contents/${encodePath(path)}`, { method: "PUT", body: {
       message, branch, content: Buffer.from(content).toString("base64"), ...(sha ? { sha } : {}),
-    });
+    } });
+  }
+
+  async function ensureVaultBranch() {
+    if (vaultReady) return;
+    assertWritableBranch(vault.repo, vaultBranch);
+    if (!await api(vault.repo, `git/ref/heads/${vaultBranch}`, { optional: true })) {
+      const base = await api(vault.repo, "git/ref/heads/dev");
+      try {
+        await api(vault.repo, "git/refs", { method: "POST", body: { ref: `refs/heads/${vaultBranch}`, sha: base.object.sha } });
+      } catch (error) {
+        if (error.status !== 422) throw error;
+      }
+    }
+    vaultReady = true;
   }
 
   async function readIndex() {
@@ -71,7 +93,7 @@ export function createTourGitHub({ token, fetchGitHub = fetch, now }) {
   }
 
   async function readVault() {
-    const directory = await readFile({ ...vault, branch: vaultBranch, path: "vault-horama" }, true) ??
+    const directory = await readFile({ ...vault, path: "vault-horama" }, true) ??
       await readFile({ ...vault, branch: "dev", path: "vault-horama" });
     const root = directory.find(entry => entry.name === "eugenia-clone" && entry.type === "dir");
     if (!root) throw new Error("Vault du clone introuvable.");
@@ -114,7 +136,8 @@ export function createTourGitHub({ token, fetchGitHub = fetch, now }) {
         return { content: `${JSON.stringify(index, null, 2)}\n`, sha, value };
       });
     },
-    updateTest(id, edit) {
+    async updateTest(id, edit) {
+      await ensureVaultBranch();
       const file = { ...vault, path: `${vaultRoot}/tests/${id}.md` };
       return update(file, `Horama : mise à jour du test ${id}`, async () => {
         const existing = await readFile(file, true);

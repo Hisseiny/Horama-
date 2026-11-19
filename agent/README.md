@@ -138,5 +138,10 @@ deux dépôts spécifiés dans [#238](https://github.com/Hisseiny/Horama-/issues
   GitHub ne répond pas.
 - `POST /tour/test` prend l'identifiant du test comme valeur de `test`.
   Pour `modifier`, fournir au moins une section (`task` ou `verification`),
-  avec son contenu Markdown. Le test modifié est accepté.
+  avec son contenu Markdown. Le test modifié est accepté. L'écriture se fait
+  sur la branche `horama/vault` du dépôt Horama- (créée depuis `dev` au premier
+  besoin), au chemin `vault-horama/eugenia-clone/tests/<test>.md`.
+- Le service refuse toute écriture hors de `horama/captures` (clone) et
+  `horama/vault` (Horama-) : jamais `dev` ni `main`. Les changements arrivent
+  dans `dev` seulement par une PR relue.
 - `POST /tour/doc` renvoie `501` après authentification.

@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { createExplorationService } from "./scripts/exploration-service.mjs";
+import { assertWritableBranch } from "./scripts/tour-github.mjs";
 import { splitFrontMatter } from "../memoire/src/files.ts";
 
 const githubIndex = "/repos/Hisseiny/eugenia-school-website/contents/index.json";
@@ -36,7 +37,7 @@ async function setup(t, { variables = env, run = async () => {} } = {}) {
     index: { format: "horama-passages-1", passages: [{ passage: "passage-essai", commit: "base", constats: [finding()] }] },
     indexSha: "initial-index", testSha: "initial-test", treeSha: "initial-tree",
     markdown: await readFile(new URL(`../vault-horama/eugenia-clone/tests/${testId}.md`, import.meta.url), "utf8"),
-    calls: [], notes: new Map(), writes: [], beforeWrite: () => undefined, vaultBranch: false,
+    calls: [], notes: new Map(), writes: [], beforeWrite: () => undefined, vaultBranch: false, writtenBranches: [],
   };
   async function fetchGitHub(input, init) {
     const url = new URL(input);
@@ -44,8 +45,18 @@ async function setup(t, { variables = env, run = async () => {} } = {}) {
     state.calls.push([init.method, route]);
     assert.equal(url.origin, "https://api.github.com");
     assert.equal(init.headers.Authorization, `Bearer ${env.GITHUB_TOKEN_TOUR}`);
+    if (init.method === "POST") {
+      const request = JSON.parse(init.body);
+      assert.equal(route, `${githubVault}/git/refs`);
+      assert.deepEqual(request, { ref: "refs/heads/horama/vault", sha: "dev-head" });
+      state.writtenBranches.push(request.ref);
+      if (state.vaultBranch) return response({ message: "Reference already exists" }, 422);
+      state.vaultBranch = true;
+      return response({ ref: request.ref }, 201);
+    }
     if (init.method === "PUT") {
       const request = JSON.parse(init.body);
+      state.writtenBranches.push(request.branch);
       const fault = state.beforeWrite(route, request);
       if (fault) return response({}, fault);
       const content = Buffer.from(request.content, "base64").toString();
@@ -55,7 +66,8 @@ async function setup(t, { variables = env, run = async () => {} } = {}) {
         state.index = JSON.parse(content);
         state.indexSha += "-new";
       } else {
-        assert.equal(request.branch, "dev");
+        assert.equal(request.branch, "horama/vault");
+        assert.ok(state.vaultBranch);
         if (route === testPath) {
           if (request.sha !== state.testSha) return response({}, 409);
           state.markdown = content;
@@ -75,7 +87,14 @@ async function setup(t, { variables = env, run = async () => {} } = {}) {
       assert.equal(url.searchParams.get("ref"), "horama/captures");
       return response(encoded(JSON.stringify(state.index), state.indexSha));
     }
-    if (route === testPath) return response(encoded(state.markdown, state.testSha));
+    if (route === `${githubVault}/git/ref/heads/horama/vault`) {
+      return state.vaultBranch ? response({ object: { sha: "vault-head" } }) : response({}, 404);
+    }
+    if (route === `${githubVault}/git/ref/heads/dev`) return response({ object: { sha: "dev-head" } });
+    if (route === testPath) {
+      assert.equal(url.searchParams.get("ref"), "horama/vault");
+      return response(encoded(state.markdown, state.testSha));
+    }
     if (route.startsWith(notePath) && state.notes.has(route)) return response(encoded(state.notes.get(route), "note"));
     if (route === `${githubVault}/contents/vault-horama`) {
       const ref = url.searchParams.get("ref");
@@ -261,6 +280,7 @@ test("accepting, refusing and editing a vault test preserves unrelated fields an
   assert.ok(state.markdown.endsWith(originalRules));
   assert.equal((await edit("modifier", changes)).status, 200);
   assert.equal(state.writes.length, 3);
+  assert.deepEqual(state.writtenBranches, ["refs/heads/horama/vault", "horama/vault", "horama/vault", "horama/vault"]);
   assert.equal((await edit("modifier", { task: "## Verification\n" })).status, 400);
   assert.equal((await edit("refuser", { test: "../note" })).status, 400);
 });
@@ -286,4 +306,32 @@ test("outside Railway a forged X-Real-IP header does not escape the login limit"
   const { login } = await setup(t);
   for (let i = 0; i < 5; i++) assert.equal((await login("incorrect", { "X-Real-IP": `192.0.2.${i}` })).status, 401);
   assert.equal((await login(password, { "X-Real-IP": "192.0.2.99" })).status, 429);
+});
+
+test("the vault branch is created from dev once, and an existing branch is reused", async t => {
+  const { post, session, state } = await setup(t);
+  state.vaultBranch = true;
+  const token = await session();
+  assert.equal((await post("/tour/test", { test: testId, action: "accepter" }, token)).status, 200);
+  assert.deepEqual(state.writtenBranches, ["horama/vault"]);
+  assert.equal((await post("/tour/test", { test: "inconnu", action: "accepter" }, token)).status, 404);
+  assert.equal(state.calls.filter(([, route]) => route.includes("/git/ref")).length, 1);
+});
+
+test("the service never writes to dev or main, only to its two data branches", async t => {
+  for (const [repo, branch] of [["Hisseiny/Horama-", "dev"], ["Hisseiny/Horama-", "main"],
+    ["Hisseiny/eugenia-school-website", "main"], ["Hisseiny/Horama-", "horama/captures"],
+    ["Hisseiny/eugenia-school-website", "horama/vault"], ["Hisseiny/Horama-", "refs/heads/horama/vault"], ["Autre/depot", "horama/vault"]]) {
+    assert.throws(() => assertWritableBranch(repo, branch), /Écriture refusée/);
+  }
+  assert.doesNotThrow(() => assertWritableBranch("Hisseiny/eugenia-school-website", "horama/captures"));
+  assert.doesNotThrow(() => assertWritableBranch("Hisseiny/Horama-", "horama/vault"));
+  const { post, session, state } = await setup(t);
+  const token = await session();
+  await post("/tour/decision", payload, token);
+  await post("/tour/test", { test: testId, action: "accepter" }, token);
+  assert.ok(state.writtenBranches.length >= 3);
+  assert.ok(state.writtenBranches.every(branch => ["horama/captures", "horama/vault", "refs/heads/horama/vault"].includes(branch)));
+  assert.ok(state.calls.every(([method, route]) => method === "GET" || route === githubIndex ||
+    route === testPath || route === `${githubVault}/git/refs`));
 });
