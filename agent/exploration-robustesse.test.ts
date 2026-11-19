@@ -135,6 +135,19 @@ test("refus des cookies sur de vraies pages Chrome locales", { skip: !available 
   });
 
   const surface = { ...client, close() {} };
+  await t.test("newsletter en racine d'ombre : confidentialité seule ne prouve pas un consentement cookies", async () => {
+    for (const label of ["No, thanks", "No thanks", "Non merci", "Nein danke"]) {
+      for (const context of ["Privacy Policy", "Confidentialité", "Datenschutz", "Cookies", "Consentement", "Einwilligung", "Traceurs"]) {
+        const consent = ["Cookies", "Consentement", "Einwilligung", "Traceurs"].includes(context);
+        await client.send("Runtime.evaluate", { expression: `(() => { document.body.innerHTML = '<div id="host" style="position:fixed;bottom:20px;left:20px;width:400px;height:200px"></div>'; window.selected = [];
+          const root = document.querySelector('#host').attachShadow({mode:'open'});
+          root.innerHTML = ${JSON.stringify(`<p>Newsletter</p><a href="#">${context}</a><button>${label}</button>`)};
+          root.querySelector('button').onclick = () => window.selected.push('refusal'); })()` });
+        assert.equal((await client.send("Runtime.evaluate", { expression: `(${refuseCookies.toString()})()`, returnByValue: true })).result.value, consent, `${label}, ${context}`);
+        assert.deepEqual((await client.send("Runtime.evaluate", { expression: "window.selected", returnByValue: true })).result.value, consent ? ["refusal"] : []);
+      }
+    }
+  });
   await t.test("racines d'ombre ouvertes imbriquées : refus et masquage réversible sans acceptation", async () => {
     for (const fixedHost of [true, false]) {
       for (const refusal of [true, false]) {
