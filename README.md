@@ -50,7 +50,7 @@ Pour le jury, à distance, sans terminal : Horama cherche les défauts d'un site
 |---|---|---|
 | hcompany.ai | 19/11, 22 h 40 | 8 pages sur 8 en 302 s, sans bandeau de cookies. 0 défaut prouvé. 2 doutes de Holo sur `/about`, des logos qui défilent coupés au bord, voulus. [Replay de l'agent H](https://agp.eu.hcompany.ai/share/api/v1/trajectories/6c51463e-92bc-4fa2-83cf-ef63699d2b14) |
 | eugeniaschool.com | 19/11, 22 h 46 | 7 pages sur 8 en 373 s : la limite de temps est atteinte (le site ouvre ses pages par un menu burger, environ 50 s par page). Pas de bandeau, 0 défaut prouvé, 0 doute. Le lien « portes ouvertes » d'un article du blog répond 404 : Horama l'a prouvé le 18/11 en partant de cet article ([rapport enregistré](extension/faux-service/rapport-enregistre/)) |
-| Un article du blog d'eugeniaschool.com (page de départ) | 19/11 | [À COMPLÉTER : résultat du passage lancé depuis l'article] |
+| Un article du blog d'eugeniaschool.com, pris comme page de départ ([« Fin de Parcoursup »](https://www.eugeniaschool.com/blog/fin-de-parcoursup-ce-qui-change-premiere-terminale)) | 19/11, 23 h 20 | « Fini » à la limite de temps, 7 pages sur 8 en 369 s. **2 défauts prouvés** : le lien « journée portes ouvertes » de l'article répond 404, avec sa capture et la zone du lien ; sur `/programme/bachelor-ia-business`, une erreur JavaScript dans la console (`_hsq is not defined`, un tag de suivi qui appelle HubSpot sans que son script soit chargé, invisible pour le visiteur). 0 doute de Holo |
 | Clone du site d'Eugenia | 19/11 | 8 pages sur 8 en 325,5 s, rien de prouvé ni à trancher ([#208](https://github.com/Hisseiny/Horama-/issues/208)) |
 | decathlon.fr | 19/11 | Arrêt immédiat et propre : le site bloque les robots (403) |
 
