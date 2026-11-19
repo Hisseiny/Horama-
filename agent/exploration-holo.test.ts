@@ -98,6 +98,20 @@ test("visible findings remain suspected and the request disables thinking withou
   assert.deepEqual(result.findings, [{ status: "SUSPECTED", kind: "cut-off-text", zone: { x: 128, y: 180, largeur: 384, hauteur: 360 }, sentence: "The title is clipped." }]);
 });
 
+test("a group of controls that leaves its frame half empty is a sixth kind of doubt, never a proven defect", async () => {
+  const result = await askHolo(png, { ...options, fetch: async (_url, init) => {
+    const text = JSON.parse(init?.body as string).messages[0].content[0].text;
+    assert.match(text, /unfilled-control-group/);
+    assert.match(text, /An unfilled control group is a row of controls \(tabs, buttons, segments\) inside a visible container/);
+    assert.match(text, /These are doubts, not proven defects/);
+    return reply(JSON.stringify({ ...empty, d0: "unfilled-control-group | 66,890,858,50 | La barre laisse un grand vide à droite." }));
+  } });
+  assert.equal(result.status, "SUSPECTED");
+  assert.deepEqual(result.findings.map(({ status, kind, sentence }) => ({ status, kind, sentence })),
+    [{ status: "SUSPECTED", kind: "unfilled-control-group", sentence: "La barre laisse un grand vide à droite." }]);
+  assert.ok(result.findings[0].zone, "la zone est gardée");
+});
+
 test("empty keys report no findings without being inconclusive", async () => {
   const result = await askHolo(png, { ...options, fetch: async () => reply(JSON.stringify(empty)) });
   assert.equal(result.status, "SUSPECTED");
