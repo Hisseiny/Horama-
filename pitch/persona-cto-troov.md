@@ -1,4 +1,4 @@
-# Persona du mode développeur : le CTO de Troov
+# Persona : le CTO de Troov (cible « CTO d'un SaaS »)
 
 Rendu du mercredi 18/11 à 17 h, issue [#73](https://github.com/Hisseiny/Horama-/issues/73) (parcours utilisateur). Remplace la fiche « Le Développeur » proposée par Axil : on colle à un vrai SaaS, Troov, où travaille Noé. Le CTO n'est pas nommé ; aucun chiffre interne n'est donné. Ce qui vient de Noé est sourcé en bas de page ; ce qui n'est pas connu est écrit « à confirmer ».
 
@@ -38,7 +38,7 @@ Rendu du mercredi 18/11 à 17 h, issue [#73](https://github.com/Hisseiny/Horama-
 4. Mise en production de la semaine.
 5. Les autres pages qui affichent le bouton se sont dégradées ; personne ne les a regardées. Le problème remonte plus tard, par un client ou par le service client.
 
-## Son parcours avec Horama (mode développeur)
+## Son parcours avec Horama (entrée par une PR, avec la documentation)
 
 1. Les écrans et leurs règles sont décrits dans un vault Obsidian, une note par écran (aujourd'hui dans Confluence et Notion : la reprise de cette documentation est à construire).
 2. La même PR part sur le staging. Horama rejoue les tests de **tous** les écrans qui montrent le bouton d'export, pas seulement celui qui a été modifié.

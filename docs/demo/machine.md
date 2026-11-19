@@ -1,6 +1,6 @@
 # La machine de démo (issue #134)
 
-Vendredi, le Mac de Nathan fait tourner la démo du mode dev (réveil par une PR du clone, scène, agent H) et peut-être celle du mode grand public. Cette fiche dit quoi vérifier jeudi à la répétition, puis vendredi avant de monter.
+Vendredi, le Mac de Nathan fait tourner la démo de l'entrée par une PR (réveil par une PR du clone, scène, agent H) et peut-être celle de l'entrée par une adresse. Cette fiche dit quoi vérifier jeudi à la répétition, puis vendredi avant de monter.
 
 ## 1. Lancer la vérification automatique
 
@@ -33,8 +33,8 @@ Le script ne fait que lire : il n'installe rien, ne lance rien, n'écrit rien et
 ## 3. La répétition de jeudi
 
 1. La vérification automatique : 0 KO.
-2. Le mode dev de bout en bout, dans les conditions de vendredi : une PR du clone, le réveil, les tests du vault, puis l'exploration de la prévisualisation, et la réponse sur la PR. Chronométrer chaque étape.
-3. Le mode grand public : l'extension ou la page d'accueil, contre le service en ligne (#68), sur le site de la démo.
+2. L'entrée par une PR de bout en bout, dans les conditions de vendredi : une PR du clone, le réveil, les tests du vault, puis l'exploration de la prévisualisation, et la réponse sur la PR. Chronométrer chaque étape.
+3. L'entrée par une adresse : l'extension ou la page d'accueil, contre le service en ligne (#68), sur le site de la démo.
 4. Noter ce qui casse et le temps de chaque étape dans `docs/tests/`.
 5. Relancer la vérification après la répétition : aucune session H restée active.
 

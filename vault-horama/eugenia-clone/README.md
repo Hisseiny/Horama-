@@ -1,6 +1,6 @@
-# Clone du site d'Eugenia School : le logiciel du mode dev
+# Clone du site d'Eugenia School : le logiciel de l'entrée par une PR
 
-Le mode dev d'Horama (issue #71) joue sur ce clone, pas sur eugeniaschool.com. Nous n'avons pas le code du vrai site. Le clone, lui, a un dépôt (`Hisseiny/eugenia-school-website`, site statique Astro, déployé par Vercel) : une PR du clone réveille Horama, qui choisit les tests par le champ `code:` des notes.
+L'entrée par une PR d'Horama (issue #71) joue sur ce clone, pas sur eugeniaschool.com. Nous n'avons pas le code du vrai site. Le clone, lui, a un dépôt (`Hisseiny/eugenia-school-website`, site statique Astro, déployé par Vercel) : une PR du clone réveille Horama, qui choisit les tests par le champ `code:` des notes.
 
 Ce dossier a été écrit le 18/11 à partir du clone au commit `4e7dd32`, construit (`pnpm build`) et servi en local (`astro preview` sur 127.0.0.1). Les références sont reprises le même jour sur la production Vercel de `main` (`3725b94`, https://eugenia-school-website.vercel.app), une fois fusionnées les PR #11 (formulaires et traçage coupés, adresses sans `.html`) et #14 (correctifs de mise en page) du clone. Les textes, identiques sur la production, viennent du texte affiché de chaque page, relevé comme le fait le moteur (`capture()` de `automatisation/scene/scene.mjs`, 1280 × 900). Aucun formulaire n'a été ouvert ni envoyé. Depuis la #11 du clone, ses formulaires n'envoient plus rien à HubSpot et son traçage est coupé (0 requête vers Google, HubSpot ou Facebook, vérifié le 18/11).
 
