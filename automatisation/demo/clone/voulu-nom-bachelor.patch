@@ -1,0 +1,11 @@
+--- a/src/data/pages/programme-bachelor-ia-business.ts	2026-11-18 15:00:52
++++ b/src/data/pages/programme-bachelor-ia-business.ts	2026-11-18 15:02:16
+@@ -3,7 +3,7 @@
+ export const page: LivePage = {
+   "title": "Bachelor IA à Paris : 3 ans, projets réels | Eugenia School",
+   "description": "Bachelor IA (AI Applied to Business) à Paris : 3 ans pour allier business, data et no-code, avec un projet d'entreprise dès le semestre 1. Candidatez.",
+-  "h1": "Bachelor AI Applied to Business",
++  "h1": "Bachelor IA Applied to Business",
+   "image": "pr3_hero-bachelor-alt",
+   "imageAlt": "Un étudiant d’Eugenia School attentif pendant un cours, au premier plan d’une salle lumineuse",
+   "lead": "Le Bachelor AI Applied to Business est un Bac+3 en trois ans (180 ECTS), à Paris, hors Parcoursup, ouvert après une terminale générale ou technologique. Business, data, code et no-code : un projet en entreprise dès le semestre 1, un stage de 6 semaines en 1re année, une 3e année possible en alternance. Titre RNCP 41143 (niveau 6).",

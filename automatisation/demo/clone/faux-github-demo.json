@@ -1,0 +1,14 @@
+{
+  "prs": [
+    { "numero": 101, "adresse": "https://github.com/Hisseiny/eugenia-school-website/pull/101", "titre": "Régression de démonstration : durée du Bachelor à 4 ans sur l'accueil", "base": "4e7dd32", "tete": "regression0001" },
+    { "numero": 102, "adresse": "https://github.com/Hisseiny/eugenia-school-website/pull/102", "titre": "Changement voulu de démonstration : titre « Bachelor IA Applied to Business »", "base": "4e7dd32", "tete": "voulu00000002" }
+  ],
+  "deploiements": {
+    "regression0001": { "etat": "success", "adresse": "https://eugenia-school-website-git-devin-179501037-feb21a-ahissein-5983.vercel.app" },
+    "voulu00000002": { "etat": "success", "adresse": "https://eugenia-school-website-git-devin-179501037-feb21a-ahissein-5983.vercel.app" }
+  },
+  "fichiers": {
+    "101": ["src/data/home.ts"],
+    "102": ["src/data/pages/programme-bachelor-ia-business.ts"]
+  }
+}

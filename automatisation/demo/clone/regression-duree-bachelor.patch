@@ -1,0 +1,11 @@
+--- a/src/data/home.ts	2026-11-18 14:56:05
++++ b/src/data/home.ts	2026-11-18 14:56:05
+@@ -37,7 +37,7 @@
+ 
+ export const LEARN_ROWS = [
+   {
+-    duration: "3 ans",
++    duration: "4 ans",
+     title: "Bachelor IA Applied to Business",
+     text: "Le socle commun, puis tu choisis ta trajectoire. La troisième année se fait en alternance.",
+     chips: ["Python", "Scraping", "Automatisation no-code", "Marketing digital", "SEO", "Pitch"],
