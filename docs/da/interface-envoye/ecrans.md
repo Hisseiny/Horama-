@@ -16,13 +16,15 @@ Ils sont tous dans le fichier Figma Make principal ([lien](https://www.figma.com
 | 11.6 | À relire | C'est un bug, ou c'est voulu ? | doute |
 | 11.7 | Dérive documentaire | La doc est-elle encore juste ? | fini |
 
+Les chiffres affichés sur les maquettes (28 règles conformes sur 36, 8 cas à relire, 312 zones différentes, quota, coûts, durées) sont des valeurs d'exemple, pas des mesures. Seul l'écart 1 240,00 € / 1 420,00 € vient d'un passage réel (`docs/tests/2026-11-17-c4-coureur.md`).
+
 ---
 
 ## 11.1 Couverture : le tableau de bord
 
 ![Couverture](11-1-couverture.png)
 
-**À quoi il sert.** C'est la page d'accueil. En un coup d'œil, on voit combien de règles de la documentation sont testées et conformes (28 sur 36), et ce qui reste à traiter (8 cas à relire). On voit aussi l'état de chaque écran suivi du logiciel.
+**À quoi il sert.** C'est la page d'accueil. En un coup d'œil, on voit combien de règles de la documentation sont testées et conformes (28 sur 36 sur la maquette), et ce qui reste à traiter (8 cas à relire sur la maquette). On voit aussi l'état de chaque écran suivi du logiciel.
 
 **Ce qu'on y fait.**
 - On repère ce qui ne va pas : défauts prouvés en rouge, suspects en ocre.
@@ -69,7 +71,7 @@ Ils sont tous dans le fichier Figma Make principal ([lien](https://www.figma.com
 - On exporte le rapport au format H.
 - On clique sur une ligne suspecte pour la comparer en détail (11.5).
 
-**Pourquoi c'est important.** C'est la trace écrite du passage. Elle est aussi enregistrée dans le vault (`vault-horama/passages/`).
+**Pourquoi c'est important.** C'est la trace écrite du passage. Elle est aussi enregistrée dans le vault du logiciel testé (`vault-horama/<logiciel>/passages/`).
 
 ## 11.5 Comparaison des versions : avant / après
 
@@ -81,7 +83,7 @@ Ils sont tous dans le fichier Figma Make principal ([lien](https://www.figma.com
 - On change de vue : côte à côte, rideau (un curseur qu'on fait glisser) ou pixels bruts.
 - On lit les écarts. Le bouton déplacé est marqué de points ocre : c'est un suspect. Le total faux est entouré en rouge : c'est un défaut prouvé.
 
-**Pourquoi c'est important.** Une comparaison pixel par pixel classique trouve 312 différences. Horama n'en garde que 2, celles qui comptent. C'est ce qui évite de noyer l'humain.
+**Pourquoi c'est important.** Sur la maquette, la comparaison pixel par pixel affiche 312 zones différentes et Horama n'en garde que 2, celles qui comptent (valeurs d'exemple ; l'écart réel est à mesurer). C'est ce qui évite de noyer l'humain.
 
 ## 11.6 À relire : bug, ou voulu ?
 
