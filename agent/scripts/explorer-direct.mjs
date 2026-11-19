@@ -73,7 +73,7 @@ async function main(args) {
   }
   try {
     await scene.installLayer(page, payload => appendFileSync(presses, JSON.stringify({ at: Date.now(), ...payload }) + "\n"), { passage: id, titre: "Horama" });
-    await scene.navigate(page, options.url);
+    await scene.navigate(page, "about:blank");
     await mascot("etat", "observe");
     runtime = await ouvrirNavigateur({ port: options.port, scene: { ...scene, connectTab: async () => page }, findHolo, startBridge });
     runtime.relever = async (_ecran, _vue, beforeCapture) => {
