@@ -2,7 +2,7 @@
 
 Tâche 5.4 de la mission CDO. Relevé le 19/11 dans `docs/tests/` : **aucun chiffre n'est saisi à la main sans sa source**. Une valeur inconnue s'écrit « à mesurer ». `SUSPECTED` et `INCONCLUSIVE` ne comptent jamais comme des réussites.
 
-Graphiques : `banc/graphiques/` (générés par `node banc/scripts/graphiques.mjs`). Résultats du banc : `banc/resultats/passage-1.md`.
+Graphiques : `banc/graphiques/` (générés par `node banc/scripts/graphiques.mjs`). Rapport : `banc/rapport-pole-cdo.pdf` (régénéré par `node banc/scripts/rapport-pdf.mjs`, jamais édité à la main). Résultats du banc : `banc/resultats/passage-1.md`.
 
 ## 1. Le banc (Facturo, 18 cas, vérité écrite avant)
 
