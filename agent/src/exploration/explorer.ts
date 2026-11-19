@@ -258,7 +258,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
     return { passage_id: passageId, test_id: `exploration--${page.ecran}`, version_testee: version, version_reference: versionReference ?? version,
       statut: page.statut, ecrans: [page.ecran], valeurs: Object.fromEntries(controls.map((item, index) => [`${page.ecran}.${item.sorte} ${index + 1}`, String(item.preuve.mesure)])),
       calcul: controls.map(item => item.description).join(" ; "), niveau_de_preuve: controls.length ? "releve" : "aucun",
-      ecarts_visuels: findings.flatMap(item => (item.source !== "controle" || item.statut === "SUSPECTED") && !item.explique_par && item.zone && (item.statut === "PASS" || item.statut === "SUSPECTED") ? [{ id: item.id, ecran: item.ecran, vue: item.vue, description: item.description, zone: item.zone, statut: item.statut, ...(item.decision_id ? { decision_id: item.decision_id } : {}) }] : []),
+      ecarts_visuels: findings.flatMap(item => (item.source !== "controle" || (item.statut === "SUSPECTED" && item.capture === `captures/${page.ecran}.png`)) && !item.explique_par && item.zone && (item.statut === "PASS" || item.statut === "SUSPECTED") ? [{ id: item.id, ecran: item.ecran, vue: item.vue, description: item.description, zone: item.zone, statut: item.statut, ...(item.decision_id ? { decision_id: item.decision_id } : {}) }] : []),
       captures: page.capture?.url ? [page.capture.url] : [], ...(replayUrl ? { replay_url: replayUrl } : {}), ...(reason ? { raison: reason } : {}) };
   };
   const wrapped: BasePassages = {
