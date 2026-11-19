@@ -302,6 +302,8 @@ export async function connecter(email: string, motDePasse: string): Promise<"ok"
   if (response.status === 401) return "Adresse ou mot de passe incorrect.";
   if (response.status === 429) return "Trop d'essais, réessayez dans une minute.";
   const corps = await response.json().catch(() => null);
+  // 503: the team account is not set on the service yet (agent/scripts/tour-service.mjs says it so).
+  if (response.status === 503) return "La connexion n'est pas encore ouverte sur le service Horama : le compte de l'équipe n'y est pas configuré.";
   if (!response.ok || typeof corps?.jeton !== "string") return "Le service n'a pas pu ouvrir la session, réessayez dans un instant.";
   try {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify({ jeton: corps.jeton, expire_le: corps.expire_le, nom: corps.nom }));
