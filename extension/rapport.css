@@ -36,6 +36,13 @@ h2 { font: 400 34px/1 var(--affiche); margin: 44px 0 8px; }
 #pages li code { flex: 1; font: 500 13px var(--mesure); overflow-wrap: anywhere; }
 #pages li .second { text-align: right; }
 #pages li.a_visiter code { color: var(--encre-2); }
+/* bug, ou voulu ? deux boutons sous la preuve, comme dans la tour ; le choix est plein, l'autre reste au trait */
+.trancher { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 18px 0; }
+.trancher .choix { flex: 1 1 140px; height: 44px; border: var(--trait) solid var(--encre); border-radius: 999px; background: var(--papier); color: var(--encre); font: 600 15px/1 var(--texte); cursor: pointer; }
+.trancher .choix:focus-visible { outline: 3px solid var(--iris); outline-offset: 3px; }
+.trancher .choix.bug[aria-pressed="true"] { background: var(--miltos); color: #fff; }
+.trancher .choix.voulu[aria-pressed="true"] { background: var(--encre); color: var(--engobe); }
+.trancher .dit { flex-basis: 100%; margin: 0; font-size: 14px; }
 @media (max-width: 640px) {
   .haut { height: 120px; }
   .haut .astre { top: 44px; width: 200px; height: 200px; margin-left: -100px; }
