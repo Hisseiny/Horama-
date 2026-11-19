@@ -31,6 +31,8 @@ import { ouvrirVitrine } from "./vitrine.mjs";
 import { HEIGHT, WIDTH, capture, captureZone, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, layer, navigate, openChrome, option, say, sleep } from "./scene.mjs";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
+// Local outputs and Chrome profiles, at the root of the repository wherever it is cloned (ignored by Git).
+const ORCHESTRATEUR = resolve(HERE, "../../.orchestrateur");
 const SANS_AGENT = flag("sans-agent");
 const URL_SITE = option("url", "");
 const MAX = Number(option("max", 15));
@@ -41,9 +43,9 @@ const SITE = option("site", "");
 const CLICKED = Number(option("pages-cliquees", 4));
 const VAULT = resolve(option("vault", join(HERE, "../../vault-horama")));
 const PORT = Number(option("port", 9333));
-const PROFILE = resolve(option("profil", "/Users/nathan/Code/projet/horama/.orchestrateur/chrome-agent"));
+const PROFILE = resolve(option("profil", join(ORCHESTRATEUR, "chrome-agent")));
 const ID = `${new Date().toLocaleString("sv-SE").slice(0, 16).replace(" ", "-").replace(":", "h")}-${randomUUID().slice(0, 4)}`;
-const OUT = resolve(option("sortie", `/Users/nathan/Code/projet/horama/.orchestrateur/exploration/${ID}`));
+const OUT = resolve(option("sortie", join(ORCHESTRATEUR, `exploration/${ID}`)));
 const WITNESSES = option("temoins") ? resolve(option("temoins")) : null;
 const CHOICES = flag("choix") ? option("choix").split(",") : [];
 // --repeter-choix: --choix taken again from the start (S9, filmed passages). It writes as many decisions as there are
@@ -100,7 +102,7 @@ if (area.largeur !== WIDTH || area.hauteur !== HEIGHT || area.densite !== 1) {
 }
 const mascot = (command, ...args) => layer(page, command, ...args);
 // The showcase (--vitrine): the scene enlarged to a whole screen in a separate Chrome; this page stays 1280 × 900.
-const vitrine = flag("vitrine") ? await ouvrirVitrine(page, { chromeBin: CHROME_BIN, profil: resolve(option("profil-vitrine", "/Users/nathan/Code/projet/horama/.orchestrateur/chrome-vitrine")),
+const vitrine = flag("vitrine") ? await ouvrirVitrine(page, { chromeBin: CHROME_BIN, profil: resolve(option("profil-vitrine", join(ORCHESTRATEUR, "chrome-vitrine"))),
   debugPort: flag("vitrine-debug") ? Number(option("vitrine-debug")) : null, say }) : null;
 // The page of departure at once, the mascot reading: what the audience sees while the pages are found and the H agent
 // starts (about 20 s measured on 18/11, 11 h 45), instead of a blank page.

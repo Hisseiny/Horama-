@@ -33,6 +33,8 @@ import { ouvrirVitrine } from "./vitrine.mjs";
 import { HEIGHT, WIDTH, capture, clickAt, closeChrome, connectTab, evaluate, fitViewport, flag, installLayer, layer, navigate, openChrome, option, say, sleep, waitFor } from "./scene.mjs";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
+// Local outputs and Chrome profiles, at the root of the repository wherever it is cloned (ignored by Git).
+const ORCHESTRATEUR = resolve(HERE, "../../.orchestrateur");
 const SANS_AGENT = flag("sans-agent");
 const VAULT = resolve(option("vault", join(HERE, "../../vault-horama")));
 const LOGICIEL = option("logiciel", "facturo");
@@ -41,9 +43,9 @@ const REFERENCE = option("reference", "12");
 const RYTHME = Number(option("rythme", 0));
 const WRITE_REFERENCES = flag("ecrire-references");
 const PORT = Number(option("port", 9333));
-const PROFILE = resolve(option("profil", "/Users/nathan/Code/projet/horama/.orchestrateur/chrome-agent"));
+const PROFILE = resolve(option("profil", join(ORCHESTRATEUR, "chrome-agent")));
 const ID = `${new Date().toLocaleString("sv-SE").slice(0, 16).replace(" ", "-").replace(":", "h")}-${randomUUID().slice(0, 4)}`;
-const OUT = resolve(option("sortie", `/Users/nathan/Code/projet/horama/.orchestrateur/passages/${ID}`));
+const OUT = resolve(option("sortie", join(ORCHESTRATEUR, `passages/${ID}`)));
 const WITNESSES = option("temoins") ? resolve(option("temoins")) : null;
 const FILM = option("film") ? resolve(option("film")) : null;
 const DIRECT = flag("clic-direct");
@@ -497,7 +499,7 @@ try {
     throw new Error(`zone de page ${area.largeur} × ${area.hauteur} à la densité ${area.densite} au lieu de ${WIDTH} × ${HEIGHT} à la densité 1 (émulation refusée ou zoom de page) : parcours non joué`);
   }
   // The page of the scene stays 1280 × 900; the showcase only retransmits it. If it fails, the scene goes on.
-  if (flag("vitrine")) vitrine = await ouvrirVitrine(page, { chromeBin: CHROME_BIN, profil: resolve(option("profil-vitrine", "/Users/nathan/Code/projet/horama/.orchestrateur/chrome-vitrine")), debugPort: flag("vitrine-debug") ? Number(option("vitrine-debug")) : null, say });
+  if (flag("vitrine")) vitrine = await ouvrirVitrine(page, { chromeBin: CHROME_BIN, profil: resolve(option("profil-vitrine", join(ORCHESTRATEUR, "chrome-vitrine"))), debugPort: flag("vitrine-debug") ? Number(option("vitrine-debug")) : null, say });
   if (FILM) film();
   // What the change asks to replay: said in the terminal now, shown in the summary at the end (nothing on screen
   // before the agent starts).

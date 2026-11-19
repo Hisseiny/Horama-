@@ -1,0 +1,22 @@
+# Types, lint and tests of every package, without network to H nor secrets (pnpm -r check), on every push to dev and main and on pull
+# requests to them.
+name: check
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+    branches: [dev, main]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --dir automatisation/scene install --frozen-lockfile --ignore-workspace
+      - run: pnpm -r check
