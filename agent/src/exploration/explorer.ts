@@ -12,6 +12,7 @@ import { creerCoureur } from "../coureur.ts";
 import type { ReleveCapture } from "../coureur.ts";
 import type { ResultatSession, Session, SessionEnCours } from "../session.ts";
 import { captureDefect, connecterCdp, dismissCookies, hideCaptureOverlays, prepareCapture, readLinks, verifierClics } from "./cdp.ts";
+import { garderSansConsentement } from "./consentement.ts";
 import type { PageLink } from "./cdp.ts";
 import type { ExplorationCdp } from "./cdp.ts";
 import { controlerPage } from "./controles.ts";
@@ -49,6 +50,7 @@ export interface ExplorerDependencies {
   log?: (message: string) => void;
   urlCourante?: () => Promise<string | null>;
   onglets?: () => Promise<Array<{ type: string; url: string }>>;
+  garderSansConsentement?: (port: number, log: (message: string) => void) => Promise<() => void>;
 }
 
 const clickedCount = (pageCount: number, clicked: number) => Math.min(clicked, Math.max(0, pageCount - 1));
@@ -360,6 +362,8 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
   };
   const returned = { ...report, navigation };
   let autoCompleted = false;
+  // No cookie banner for the whole visit (#208): blocked, refused, else hidden, on every tab, from the first page.
+  const stopConsent = await (deps.garderSansConsentement ?? garderSansConsentement)(port, log);
   try {
     if (blocage) {
       markBlocked(blocage); report.etat = "fini"; agent.etat = "fini"; report.cout_usd = 0;
@@ -806,6 +810,7 @@ export async function explorer(options: ExplorerOptions, deps: ExplorerDependenc
   } catch {
     report.etat = "interrompu"; agent.etat = "tombe"; agent.raison ??= "Le passage a été interrompu.";
   } finally {
+    stopConsent();
     if (autoCompleted && pages.every(page => page.etat === "visitee") && !finalizationFailure) {
       report.etat = "fini"; agent.etat = "fini";
     }

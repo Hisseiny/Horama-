@@ -54,7 +54,8 @@ export function refuseCookies(): boolean {
   for (const element of descendants(document).filter(node => node.matches('button, [role="button"], a'))) {
     const text = normalize(element.innerText || element.textContent || "");
     const labels = [text, normalize(element.getAttribute("aria-label") ?? ""), normalize(element.getAttribute("title") ?? "")];
-    if (labels.some(label => /accept|autoriser|allow|agree|akzeptier|zustimm/.test(label.replace("continuer sans accepter", "")))) continue;
+    // « Accept » said in a negation is a refusal (Axeptio, hcompany.ai: aria-label « No, thanks - Close without accepting cookies »).
+    if (labels.some(label => /accept|autoriser|allow|agree|akzeptier|zustimm/.test(label.replace(/\b(?:without|sans|ohne)\s+\S*(?:accept|autoris|akzept|zustimm)\S*/g, "")))) continue;
     if (!labels.some(label => refusals.has(label))) continue;
     const rect = element.getBoundingClientRect(), style = getComputedStyle(element);
     if (!rect.width || !rect.height || rect.bottom <= 0 || rect.top >= innerHeight || rect.right <= 0 || rect.left >= innerWidth || style.visibility !== "visible" || style.display === "none") continue;
