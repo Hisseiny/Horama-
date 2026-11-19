@@ -2,7 +2,7 @@
 // everything that was an example (no example account, no plan, no « agent disponible »), with the team account of the
 // service at its foot (#238), the capture of a finding with the sign of the charter on its zone, and a minimal reading
 // of the Markdown of the notes of the vault.
-import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Icon } from "../../interface/screen-11-1/Icons";
 import { poserDoute, tracerDefaut } from "../trait.js";
 import { SESSION_EVENT, enAttente, oublierSession, sessionBrute, testsDuVault, type Chargement, type Constat, type Decision, type Passage, type Session } from "../donnees";
@@ -59,18 +59,74 @@ export function Logo() {
 // defect, ochre for a doubt, olive when all is done; iris of the charter while it only looks.
 const IRIS = { trouve: "#B8321F", doute: "#C48A1E", fini: "#2E7D55" };
 
+// On a screen of the sidebar it comes down the right of the page as the page scrolls, as the mascot of the welcome page
+// flies along it (accueil/envoye.js, maj): top of its lane at the top of the page, its corner at the end, its pupil
+// looking where it goes (regarder), its dotted trail above it. It flies only in the free margin right of the content
+// column: when that margin is too narrow (window, sidebar open) it tucks away rather than cover a table, a button or a
+// text. Under prefers-reduced-motion it stays in its corner, still only if the margin is free. The login has no lane.
+const MARGE = 24; // the corner of the prototype: 24 px from the right and the bottom
+const ECART = 16; // the least gap left between the content and the mascot
+
 export function Mascot({ etat }: { etat?: keyof typeof IRIS }) {
+  const box = useRef<HTMLDivElement>(null);
+  const regard = useRef<SVGGElement>(null);
+  useLayoutEffect(() => {
+    const el = box.current;
+    const main = el?.parentElement?.querySelector<HTMLElement>(".main-content");
+    const colonne = main?.querySelector<HTMLElement>(".content-column");
+    if (!el || !main || !colonne) return;
+    const reduit = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let attente = 0, avant = main.scrollTop, repos = 0;
+    const maj = () => {
+      attente = 0;
+      const m = el.getBoundingClientRect(), zone = main.getBoundingClientRect();
+      el.classList.toggle("is-range", m.left - colonne.getBoundingClientRect().right < ECART || m.right > zone.left + main.clientWidth);
+      const max = main.scrollHeight - main.clientHeight;
+      const vole = !reduit.matches && max > 0;
+      const f = vole ? Math.min(1, main.scrollTop / max) : 1;
+      const voie = Math.max(0, window.innerHeight - 2 * MARGE - m.height);
+      el.style.transform = `translateY(${(-(1 - f) * voie).toFixed(1)}px)`;
+      el.style.setProperty("--trajet", `${vole ? (f * voie).toFixed(1) : 0}px`);
+    };
+    const planifier = () => { if (!attente) attente = requestAnimationFrame(maj); };
+    const defiler = () => {
+      planifier();
+      if (reduit.matches || !regard.current) return;
+      const sens = Math.sign(main.scrollTop - avant);
+      avant = main.scrollTop;
+      if (sens) regard.current.setAttribute("transform", `translate(0 ${sens * 6})`);
+      clearTimeout(repos);
+      repos = window.setTimeout(() => regard.current?.removeAttribute("transform"), 450);
+    };
+    // The column moves or grows without a scroll: data that arrive, the sidebar that folds, a resized window. Placed in
+    // the same frame, before it is painted: the column of an unfolding sidebar never slides under the mascot.
+    const suivi = new ResizeObserver(maj);
+    suivi.observe(main);
+    suivi.observe(colonne);
+    main.addEventListener("scroll", defiler, { passive: true });
+    window.addEventListener("resize", planifier);
+    maj();
+    return () => {
+      cancelAnimationFrame(attente);
+      clearTimeout(repos);
+      suivi.disconnect();
+      main.removeEventListener("scroll", defiler);
+      window.removeEventListener("resize", planifier);
+    };
+  }, []);
   return (
-    <div className="mascot" aria-hidden="true">
+    <div className="mascot" aria-hidden="true" ref={box}>
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 4 96 66">
         <g fill="#AFA9EC" stroke="#1C1C1C" strokeWidth="2.5" strokeLinejoin="round">
           <path d="M30 46C24 30 10 24 2 28c6 3 7 7 5 10 5 1 7 5 5 8 5 1 8 5 7 9 5-1 9-4 11-9Z" />
           <path d="M66 46C72 30 86 24 94 28c-6 3-7 7-5 10-5 1-7 5-5 8-5 1-8 5-7 9-5-1-9-4-11-9Z" />
         </g>
         <circle cx="48" cy="48" r="20" fill="#fff" stroke="#1C1C1C" strokeWidth="3" />
-        <circle cx="48" cy="48" r="10.5" fill={etat ? IRIS[etat] : "#7F77DD"} />
-        <circle cx="48" cy="48" r="4.6" fill="#1C1C1C" />
-        <circle cx="51.6" cy="44.4" r="2.2" fill="#fff" />
+        <g ref={regard} className="mascot-regard">
+          <circle cx="48" cy="48" r="10.5" fill={etat ? IRIS[etat] : "#7F77DD"} />
+          <circle cx="48" cy="48" r="4.6" fill="#1C1C1C" />
+          <circle cx="51.6" cy="44.4" r="2.2" fill="#fff" />
+        </g>
       </svg>
     </div>
   );
