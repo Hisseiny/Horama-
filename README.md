@@ -219,12 +219,12 @@ Après le hackathon, dans cet ordre de dépendance :
 
 ## Essayer Horama
 
-Pour le jury, sans rien installer côté serveur : le mode grand public, sur le site de votre choix. Les adresses marquées « à compléter » le seront quand le service sera en ligne (#68, #133).
+Pour le jury, à distance, sans rien installer côté serveur : le mode grand public, sur le site de votre choix. Le service d'exploration tourne en ligne (Railway) ; il suffit d'un navigateur.
 
-**Par la page d'accueil.** Ouvrez `adresse de la page d'accueil, à compléter` (#136), collez l'adresse d'un site public dans le champ et cliquez « Envoyer Horama ».
+**Sans rien installer, par la page d'accueil.** Ouvrez https://horama-gold.vercel.app, collez l'adresse d'un site public dans le champ et cliquez « Envoyer Horama ». Le rapport s'ouvre et se remplit page par page.
 
-**Par l'extension Chrome.**
-1. Téléchargez `horama-extension.zip` (`lien de la release, à compléter`), puis dézippez-le.
+**Par l'extension Chrome** (pour vérifier le site de l'onglet ouvert en un clic).
+1. Téléchargez https://horama-gold.vercel.app/horama-extension.zip, puis dézippez-le.
 2. Dans Chrome, ouvrez `chrome://extensions`, activez le « Mode développeur » et cliquez « Charger l'extension non empaquetée ». Choisissez le dossier dézippé.
 3. Ouvrez le site à vérifier, cliquez sur l'icône Horama : l'adresse de l'onglet est déjà remplie. Cliquez « Envoyer Horama ».
 
@@ -242,7 +242,7 @@ Limites du service (`agent/scripts/exploration-service.mjs`, #143) :
 
 L'agent ne remplit aucun formulaire.
 
-**Pour l'équipe : régler l'adresse du service.** Une seule ligne, la constante `DEFAULT_SERVICE` de `extension/service.js` (aujourd'hui `http://127.0.0.1:8787`, le faux service). Une fois l'adresse réglée, `sh extension/empaqueter.sh` produit `extension/dist/horama-extension.zip` et rappelle l'adresse qu'il contient. Chaque utilisateur peut aussi la changer dans les options de l'extension. La publication du `.zip` en release GitHub attend le go de Nathan.
+**Pour l'équipe : l'adresse du service et le `.zip`.** L'adresse est la constante `DEFAULT_SERVICE` de `extension/service.js` (le service Railway, https://explorations-production-70bf5b38.up.railway.app). Chaque utilisateur peut la changer dans les options de l'extension. Après un changement de l'extension : `sh extension/empaqueter.sh` produit `extension/dist/horama-extension.zip` et rappelle l'adresse qu'il contient ; le copier dans `accueil/horama-extension.zip` le publie avec la page d'accueil (le dépôt étant privé, une release GitHub ne serait pas téléchargeable par le jury). La publication d'une release attend le go de Nathan.
 
 ## Comment lancer
 
