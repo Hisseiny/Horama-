@@ -131,19 +131,23 @@ export async function charger(): Promise<Chargement> {
     erreurs.push(`Index des passages du mode développeur illisible (${(error as Error).message}).`);
   }
   const envois = historique();
+  // Only a 404 means the service no longer keeps an exploration; a service asleep, in error or answering something
+  // else is said otherwise (review of #222).
+  let injoignables = 0;
   const lus = await Promise.all(envois.map(async (envoi) => {
     try {
       const response = await fetch(`${envoi.service}/explorations/${encodeURIComponent(envoi.id)}`, { cache: "no-store" });
       if (response.status === 404) return null; // the service no longer keeps it
       const body = await response.json();
-      return body.format === "horama-exploration-1" ? fromExploration(envoi, body) : null;
-    } catch {
-      return null;
-    }
+      if (body.format === "horama-exploration-1") return fromExploration(envoi, body);
+    } catch {}
+    injoignables++;
+    return undefined;
   }));
   const perdues = lus.filter((item) => item === null).length;
-  if (perdues) erreurs.push(`${perdues} exploration${perdues > 1 ? "s" : ""} envoyée${perdues > 1 ? "s" : ""} depuis ce navigateur ne ${perdues > 1 ? "sont" : "est"} plus gardée${perdues > 1 ? "s" : ""} par le service.`);
-  passages.push(...lus.filter((item): item is Passage => item !== null));
+  if (perdues) erreurs.push(`${perdues} exploration${perdues > 1 ? "s" : ""} envoyée${perdues > 1 ? "s" : ""} depuis ce navigateur ${perdues > 1 ? "ne sont plus gardées" : "n'est plus gardée"} par le service.`);
+  if (injoignables) erreurs.push(`${injoignables} exploration${injoignables > 1 ? "s" : ""} illisible${injoignables > 1 ? "s" : ""} : le service ne répond pas, réessayez dans un instant.`);
+  passages.push(...lus.filter((item): item is Passage => !!item));
   passages.sort((a, b) => String(b.date).localeCompare(String(a.date)));
   return { passages, erreurs };
 }

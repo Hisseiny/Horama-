@@ -114,8 +114,10 @@ export function Capture({ constat }: { constat: Constat }) {
       if (constat.entouree || !constat.zone) return;
       const scale = host.clientWidth / (constat.taille?.largeur ?? img.naturalWidth);
       const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      svg.setAttribute("width", String(host.clientWidth));
-      svg.setAttribute("height", String(img.clientHeight));
+      // A viewBox: the sign follows the capture when its width changes (rotation, window resized; review of #222).
+      svg.setAttribute("viewBox", `0 0 ${host.clientWidth} ${img.clientHeight}`);
+      svg.setAttribute("width", "100%");
+      svg.setAttribute("height", "100%");
       svg.style.cssText = "position:absolute;left:0;top:0;overflow:visible";
       host.append(svg);
       const rect = { x: constat.zone.x * scale, y: constat.zone.y * scale, w: constat.zone.largeur * scale, h: constat.zone.hauteur * scale };
