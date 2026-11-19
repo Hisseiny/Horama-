@@ -8,7 +8,7 @@ import { ecrireDecision } from "@horama/memoire";
 import { BaseMemoire } from "./src/base.ts";
 import { construireExploration, exclusionLabel, explorer, explorationPassageId, explorationStepBudget, explorationTimeBudget } from "./src/exploration/explorer.ts";
 import type { ExplorerDependencies } from "./src/exploration/explorer.ts";
-import { lireArguments, preparerNavigateur } from "./src/exploration/cli.ts";
+import { lireArguments } from "./src/exploration/cli.ts";
 import { libelleAction } from "./src/session.ts";
 import type { Session } from "./src/session.ts";
 
@@ -528,30 +528,6 @@ test("consigne : lecture complète, un geste puis remontée sur chaque page, cli
   assert.equal(explorationStepBudget(8, 4), 585);
   assert.equal(explorationStepBudget(8, 8), 594);
   assert.ok(explorationStepBudget(8, 8) >= 8 * (32 * 2 + 1 + 1 + 4) + 7 * 3 + 10);
-});
-
-test("pont préparé pendant la découverte, consommé une fois, pont neuf après échec ou relance", async () => {
-  let launches = 0;
-  const browser = { channel: "prepared", stop() {} };
-  let ready!: (value: typeof browser) => void;
-  const navigateur = preparerNavigateur(() => {
-    launches++;
-    return launches === 1 ? new Promise(resolve => { ready = resolve; }) : Promise.resolve({ ...browser, channel: "new" });
-  });
-  assert.equal(launches, 1);
-  const first = navigateur();
-  ready(browser);
-  assert.equal(await first, browser);
-  assert.equal((await navigateur()).channel, "new");
-  assert.equal(launches, 2);
-  let attempts = 0;
-  const failed = preparerNavigateur(async () => {
-    if (++attempts === 1) throw new Error("Pont indisponible");
-    return browser;
-  });
-  await new Promise(resolve => setImmediate(resolve));
-  await assert.rejects(failed(), /Pont indisponible/);
-  assert.equal(await failed(), browser);
 });
 
 for (const failure of [false, true]) {

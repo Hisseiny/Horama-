@@ -2,7 +2,6 @@ import { fileURLToPath } from "node:url";
 import { BaseMemoire, creerBaseSupabase } from "../base.ts";
 import { navigateurLocal } from "../browser.ts";
 import { creerSessionH } from "../session.ts";
-import type { NavigateurSession } from "../session.ts";
 import { explorer } from "./explorer.ts";
 import type { ExplorerOptions } from "./explorer.ts";
 
@@ -48,16 +47,6 @@ export function lireArguments(args: string[]): (ExplorerOptions & { sansBase: bo
     vault: values.get("--vault") ?? fileURLToPath(new URL("../../../vault-horama", import.meta.url)), sansBase: values.has("--sans-base"), reseauPublic: values.has("--reseau-public") };
 }
 
-export function preparerNavigateur(navigateur: () => Promise<NavigateurSession>): () => Promise<NavigateurSession> {
-  let first: Promise<NavigateurSession> | undefined = navigateur();
-  void first.catch(() => {});
-  return () => {
-    const prepared = first;
-    first = undefined;
-    return prepared ?? navigateur();
-  };
-}
-
 export async function lancerExploration(options: ExplorerOptions & { sansBase: boolean }) {
   if (!process.env.HAI_API_KEY) throw new Error("HAI_API_KEY requise.");
   const base = options.sansBase ? new BaseMemoire() : creerBaseSupabase();
@@ -67,7 +56,6 @@ export async function lancerExploration(options: ExplorerOptions & { sansBase: b
   let runtime: Awaited<ReturnType<typeof navigateurLocal>> | undefined;
   try {
     runtime = await navigateurLocal(options.port);
-    const navigateur = preparerNavigateur(runtime.navigateur);
-    return await explorer(options, { base, runtime, session: creerSessionH({ navigateur }), signal: controller.signal });
+    return await explorer(options, { base, runtime, session: creerSessionH({ navigateur: runtime.navigateur }), signal: controller.signal });
   } finally { process.removeListener("SIGINT", cancel); runtime?.close(); }
 }
