@@ -121,14 +121,15 @@ function decor() {
   mq.innerHTML = mh; tracePath.setAttribute("mask", "url(#sans-titres)");
   // la peau de nuit : la même scène, nuages cernés d'engobe, étoiles, pas de soleil
   const peauNuit = peauJour.cloneNode(true); peauNuit.id = "peau-nuit"; peauNuit.classList.add("nuit");
-  peauJour.after(peauNuit);
+  peauJour.after(peauNuit); peauNuitEl = peauNuit;
   for (const k of ["loin", "milieu", "banc"]) COUCHES[k].els.push(peauNuit.querySelector(`[data-c="${k}"]`));
 }
 
 /* ---------- les ciels : un fond par escale, une couture cachée derrière le banc de nuages ---------- */
 const CIELS = { lever: "#FBF5E6", ciel: "#E3E0F9", nuit: "#2A2647", aube: "#FFE39A" };
 const fondA = document.getElementById("fond-a"), fondB = document.getElementById("fond-b");
-const peaux = () => [peauJour, document.getElementById("peau-nuit") || peauJour];
+let peauNuitEl = null;
+const peaux = () => [peauJour, peauNuitEl || peauJour];
 const decoupe = (n, x0, x1) => { x0 = clamp(x0, 0, W); x1 = clamp(x1, 0, W); n.style.display = x1 > x0 ? "" : "none"; n.style.clipPath = `inset(0 ${W - x1}px 0 ${x0}px)`; };
 let cielCourant = "lever";
 function poserCiel(a, b, X, dir) {
@@ -229,46 +230,6 @@ function compter(e, n, fin, { duree = 1000, delai = 0, format = v => String(Math
   requestAnimationFrame(pas);
 }
 
-/* ---------- QR code du dépôt, encodé ici (version 3, correction M, octets, masque 0) ---------- */
-function qrMatrice(texte) {
-  const N = 29, DATA = 44, ECC = 26, bits = [];
-  const pousse = (v, n) => { for (let i = n - 1; i >= 0; i--) bits.push((v >>> i) & 1); };
-  const octets = [...new TextEncoder().encode(texte)];
-  pousse(4, 4); pousse(octets.length, 8); octets.forEach(b => pousse(b, 8));
-  pousse(0, Math.min(4, DATA * 8 - bits.length)); while (bits.length % 8) bits.push(0);
-  const data = []; for (let i = 0; i < bits.length; i += 8) data.push(parseInt(bits.slice(i, i + 8).join(""), 2));
-  for (let p = 0xEC; data.length < DATA; p ^= 0xEC ^ 0x11) data.push(p);
-  const mul = (x, y) => { let z = 0; for (let i = 7; i >= 0; i--) { z = (z << 1) ^ ((z >>> 7) * 0x11D); z ^= ((y >>> i) & 1) * x; } return z & 0xFF; };
-  const div = Array(ECC - 1).fill(0).concat([1]); let root = 1;
-  for (let i = 0; i < ECC; i++) { for (let j = 0; j < div.length; j++) { div[j] = mul(div[j], root); if (j + 1 < div.length) div[j] ^= div[j + 1]; } root = mul(root, 2); }
-  const rest = div.map(() => 0);
-  for (const b of data) { const f = b ^ rest.shift(); rest.push(0); div.forEach((c, i) => rest[i] ^= mul(c, f)); }
-  const mots = data.concat(rest);
-  const mod = [...Array(N)].map(() => Array(N).fill(false)), fn = [...Array(N)].map(() => Array(N).fill(false));
-  const set = (x, y, v) => { mod[y][x] = v; fn[y][x] = true; };
-  for (let i = 0; i < N; i++) { set(6, i, i % 2 === 0); set(i, 6, i % 2 === 0); }
-  for (const [cx, cy] of [[3, 3], [N - 4, 3], [3, N - 4]]) for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) {
-    const x = cx + dx, y = cy + dy; if (x < 0 || y < 0 || x >= N || y >= N) continue; const dist = Math.max(Math.abs(dx), Math.abs(dy)); set(x, y, dist !== 2 && dist !== 4); }
-  for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) set(22 + dx, 22 + dy, Math.max(Math.abs(dx), Math.abs(dy)) !== 1);
-  const fmt = 0x5412, bit = i => ((fmt >>> i) & 1) === 1;
-  for (let i = 0; i <= 5; i++) set(8, i, bit(i));
-  set(8, 7, bit(6)); set(8, 8, bit(7)); set(7, 8, bit(8));
-  for (let i = 9; i < 15; i++) set(14 - i, 8, bit(i));
-  for (let i = 0; i < 8; i++) set(N - 1 - i, 8, bit(i));
-  for (let i = 8; i < 15; i++) set(8, N - 15 + i, bit(i));
-  set(8, N - 8, true);
-  let i = 0;
-  for (let right = N - 1; right >= 1; right -= 2) {
-    if (right === 6) right = 5;
-    for (let v = 0; v < N; v++) for (let j = 0; j < 2; j++) {
-      const x = right - j, up = ((right + 1) & 2) === 0, y = up ? N - 1 - v : v;
-      if (!fn[y][x] && i < mots.length * 8) { mod[y][x] = ((mots[i >>> 3] >>> (7 - (i & 7))) & 1) === 1; i++; }
-    }
-  }
-  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (!fn[y][x] && (x + y) % 2 === 0) mod[y][x] = !mod[y][x];
-  return mod;
-}
-
 /* ---------- les escales (chacune se suffit à elle-même) ---------- */
 const ESCALES = {
   titre: {
@@ -357,44 +318,26 @@ const ESCALES = {
     },
   },
   demo: {
-    // calées image par image sur la vidéo v2 (30,0 s)
-    LEGENDES: [
-      [0, "Une PR s'ouvre. Horama part la vérifier."],
-      [3.0, "Il visite l'aperçu du site, comme un visiteur."],
-      [7.3, "Un texte déborde de sa boîte : <span class=\"cle\">trait rouge</span>."],
-      [9.5, "L'agent de H parcourt le site et clique, comme vous."],
-      [13.0, "Il lit chaque page, traduite en allemand."],
-      [17.3, "Un bloc est resté en français : <span class=\"cle\">trait rouge</span>."],
-      [19.0, "« J'ai fini. » 3 défauts prouvés, 2 doutes, 8 pages."],
-      [22.4, "Chaque défaut revient : bug, ou voulu ?"],
-      [26.3, "Vous tranchez : <span class=\"cle verdict\">c'est un bug</span>."],
-      [27.2, "« C'est rangé. » La décision est gardée."],
-    ],
-    // la caméra dans la vidéo : centre (px de la vidéo 1280×862) et zoom, relevés image par image
-    // cadrages choisis pour ne couper ni une colonne ni un bouton, et ne jamais montrer la bande blanche de droite (après 22,4 s)
-    CAMERA: [
-      [0, 640, 431, 1], [6.7, 640, 431, 1], [7.5, 395, 596, 1.62], [8.9, 395, 596, 1.62], [9.6, 640, 431, 1],
-      [10.9, 640, 431, 1], [11.6, 430, 289, 1.49], [12.6, 430, 289, 1.49], [13.2, 640, 431, 1],
-      [17.5, 640, 431, 1], [18.15, 330, 500, 2.1], [18.85, 330, 500, 2.1], [19.3, 640, 336, 1.28], [22.1, 640, 336, 1.28],
-      [22.45, 540, 431, 1.19], [23.2, 540, 600, 1.45], [26.1, 540, 600, 1.45], [26.6, 540, 300, 1.4], [27.0, 540, 300, 1.4], [27.6, 540, 450, 1.4], [30, 540, 450, 1.4],
-    ],
+    // la vidéo, ses légendes et sa caméra sont dans assets/demo-moments.js (window.DEMO)
     camera(t) {
-      const C = this.CAMERA; let i = 0; while (i < C.length - 2 && t > C[i + 1][0]) i++;
+      const C = DEMO.camera; let i = 0; while (i < C.length - 2 && t > C[i + 1][0]) i++;
       const [t0, x0, y0, s0] = C[i], [t1, x1, y1, s1] = C[i + 1], u = lisse(clamp((t - t0) / (t1 - t0)));
       return [lerp(x0, x1, u), lerp(y0, y1, u), Math.exp(lerp(Math.log(s0), Math.log(s1), u))];
     },
     arriver(e, instant) {
       const v = e.querySelector("video"), f = e.querySelector(".feuille"), lg = e.querySelector(".legende");
-      const Wd = 1210, Hd = 815, k = Wd / 1280;
+      if (!v.getAttribute("src")) v.src = DEMO.video;
+      const Wd = 1210, Hd = 815, k = Wd / DEMO.largeur;
       v.pause(); try { v.currentTime = 0; } catch {}
-      const cadrer = t => {
-        const [cx, cy, s] = this.camera(t);
+      const cadrer = (t, cam = this.camera(t)) => {
+        const [cx, cy, s] = cam;
         const tx = clamp(Wd / 2 - cx * k * s, Wd - Wd * s, 0), ty = clamp(Hd / 2 - cy * k * s, Hd - Hd * s, 0);
         v.style.transform = `translate(${tx.toFixed(2)}px,${ty.toFixed(2)}px) scale(${s.toFixed(4)})`;
       };
+      const legende = t => { let i = 0; DEMO.legendes.forEach((L, j) => { if (t >= L[0]) i = j; }); return i; };
       let cur = -1;
       const montrer = (i, anim) => {
-        if (i === cur) return; cur = i; lg.innerHTML = this.LEGENDES[i][1];
+        if (i === cur) return; cur = i; lg.innerHTML = DEMO.legendes[i][1];
         if (!anim) return;
         retenir(e, lg.animate([{ opacity: 0, transform: "translateY(22px)" }, { opacity: 1, transform: "none" }], { duration: 520, easing: SORTIE }));
         const cle = lg.querySelector(".cle");
@@ -403,24 +346,22 @@ const ESCALES = {
           setTimeout(() => tracerDefaut(s, { x: 0, y: 2, w, h: h - 4 }, { duree: 700, epaisseur: 7 }), 120);
           if (cle.classList.contains("verdict")) retenir(e, f.animate([{ transform: "rotateZ(0deg) scale(1)" }, { transform: "rotateZ(.6deg) scale(1.025)", offset: .25 }, { transform: "rotateZ(0deg) scale(1)" }], { duration: 700, easing: SORTIE, composite: "add" })); }
       };
+      // pour le PDF : une image fixe de la vidéo, avec son cadre et sa légende
+      e._figer = () => { if (e._boucle) cancelAnimationFrame(e._boucle), e._boucle = 0; const [t, x, y, z] = DEMO.imagePdf;
+        v.pause(); v.currentTime = t; cadrer(t, [x, y, z]); cur = -1; montrer(legende(t), true); };
       montrer(0, false); cadrer(0);
       if (instant) return;
       anime(e, f, [{ opacity: 0, transform: "translate3d(0,320px,-600px) rotateX(66deg)" }, { opacity: 1, offset: .2 }, { opacity: 1, transform: "translate3d(0,0,0) rotateX(0deg)" }], { duration: 1150 });
       plus_tard(e, 1000, () => { v.play().catch(() => {}); });
-      const suivre = () => {
-        const t = v.currentTime; let i = 0;
-        this.LEGENDES.forEach((L, j) => { if (t >= L[0]) i = j; });
-        montrer(i, true); cadrer(t);
-        e._boucle = requestAnimationFrame(suivre);
-      };
+      const suivre = () => { const t = v.currentTime; montrer(legende(t), true); cadrer(t); e._boucle = requestAnimationFrame(suivre); };
       e._boucle = requestAnimationFrame(suivre);
     },
     quitter(e) { e.querySelector("video").pause(); },
   },
   archi: {
     NOEUDS: [
-      ["pr", 250, 370, "PR GitHub", "aperçu Vercel"], ["reveil", 600, 330, "Le réveil", "choisit les tests"],
-      ["ext", 250, 740, "Extension Chrome", "ou page d'accueil"], ["service", 600, 770, "Le service", "sur Railway"],
+      ["pr", 250, 370, "PR GitHub", "aperçu sur Vercel"], ["reveil", 600, 330, "Le réveil", "choisit les tests"],
+      ["ext", 250, 740, "Extension, page d'accueil", "sur Vercel"], ["service", 600, 770, "Notre service", "d'exploration"],
       ["h", 960, 540, "Agent H dans Chrome", "H Company"],
       ["code", 1330, 380, "Le code prouve", "liens, langue"], ["holo", 1330, 720, "Holo doute", "sur la capture"],
       ["vous", 1640, 550, "Vous tranchez", "bug ou voulu"], ["pr2", 1720, 290, "Réponse sur la PR", "vault mis à jour"],
@@ -448,24 +389,20 @@ const ESCALES = {
     },
   },
   prix: {
+    // un pilier par forfait, à l'échelle du prix d'UN passage ; la part blanche (coût de l'agent H, 0,25 $) est la même partout
     arriver(e, instant) {
+      const PX = 460; // pixels pour 1 €
       e.querySelectorAll(".pilier").forEach((p, i) => {
-        const prix = +p.dataset.prix, h = Math.max(26, prix * 2.3), col = p.querySelector(".colonne"), lab = p.querySelector(".prix"), n = p.querySelector(".n");
-        col.style.height = h + "px"; lab.style.bottom = h + 18 + "px"; p.style.height = h + "px";
-        const mg = col.querySelector(".marge");
-        if (mg) { mg.style.height = (h * p.dataset.marge / 100) + "px";
-          const hm = h * p.dataset.marge / 100, note = p.querySelector(".note-marge") || el("p", "note-marge", p), cout = p.querySelector(".note-cout") || el("p", "note-marge note-cout", p);
-          note.textContent = `marge ${p.dataset.marge} %`; cout.textContent = `coût H ${p.dataset.cout} $`;
-          Object.assign(note.style, { left: 0, right: 0, textAlign: "center", top: (hm / 2 - 16) + "px", fontSize: "30px" });
-          Object.assign(cout.style, { left: 0, right: 0, textAlign: "center", top: (hm + (h - hm) / 2 - 16) + "px", fontSize: "28px", fontWeight: 500 }); }
-        if (instant) { n.textContent = prix; return; }
-        anime(e, col, [{ transform: "scaleY(0)" }, { transform: "scaleY(1)" }], { duration: 1100, delay: 200 + i * 150 });
-        col.style.transformOrigin = "50% 100%";
-        anime(e, lab, [{ transform: `translateY(${h}px)`, opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 1100, delay: 200 + i * 150 });
-        n.textContent = "0"; compter(e, n, prix, { duree: 1100, delai: 200 + i * 150 });
-        if (mg) { anime(e, mg, [{ opacity: 0 }, { opacity: 1 }], { duration: 600, delay: 900 + i * 150 }); p.querySelectorAll(".note-marge").forEach(nn => anime(e, nn, [{ opacity: 0 }, { opacity: 1 }], { duration: 600, delay: 1000 + i * 150 })); }
+        const prix = +p.dataset.prix, cout = +p.dataset.cout, h = Math.max(prix, cout) * PX, col = p.querySelector(".colonne"), lab = p.querySelector(".prix");
+        col.style.height = h + "px"; lab.style.top = (1080 - 302 - h - 112) + "px";
+        const c = col.querySelector(".cout"), mg = col.querySelector(".marge");
+        c.style.height = cout * PX + "px"; if (mg) mg.style.height = (h - cout * PX) + "px";
+        if (instant) return;
+        anime(e, col, [{ transform: "scaleY(0)" }, { transform: "scaleY(1)" }], { duration: 1100, delay: 150 + i * 150 });
+        anime(e, lab, [{ transform: `translateY(${h}px)`, opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 1100, delay: 150 + i * 150 });
+        col.querySelectorAll("span").forEach(sp => anime(e, sp, [{ opacity: 0 }, { opacity: 1 }], { duration: 600, delay: 850 + i * 150 }));
       });
-      if (!instant) e.querySelectorAll(".nom").forEach((n, i) => anime(e, n, [{ opacity: 0, transform: "translateY(20px)" }, { opacity: 1, transform: "none" }], { duration: 900, delay: 300 + i * 150 }));
+      if (!instant) e.querySelectorAll(".nom").forEach((n, i) => anime(e, n, [{ opacity: 0, transform: "translateY(20px)" }, { opacity: 1, transform: "none" }], { duration: 900, delay: 250 + i * 150 }));
     },
   },
   chemin: {
@@ -491,28 +428,6 @@ const ESCALES = {
       etapes.forEach((s, i) => anime(e, s, [{ opacity: 0, transform: "translateY(30px) scale(.9)" }, { opacity: 1, transform: "none" }], { duration: 900, delay: 200 + [0, .36, .66, 1][i] * 1300 }));
     },
   },
-  route: {
-    arriver(e, instant) {
-      const zone = e.querySelector(".pages-m"); zone.textContent = "";
-      const p = perche(e), cases = [];
-      for (let i = 0; i < 8; i++) { const x = 470 + (i % 4) * 172, y = 380 + Math.floor(i / 4) * 150;
-        const pg = el("div", "page-m", zone); Object.assign(pg.style, { left: x + "px", top: y + "px" });
-        pg.innerHTML = `<i style="top:40px"></i><i style="top:60px;right:46px"></i>`; cases.push([x + 70, y - 6, pg]); }
-      const demain = e.querySelector(".demain");
-      cases.forEach(([x, y, pg], i) => {
-        const m = creerMascotte(84); m.etat("regarde"); m.regarder(0, 1);
-        const c = jetable(e, el("div", "clone", e)); c.appendChild(m.el);
-        Object.assign(c.style, { transform: `translate(${x - 42}px,${y - 42}px)` });
-        if (instant) return;
-        anime(e, pg, [{ opacity: 0, transform: "scale(.6)" }, { opacity: 1, transform: "none" }], { duration: 900, delay: 500 + i * 60 });
-        anime(e, c, [{ opacity: 0, transform: `translate(${p.x - 42}px,${p.y - 42}px) scale(1.6)` }, { opacity: 1, offset: .15 },
-          { opacity: 1, transform: `translate(${x - 42}px,${y - 42}px) scale(1)` }], { duration: 1100, delay: 800 + i * 70 });
-      });
-      if (instant) return;
-      anime(e, demain, [{ opacity: 0, transform: "translateY(16px)" }, { opacity: 1, transform: "none" }], { duration: 900, delay: 700 });
-      e.querySelectorAll(".listes li").forEach((li, i) => anime(e, li, [{ opacity: 0, transform: "translateX(30px)" }, { opacity: 1, transform: "none" }], { duration: 900, delay: 300 + i * 90 }));
-    },
-  },
   cout: {
     arriver(e, instant) {
       const ch = e.querySelector(".chiffre"), n = ch.querySelector(".nombre"), $ = ch.querySelector(".dollar"), pli = e.querySelector(".pli"), m = calque(e);
@@ -529,21 +444,10 @@ const ESCALES = {
     },
   },
   fin: {
-    arriver(e, instant, via) {
-      const q = e.querySelector(".qr");
-      if (!q.firstChild) {
-        const mat = qrMatrice("https://github.com/Hisseiny/Horama-"), N = mat.length, s = el("svg", null, q, true);
-        s.setAttribute("viewBox", `-4 -4 ${N + 8} ${N + 8}`); s.setAttribute("shape-rendering", "crispEdges");
-        let h = ""; mat.forEach((row, y) => row.forEach((v, x) => { if (v) h += `<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="#1C1C1C" data-d="${x + y}"/>`; }));
-        s.innerHTML = h;
-      }
+    arriver(e, instant) {
       if (instant) return;
-      q.querySelectorAll("rect").forEach(r => retenir(e, r.animate([{ opacity: 0, transform: "scale(.2)" }, { opacity: 1, transform: "none" }],
-        { duration: 500, delay: 500 + Math.min(+r.dataset.d * 11, 600), easing: SORTIE, fill: "both" })));
-      q.querySelectorAll("rect").forEach(r => { r.style.transformBox = "fill-box"; r.style.transformOrigin = "50% 50%"; });
       if (e._soleil) anime(e, e._soleil.querySelector(".leve"), [{ transform: "translateY(380px)" }, { transform: "none" }], { duration: 1200, fill: "none" });
-      anime(e, e.querySelector(".dit"), [{ opacity: 0, transform: "translateY(30px) rotate(-6deg)" }, { opacity: 1, transform: "rotate(-3deg)" }], { duration: 900, delay: 900 });
-      anime(e, e.querySelector(".lien-ext"), [{ opacity: 0, transform: "translateY(24px)" }, { opacity: 1, transform: "none" }], { duration: 900, delay: 300 });
+      anime(e, e.querySelector(".dit"), [{ opacity: 0, transform: "translateY(30px) rotate(-6deg)" }, { opacity: 1, transform: "rotate(-3deg)" }], { duration: 900, delay: 700 });
     },
   },
 };
@@ -569,8 +473,10 @@ function aller(cible, instant) {
     poserCiel(cible.dataset.ciel); rendre(); poser(cible); points = []; tracer(); arriver(cible, false, "saut"); return;
   }
   if (cible === depart) return;
-  const avant = idx(cible) > idx(depart);
-  if (avant && depart.dataset.sortie === "plongee" && perche(depart) && hote.style.visibility !== "hidden") plonger(depart, cible); else voler(depart, cible);
+  const avant = idx(cible) > idx(depart), sortie = depart.dataset.sortie;
+  if (!avant) return voler(depart, cible);
+  if (sortie === "plongee" && perche(depart) && hote.style.visibility !== "hidden") return plonger(depart, cible);
+  (SORTIES[sortie] || voler)(depart, cible);
 }
 
 /* le vol : la caméra traverse le ciel et un banc de nuages, l'envoyé file devant et laisse son pointillé */
@@ -656,6 +562,156 @@ function plonger(a, b) {
   });
 }
 
+/* ---------- les autres sorties : l'ancienne escale est figée (copie), la nouvelle se révèle selon la fiction ---------- */
+const monde = document.getElementById("monde"), dessus = document.getElementById("dessus");
+function figer(a) {
+  // une copie légère de ce qui est à l'écran : les fonds, les nuages visibles, l'escale qui part, l'envoyé
+  const c = el("div", "ancien"); Object.assign(c.style, { position: "absolute", left: 0, top: 0, width: W + "px", height: H + "px", overflow: "hidden" });
+  [fondA, fondB].forEach(n => c.appendChild(n.cloneNode(false)));
+  for (const peau of peaux()) {
+    if (peau.style.display === "none" || c.contains(peau)) continue;
+    const pc = c.appendChild(peau.cloneNode(false)); pc.removeAttribute("id");
+    for (const couche of peau.children) {
+      const cc = pc.appendChild(couche.cloneNode(false)), f = COUCHES[couche.dataset.c]?.f ?? 1;
+      for (const ch of couche.children) {
+        const x = parseFloat(ch.style.left), w = parseFloat(ch.style.width);
+        if (ch.classList.contains("nuage") && (x - cam.x * f > W + 60 || x + w - cam.x * f < -60)) continue;
+        cc.appendChild(ch.cloneNode(true));
+      }
+    }
+    if (peaux()[0] === peaux()[1]) break;
+  }
+  const pr = c.appendChild(document.getElementById("principal").cloneNode(false)); pr.removeAttribute("id");
+  const ca = pr.appendChild(a.cloneNode(true));
+  const env = c.appendChild(hote.cloneNode(true)); env.removeAttribute("id"); Object.assign(env.style, { position: "absolute", left: 0, top: 0, width: "160px", height: "160px", transformOrigin: "80px 80px" });
+  // la vidéo : son image du moment, sur une toile
+  a.querySelectorAll("video").forEach((v, i) => { const cv = document.createElement("canvas"); cv.width = v.videoWidth || 1280; cv.height = v.videoHeight || 862;
+    try { cv.getContext("2d").drawImage(v, 0, 0, cv.width, cv.height); } catch {}
+    cv.style.cssText = v.style.cssText; Object.assign(cv.style, { position: "absolute", left: 0, top: 0, width: "1210px", height: "815px", transformOrigin: "0 0" }); ca.querySelectorAll("video")[i].replaceWith(cv); });
+  // l'état animé de l'escale qui part
+  const A = [a, ...a.querySelectorAll("*")], B = [ca, ...ca.querySelectorAll("*")];
+  A.forEach((n, i) => { if (!B[i] || !n.getAnimations || !n.getAnimations().length) return; const cs = getComputedStyle(n);
+    B[i].style.transform = cs.transform; B[i].style.opacity = cs.opacity; B[i].style.clipPath = cs.clipPath; });
+  return c;
+}
+function sauter(b) {
+  cam.x = idx(b) * STEP; cam.zc = 0; cam.off = [0, 0]; cam.E = [W / 2, H / 2]; cam.mode = null;
+  poserCiel(b.dataset.ciel); rendre(); poser(b); points = []; tracer(); arriver(b);
+}
+function reveler(a, b, duree, pas, { dessous = true, place } = {}) {
+  const anc = figer(a);
+  if (place) place(anc); else if (dessous) stage.insertBefore(anc, monde); else monde.after(anc);
+  quitter(a); sauter(b);
+  const fin = () => { anc.remove(); Object.assign(monde.style, { clipPath: "", maskImage: "", webkitMaskImage: "", maskSize: "", webkitMaskSize: "", maskRepeat: "", webkitMaskRepeat: "", transform: "", transformOrigin: "" });
+    voile.innerHTML = ""; dessus.textContent = ""; hote.style.opacity = ""; transition = null; };
+  pas(0, anc);
+  transition = tween(duree, t => pas(t, anc), fin);
+}
+const AILE_D = "M66 46C72 30 86 24 94 28c-6 3-7 7-5 10-5 1-7 5-5 8-5 1-8 5-7 9-5-1-9-4-11-9Z";
+
+const SORTIES = {
+  // un coup d'aile de l'envoyé balaie l'écran ; derrière l'aile, l'escale suivante
+  aile(a, b) {
+    voile.innerHTML = `<g><path d="${AILE_D}" fill="#AFA9EC" stroke="#1C1C1C" stroke-width="6" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></g>`;
+    const g = voile.firstChild, k = 52;
+    reveler(a, b, 1050, t => {
+      const e = douce(t), X = lerp(-80, W + 1500, e), ang = -26 + 44 * Math.sin(Math.PI * Math.min(1, t * 1.2));
+      g.setAttribute("transform", `translate(${(X - 66 * k).toFixed(1)} ${(H / 2 - 44 * k).toFixed(1)}) scale(${k}) rotate(${ang.toFixed(2)} 66 46)`);
+      monde.style.clipPath = `inset(0 ${Math.max(0, W - X).toFixed(1)}px 0 0)`;
+    });
+  },
+  // le trait rouge entoure le milieu de l'écran, puis s'ouvre : l'escale suivante est dedans
+  trait(a, b) {
+    const rx = 300, ry = 160; let g = null;
+    reveler(a, b, 1150, t => {
+      if (!g && t > 0) { g = tracerDefaut(voile, { x: W / 2 - 260, y: H / 2 - 150, w: 520, h: 300 }, { duree: 460, epaisseur: 11 });
+        g.querySelectorAll("path").forEach(p => p.setAttribute("vector-effect", "non-scaling-stroke")); }
+      const u = expoOut(clamp((t - .42) / .58)), k = t < .42 ? 0 : 1 + u * 4.2;
+      monde.style.clipPath = `ellipse(${(rx * k).toFixed(1)}px ${(ry * k).toFixed(1)}px at ${W / 2}px ${H / 2}px)`;
+      if (g && t >= .42) g.setAttribute("transform", `translate(${W / 2} ${H / 2}) scale(${k.toFixed(4)}) translate(${-W / 2} ${-H / 2})`);
+    });
+  },
+  // le pli se lève, se déplie, et devient l'escale suivante
+  pli(a, b) {
+    const src = a.querySelector(".pli"), r0 = src ? boite(a, src) : { x: W / 2 - 200, y: H / 2 - 130, w: 400, h: 260 };
+    const C = { x: W / 2 - 330, y: H / 2 - 200, w: 660, h: 400 }, F = { x: -10, y: -10, w: W + 20, h: H + 20 };
+    const carte = el("div", null, dessus), fond = el("div", null, carte), volet = el("div", null, carte);
+    Object.assign(carte.style, { border: "3px solid #1C1C1C", borderRadius: "14px", transformStyle: "preserve-3d", boxSizing: "border-box" });
+    Object.assign(fond.style, { position: "absolute", inset: 0, background: "#FFFDF6", borderRadius: "11px" });
+    Object.assign(volet.style, { position: "absolute", left: "50%", top: "-3px", bottom: "-3px", width: "calc(50% + 3px)", background: "#F3EAD2", border: "3px solid #1C1C1C", borderRadius: "0 14px 14px 0", transformOrigin: "0 50%", boxSizing: "border-box" });
+    const pose = r => Object.assign(carte.style, { left: r.x + "px", top: r.y + "px", width: r.w + "px", height: r.h + "px" });
+    const mix = (p, q, u) => ({ x: lerp(p.x, q.x, u), y: lerp(p.y, q.y, u), w: lerp(p.w, q.w, u), h: lerp(p.h, q.h, u) });
+    reveler(a, b, 1200, t => {
+      const t1 = douce(clamp(t / .32)), t2 = douce(clamp((t - .26) / .3)), t3 = expoOut(clamp((t - .55) / .45));
+      const r = t < .55 ? mix(r0, C, t1) : mix(C, F, t3), ang = -180 * (1 - t2);
+      pose(r); carte.style.transform = `rotateX(${(14 * (1 - t3)).toFixed(2)}deg) rotateZ(${(-3 * (1 - t1) + 1.5 * (1 - t3) * t1).toFixed(2)}deg)`;
+      carte.style.clipPath = ang < -90 ? "inset(-6px 50% -6px -6px)" : "none";
+      volet.style.transform = `rotateY(${ang.toFixed(2)}deg)`;
+      const f = 1 - clamp((t - .55) / .12); fond.style.opacity = f; volet.style.opacity = f;
+      carte.style.borderColor = `rgba(28,28,28,${1 - clamp((t - .85) / .15)})`;
+      monde.style.clipPath = t < .55 ? "inset(50%)" : `inset(${r.y}px ${W - r.x - r.w}px ${H - r.y - r.h}px ${r.x}px round 14px)`;
+    });
+  },
+  // l'escale se tourne comme une page (page-turn du kit), l'ombre glisse sur la suivante
+  page(a, b) {
+    let feuillet, ombre;
+    reveler(a, b, 1150, t => {
+      const e = bezier(.5, 0, .2, 1)(t);
+      feuillet.style.transform = `rotateY(${(-178 * e).toFixed(2)}deg) skewY(${(-5 * Math.sin(Math.PI * e)).toFixed(2)}deg)`;
+      ombre.style.opacity = (.55 * Math.sin(Math.PI * e)).toFixed(3);
+    }, { place: anc => {
+      ombre = el("div", null, dessus); Object.assign(ombre.style, { left: 0, top: 0, width: W + "px", height: H + "px", background: "linear-gradient(to right, rgba(28,28,28,.55), rgba(28,28,28,0) 45%)" });
+      feuillet = el("div", null, dessus); Object.assign(feuillet.style, { left: 0, top: 0, width: W + "px", height: H + "px", transformOrigin: "0 50%", transformStyle: "preserve-3d" });
+      Object.assign(anc.style, { backfaceVisibility: "hidden" }); feuillet.appendChild(anc);
+      const dos = el("div", null, feuillet); Object.assign(dos.style, { position: "absolute", inset: 0, background: "#FFFDF6", border: "3px solid #1C1C1C", transform: "rotateY(180deg)", backfaceVisibility: "hidden" });
+    } });
+  },
+  // la trame de points : la nouvelle escale arrive en bulles qui se calent
+  trame(a, b) {
+    const p = perche(a) || { x: W / 2, y: H / 2 - 60 }, c = 30, R = Math.hypot(W, H);
+    reveler(a, b, 1100, t => {
+      const r = c * .74 * expoOut(clamp(t / .8)), Rr = R * expoOut(clamp((t - .3) / .7));
+      const m = `radial-gradient(circle, #000 ${r.toFixed(2)}px, transparent ${(r + .8).toFixed(2)}px), radial-gradient(circle at ${p.x}px ${p.y}px, #000 ${Rr.toFixed(1)}px, transparent ${(Rr + 1).toFixed(1)}px)`;
+      Object.assign(monde.style, { maskImage: m, webkitMaskImage: m, maskSize: `${c}px ${c}px, 100% 100%`, webkitMaskSize: `${c}px ${c}px, 100% 100%`, maskRepeat: "repeat, no-repeat", webkitMaskRepeat: "repeat, no-repeat" });
+    });
+  },
+  // le soleil se lève sur la nuit, grandit, et le jour de l'escale suivante est dedans
+  soleil(a, b) {
+    voile.innerHTML = `<g class="sol"><g class="rayons-t"></g><circle class="disque" fill="#FFC93C" stroke="#1C1C1C" stroke-width="3"/><circle class="bord" fill="none" stroke="#FFC93C" stroke-width="28"/><circle class="int" fill="none" stroke="#1C1C1C" stroke-width="3"/></g>`;
+    const ray = voile.querySelector(".rayons-t"), disque = voile.querySelector(".disque"), bord = voile.querySelector(".bord"), int = voile.querySelector(".int");
+    for (let i = 0; i < 36; i++) { const l = el("line", null, ray, true); l.dataset.a = i / 36 * Math.PI * 2; l.dataset.l = i % 2 ? 1.27 : 1.42;
+      Object.assign(l.style, { stroke: "#FBF5E6", strokeWidth: 4, strokeLinecap: "round", strokeDasharray: "0 14", opacity: .8 }); }
+    const cx = W / 2;
+    reveler(a, b, 1200, t => {
+      const t1 = douce(clamp(t / .42)), u = expoOut(clamp((t - .36) / .64));
+      const cy = lerp(H + 260, H * .56, t1), r = 210 + u * (Math.hypot(W, H) * .78 - 210), ri = Math.max(0, r - 28);
+      [disque, bord, int].forEach(c => { c.setAttribute("cx", cx); c.setAttribute("cy", cy.toFixed(1)); });
+      disque.setAttribute("r", r.toFixed(1)); bord.setAttribute("r", (r - 14).toFixed(1)); int.setAttribute("r", ri.toFixed(1));
+      disque.setAttribute("fill-opacity", (1 - clamp((t - .36) / .16)).toFixed(3));
+      ray.querySelectorAll("line").forEach(l => { const an = +l.dataset.a + t * .6, k = +l.dataset.l;
+        l.setAttribute("x1", (cx + Math.cos(an) * r * 1.1).toFixed(1)); l.setAttribute("y1", (cy + Math.sin(an) * r * 1.1).toFixed(1));
+        l.setAttribute("x2", (cx + Math.cos(an) * r * k).toFixed(1)); l.setAttribute("y2", (cy + Math.sin(an) * r * k).toFixed(1)); });
+      monde.style.clipPath = t < .36 ? "circle(0px at 50% 50%)" : `circle(${ri.toFixed(1)}px at ${cx}px ${cy.toFixed(1)}px)`;
+    });
+  },
+  // l'envoyé tire l'escale suivante au bout de son pointillé d'encre
+  pointille(a, b) {
+    const m = creerMascotte(150), porteur = el("div", null, dessus); porteur.appendChild(m.el); m.regarder(-1, .1);
+    const couleur = b.dataset.ciel === "nuit" ? "#FBF5E6" : "#1C1C1C";
+    voile.innerHTML = `<path fill="none" stroke="${couleur}" stroke-width="7" stroke-linecap="round" stroke-dasharray="0 17" opacity=".75"/>`;
+    const fil = voile.firstChild, ease = bezier(.55, 0, .15, 1);
+    reveler(a, b, 1150, (t, anc) => {
+      const e = ease(t), L = W * (1 - e), mx = L - 250 - 140 * e, my = 330 + 40 * Math.sin(t * Math.PI * 2);
+      monde.style.transformOrigin = "0 50%"; monde.style.transform = `perspective(1600px) translateX(${L.toFixed(1)}px) rotateY(${(-16 * (1 - e)).toFixed(2)}deg)`;
+      anc.style.transform = `translateX(${(-W * .28 * e).toFixed(1)}px) scale(${(1 - .08 * e).toFixed(4)})`; anc.style.filter = `brightness(${(1 - .25 * e).toFixed(3)})`;
+      porteur.style.transform = `translate(${mx.toFixed(1)}px,${(my - 75).toFixed(1)}px) rotate(${(-10 * Math.sin(Math.PI * e)).toFixed(2)}deg)`;
+      fil.setAttribute("d", `M${(mx + 120).toFixed(1)} ${(my + 10).toFixed(1)}Q${((mx + L) / 2 + 60).toFixed(1)} ${(my + 170).toFixed(1)} ${(L + 6).toFixed(1)} 500`);
+      hote.style.opacity = t < .95 ? 0 : 1;
+    });
+  },
+  vol: (a, b) => voler(a, b),
+};
+
 /* ---------- mise à l'échelle et commandes (moteur de l'étalon Dorel) ---------- */
 function ajuster() { const k = Math.min(innerWidth / W, innerHeight / H); stage.style.transform = `translate(${(innerWidth - W * k) / 2}px,${(innerHeight - H * k) / 2}px) scale(${k})`; }
 addEventListener("resize", ajuster); ajuster();
@@ -685,5 +741,5 @@ addEventListener("afterprint", () => { const e = courante; courante = null; alle
   cam.x = 0; rendre(); decor();
   aller(parNumero(location.hash.slice(1)) || escs[0], true);
 });
-window.__deck = { aller: n => aller(parNumero(n)), qrMatrice };
+window.__deck = { aller: n => aller(parNumero(n)), figerDemo: () => escs.find(e => e._figer)?._figer(), instant: n => aller(parNumero(n), true) };
 })();

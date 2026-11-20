@@ -43,6 +43,9 @@ html, body { height: 100%; background: var(--encre); overflow: hidden; }
 .soleil circle { fill: var(--soleil); stroke: var(--encre); stroke-width: 3; }
 @keyframes tourne { to { transform: rotate(360deg); } }
 #trace path { fill: none; stroke: var(--trace); stroke-width: 6; stroke-linecap: round; stroke-dasharray: 0 15; opacity: .62; }
+#monde { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: hidden; }
+#dessus { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; pointer-events: none; perspective: 2200px; }
+#dessus > * { position: absolute; }
 #plongee { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; pointer-events: none; }
 
 /* les escales : posées dans la couche principale, une tous les 2400 px de ciel */
@@ -151,20 +154,24 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
 .e-archi .noeud.prevu { color: var(--soleil-2); }
 .e-archi .legende-archi { position: absolute; left: 1180px; top: 120px; font-size: 28px; display: flex; gap: 40px; color: var(--aile-2); }
 
-/* 8. Business model : trois paliers */
-.e-prix .pilier { position: absolute; bottom: 300px; width: 300px; transform-origin: 50% 100%; }
-.e-prix .colonne { position: absolute; left: 0; right: 0; bottom: 0; border: 4px solid var(--encre); border-bottom: 0; border-radius: 18px 18px 0 0; background: var(--papier); overflow: hidden; }
-.e-prix .colonne .marge { position: absolute; left: 0; right: 0; top: 0; background: var(--soleil); border-bottom: 3px dashed var(--encre); }
-.e-prix .prix { position: absolute; left: 0; right: 0; text-align: center; font: 400 104px/1 var(--affiche); letter-spacing: -.02em; white-space: nowrap; }
-.e-prix .prix small { font-size: .38em; letter-spacing: 0; }
-.e-prix .nom { position: absolute; left: -20px; right: -20px; top: 794px; text-align: center; }
+/* 9. Business model : trois paliers, ramenés au passage */
+.e-prix .pilier { position: absolute; top: 0; width: 300px; height: 1080px; }
+.e-prix .colonne { position: absolute; left: 0; right: 0; bottom: 302px; border: 4px solid var(--encre); border-bottom: 0; border-radius: 18px 18px 0 0; overflow: hidden; transform-origin: 50% 100%; }
+.e-prix .colonne > div { position: absolute; left: 0; right: 0; display: grid; place-items: center; text-align: center; font: 600 30px/1.15 var(--texte); }
+.e-prix .colonne .marge { top: 0; background: var(--soleil); border-bottom: 3px dashed var(--encre); }
+.e-prix .colonne .cout { bottom: 0; background: var(--papier); font-weight: 500; font-size: 28px; }
+.e-prix .gratuit .colonne { border-style: dashed; border-width: 4px 4px 0; }
+.e-prix .gratuit .colonne .cout { background: transparent; }
+.e-prix .prix { position: absolute; left: -30px; right: -30px; text-align: center; font: 400 96px/1 var(--affiche); letter-spacing: -.02em; white-space: nowrap; }
+.e-prix .nom { position: absolute; top: 800px; text-align: center; }
 .e-prix .nom b { display: block; font: 400 46px/1 var(--affiche); }
 .e-prix .nom span { display: block; font-size: 28px; line-height: 1.3; margin-top: 10px; }
-.e-prix .sol { position: absolute; left: 820px; right: 40px; top: 778px; height: 4px; background: var(--encre); }
-.e-prix .note-marge { position: absolute; font: 600 30px/1.15 var(--texte); }
-.e-prix .explique { position: absolute; left: 96px; top: 400px; width: 640px; font-size: 31px; line-height: 1.35; }
+.e-prix .sol { position: absolute; left: 820px; right: 40px; top: 776px; height: 4px; background: var(--encre); }
+.e-prix .unite { position: absolute; left: 860px; top: 230px; font: 600 28px/1 var(--texte); color: var(--encre-2); }
+.e-prix .explique { position: absolute; left: 96px; top: 330px; width: 660px; font-size: 32px; line-height: 1.35; }
 .e-prix .explique b { font-weight: 700; }
-.e-prix .explique .pastille { display: inline-block; width: 26px; height: 26px; background: var(--soleil); border: 3px solid var(--encre); vertical-align: -3px; margin-right: 8px; }
+.e-prix .carre { display: inline-block; width: 28px; height: 28px; border: 3px solid var(--encre); vertical-align: -4px; margin-right: 12px; }
+.e-prix .carre.blanc { background: var(--papier); } .e-prix .carre.jaune { background: var(--soleil); }
 
 /* 9. Go-to-market : le chemin */
 .e-chemin .courbe { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; }
@@ -174,17 +181,6 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
 .e-chemin .etape b { display: block; font: 400 44px/1 var(--affiche); margin-bottom: 10px; }
 .e-chemin .etape span { font-size: 28px; line-height: 1.3; display: block; }
 
-/* 10. Limites et roadmap */
-.e-feuille-route .page-m { position: absolute; width: 140px; height: 96px; border: 4px dotted var(--ocre); border-radius: 12px; }
-.e-feuille-route .page-m i { position: absolute; left: 16px; right: 16px; height: 9px; border-radius: 5px; background: rgba(251,245,230,.25); }
-.e-feuille-route .etiquette { position: absolute; font: 600 30px/1.2 var(--texte); }
-.e-feuille-route .etiquette b { font: 400 54px/1 var(--affiche); display: block; margin-bottom: 6px; }
-.e-feuille-route .listes { position: absolute; left: 1150px; top: 330px; width: 700px; }
-.e-feuille-route .listes h3 { font-size: 40px; margin: 0 0 16px; }
-.e-feuille-route .listes h3 + ul { margin-bottom: 34px; }
-.e-feuille-route .listes ul { list-style: none; padding: 0; }
-.e-feuille-route .listes li { font-size: 28px; line-height: 1.3; margin: 0 0 18px; display: table; }
-.e-feuille-route .clone { position: absolute; left: 0; top: 0; }
 
 /* 11. Coût de run */
 .e-cout .chiffre { position: absolute; left: 140px; top: 236px; display: flex; align-items: center; font: 400 300px/1 var(--affiche); letter-spacing: -.02em; white-space: nowrap; }
@@ -201,17 +197,10 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
 .e-cout .pli b.gros { font-size: 92px; margin: 4px 0 6px; }
 .e-cout .pli .bloc span { font-size: 28px; line-height: 1.3; display: block; }
 
-/* 12. Fin, à l'aube */
-.e-fin .teste { position: absolute; left: 96px; top: 150px; font: 400 168px/.95 var(--affiche); letter-spacing: -.018em; width: 1100px; }
-.e-fin .dit { position: absolute; left: 1430px; top: 250px; font: 400 64px/1 var(--affiche); }
-.e-fin .lien-ext { position: absolute; left: 100px; top: 510px; font: 600 50px/1.1 var(--mesure); }
-.e-fin .lien-ext small { display: block; font: 500 28px/1.3 var(--texte); color: var(--encre-2); margin-bottom: 12px; }
-.e-fin .depot { position: absolute; left: 100px; top: 650px; display: flex; gap: 34px; align-items: center; }
-.e-fin .qr { width: 300px; height: 300px; background: #fff; border: 4px solid var(--encre); border-radius: 18px; padding: 0; overflow: hidden; }
-.e-fin .qr svg { width: 100%; height: 100%; display: block; }
-.e-fin .depot span { font-size: 30px; line-height: 1.35; }
-.e-fin .depot span b { font: 600 32px/1.3 var(--mesure); }
-.e-fin .equipe { position: absolute; left: 100px; top: 56px; font: 500 28px/1.3 var(--mesure); color: var(--encre-2); }
+/* 11. Fin, à l'aube */
+.e-fin .cloture { position: absolute; left: 96px; top: 300px; width: 1000px; font-size: 128px; line-height: .98; letter-spacing: -.016em; }
+.e-fin .dit { position: absolute; left: 1290px; top: 150px; font: 400 76px/1 var(--affiche); transform: rotate(-3deg); }
+.e-fin .equipe { position: absolute; left: 100px; top: 820px; font: 500 30px/1.3 var(--mesure); color: var(--encre-2); }
 
 /* l'envoyé : un seul, il vole d'escale en escale */
 #envoye { position: absolute; left: 0; top: 0; width: 160px; height: 160px; transform-origin: 80px 80px; pointer-events: none; }
@@ -223,7 +212,8 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
 @media print {
   html, body { height: auto; overflow: visible; background: none; }
   #stage { position: static; transform: none !important; height: auto; background: none; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .fond, .peau, #pres, #envoye, #voile, #trace, #plongee { display: none !important; }
+  #monde { position: static; width: auto; height: auto; overflow: visible; clip-path: none !important; mask-image: none !important; transform: none !important; }
+  .fond, .peau, #pres, #envoye, #voile, #trace, #plongee, #dessus { display: none !important; }
   #principal { position: static; transform: none !important; height: auto; width: auto !important; }
   .esc { position: relative; left: 0 !important; display: block !important; visibility: visible !important; break-after: page; overflow: hidden; }
   .esc[data-ciel="lever"] { background: var(--engobe); } .esc[data-ciel="nuit"] { background: var(--nuit); }
@@ -234,6 +224,7 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
 </head>
 <body>
 <div id="stage">
+ <div id="monde">
   <div class="fond" id="fond-a"></div>
   <div class="fond" id="fond-b"></div>
   <div class="peau" id="peau-jour">
@@ -245,7 +236,7 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
     <svg id="trace"><path d=""/></svg>
 
     <!-- 1. Titre -->
-    <section class="esc e-titre" data-anim="titre" data-ciel="lever" data-soleil="oeil" data-sortie="plongee"
+    <section class="esc e-titre" data-anim="titre" data-ciel="lever" data-soleil="oeil" data-sortie="aile"
       data-perche="1560,250,170" data-etat="regarde" data-regard="-1,0">
       <h1 class="mot" aria-label="Horama"><span class="l">H</span><span class="l lo"><svg class="o" viewBox="26 26 44 44" aria-hidden="true"><g class="paupiere"><circle cx="48" cy="48" r="20" fill="#fff" stroke="#1C1C1C" stroke-width="3.6"/><circle cx="48" cy="48" r="10.5" fill="#7F77DD"/><circle cx="48" cy="48" r="4.6" fill="#1C1C1C"/><circle cx="51.6" cy="44.4" r="2.2" fill="#fff"/></g></svg></span><span class="l">r</span><span class="l">a</span><span class="l">m</span><span class="l">a</span></h1>
       <p class="slogan">Votre documentation devient vos tests.</p>
@@ -253,7 +244,7 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
     </section>
 
     <!-- 2. Problème : les deux cibles -->
-    <section class="esc e-cibles" data-anim="cibles" data-ciel="ciel"
+    <section class="esc e-cibles" data-anim="cibles" data-ciel="ciel" data-sortie="trait"
       data-perche="1730,250,140" data-etat="regarde" data-regard="-.6,.7">
       <h2 class="titre">Ils livrent vite.<br>Personne ne vérifie derrière.</h2>
       <div class="carte c1">
@@ -269,7 +260,7 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
     </section>
 
     <!-- 3. Problème : le 404 -->
-    <section class="esc e-404" data-anim="quatrecentquatre" data-ciel="lever" data-sortie="plongee"
+    <section class="esc e-404" data-anim="quatrecentquatre" data-ciel="lever" data-sortie="pli"
       data-perche="1856,800,110" data-etat="trouve" data-regard="-1,-.6">
       <h2 class="titre">Une amélioration ici,<br>une régression là.</h2>
       <div class="recit">
@@ -281,7 +272,7 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
     </section>
 
     <!-- 4. Solution : trois temps -->
-    <section class="esc e-temps" data-anim="temps" data-ciel="ciel"
+    <section class="esc e-temps" data-anim="temps" data-ciel="ciel" data-sortie="page"
       data-perche="1760,200,124" data-etat="regarde" data-regard="-1,.5">
       <h2 class="titre">Un agent visite. Le code prouve.<br>Un humain tranche.</h2>
       <div class="panneau p1"><div class="vue"><div class="page"><i style="top:30px;width:240px"></i><i style="top:62px;width:380px"></i><i style="top:94px;width:320px"></i><span class="lien">Studienprogramme</span></div><svg class="curseur" viewBox="0 0 46 46"><path d="M6 4l30 14-13 4-6 13Z" fill="#1C1C1C" stroke="#FFFDF6" stroke-width="3" stroke-linejoin="round"/></svg><svg class="marques"></svg></div>
@@ -306,16 +297,16 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
     </section>
 
     <!-- 6. Démo -->
-    <section class="esc e-demo sombre" data-anim="demo" data-ciel="nuit" data-perche="aucune">
+    <section class="esc e-demo sombre" data-anim="demo" data-ciel="nuit" data-sortie="trame" data-perche="aucune">
       <div class="scene3d"><div class="feuille">
-        <div class="barre"><i></i><span>PR #16 · passage réel de 5 min 43, résumé en 30 s</span></div>
-        <div class="cadre"><video muted playsinline preload="auto" poster="medias/poster.jpg" src="medias/demo-pr16-30s-v2.mp4"></video></div>
+        <div class="barre"><i></i><span>PR #16 · passage réel de 5 min 43, résumé en 45 s</span></div>
+        <div class="cadre"><video muted playsinline preload="auto" poster="medias/poster.jpg"></video></div>
       </div></div>
       <p class="legende"></p>
     </section>
 
     <!-- 7. Architecture -->
-    <section class="esc e-archi sombre" data-anim="archi" data-ciel="nuit" data-sortie="plongee"
+    <section class="esc e-archi sombre" data-anim="archi" data-ciel="nuit" data-sortie="soleil"
       data-perche="960,520,118" data-etat="regarde" data-regard="1,0">
       <h2 class="titre" style="font-size:84px">Deux entrées, une boucle,<br>déjà en ligne.</h2>
       <svg class="ciel-archi" viewBox="0 0 1920 1080"></svg>
@@ -323,22 +314,38 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
       <div class="legende-archi"><span>● construit et en ligne</span><span style="color:var(--soleil-2)">◌ prévu</span></div>
     </section>
 
-    <!-- 8. Business model -->
-    <section class="esc e-prix" data-anim="prix" data-ciel="ciel"
-      data-perche="1260,250,120" data-etat="regarde" data-regard="1,.6">
-      <h2 class="titre">On paie au passage,<br>avec un forfait.</h2>
-      <p class="explique">Un <b>passage</b>, c'est l'agent H qui visite jusqu'à 8 pages et rend ses défauts prouvés.<br><br>Prix en euros. Dans chaque pilier, en blanc, <b>le coût de l'agent H, mesuré en dollars</b> (0,25 $ le passage, tous les passages inclus consommés) ; <span class="pastille"></span>en jaune, ce qui reste : la marge.</p>
-      <div class="sol"></div>
-      <div class="pilier" data-prix="0" style="left:880px"><div class="colonne"></div><p class="prix"><span class="n">0</span> <small>€</small></p></div>
-      <div class="pilier" data-prix="49" data-marge="49" data-cout="25" style="left:1230px"><div class="colonne"><div class="marge"></div></div><p class="prix"><span class="n">49</span> <small>€</small></p></div>
-      <div class="pilier" data-prix="199" data-marge="75" data-cout="50" style="left:1580px"><div class="colonne"><div class="marge"></div></div><p class="prix"><span class="n">199</span> <small>€</small></p></div>
-      <div class="nom" style="left:860px;width:340px"><b>Gratuit</b><span>3 passages par mois,<br>par l'extension</span></div>
-      <div class="nom" style="left:1210px;width:340px"><b>Solo</b><span>100 passages par mois<br>le marketeur</span></div>
-      <div class="nom" style="left:1560px;width:340px"><b>Équipe</b><span>200 passages, PR GitHub<br>le CTO</span></div>
-    </section>
 
-    <!-- 9. Go-to-market -->
-    <section class="esc e-chemin" data-anim="chemin" data-ciel="lever"
+
+
+
+    <!-- 8. Coût de run -->
+    <section class="esc e-cout" data-anim="cout" data-ciel="ciel" data-sortie="pointille"
+      data-perche="1610,232,130" data-etat="regarde" data-regard="-1,.3">
+      <h2 class="chiffre" aria-label="Environ 0,25 dollar par passage"><svg class="environ" viewBox="0 0 100 96" aria-hidden="true"><path d="M8 34c14-16 28-16 42-4s28 12 42-4M8 74c14-16 28-16 42-4s28 12 42-4"/></svg><span class="nombre">0,25</span><span class="dollar">$</span></h2>
+      <p class="par">par passage.</p>
+      <p class="vendu">Coût de l'agent H, mesuré en dollars, pour un passage complet de 8 pages.</p>
+      <div class="pli">
+        <div class="tete"><i></i>Mesuré le 19/11</div>
+        <div class="bloc"><b class="gros mono">0,2174 $</b><span>en 343 s, PR #16 du clone d'Eugenia, 8 pages</span></div>
+        <div class="bloc"><b class="gros mono">0,2680 $</b><span>en 434,5 s, la même visite avec le contrôle du texte non traduit</span></div>
+      </div>
+    </section>
+    <!-- 9. Business model -->
+    <section class="esc e-prix" data-anim="prix" data-ciel="ciel" data-sortie="vol"
+      data-perche="1215,250,120" data-etat="regarde" data-regard="1,.6">
+      <h2 class="titre">On paie au passage,<br>avec un forfait.</h2>
+      <p class="explique">Ramené au passage, chaque forfait se lit d'un coup d'œil.<br><br><span class="carre blanc"></span>Le coût de l'agent H : <b>0,25 $ le passage</b>, mesuré en dollars.<br><span class="carre jaune"></span>Ce qui reste : <b>la marge</b>.<br><br>Au-delà du forfait : <b>0,40 à 0,50 €</b> le passage en plus.</p>
+      <div class="sol"></div>
+      <div class="pilier gratuit" data-prix="0" data-cout="0.25" style="left:880px"><div class="colonne"><div class="cout"><span>coût H<br>0,25 $</span></div></div><p class="prix">0 €</p></div>
+      <div class="pilier" data-prix="0.49" data-cout="0.25" data-marge="49" style="left:1230px"><div class="colonne"><div class="marge"><span>marge ≈ 49 %</span></div><div class="cout"><span>coût H 0,25 $</span></div></div><p class="prix">0,49 €</p></div>
+      <div class="pilier" data-prix="0.995" data-cout="0.25" data-marge="75" style="left:1580px"><div class="colonne"><div class="marge"><span>marge ≈ 75 %</span></div><div class="cout"><span>coût H 0,25 $</span></div></div><p class="prix">≈ 1 €</p></div>
+      <div class="nom" style="left:860px;width:340px"><b>Gratuit</b><span>3 passages offerts<br>par mois</span></div>
+      <div class="nom" style="left:1210px;width:340px"><b>Solo</b><span>49 € par mois<br>pour 100 passages</span></div>
+      <div class="nom" style="left:1560px;width:340px"><b>Équipe</b><span>199 € par mois<br>pour 200 passages</span></div>
+      <p class="unite">prix d'un passage</p>
+    </section>
+    <!-- 10. Go-to-market -->
+    <section class="esc e-chemin" data-anim="chemin" data-ciel="lever" data-sortie="plongee"
       data-perche="170,690,130" data-etat="regarde" data-regard="1,-.3">
       <h2 class="titre">L'extension gratuite fait entrer.<br>La régularité fait payer.</h2>
       <svg class="courbe" viewBox="0 0 1920 1080"><path class="trace-c" d="M170 730C430 750 470 600 640 590S990 560 1060 470 1330 340 1520 250"/></svg>
@@ -347,53 +354,25 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
       <div class="etape" style="left:1060px;top:640px"><span class="num">3</span><b>Solo</b><span>Il veut un contrôle après chaque publication.</span></div>
       <div class="etape" style="left:1450px;top:470px"><span class="num">4</span><b>Équipe</b><span>La réponse sur la PR, la doc comme source des tests.</span></div>
     </section>
-
-    <!-- 10. Limites et roadmap -->
-    <section class="esc e-feuille-route sombre" data-anim="route" data-ciel="nuit"
-      data-perche="250,560,150" data-etat="regarde" data-regard="1,.2">
-      <h2 class="titre" style="font-size:84px">Ce qu'on sait,<br>ce qu'on ne sait pas encore.</h2>
-      <p class="etiquette" style="left:110px;top:690px"><b>Aujourd'hui</b>1 agent par passage</p>
-      <p class="etiquette demain" style="left:470px;top:690px"><b>Demain</b>un agent par page</p>
-      <div class="pages-m"></div>
-      <div class="listes">
-        <h3>Prouvé</h3>
-        <ul><li class="trait-plein">Le code prouve : lien mort, texte qui déborde, bloc non traduit.</li><li class="trait-plein">PR #16 : 8 pages sur 8, réponse publiée sur la PR.</li></ul>
-        <h3>Pas encore</h3>
-        <ul><li class="pointille-ocre">Les doutes de l'IA sont souvent faux : le 18/11 sur eugeniaschool.com, 6 constats sur 8 relus à la main étaient faux, tous venus de Holo.</li><li class="pointille-ocre">Pas encore prouvé sur n'importe quel site.</li><li class="pointille-ocre">Prévu : Confluence et Notion en entrée, Jira et Linear en sortie, Devin qui corrige.</li></ul>
-      </div>
-    </section>
-
-    <!-- 11. Coût de run -->
-    <section class="esc e-cout" data-anim="cout" data-ciel="ciel"
-      data-perche="1610,232,130" data-etat="regarde" data-regard="-1,.3">
-      <h2 class="chiffre" aria-label="Environ 0,25 dollar par passage"><svg class="environ" viewBox="0 0 100 96" aria-hidden="true"><path d="M8 34c14-16 28-16 42-4s28 12 42-4M8 74c14-16 28-16 42-4s28 12 42-4"/></svg><span class="nombre">0,25</span><span class="dollar">$</span></h2>
-      <p class="par">par passage.</p>
-      <p class="vendu">Coût de l'agent H, mesuré en dollars, pour un passage complet de 8 pages.<br>Le passage en plus est vendu <b>0,40 à 0,50 €</b>.</p>
-      <div class="pli">
-        <div class="tete"><i></i>Mesuré le 19/11</div>
-        <div class="bloc"><b class="gros mono">0,2174 $</b><span>en 343 s, PR #16 du clone d'Eugenia, 8 pages</span></div>
-        <div class="bloc"><b class="gros mono">0,2680 $</b><span>en 434,5 s, la même visite avec le contrôle du texte non traduit</span></div>
-      </div>
-    </section>
-
-    <!-- 12. Fin, à l'aube -->
-    <section class="esc e-fin" data-anim="fin" data-ciel="aube" data-soleil="1520,1080,420"
-      data-perche="1520,560,380" data-etat="fini" data-regard="-1,.15">
-      <h2 class="teste">Testez votre site.</h2>
+    <!-- 11. Fin, à l'aube -->
+    <section class="esc e-fin" data-anim="fin" data-ciel="aube" data-soleil="1460,1080,440"
+      data-perche="1460,560,400" data-etat="fini" data-regard="-1,.15">
       <p class="dit">J'ai fini.</p>
-      <p class="lien-ext"><small>L'extension Chrome et la page d'accueil</small>horama-gold.vercel.app</p>
-      <div class="depot"><div class="qr" aria-label="QR code du dépôt GitHub"></div><span>Le dépôt<br><b>github.com/Hisseiny/Horama-</b></span></div>
+      <h2 class="cloture">Seul ce qui est mesuré devient un défaut.</h2>
       <p class="equipe">Équipe 11 · hackathon Eugenia « Build The Future »</p>
     </section>
   </div>
   <div class="couche" id="pres"></div>
   <div id="plongee"></div>
   <div id="envoye"></div>
+ </div>
+  <div id="dessus"></div>
   <svg id="voile" viewBox="0 0 1920 1080"></svg>
 </div>
 
 <script src="assets/mascotte.js"></script>
 <script src="assets/trait.js"></script>
+<script src="assets/demo-moments.js"></script>
 <script src="assets/deck.js"></script>
 </body>
 </html>
