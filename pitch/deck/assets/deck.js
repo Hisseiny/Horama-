@@ -248,20 +248,29 @@ const ESCALES = {
       if (via === "saut") anime(e, hote, [{ opacity: 0, transform: hote.style.transform + " translateY(60px)" }, { opacity: 1, transform: hote.style.transform }], { duration: 1000, delay: 300, fill: "backwards" });
     },
   },
-  cibles: {
+  fusion: {
+    // chaque cible mène à son entrée, les deux chemins mènent à l'envoyé, puis aux mêmes preuves
     arriver(e, instant) {
-      // le rythme des livraisons : des pages qui passent, sans que personne les regarde (plus vite chez le marketeur)
-      e.querySelectorAll(".rythme").forEach((s, j) => {
-        s.innerHTML = ""; const g = el("g", null, s, true);
-        for (let i = 0; i < 24; i++) { const r = el("rect", null, g, true); Object.assign(r, {}); r.setAttribute("x", i * 58); r.setAttribute("y", 3); r.setAttribute("width", 30); r.setAttribute("height", 24); r.setAttribute("rx", 4);
-          r.setAttribute("fill", "#FFFDF6"); r.setAttribute("stroke", "#1C1C1C"); r.setAttribute("stroke-width", 2.5); }
-        if (!instant) retenir(e, g.animate([{ transform: "translateX(0)" }, { transform: "translateX(-696px)" }], { duration: j ? 4200 : 9000, iterations: Infinity }));
-      });
+      const s = e.querySelector(".chemins"); s.textContent = ""; s.setAttribute("viewBox", `0 0 ${W} ${H}`);
+      const pa = boite(e, e.querySelector(".pa")), pb = boite(e, e.querySelector(".pb")), ch = boite(e, e.querySelector(".champ")), pr = boite(e, e.querySelector(".pr"));
+      const so = boite(e, e.querySelector(".sortie")), p = perche(e), enc = "#1C1C1C";
+      const c = [p.x - 70, p.y + 6], o = [so.x - 24, so.y + 120];
+      const d = [
+        `M${pa.x + pa.w + 8} ${pa.y + pa.h / 2}C${pa.x + pa.w + 40} ${pa.y + pa.h / 2} ${ch.x - 40} ${ch.y + ch.h / 2} ${ch.x - 8} ${ch.y + ch.h / 2}`,
+        `M${pb.x + pb.w + 8} ${pb.y + pb.h / 2}C${pb.x + pb.w + 40} ${pb.y + pb.h / 2} ${pr.x - 40} ${pr.y + pr.h / 2} ${pr.x - 8} ${pr.y + pr.h / 2}`,
+        `M${ch.x + ch.w + 10} ${ch.y + ch.h / 2}C${ch.x + ch.w + 80} ${ch.y + ch.h / 2} ${c[0] - 60} ${c[1] - 60} ${c[0]} ${c[1]}`,
+        `M${pr.x + pr.w + 10} ${pr.y + pr.h / 2}C${pr.x + pr.w + 80} ${pr.y + pr.h / 2} ${c[0] - 60} ${c[1] + 60} ${c[0]} ${c[1]}`,
+        `M${p.x + 70} ${p.y}C${p.x + 100} ${p.y - 20} ${o[0] - 40} ${o[1]} ${o[0]} ${o[1]}`,
+      ];
+      d.forEach((dd, k) => pointille(s, dd, { couleur: enc, instant, duree: 700, delai: [350, 450, 900, 1000, 1500][k] }));
       if (instant) return;
-      e.querySelectorAll(".carte").forEach((c, i) => anime(e, c, [
-        { opacity: 0, transform: "perspective(900px) translate3d(0,120px,-300px) rotateY(-70deg) rotateX(20deg)" },
-        { opacity: 1, offset: .25 },
-        { opacity: 1, transform: `perspective(900px) translate3d(0,0,0) rotateY(${i ? -8 : 8}deg) rotateX(0deg)` }], { duration: 1150, delay: 120 + i * 160 }));
+      e.querySelectorAll(".persona").forEach((n, k) => anime(e, n, [{ opacity: 0, transform: "perspective(900px) translate3d(-60px,40px,-200px) rotateY(60deg)" }, { opacity: 1, offset: .25 },
+        { opacity: 1, transform: "perspective(900px) translate3d(0,0,0) rotateY(0deg)" }], { duration: 1100, delay: k * 150 }));
+      const fr = e.querySelector(".frappe"), bt = e.querySelector(".champ .bouton");
+      anime(e, fr, [{ clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0 0 0)" }], { duration: 650, delay: 400, easing: "steps(13, end)" });
+      bt.classList.add("vole"); plus_tard(e, 1600, () => bt.classList.remove("vole"));
+      anime(e, e.querySelector(".pr"), [{ opacity: 0, transform: "perspective(900px) rotateX(-70deg)" }, { opacity: 1, offset: .3 }, { opacity: 1, transform: "perspective(900px) rotateX(0deg)" }], { duration: 1050, delay: 450 });
+      e.querySelectorAll(".sortie li").forEach((li, k) => anime(e, li, [{ opacity: 0, transform: "translateX(40px)" }, { opacity: 1, transform: "none" }], { duration: 900, delay: 1500 + k * 100 }));
     },
   },
   quatrecentquatre: {
@@ -297,24 +306,6 @@ const ESCALES = {
       plus_tard(e, 1150, () => { tracerDefaut(m2, { x: b.x, y: b.y, w: b.w, h: b.h }, { duree: 750, epaisseur: 7 }); M.etat("trouve"); M.regarder(-.4, .8); });
       plus_tard(e, 1900, () => { anime(e, btn, [{ transform: "scale(1)" }, { transform: "scale(.9)", offset: .3 }, { transform: "scale(1)" }], { duration: 600, fill: "none" });
         anime(e, voulu, [{ opacity: 1 }, { opacity: .4 }], { duration: 500 }); M.etat("fini"); M.regarder(-.2, .8); });
-    },
-  },
-  produit: {
-    arriver(e, instant) {
-      const s = e.querySelector(".chemins"); s.textContent = ""; s.setAttribute("viewBox", `0 0 ${W} ${H}`);
-      const ch = boite(e, e.querySelector(".champ")), pr = boite(e, e.querySelector(".pr")), so = boite(e, e.querySelector(".sortie")), p = perche(e);
-      const a = [ch.x + ch.w + 10, ch.y + ch.h / 2], b = [pr.x + pr.w + 10, pr.y + pr.h / 2], c = [p.x - 50, p.y + 10], o = [so.x - 30, so.y + 40];
-      const d1 = `M${a[0]} ${a[1]}C${a[0] + 160} ${a[1]} ${c[0] - 160} ${c[1] - 80} ${c[0]} ${c[1]}`;
-      const d2 = `M${b[0]} ${b[1]}C${b[0] + 200} ${b[1]} ${c[0] - 180} ${c[1] + 90} ${c[0]} ${c[1]}`;
-      const d3 = `M${p.x + 70} ${p.y}C${p.x + 120} ${p.y - 30} ${o[0] - 60} ${o[1]} ${o[0]} ${o[1]}`;
-      const enc = "#1C1C1C";
-      pointille(s, d1, { couleur: enc, instant, duree: 800, delai: 500 }); pointille(s, d2, { couleur: enc, instant, duree: 800, delai: 650 });
-      if (instant) return;
-      const fr = e.querySelector(".frappe"), bt = e.querySelector(".champ .bouton");
-      anime(e, fr, [{ clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0 0 0)" }], { duration: 700, easing: "steps(21, end)" });
-      bt.classList.add("vole"); plus_tard(e, 1400, () => bt.classList.remove("vole"));
-      anime(e, e.querySelector(".pr"), [{ opacity: 0, transform: "perspective(800px) rotateX(60deg) translateY(80px)" }, { opacity: 1, offset: .3 }, { opacity: 1, transform: "perspective(800px) rotateX(0deg) translateY(0)" }], { duration: 1050, delay: 150 });
-      e.querySelectorAll(".sortie li").forEach((li, i) => anime(e, li, [{ opacity: 0, transform: "translateX(40px)" }, { opacity: 1, transform: "none" }], { duration: 900, delay: 1300 + i * 100 }));
     },
   },
   demo: {
@@ -396,7 +387,7 @@ const ESCALES = {
         const prix = +p.dataset.prix, cout = +p.dataset.cout, h = prix ? prix * PX : MIN, col = p.querySelector(".colonne"), lab = p.querySelector(".prix");
         col.style.height = h + "px"; lab.style.top = (1080 - 304 - h - 122) + "px";
         const c = col.querySelector(".cout"), mg = col.querySelector(".marge"), et = p.querySelector(".etiq-cout");
-        if (prix) { c.style.height = cout * PX + "px"; mg.style.height = (h - cout * PX) + "px"; et.style.top = (1080 - 304 - cout * PX / 2 - 21) + "px"; }
+        if (prix) { c.style.height = cout * PX + "px"; mg.style.height = (h - cout * PX) + "px"; if (et) et.style.top = (1080 - 304 - cout * PX / 2 - 21) + "px"; }
         else c.style.height = h + "px";
         if (instant) return;
         anime(e, col, [{ transform: "scaleY(0)" }, { transform: "scaleY(1)" }], { duration: 1100, delay: 150 + i * 150 });
@@ -404,9 +395,9 @@ const ESCALES = {
         [...col.querySelectorAll("span"), ...(et ? [et] : [])].forEach(sp => anime(e, sp, [{ opacity: 0 }, { opacity: 1 }], { duration: 600, delay: 850 + i * 150 }));
       });
       // l'hypothèse d'usage n'est pas une mesure : points ocre dessous
-      const m = calque(e), hy = e.querySelector(".hypothese");
-      if (instant) poserDoute(m, boite(e, hy), { instant: true, pas: 14, rayon: 4.6 });
-      else plus_tard(e, 500, () => poserDoute(m, boite(e, hy), { pas: 14, rayon: 4.6 }));
+      const m = calque(e), hys = [...e.querySelectorAll(".hypothese")];
+      if (instant) hys.forEach(hy => poserDoute(m, boite(e, hy), { instant: true, pas: 14, rayon: 4.6 }));
+      else plus_tard(e, 500, () => hys.forEach(hy => poserDoute(m, boite(e, hy), { pas: 14, rayon: 4.6 })));
       if (!instant) e.querySelectorAll(".nom").forEach((n, i) => anime(e, n, [{ opacity: 0, transform: "translateY(20px)" }, { opacity: 1, transform: "none" }], { duration: 900, delay: 250 + i * 150 }));
     },
   },
@@ -457,25 +448,37 @@ const ESCALES = {
       anime(e, e.querySelector(".dit"), [{ opacity: 0, transform: "translateY(30px) rotate(-6deg)" }, { opacity: 1, transform: "rotate(-3deg)" }], { duration: 900, delay: 700 });
       const p = perche(e), globe = M.el.querySelector(".globe"); globe.style.transformBox = "fill-box"; globe.style.transformOrigin = "50% 50%";
       const cligner = () => retenir(e, globe.animate([{ transform: "scaleY(1)" }, { transform: "scaleY(.08)" }, { transform: "scaleY(1)" }], { duration: 220, easing: "ease-in-out" }));
-      const CYCLE = 8.2; let t0 = null, dernier = -1;
+      // un cycle de 17 s : inspection perchée, vol en courbes sous le texte (jamais dessus), arrêt face au public, retour
+      const S1 = [[p.x, p.y, p.t], [1760, 380, 230], [1500, 800, 210], [850, 800, 190], [320, 770, 190]];
+      const S2 = [[320, 770, 190], [720, 720, 180], [1300, 720, 200], [1440, 430, 240], [p.x, p.y, p.t]];
+      const courbe = (P, u) => { const n = P.length - 1, sg = Math.min(u * n, n - 1e-6), i = Math.floor(sg), f = sg - i, a = P[Math.max(i - 1, 0)], b = P[i], c = P[i + 1], d = P[Math.min(i + 2, n)];
+        return [0, 1, 2].map(k => .5 * (2 * b[k] + (-a[k] + c[k]) * f + (2 * a[k] - 5 * b[k] + 4 * c[k] - d[k]) * f * f + (-a[k] + 3 * b[k] - 3 * c[k] + d[k]) * f ** 3)); };
+      const CYCLE = 17; let t0 = null, clins = new Set();
+      const cligne = (cle, t, a) => { if (t > a && t < a + .2 && !clins.has(cle)) { clins.add(cle); cligner(); } };
       const boucle = now => {
         if (courante !== e) return;
         if (transition) { e._boucle = requestAnimationFrame(boucle); return; }
         if (t0 === null) t0 = now;
-        const t = ((now - t0) / 1000) % CYCLE, tour = Math.floor((now - t0) / 1000 / CYCLE);
-        let dx = 0, dy = .05, haut = 0;
-        if (t < .8) { dx = lerp(0, -1, lisse(t / .8)); }                                   // regarde à gauche de la salle
-        else if (t < 1.4) dx = -1;
-        else if (t < 3.4) { dx = lerp(-1, 1, lisse((t - 1.4) / 2)); dy = .05 + .12 * Math.sin(Math.PI * (t - 1.4) / 2); } // balaie jusqu'à droite
-        else if (t < 4.0) dx = 1;
-        else if (t < 4.6) dx = lerp(1, 0, lisse((t - 4) / .6));                              // revient face au public
-        else if (t < 6.4) dx = 0;                                                            // et le fixe
-        else { const u = (t - 6.4) / 1.8; haut = 64 * Math.sin(Math.PI * u); dx = .3 * Math.sin(Math.PI * 2 * u); } // petit vol, puis se repose
+        const T = (now - t0) / 1000, t = T % CYCLE, tour = Math.floor(T / CYCLE);
+        let dx = 0, dy = .05, pos = [p.x, p.y, p.t], vole = false, rot = 0;
+        if (t < 4.6) {                                                     // perché : balaie la salle, revient au public, cligne
+          if (t < .8) dx = lerp(0, -1, lisse(t / .8)); else if (t < 1.3) dx = -1;
+          else if (t < 3.2) { dx = lerp(-1, 1, lisse((t - 1.3) / 1.9)); dy = .05 + .12 * Math.sin(Math.PI * (t - 1.3) / 1.9); }
+          else if (t < 3.6) dx = 1; else if (t < 4.1) dx = lerp(1, 0, lisse((t - 3.6) / .5));
+          cligne(tour + "a", t, 4.2);
+        } else if (t < 9.0) {                                              // vole en courbes, regarde où il va
+          const u = lisse((t - 4.6) / 4.4), q = courbe(S1, u), q2 = courbe(S1, Math.min(1, u + .02));
+          pos = q; vole = true; dx = q2[0] - q[0]; dy = q2[1] - q[1]; rot = clamp((q2[0] - q[0]) * .8, -14, 14);
+        } else if (t < 11.6) {                                             // s'arrête et fixe le public
+          pos = [320, 770 - 10 * Math.sin((t - 9) * 2.4), 190]; dx = 0; dy = 0;
+          cligne(tour + "b", t, 9.8); cligne(tour + "c", t, 10.4);
+        } else if (t < 16.0) {                                             // repart, et revient se poser sur le soleil
+          const u = lisse((t - 11.6) / 4.4), q = courbe(S2, u), q2 = courbe(S2, Math.min(1, u + .02));
+          pos = q; vole = true; dx = q2[0] - q[0]; dy = q2[1] - q[1]; rot = clamp((q2[0] - q[0]) * .8, -14, 14);
+        } else { dx = 0; dy = .05; cligne(tour + "d", t, 16.3); }
         M.regarder(dx, dy);
-        placer(p.x, p.y - haut, p.t, 6 * Math.sin(Math.PI * 2 * Math.min(1, Math.max(0, (t - 6.4) / 1.8))));
-        hote.classList.toggle("vole", t > 6.2 && t < 8.2);
-        const marque = tour * 10 + (t > 5.0 ? 1 : 0) + (t > 5.6 ? 1 : 0);
-        if (marque !== dernier) { if (dernier !== -1 && (t > 5.0 && t < 5.15 || t > 5.6 && t < 5.75)) cligner(); dernier = marque; }
+        placer(pos[0], pos[1], pos[2], rot);
+        hote.classList.toggle("vole", vole);
         e._boucle = requestAnimationFrame(boucle);
       };
       e._boucle = requestAnimationFrame(boucle);

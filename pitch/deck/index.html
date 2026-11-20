@@ -84,14 +84,6 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
 .e-titre .slogan { position: absolute; left: 96px; top: 520px; font: 400 132px/.98 var(--affiche); letter-spacing: -.015em; width: 1500px; }
 .e-titre .equipe { position: absolute; left: 100px; top: 900px; font-size: 27px; font-weight: 500; color: var(--encre-2); }
 
-/* 2. Problème : deux cibles */
-.e-cibles .carte { position: absolute; top: 380px; width: 790px; height: 540px; background: var(--papier); border: 3px solid var(--encre); border-radius: 24px; padding: 40px 46px; transform-origin: 50% 100%; }
-.e-cibles .carte h3 { font-size: 54px; line-height: 1; margin-bottom: 26px; }
-.e-cibles .carte ul { list-style: none; padding: 0; font-size: 33px; line-height: 1.3; }
-.e-cibles .carte li { padding: 13px 0; border-top: 2px solid var(--filet); }
-.e-cibles .carte li b { font-weight: 700; }
-.e-cibles .carte .rythme { position: absolute; left: 46px; right: 46px; bottom: 34px; height: 30px; }
-.e-cibles .c1 { left: 96px; } .e-cibles .c2 { left: 1034px; }
 
 /* 3. Problème : le 404 */
 .e-404 .recit { position: absolute; left: 96px; top: 330px; width: 600px; font-size: 32px; line-height: 1.32; }
@@ -105,6 +97,26 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
 .e-404 .pli b.gros { font-size: 92px; margin: 8px 0 4px; }
 .e-404 .pli b.gros { color: var(--miltos); }
 
+/* 3. Deux cibles, deux entrées */
+.e-fusion .persona { position: absolute; left: 96px; width: 500px; background: var(--papier); border: 3px solid var(--encre); border-radius: 22px; padding: 26px 30px; transform-origin: 0 50%; }
+.e-fusion .persona h3 { font-size: 40px; line-height: 1; margin-bottom: 12px; }
+.e-fusion .persona p { font-size: 28px; line-height: 1.3; }
+.e-fusion .persona b { font-weight: 700; }
+.e-fusion .pa { top: 330px; } .e-fusion .pb { top: 620px; }
+.e-fusion .etiq { position: absolute; left: 680px; font-size: 28px; font-weight: 700; color: var(--encre-2); }
+.e-fusion .ea { top: 340px; } .e-fusion .eb { top: 630px; }
+.e-fusion .champ { position: absolute; left: 680px; top: 392px; display: flex; align-items: center; gap: 14px; background: var(--papier); border: 4px solid var(--encre); border-radius: 999px; padding: 8px 10px 8px 30px; }
+.e-fusion .champ .frappe { font: 500 30px/1 var(--mesure); min-width: 230px; }
+.e-fusion .pr { position: absolute; left: 680px; top: 682px; width: 540px; background: var(--papier); border: 4px solid var(--encre); border-radius: 22px; padding: 22px 28px; transform-origin: 50% 0; }
+.e-fusion .pr b { display: block; font: 400 38px/1 var(--affiche); margin-bottom: 10px; }
+.e-fusion .pr span { font-size: 28px; line-height: 1.3; }
+.e-fusion .sortie { position: absolute; left: 1470px; top: 440px; width: 400px; }
+.e-fusion .sortie h3 { font-size: 52px; line-height: 1; margin-bottom: 18px; }
+.e-fusion .sortie li { list-style: none; font-size: 30px; line-height: 1.25; padding: 12px 0; border-top: 2px solid var(--filet); }
+.e-fusion .sortie ul { padding: 0; }
+.e-fusion .ajout { position: absolute; left: 96px; top: 900px; font-size: 28px; }
+.e-fusion .ajout b { font-weight: 700; }
+
 /* 4. Solution : trois temps */
 .e-temps .panneau { position: absolute; top: 330px; width: 556px; height: 640px; background: var(--papier); border: 3px solid var(--encre); border-radius: 26px; overflow: hidden; transform-origin: 50% 100%; }
 .e-temps .panneau .vue { position: relative; height: 340px; background: var(--aile-2); border-bottom: 3px solid var(--encre); overflow: hidden; }
@@ -113,25 +125,15 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
 .e-temps .p1 { left: 96px; } .e-temps .p2 { left: 682px; } .e-temps .p3 { left: 1268px; }
 .e-temps .page { position: absolute; left: 48px; top: 40px; width: 460px; height: 200px; background: var(--papier); border: 3px solid var(--encre); border-radius: 12px; }
 .e-temps .page i { position: absolute; left: 26px; height: 16px; border-radius: 8px; background: var(--filet); }
+.e-temps .mini { position: absolute; left: 26px; top: 18px; font: 700 26px/1.2 var(--texte); margin: 0; }
 .e-temps .lien { position: absolute; left: 26px; top: 128px; font: 600 30px/1 var(--texte); text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: 6px; }
-.e-temps .mesure-p2 { position: absolute; left: 48px; top: 270px; font-size: 26px; }
-.e-temps .choix { position: absolute; left: 34px; right: 34px; top: 120px; display: flex; gap: 18px; }
+.e-temps .mesure-p2 { position: absolute; left: 48px; top: 262px; font-size: 32px; color: var(--miltos); font-weight: 600; }
+.e-temps .doute-p3 { position: absolute; left: 34px; right: 34px; top: 30px; font-size: 27px; line-height: 1.35; margin: 0; }
+.e-temps .choix { position: absolute; left: 34px; right: 34px; top: 180px; display: flex; gap: 18px; }
 .e-temps .choix span { flex: 1; height: 82px; border-radius: 999px; border: 3px solid var(--encre); display: grid; place-items: center; font: 700 27px/1 var(--texte); background: var(--papier); }
 .e-temps .choix span.bug { background: var(--miltos); color: var(--papier); }
 .e-temps .curseur { position: absolute; left: 0; top: 0; width: 46px; height: 46px; overflow: visible; }
 
-/* 5. Solution : un produit, deux entrées */
-.e-produit .champ { position: absolute; left: 96px; top: 380px; display: flex; align-items: center; gap: 14px; background: var(--papier); border: 4px solid var(--encre); border-radius: 999px; padding: 8px 10px 8px 34px; }
-.e-produit .champ .frappe { font: 500 32px/1 var(--mesure); min-width: 420px; }
-.e-produit .pr { position: absolute; left: 96px; top: 690px; width: 700px; background: var(--papier); border: 4px solid var(--encre); border-radius: 22px; padding: 26px 32px; }
-.e-produit .pr b { display: block; font: 400 40px/1 var(--affiche); margin-bottom: 12px; }
-.e-produit .pr span { font-size: 28px; line-height: 1.3; }
-.e-produit .etiq { position: absolute; font-size: 28px; font-weight: 700; color: var(--encre-2); }
-.e-produit .sortie { position: absolute; left: 1360px; top: 430px; width: 470px; }
-.e-produit .sortie h3 { font-size: 58px; line-height: 1; margin-bottom: 22px; }
-.e-produit .sortie li { list-style: none; font-size: 31px; line-height: 1.25; padding: 12px 0; border-top: 2px solid var(--filet); }
-.e-produit .ajout { position: absolute; left: 96px; top: 922px; font-size: 30px; }
-.e-produit .ajout b { font-weight: 700; }
 
 /* 6. Démo : la vidéo en grand, une légende */
 .e-demo .scene3d { position: absolute; left: 352px; top: 14px; width: 1216px; perspective: 1900px; perspective-origin: 50% 100%; }
@@ -246,23 +248,9 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
       <p class="equipe mono">Équipe 11 · hackathon Eugenia « Build The Future »</p>
     </section>
 
-    <!-- 2. Problème : les deux cibles -->
-    <section class="esc e-cibles" data-anim="cibles" data-ciel="ciel" data-sortie="bascule"
-      data-perche="1730,250,140" data-etat="regarde" data-regard="-.6,.7">
-      <h2 class="titre">Ils livrent vite.<br>Personne ne vérifie derrière.</h2>
-      <div class="carte c1">
-        <h3>Le CTO d'un SaaS</h3>
-        <ul><li>Une dizaine de développeurs, <b>aucun testeur</b></li><li>Une mise en production <b>presque chaque semaine</b></li><li><b>Pas de tests de non-régression</b> de bout en bout</li></ul>
-        <svg class="rythme" viewBox="0 0 698 30" preserveAspectRatio="none"></svg>
-      </div>
-      <div class="carte c2">
-        <h3>Le marketeur qui vibe-code</h3>
-        <ul><li>Il construit le site de son entreprise <b>avec l'IA</b></li><li>Il publie <b>dès qu'il a une idée</b></li><li>Un lien mort reste en ligne <b>jusqu'à ce qu'un visiteur tombe dessus</b></li></ul>
-        <svg class="rythme" viewBox="0 0 698 30" preserveAspectRatio="none"></svg>
-      </div>
-    </section>
 
-    <!-- 3. Problème : le 404 -->
+
+    <!-- 2. Problème : le 404 -->
     <section class="esc e-404" data-anim="quatrecentquatre" data-ciel="lever" data-sortie="pli"
       data-perche="1856,860,110" data-etat="trouve" data-regard="-1,-.6">
       <h2 class="titre">Une amélioration ici,<br>une régression là.</h2>
@@ -274,41 +262,44 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
       <div class="pli"><div class="tete"><i class="rouge"></i>Défaut prouvé</div><b class="gros">404</b><p class="mesure">mesuré : 404<br>attendu : la page des portes ouvertes<br>relevé le 18/11</p></div>
     </section>
 
-    <!-- 4. Solution : trois temps -->
-    <section class="esc e-temps" data-anim="temps" data-ciel="ciel" data-sortie="page"
-      data-perche="1760,200,124" data-etat="regarde" data-regard="-1,.5">
-      <h2 class="titre">Un agent visite. Le code prouve.<br>Un humain tranche.</h2>
-      <div class="panneau p1"><div class="vue"><div class="page"><i style="top:30px;width:240px"></i><i style="top:62px;width:380px"></i><i style="top:94px;width:320px"></i><span class="lien">Studienprogramme</span></div><svg class="curseur" viewBox="0 0 46 46"><path d="M6 4l30 14-13 4-6 13Z" fill="#1C1C1C" stroke="#FFFDF6" stroke-width="3" stroke-linejoin="round"/></svg><svg class="marques"></svg></div>
-        <h3>L'agent H visite</h3><p>Il clique et défile dans un vrai Chrome, comme un visiteur.</p></div>
-      <div class="panneau p2"><div class="vue"><div class="page"><i style="top:30px;width:200px"></i><i style="top:62px;width:330px"></i><span class="lien deborde" style="text-decoration:none">Zertifikatskurs</span></div><p class="mesure-p2 mono">mesuré : 158×35 &gt; 120×35</p><svg class="marques"></svg></div>
-        <h3>Le code prouve</h3><p>Lien mort, texte qui déborde, bloc non traduit : seul ce qui est mesuré devient un défaut.</p></div>
-      <div class="panneau p3"><div class="vue"><p class="mono" style="position:absolute;left:34px;top:40px;font-size:25px;margin:0">C'est un bug, ou c'est voulu ?</p><div class="choix"><span class="bug">C'est un bug</span><span>C'est voulu</span></div></div>
-        <h3>Vous tranchez</h3><p>Bug ou voulu : Horama garde la décision pour le passage suivant.</p></div>
-    </section>
-
-    <!-- 5. Solution : un produit, deux entrées -->
-    <section class="esc e-produit" data-anim="produit" data-ciel="lever" data-sortie="plongee"
-      data-perche="1180,610,150" data-etat="regarde" data-regard="1,0">
-      <h2 class="titre">Un produit,<br>du site vibe-codé au SaaS.</h2>
-      <p class="etiq" style="left:100px;top:330px">Une adresse suffit</p>
-      <div class="champ"><span class="frappe">https://votre-site.fr</span><span class="bouton"><svg class="aile g" viewBox="0 22 32 35"><path d="M30 46C24 30 10 24 2 28c6 3 7 7 5 10 5 1 7 5 5 8 5 1 8 5 7 9 5-1 9-4 11-9Z"/></svg>Envoyer Horama<svg class="aile d" viewBox="64 22 32 35"><path d="M66 46C72 30 86 24 94 28c-6 3-7 7-5 10-5 1-7 5-5 8-5 1-8 5-7 9-5-1-9-4-11-9Z"/></svg></span></div>
-      <p class="etiq" style="left:100px;top:640px">Avec la documentation</p>
-      <div class="pr"><b>Chaque pull request</b><span>Les notes du vault deviennent des tests, rejoués à chaque PR. La réponse arrive sur la PR.</span></div>
+    <!-- 3. Deux cibles, deux entrées, les mêmes preuves -->
+    <section class="esc e-fusion" data-anim="fusion" data-ciel="ciel" data-sortie="page"
+      data-perche="1330,600,150" data-etat="regarde" data-regard="1,0">
+      <h2 class="titre">Ils livrent vite.<br>Horama vérifie derrière.</h2>
+      <div class="persona pa"><h3>Le marketeur qui vibe-code</h3><p>Il construit le site de son entreprise <b>avec l'IA</b> et publie <b>dès qu'il a une idée</b>.</p></div>
+      <div class="persona pb"><h3>Le CTO d'un SaaS</h3><p>Une dizaine de développeurs, <b>aucun testeur</b>, une mise en production <b>presque chaque semaine</b>.</p></div>
+      <p class="etiq ea">Une adresse, ou l'extension</p>
+      <div class="champ"><span class="frappe">votre-site.fr</span><span class="bouton"><svg class="aile g" viewBox="0 22 32 35"><path d="M30 46C24 30 10 24 2 28c6 3 7 7 5 10 5 1 7 5 5 8 5 1 8 5 7 9 5-1 9-4 11-9Z"/></svg>Envoyer Horama<svg class="aile d" viewBox="64 22 32 35"><path d="M66 46C72 30 86 24 94 28c-6 3-7 7-5 10-5 1-7 5-5 8-5 1-8 5-7 9-5-1-9-4-11-9Z"/></svg></span></div>
+      <p class="etiq eb">La documentation, et GitHub</p>
+      <div class="pr"><b>Chaque pull request</b><span>La documentation devient des tests, rejoués à chaque PR.</span></div>
       <svg class="marques chemins"></svg>
       <div class="sortie"><h3>Les mêmes preuves</h3><ul><li>Défauts prouvés par le code</li><li>Doutes à trancher</li><li>Décisions gardées</li></ul></div>
-      <p class="ajout"><b>Ce qu'on ajoute à la démo QA de H Company :</b> qui écrit les tests, la preuve, la mémoire.</p>
+      <p class="ajout"><b>En plus de la démo QA de H Company :</b> qui écrit les tests, la preuve, la mémoire.</p>
     </section>
 
-    <!-- 6. Démo -->
+    <!-- 4. Solution : trois temps -->
+    <section class="esc e-temps" data-anim="temps" data-ciel="lever" data-sortie="plongee"
+      data-perche="1760,200,124" data-etat="regarde" data-regard="-1,.5">
+      <h2 class="titre">Un agent visite. Le code prouve.<br>Un humain tranche.</h2>
+      <div class="panneau p1"><div class="vue"><div class="page"><p class="mini">Fin de Parcoursup : …</p><i style="top:66px;width:380px"></i><i style="top:96px;width:300px"></i><span class="lien">journée portes ouvertes</span></div><svg class="curseur" viewBox="0 0 46 46"><path d="M6 4l30 14-13 4-6 13Z" fill="#1C1C1C" stroke="#FFFDF6" stroke-width="3" stroke-linejoin="round"/></svg><svg class="marques"></svg></div>
+        <h3>L'agent H visite</h3><p>Il ouvre l'article et défile dans un vrai Chrome, comme un visiteur.</p></div>
+      <div class="panneau p2"><div class="vue"><div class="page"><i style="top:30px;width:200px"></i><i style="top:62px;width:330px"></i><span class="lien deborde">journée portes ouvertes</span></div><p class="mesure-p2 mono">mesuré : 404</p><svg class="marques"></svg></div>
+        <h3>Le code prouve</h3><p>Il suit le lien : la page n'existe pas. Seul ce qui est mesuré devient un défaut.</p></div>
+      <div class="panneau p3"><div class="vue"><p class="doute-p3">Holo doute, un chapô coupé :<br><span class="pointille-ocre mono">« … dans la cha »</span></p><div class="choix"><span class="bug">C'est un bug</span><span>C'est voulu</span></div></div>
+        <h3>Vous tranchez</h3><p>Bug ou voulu : Horama garde la décision pour l'exploration suivante.</p></div>
+    </section>
+
+
+    <!-- 5. Démo -->
     <section class="esc e-demo sombre" data-anim="demo" data-ciel="nuit" data-sortie="trame" data-perche="aucune">
       <div class="scene3d"><div class="feuille">
-        <div class="barre"><i></i><span>PR #16 · passage réel de 5 min 43, résumé en 1 min</span></div>
+        <div class="barre"><i></i><span>PR #16 · exploration réelle de 5 min 43, résumée en 1 min</span></div>
         <div class="cadre"><video muted playsinline preload="auto" poster="medias/poster.jpg"></video></div>
       </div></div>
       <p class="legende"></p>
     </section>
 
-    <!-- 7. Architecture -->
+    <!-- 6. Architecture -->
     <section class="esc e-archi sombre" data-anim="archi" data-ciel="nuit" data-sortie="soleil"
       data-perche="960,520,118" data-etat="regarde" data-regard="1,0">
       <h2 class="titre" style="font-size:84px">Deux entrées, une boucle,<br>déjà en ligne.</h2>
@@ -321,43 +312,43 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
 
 
 
-    <!-- 8. Coût de run -->
+    <!-- 7. Coût de run -->
     <section class="esc e-cout" data-anim="cout" data-ciel="ciel" data-sortie="pointille"
       data-perche="1610,232,130" data-etat="regarde" data-regard="-1,.3">
-      <h2 class="chiffre" aria-label="Environ 0,25 dollar par passage"><svg class="environ" viewBox="0 0 100 96" aria-hidden="true"><path d="M8 34c14-16 28-16 42-4s28 12 42-4M8 74c14-16 28-16 42-4s28 12 42-4"/></svg><span class="nombre">0,25</span><span class="dollar">$</span></h2>
-      <p class="par">par passage.</p>
-      <p class="vendu">Coût de l'agent H, mesuré en dollars, pour un passage complet de 8 pages.</p>
+      <h2 class="chiffre" aria-label="Environ 0,25 dollar par exploration"><svg class="environ" viewBox="0 0 100 96" aria-hidden="true"><path d="M8 34c14-16 28-16 42-4s28 12 42-4M8 74c14-16 28-16 42-4s28 12 42-4"/></svg><span class="nombre">0,25</span><span class="dollar">$</span></h2>
+      <p class="par">par exploration.</p>
+      <p class="vendu">Coût de l'agent H, mesuré en dollars, pour une exploration complète de 8 pages.</p>
       <div class="pli">
         <div class="tete"><i></i>Mesuré le 19/11</div>
         <div class="bloc"><b class="gros mono">0,2174 $</b><span>en 343 s, PR #16 du clone d'Eugenia, 8 pages</span></div>
         <div class="bloc"><b class="gros mono">0,2680 $</b><span>en 434,5 s, la même visite avec le contrôle du texte non traduit</span></div>
       </div>
     </section>
-    <!-- 9. Business model -->
-    <section class="esc e-prix" data-anim="prix" data-ciel="ciel" data-sortie="vol"
+    <!-- 8. Business model -->
+    <section class="esc e-prix" data-anim="prix" data-ciel="ciel" data-sortie="bascule"
       data-perche="1215,250,120" data-etat="regarde" data-regard="1,.6">
-      <h2 class="titre">On paie au passage,<br>avec un forfait.</h2>
-      <p class="explique">Hypothèse d'usage : <span class="hypothese">30 passages par mois</span> par abonné.<br>30 × 0,25 $ = <b>7,50 $</b> de coût de l'agent H par mois.<br><br><span class="carre blanc"></span>Le coût de l'agent H, mesuré en dollars<br><span class="carre jaune"></span>Ce qui reste : <b>la marge</b><br><br><span class="petit">Gratuit : 3 passages offerts, 3 × 0,25 $ = 0,75 $ de coût d'acquisition. Sa barre est agrandie pour rester lisible.</span></p>
+      <h2 class="titre">On paie à l'exploration,<br>avec un forfait.</h2>
+      <p class="explique">Hypothèses d'usage, par abonné et par mois : <span class="hypothese">30 explorations</span> en Solo, <span class="hypothese">200 explorations</span> en Équipe.<br>Une exploration coûte <b>0,25 $</b> d'agent H.<br><br><span class="carre blanc"></span>Le coût de l'agent H, mesuré en dollars<br><span class="carre jaune"></span>Ce qui reste : <b>la marge</b><br><br><span class="petit">Gratuit : 3 explorations offertes, 0,75 $ de coût d'acquisition. Sa barre est agrandie pour rester lisible.</span></p>
       <div class="sol"></div>
       <div class="pilier gratuit" data-prix="0" data-cout="0.75" style="left:880px"><div class="colonne"><div class="cout"><span>coût d'acquisition<br>0,75 $</span></div></div><p class="prix">0 $</p></div>
       <div class="pilier" data-prix="49" data-cout="7.5" style="left:1230px"><div class="colonne"><div class="marge"><span>marge 41,50 $<br>≈ 85 %</span></div><div class="cout"></div></div><p class="etiq-cout">coût H 7,50 $</p><p class="prix">49 $</p></div>
-      <div class="pilier" data-prix="199" data-cout="7.5" style="left:1580px"><div class="colonne"><div class="marge"><span>marge 191,50 $<br>≈ 96 %</span></div><div class="cout"></div></div><p class="etiq-cout">coût H 7,50 $</p><p class="prix">199 $</p></div>
-      <div class="nom" style="left:860px;width:340px"><b>Gratuit</b><span>3 passages offerts</span></div>
-      <div class="nom" style="left:1210px;width:340px"><b>Solo</b><span>pour 30 passages</span></div>
-      <div class="nom" style="left:1560px;width:340px"><b>Équipe</b><span>pour 30 passages</span></div>
+      <div class="pilier" data-prix="199" data-cout="50" style="left:1580px"><div class="colonne"><div class="marge"><span>marge 149 $<br>≈ 75 %</span></div><div class="cout"><span>coût H 50 $</span></div></div><p class="prix">199 $</p></div>
+      <div class="nom" style="left:860px;width:340px"><b>Gratuit</b><span>3 explorations offertes</span></div>
+      <div class="nom" style="left:1210px;width:340px"><b>Solo</b><span>pour 30 explorations</span></div>
+      <div class="nom" style="left:1560px;width:340px"><b>Équipe</b><span>pour 200 explorations</span></div>
       <p class="unite">par mois et par abonné</p>
     </section>
-    <!-- 10. Go-to-market -->
+    <!-- 9. Go-to-market -->
     <section class="esc e-chemin" data-anim="chemin" data-ciel="lever" data-sortie="plongee"
       data-perche="170,690,130" data-etat="regarde" data-regard="1,-.3">
       <h2 class="titre">L'extension gratuite fait entrer.<br>La régularité fait payer.</h2>
       <svg class="courbe" viewBox="0 0 1920 1080"><path class="trace-c" d="M170 730C430 750 470 600 640 590S990 560 1060 470 1330 340 1520 250"/></svg>
-      <div class="etape" style="left:110px;top:640px"><span class="num">1</span><b>L'extension</b><span>Gratuite, sans compte :<br>3 passages par mois.</span></div>
+      <div class="etape" style="left:110px;top:640px"><span class="num">1</span><b>L'extension</b><span>Gratuite, sans compte :<br>3 explorations par mois.</span></div>
       <div class="etape" style="left:560px;top:420px"><span class="num">2</span><b>Le « waouh »</b><span>Un vrai défaut prouvé sur son site, comme le 404 d'Eugenia.</span></div>
       <div class="etape" style="left:1060px;top:640px"><span class="num">3</span><b>Solo</b><span>Il veut un contrôle après chaque publication.</span></div>
       <div class="etape" style="left:1450px;top:470px"><span class="num">4</span><b>Équipe</b><span>La réponse sur la PR, la doc comme source des tests.</span></div>
     </section>
-    <!-- 11. Fin, à l'aube -->
+    <!-- 10. Fin, à l'aube -->
     <section class="esc e-fin" data-anim="fin" data-ciel="aube" data-soleil="1540,1080,420"
       data-perche="1540,560,390" data-etat="fini" data-regard="0,0">
       <p class="equipe">Équipe 11 · hackathon Eugenia « Build The Future »</p>
