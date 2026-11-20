@@ -84,13 +84,13 @@ function decor() {
   const semer = (c, n, taille, yMin, yMax) => { const L = largeur(c);
     for (let i = 0; i < n; i++) { const w = taille[0] + hasard() * (taille[1] - taille[0]), x = -200 + hasard() * L, y = yMin + hasard() * (yMax - yMin);
       if (!gene(c.f, x, y, w, w * .42)) nuage(c.els[0], x, y, w, hasard() > .5); } };
-  semer(lo, Math.round(largeur(lo) / 240), [60, 110], 24, 860);
+  semer(lo, Math.round(largeur(lo) / 110), [60, 120], 24, 900);
   const et = el("svg", "etoiles", lo.els[0], true), L = largeur(lo);
   Object.assign(et.style, { left: 0, top: 0, width: L + "px", height: H + "px" });
   let html = ""; for (let i = 0; i < L / 8; i++) { const x = hasard() * L, y = hasard() * 940, r = 1.1 + hasard() * 2;
     if (!gene(lo.f, x - 4, y - 4, 8, 8, 16)) html += `<circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="${r.toFixed(1)}" opacity="${(.3 + hasard() * .6).toFixed(2)}"/>`; }
   et.innerHTML = html;
-  semer(mi, Math.round(largeur(mi) / 280), [160, 280], 30, 900);
+  semer(mi, Math.round(largeur(mi) / 120), [160, 300], 30, 940);
   escs.forEach((e, k) => {
     if (!e.dataset.soleil) return;
     let cx, cy, r;
@@ -99,17 +99,26 @@ function decor() {
     const g = soleilSVG(mi.els[0], cx + k * STEP * mi.f, cy, r); g._k = k; e._soleil = g; soleils.push(g);
   });
   const s = el("svg", "banc", ba.els[0], true), LB = largeur(ba);
-  Object.assign(s.style, { left: 0, top: (H - 96) + "px", width: LB + "px", height: "120px" });
-  let d = "M0 120V52", x = 0;
+  Object.assign(s.style, { left: 0, top: (H - 96) + "px", width: LB + "px", height: "700px" });
+  let d = "M0 700V52", x = 0;
   while (x < LB) { const w = 46 + hasard() * 70, h = w * (.5 + hasard() * .25); d += `a${(w / 2).toFixed(1)} ${h.toFixed(1)} 0 0 1 ${w.toFixed(1)} 0`; x += w; }
-  s.innerHTML = `<path d="${d}V120Z"/>`;
+  s.innerHTML = `<path d="${d}V700H0Z"/>`;
   // entre deux escales, un banc de nuages vertical que la caméra traverse : il cache la couture entre deux ciels
   for (let k = 0; k < escs.length - 1; k++) {
     const xc = (k + .5) * STEP * pr.f + W / 2, mur = el("div", "mur", pr.els[0]);
-    for (let y = -220; y < H + 120; y += 150) for (const dx of [-170, 40]) {
+    for (let y = -760; y < H + 760; y += 150) for (const dx of [-170, 40]) {
       const w = 520 + hasard() * 220; nuage(mur, xc + dx - w / 2 + (hasard() - .5) * 110, y + hasard() * 40, w, hasard() > .5);
     }
+    for (let i = 0; i < 12; i++) { const w = 240 + hasard() * 320, a0 = k * STEP * pr.f + W + 80, a1 = (k + 1) * STEP * pr.f - w - 80, x = a0 + hasard() * (a1 - a0);
+      if (Math.abs(x + w / 2 - xc) > 420) nuage(mur, x, -120 + hasard() * 1150, w, hasard() > .5); }
   }
+  // le pointillé de vol ne passe jamais sur un titre
+  const mq = el("mask", null, traceSvg, true); mq.id = "sans-titres"; mq.setAttribute("maskUnits", "userSpaceOnUse");
+  Object.entries({ x: -500, y: -500, width: total + W + 1000, height: H + 1000 }).forEach(([k2, v]) => mq.setAttribute(k2, v));
+  let mh = `<rect x="-500" y="-500" width="${total + W + 1000}" height="${H + 1000}" fill="#fff"/>`;
+  escs.forEach((e, k) => e.querySelectorAll("h1, h2, .slogan, .teste, .par").forEach(n => { const b = boite(e, n);
+    mh += `<rect x="${(b.x + k * STEP - 34).toFixed(0)}" y="${(b.y - 34).toFixed(0)}" width="${(b.w + 68).toFixed(0)}" height="${(b.h + 68).toFixed(0)}" rx="30" fill="#000"/>`; }));
+  mq.innerHTML = mh; tracePath.setAttribute("mask", "url(#sans-titres)");
   // la peau de nuit : la même scène, nuages cernés d'engobe, étoiles, pas de soleil
   const peauNuit = peauJour.cloneNode(true); peauNuit.id = "peau-nuit"; peauNuit.classList.add("nuit");
   peauJour.after(peauNuit);
@@ -144,7 +153,7 @@ function rendre() {
   const [ex, ey] = cam.E;
   for (const c of Object.values(COUCHES)) {
     let s = 1, cache = false;
-    if (cam.zc) { const d = c.D - cam.zc; if (d < 30 || (cam.zc < 0 && c === COUCHES.pres)) cache = true; else s = c.D / d; }
+    if (cam.zc) { const d = c.D - cam.zc; if (d < 30 || (cam.mode === "sortie" && c === COUCHES.pres)) cache = true; else s = c.D / d; }
     for (const n of c.els) {
       n.style.visibility = cache ? "hidden" : "";
       if (!cache) n.style.transform = `translate(${(cam.off[0] + ex).toFixed(2)}px,${(cam.off[1] + ey).toFixed(2)}px) scale(${s.toFixed(5)}) translate(${(-ex).toFixed(2)}px,${(-ey).toFixed(2)}px) translateX(${(-cam.x * c.f).toFixed(2)}px)`;
@@ -165,7 +174,7 @@ function rendre() {
     const s = q.D / d, x = ex + cam.off[0] + (q.x - ex) * s, y = ey + cam.off[1] + (q.y - ey) * s;
     q.n.style.visibility = ""; q.n.style.transform = `translate(${(x - q.w / 2).toFixed(1)}px,${(y - q.w * .2).toFixed(1)}px) scale(${s.toFixed(4)})`;
   }
-  if (cam.zc < 0 && base) placer(ex + (base.x - ex) * sMain, ey + (base.y - ey) * sMain, base.t * sMain, 0, true);
+  if (cam.mode === "sortie" && base) placer(ex + (base.x - ex) * sMain, ey + (base.y - ey) * sMain, base.t * sMain, 0, true);
 }
 
 /* ---------- l'envoyé ---------- */
@@ -289,9 +298,9 @@ const ESCALES = {
       });
       if (instant) return;
       e.querySelectorAll(".carte").forEach((c, i) => anime(e, c, [
-        { opacity: 0, transform: "perspective(1500px) translate3d(0,120px,-300px) rotateY(-70deg) rotateX(20deg)" },
+        { opacity: 0, transform: "perspective(900px) translate3d(0,120px,-300px) rotateY(-70deg) rotateX(20deg)" },
         { opacity: 1, offset: .25 },
-        { opacity: 1, transform: "perspective(1500px) translate3d(0,0,0) rotateY(0deg) rotateX(0deg)" }], { duration: 1150, delay: 120 + i * 160 }));
+        { opacity: 1, transform: `perspective(900px) translate3d(0,0,0) rotateY(${i ? -8 : 8}deg) rotateX(0deg)` }], { duration: 1150, delay: 120 + i * 160 }));
     },
   },
   quatrecentquatre: {
@@ -299,12 +308,12 @@ const ESCALES = {
       const f = e.querySelector(".feuille"), img = f.querySelector("img"), pli = e.querySelector(".pli"), m = calque(e);
       const bi = boite(e, img), k = bi.w / 1280;
       const rect = { x: bi.x + 44 * k, y: bi.y + 312 * k, w: 812 * k, h: 70 * k };      // le lien des portes ouvertes, sur deux lignes
-      if (instant) { tracerDefaut(m, rect, { instant: true, epaisseur: 6 }); pli.style.transform = "rotate(-2.5deg)"; return; }
-      anime(e, f, [{ opacity: 0, transform: "translate3d(80px,260px,-500px) rotateX(62deg) rotateZ(6deg)" }, { opacity: 1, offset: .2 },
-        { opacity: 1, transform: "translate3d(0,0,0) rotateX(0deg) rotateZ(-1deg)" }], { duration: 1150 });
-      anime(e, pli, [{ opacity: 0, transform: "perspective(1400px) translateX(140px) rotateY(-75deg) rotateZ(0deg)" }, { opacity: 1, offset: .25 },
-        { opacity: 1, transform: "perspective(1400px) translateX(0) rotateY(0deg) rotateZ(-2.5deg)" }], { duration: 1100, delay: 500 });
-      plus_tard(e, 900, () => tracerDefaut(m, rect, { duree: 800, epaisseur: 6 }));
+      if (instant) { tracerDefaut(m, rect, { instant: true, epaisseur: 8 }); pli.style.transform = "perspective(800px) rotateY(-12deg) rotateZ(-2.5deg)"; return; }
+      anime(e, f, [{ opacity: 0, transform: "translate3d(80px,300px,-700px) rotateX(70deg) rotateY(0deg) rotateZ(8deg)" }, { opacity: 1, offset: .2 },
+        { opacity: 1, transform: "translate3d(0,0,0) rotateX(0deg) rotateY(-7deg) rotateZ(-1deg)" }], { duration: 1150 });
+      anime(e, pli, [{ opacity: 0, transform: "perspective(800px) translateX(140px) rotateY(-75deg) rotateZ(0deg)" }, { opacity: 1, offset: .25 },
+        { opacity: 1, transform: "perspective(800px) translateX(0) rotateY(-12deg) rotateZ(-2.5deg)" }], { duration: 1100, delay: 500 });
+      plus_tard(e, 900, () => tracerDefaut(m, rect, { duree: 800, epaisseur: 8 }));
     },
   },
   temps: {
@@ -315,16 +324,16 @@ const ESCALES = {
       const vue2 = ps[1].querySelector(".vue"), mot = ps[1].querySelector(".deborde"), b = boite(vue2, mot);
       const btn = ps[2].querySelector(".choix span"), voulu = ps[2].querySelectorAll(".choix span")[1];
       const lb = boite(ps[0].querySelector(".vue"), lien1), cible = [lb.x + 70, lb.y + 16];
-      if (instant) { c1.style.transform = `translate(${cible[0]}px,${cible[1]}px)`; tracerDefaut(m2, { x: b.x, y: b.y, w: b.w, h: b.h }, { instant: true, epaisseur: 5 }); voulu.style.opacity = .4; return; }
-      ps.forEach((p, i) => anime(e, p, [{ opacity: 0, transform: "perspective(1400px) translate3d(0,160px,-200px) rotateX(70deg)" }, { opacity: 1, offset: .25 },
-        { opacity: 1, transform: "perspective(1400px) translate3d(0,0,0) rotateX(0deg)" }], { duration: 1100, delay: i * 140 }));
+      if (instant) { c1.style.transform = `translate(${cible[0]}px,${cible[1]}px)`; tracerDefaut(m2, { x: b.x, y: b.y, w: b.w, h: b.h }, { instant: true, epaisseur: 7 }); voulu.style.opacity = .4; return; }
+      ps.forEach((p, i) => anime(e, p, [{ opacity: 0, transform: "perspective(800px) translate3d(0,220px,-300px) rotateX(75deg) rotateY(0deg)" }, { opacity: 1, offset: .25 },
+        { opacity: 1, transform: `perspective(1200px) translate3d(0,0,0) rotateX(0deg) rotateY(${(1 - i) * 9}deg)` }], { duration: 1100, delay: i * 140 }));
       anime(e, c1, [{ transform: "translate(470px,300px)" }, { transform: `translate(${cible[0] + 140}px,${cible[1] + 90}px)`, offset: .6 }, { transform: `translate(${cible[0]}px,${cible[1]}px)` }],
         { duration: 1000, delay: 500 });
       plus_tard(e, 1450, () => { const r = el("circle", null, m1, true); r.setAttribute("cx", cible[0] + 4); r.setAttribute("cy", cible[1] + 4);
         Object.assign(r.style, { fill: "none", stroke: "var(--iris)", strokeWidth: 5 });
         retenir(e, r.animate([{ r: 2, opacity: 1 }, { r: 46, opacity: 0 }], { duration: 700, easing: SORTIE, fill: "both" }));
         anime(e, lien1, [{ color: "#1C1C1C" }, { color: "#7F77DD" }], { duration: 400 }); });
-      plus_tard(e, 1150, () => { tracerDefaut(m2, { x: b.x, y: b.y, w: b.w, h: b.h }, { duree: 750, epaisseur: 5 }); M.etat("trouve"); M.regarder(-.4, .8); });
+      plus_tard(e, 1150, () => { tracerDefaut(m2, { x: b.x, y: b.y, w: b.w, h: b.h }, { duree: 750, epaisseur: 7 }); M.etat("trouve"); M.regarder(-.4, .8); });
       plus_tard(e, 1900, () => { anime(e, btn, [{ transform: "scale(1)" }, { transform: "scale(.9)", offset: .3 }, { transform: "scale(1)" }], { duration: 600, fill: "none" });
         anime(e, voulu, [{ opacity: 1 }, { opacity: .4 }], { duration: 500 }); M.etat("fini"); M.regarder(-.2, .8); });
     },
@@ -338,12 +347,12 @@ const ESCALES = {
       const d2 = `M${b[0]} ${b[1]}C${b[0] + 200} ${b[1]} ${c[0] - 180} ${c[1] + 90} ${c[0]} ${c[1]}`;
       const d3 = `M${p.x + 70} ${p.y}C${p.x + 120} ${p.y - 30} ${o[0] - 60} ${o[1]} ${o[0]} ${o[1]}`;
       const enc = "#1C1C1C";
-      pointille(s, d1, { couleur: enc, instant, duree: 800, delai: 500 }); pointille(s, d2, { couleur: enc, instant, duree: 800, delai: 650 }); pointille(s, d3, { couleur: enc, instant, duree: 700, delai: 1250 });
+      pointille(s, d1, { couleur: enc, instant, duree: 800, delai: 500 }); pointille(s, d2, { couleur: enc, instant, duree: 800, delai: 650 });
       if (instant) return;
       const fr = e.querySelector(".frappe"), bt = e.querySelector(".champ .bouton");
       anime(e, fr, [{ clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0 0 0)" }], { duration: 700, easing: "steps(21, end)" });
       bt.classList.add("vole"); plus_tard(e, 1400, () => bt.classList.remove("vole"));
-      anime(e, e.querySelector(".pr"), [{ opacity: 0, transform: "perspective(1400px) rotateX(60deg) translateY(80px)" }, { opacity: 1, offset: .3 }, { opacity: 1, transform: "perspective(1400px) rotateX(0deg) translateY(0)" }], { duration: 1050, delay: 150 });
+      anime(e, e.querySelector(".pr"), [{ opacity: 0, transform: "perspective(800px) rotateX(60deg) translateY(80px)" }, { opacity: 1, offset: .3 }, { opacity: 1, transform: "perspective(800px) rotateX(0deg) translateY(0)" }], { duration: 1050, delay: 150 });
       e.querySelectorAll(".sortie li").forEach((li, i) => anime(e, li, [{ opacity: 0, transform: "translateX(40px)" }, { opacity: 1, transform: "none" }], { duration: 900, delay: 1300 + i * 100 }));
     },
   },
@@ -356,17 +365,18 @@ const ESCALES = {
       [9.5, "L'agent de H parcourt le site et clique, comme vous."],
       [13.0, "Il lit chaque page, traduite en allemand."],
       [17.3, "Un bloc est resté en français : <span class=\"cle\">trait rouge</span>."],
-      [19.0, "« J'ai fini. » <span class=\"mono\">3 défauts prouvés, 2 doutes, 8 pages.</span>"],
+      [19.0, "« J'ai fini. » 3 défauts prouvés, 2 doutes, 8 pages."],
       [22.4, "Chaque défaut revient : bug, ou voulu ?"],
       [26.3, "Vous tranchez : <span class=\"cle verdict\">c'est un bug</span>."],
       [27.2, "« C'est rangé. » La décision est gardée."],
     ],
     // la caméra dans la vidéo : centre (px de la vidéo 1280×862) et zoom, relevés image par image
+    // cadrages choisis pour ne couper ni une colonne ni un bouton, et ne jamais montrer la bande blanche de droite (après 22,4 s)
     CAMERA: [
-      [0, 640, 431, 1], [6.7, 640, 431, 1], [7.5, 150, 430, 2.7], [8.9, 150, 430, 2.7], [9.6, 640, 431, 1],
-      [11.0, 640, 431, 1], [11.8, 320, 120, 2.6], [12.5, 320, 120, 2.6], [13.2, 640, 431, 1],
-      [16.9, 640, 431, 1], [17.6, 300, 430, 2.1], [18.85, 300, 430, 2.1], [19.3, 560, 260, 1.55], [22.0, 560, 260, 1.55], [22.6, 640, 431, 1],
-      [23.3, 420, 720, 2.0], [26.15, 420, 720, 2.0], [26.6, 900, 140, 2.8], [27.1, 900, 140, 2.8], [27.8, 640, 431, 1], [30, 640, 431, 1],
+      [0, 640, 431, 1], [6.7, 640, 431, 1], [7.5, 395, 596, 1.62], [8.9, 395, 596, 1.62], [9.6, 640, 431, 1],
+      [10.9, 640, 431, 1], [11.6, 430, 289, 1.49], [12.6, 430, 289, 1.49], [13.2, 640, 431, 1],
+      [17.5, 640, 431, 1], [18.15, 330, 500, 2.1], [18.85, 330, 500, 2.1], [19.3, 640, 336, 1.28], [22.1, 640, 336, 1.28],
+      [22.45, 540, 431, 1.19], [23.2, 540, 600, 1.45], [26.1, 540, 600, 1.45], [26.6, 540, 300, 1.4], [27.0, 540, 300, 1.4], [27.6, 540, 450, 1.4], [30, 540, 450, 1.4],
     ],
     camera(t) {
       const C = this.CAMERA; let i = 0; while (i < C.length - 2 && t > C[i + 1][0]) i++;
@@ -390,7 +400,7 @@ const ESCALES = {
         const cle = lg.querySelector(".cle");
         if (cle) { const s = el("svg", null, cle, true), w = cle.offsetWidth, h = cle.offsetHeight;
           s.setAttribute("viewBox", `0 0 ${w} ${h}`); Object.assign(s.style, { width: w + "px", height: h + "px" });
-          setTimeout(() => tracerDefaut(s, { x: 0, y: 4, w, h: h - 8 }, { duree: 700, epaisseur: 5 }), 120);
+          setTimeout(() => tracerDefaut(s, { x: 0, y: 2, w, h: h - 4 }, { duree: 700, epaisseur: 7 }), 120);
           if (cle.classList.contains("verdict")) retenir(e, f.animate([{ transform: "rotateZ(0deg) scale(1)" }, { transform: "rotateZ(.6deg) scale(1.025)", offset: .25 }, { transform: "rotateZ(0deg) scale(1)" }], { duration: 700, easing: SORTIE, composite: "add" })); }
       };
       montrer(0, false); cadrer(0);
@@ -409,10 +419,10 @@ const ESCALES = {
   },
   archi: {
     NOEUDS: [
-      ["pr", 250, 370, "PR GitHub", "aperçu Vercel"], ["reveil", 600, 330, "Le réveil", "lit la PR et le vault"],
-      ["ext", 250, 740, "Extension Chrome", "ou page d'accueil"], ["service", 600, 770, "Le service", "Railway, file d'attente"],
-      ["h", 960, 540, "Agent H dans Chrome", "Agents API de H Company"],
-      ["code", 1330, 380, "Le code prouve", "règles, liens, langue"], ["holo", 1330, 720, "Holo doute", "ce qu'il voit sur la capture"],
+      ["pr", 250, 370, "PR GitHub", "aperçu Vercel"], ["reveil", 600, 330, "Le réveil", "choisit les tests"],
+      ["ext", 250, 740, "Extension Chrome", "ou page d'accueil"], ["service", 600, 770, "Le service", "sur Railway"],
+      ["h", 960, 540, "Agent H dans Chrome", "H Company"],
+      ["code", 1330, 380, "Le code prouve", "liens, langue"], ["holo", 1330, 720, "Holo doute", "sur la capture"],
       ["vous", 1640, 550, "Vous tranchez", "bug ou voulu"], ["pr2", 1720, 290, "Réponse sur la PR", "vault mis à jour"],
       ["plus", 960, 840, "Plusieurs agents", "en parallèle", 1], ["docs", 250, 560, "Confluence, Notion", "en entrée", 1], ["jira", 1720, 820, "Jira, Linear", "en sortie", 1],
     ],
@@ -428,7 +438,7 @@ const ESCALES = {
       this.NOEUDS.forEach(([id, x, y, nom, petit, prevu], i) => {
         const c = el("circle", "etoile" + (prevu ? " prevu" : ""), s, true); c.setAttribute("cx", x); c.setAttribute("cy", y); c.setAttribute("r", id === "h" ? 0 : prevu ? 17 : 14);
         const lab = el("div", "noeud" + (prevu ? " prevu" : ""), box); lab.innerHTML = `${nom}<small>${petit}</small>`;
-        Object.assign(lab.style, { left: x + "px", top: (id === "h" ? y + 78 : y + 28) + "px" });
+        Object.assign(lab.style, { left: x + "px", top: (id === "h" ? y + 74 : y + 26) + "px" });
         if (instant) return;
         const dl = 150 + Math.min(i * 80, 900);
         retenir(e, c.animate([{ transform: "scale(0)" }, { transform: "scale(1.8)", offset: .4 }, { transform: "scale(1)" }], { duration: 900, delay: dl, easing: SORTIE, fill: "both" }));
@@ -440,18 +450,20 @@ const ESCALES = {
   prix: {
     arriver(e, instant) {
       e.querySelectorAll(".pilier").forEach((p, i) => {
-        const prix = +p.dataset.prix, h = Math.max(8, prix * 2.05), col = p.querySelector(".colonne"), lab = p.querySelector(".prix"), n = p.querySelector(".n");
+        const prix = +p.dataset.prix, h = Math.max(26, prix * 2.3), col = p.querySelector(".colonne"), lab = p.querySelector(".prix"), n = p.querySelector(".n");
         col.style.height = h + "px"; lab.style.bottom = h + 18 + "px"; p.style.height = h + "px";
         const mg = col.querySelector(".marge");
         if (mg) { mg.style.height = (h * p.dataset.marge / 100) + "px";
-          const note = p.querySelector(".note-marge") || el("p", "note-marge", p); note.textContent = `marge ≈ ${p.dataset.marge} %`;
-          Object.assign(note.style, { left: 0, right: 0, textAlign: "center", top: Math.max(6, h * p.dataset.marge / 200 - 18) + "px", fontSize: h > 200 ? "34px" : "26px" }); }
+          const hm = h * p.dataset.marge / 100, note = p.querySelector(".note-marge") || el("p", "note-marge", p), cout = p.querySelector(".note-cout") || el("p", "note-marge note-cout", p);
+          note.textContent = `marge ${p.dataset.marge} %`; cout.textContent = `coût H ${p.dataset.cout} $`;
+          Object.assign(note.style, { left: 0, right: 0, textAlign: "center", top: (hm / 2 - 16) + "px", fontSize: "30px" });
+          Object.assign(cout.style, { left: 0, right: 0, textAlign: "center", top: (hm + (h - hm) / 2 - 16) + "px", fontSize: "28px", fontWeight: 500 }); }
         if (instant) { n.textContent = prix; return; }
         anime(e, col, [{ transform: "scaleY(0)" }, { transform: "scaleY(1)" }], { duration: 1100, delay: 200 + i * 150 });
         col.style.transformOrigin = "50% 100%";
         anime(e, lab, [{ transform: `translateY(${h}px)`, opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 1100, delay: 200 + i * 150 });
         n.textContent = "0"; compter(e, n, prix, { duree: 1100, delai: 200 + i * 150 });
-        if (mg) anime(e, mg, [{ opacity: 0 }, { opacity: 1 }], { duration: 600, delay: 900 + i * 150 });
+        if (mg) { anime(e, mg, [{ opacity: 0 }, { opacity: 1 }], { duration: 600, delay: 900 + i * 150 }); p.querySelectorAll(".note-marge").forEach(nn => anime(e, nn, [{ opacity: 0 }, { opacity: 1 }], { duration: 600, delay: 1000 + i * 150 })); }
       });
       if (!instant) e.querySelectorAll(".nom").forEach((n, i) => anime(e, n, [{ opacity: 0, transform: "translateY(20px)" }, { opacity: 1, transform: "none" }], { duration: 900, delay: 300 + i * 150 }));
     },
@@ -497,7 +509,7 @@ const ESCALES = {
           { opacity: 1, transform: `translate(${x - 42}px,${y - 42}px) scale(1)` }], { duration: 1100, delay: 800 + i * 70 });
       });
       if (instant) return;
-      anime(e, demain, [{ opacity: 0, transform: "translateY(16px)" }, { opacity: 1, transform: "none" }], { duration: 900, delay: 1300 });
+      anime(e, demain, [{ opacity: 0, transform: "translateY(16px)" }, { opacity: 1, transform: "none" }], { duration: 900, delay: 700 });
       e.querySelectorAll(".listes li").forEach((li, i) => anime(e, li, [{ opacity: 0, transform: "translateX(30px)" }, { opacity: 1, transform: "none" }], { duration: 900, delay: 300 + i * 90 }));
     },
   },
@@ -506,14 +518,14 @@ const ESCALES = {
       const ch = e.querySelector(".chiffre"), n = ch.querySelector(".nombre"), $ = ch.querySelector(".dollar"), pli = e.querySelector(".pli"), m = calque(e);
       n.textContent = "0,25";
       const a = boite(e, n), z = boite(e, $);
-      const rect = { x: a.x + 6, y: a.y - 4, w: z.x + z.w - a.x + 26, h: a.h + 8 };
-      if (instant) { tracerDefaut(m, rect, { instant: true, epaisseur: 7 }); pli.style.transform = "rotate(2deg)"; return; }
+      const rect = { x: a.x + 8, y: a.y - 6, w: z.x + z.w - a.x + 20, h: a.h + 12 };
+      if (instant) { tracerDefaut(m, rect, { instant: true, epaisseur: 10 }); pli.style.transform = "perspective(800px) rotateY(-12deg) rotateZ(2deg)"; return; }
       compter(e, n, 25, { duree: 1050, delai: 100, format: v => "0," + String(Math.round(v)).padStart(2, "0") });
       anime(e, ch, [{ fontVariationSettings: '"XROT" 0, "YROT" 40' }, { fontVariationSettings: '"XROT" 0, "YROT" 0' }], { duration: 1100, fill: "none" });
-      anime(e, pli, [{ opacity: 0, transform: "perspective(1400px) translateX(160px) rotateY(-72deg) rotateZ(0deg)" }, { opacity: 1, offset: .25 },
-        { opacity: 1, transform: "perspective(1400px) translateX(0) rotateY(0deg) rotateZ(2deg)" }], { duration: 1150, delay: 150 });
+      anime(e, pli, [{ opacity: 0, transform: "perspective(800px) translateX(160px) rotateY(-72deg) rotateZ(0deg)" }, { opacity: 1, offset: .25 },
+        { opacity: 1, transform: "perspective(800px) translateX(0) rotateY(-12deg) rotateZ(2deg)" }], { duration: 1150, delay: 150 });
       e.querySelectorAll(".pli .bloc").forEach((b, i) => anime(e, b, [{ opacity: 0, transform: "translateY(18px)" }, { opacity: 1, transform: "none" }], { duration: 900, delay: 600 + i * 150 }));
-      plus_tard(e, 700, () => tracerDefaut(m, rect, { duree: 820, epaisseur: 7 }));
+      plus_tard(e, 700, () => tracerDefaut(m, rect, { duree: 820, epaisseur: 10 }));
     },
   },
   fin: {
@@ -521,7 +533,7 @@ const ESCALES = {
       const q = e.querySelector(".qr");
       if (!q.firstChild) {
         const mat = qrMatrice("https://github.com/Hisseiny/Horama-"), N = mat.length, s = el("svg", null, q, true);
-        s.setAttribute("viewBox", `-2 -2 ${N + 4} ${N + 4}`); s.setAttribute("shape-rendering", "crispEdges");
+        s.setAttribute("viewBox", `-4 -4 ${N + 8} ${N + 8}`); s.setAttribute("shape-rendering", "crispEdges");
         let h = ""; mat.forEach((row, y) => row.forEach((v, x) => { if (v) h += `<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="#1C1C1C" data-d="${x + y}"/>`; }));
         s.innerHTML = h;
       }
@@ -574,14 +586,17 @@ function voler(a, b) {
   COUCHES.pres.els[0].classList.toggle("nuit", a.dataset.ciel === "nuit" && b.dataset.ciel === "nuit");
   traceSvg.getAnimations().forEach(x => x.cancel());
   M.etat("regarde"); M.regarder(dir, -.25);
+  cam.mode = "vol"; cam.E = [W / 2, H / 2]; cam.off = [0, 0];
   transition = tween(1150, t => {
     const e = panEase(t), u = douce(t);
-    cam.x = lerp(x0, x1, e); poserCiel(a.dataset.ciel, b.dataset.ciel, xs - cam.x * fP, dir); rendre();
+    cam.x = lerp(x0, x1, e); cam.zc = -380 * Math.sin(Math.PI * e);
+    const sN = 520 / (520 - cam.zc), sM = 1000 / (1000 - cam.zc);
+    poserCiel(a.dataset.ciel, b.dataset.ciel, W / 2 + (xs - cam.x * fP - W / 2) * sN, dir); rendre();
     const x = bez(u, 0), y = bez(u, 1), taille = lerp(A.t, B.t, u);
     placer(x, y, taille, dir * 14 * Math.sin(Math.PI * Math.min(1, u * 1.15)));
-    points.push([x + cam.x, y + taille * .12]); tracer();
+    points.push([(x - W / 2) / sM + W / 2 + cam.x, (y + taille * .12 - H / 2) / sM + H / 2]); tracer();
   }, () => {
-    transition = null; stage.classList.remove("vol"); hote.classList.remove("vole");
+    transition = null; cam.zc = 0; cam.mode = null; stage.classList.remove("vol"); hote.classList.remove("vole");
     poserCiel(b.dataset.ciel); rendre();
     traceSvg.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 1200, delay: 500, easing: "ease-in-out", fill: "forwards" });
     if (courante === b) { if (perche(b)) { base = perche(b); placer(B.x, B.y, B.t, 0); M.etat(b.dataset.etat || "regarde"); M.regarder(...regard(b)); } else hote.style.visibility = "hidden"; }
@@ -598,19 +613,19 @@ function plonger(a, b) {
   cam.E = [A.x, A.y];
   // les plans de l'escale qui part : les titres sont plus près de nous que l'œil
   cam.plans = [...a.children].filter(n => !(n instanceof SVGElement) || n.classList.contains("chemins")).map(n => {
-    const b0 = boite(a, n), D = n.matches("h1, h2, .slogan") ? 700 : n.matches(".pli, .carte, .panneau, p") ? 840 : 940;
+    const b0 = boite(a, n), D = n.matches("h1, h2, .slogan") ? 480 : n.matches(".pli, .carte, .panneau, p") ? 720 : 900;
     return { n, D, ox: b0.x, oy: b0.y };
   });
   // des nuages entre nous et l'œil, qui passent de chaque côté
   const nuit = a.dataset.ciel === "nuit"; plongee.className = nuit ? "nuit" : "";
-  cam.nuees = Array.from({ length: 12 }, (_, i) => { const ang = i / 12 * Math.PI * 2 + hasard(), r = 260 + hasard() * 520, w = 170 + hasard() * 200;
-    return { n: nuage(plongee, 0, 0, w, hasard() > .5), x: A.x + Math.cos(ang) * r, y: A.y + Math.sin(ang) * r * .75, D: 260 + hasard() * 640, w }; });
+  cam.nuees = Array.from({ length: 18 }, (_, i) => { const ang = i / 18 * Math.PI * 2 + hasard(), r = 220 + hasard() * 640, w = 160 + hasard() * 240;
+    return { n: nuage(plongee, 0, 0, w, hasard() > .5), x: A.x + Math.cos(ang) * r, y: A.y + Math.sin(ang) * r * .75, D: 200 + hasard() * 700, w }; });
   cam.nuees.forEach(q => { q.n.style.transformOrigin = "0 0"; q.n.style.left = q.n.style.top = "0px"; });
   voile.innerHTML = `<g>${OEIL}</g>`;
-  const g = voile.firstChild, SMAX = Math.max(320, 1300 * 96 / (4.6 * A.t));
+  const g = voile.firstChild, SMAX = Math.max(150, 1180 * 96 / (4.6 * A.t));
   hote.style.visibility = "hidden"; points = []; tracer();
   const accel = bezier(.42, 0, .9, .5);
-  transition = tween(950, t => {
+  transition = tween(820, t => {
     const s = Math.exp(Math.log(SMAX) * accel(t)), k = douce(t);
     cam.zc = 1000 * (1 - 1 / s); cam.off = [centre[0] * k, centre[1] * k]; rendre();
     cam.nuees.forEach(q => q.n.style.opacity = clamp(t / .2));
@@ -619,7 +634,7 @@ function plonger(a, b) {
     // dans la pupille : l'ombre, un reflet ; l'escale suivante sort du fond
     cam.plans.forEach(p => { p.n.style.scale = ""; p.n.style.transformOrigin = ""; p.n.style.visibility = ""; }); cam.plans = [];
     cam.nuees.forEach(q => q.n.remove()); cam.nuees = [];
-    cam.E = [W / 2, H / 2]; cam.off = [0, 0]; cam.x = idx(b) * STEP; cam.zc = -6000;
+    cam.E = [W / 2, H / 2]; cam.off = [0, 0]; cam.x = idx(b) * STEP; cam.zc = -330; cam.mode = "sortie";
     poserCiel(b.dataset.ciel); poser(b); rendre();
     const R = Math.hypot(W, H) / 2 + 60;
     voile.innerHTML = `<defs><radialGradient id="pup" cx="50%" cy="50%" r="70%"><stop offset="0" stop-color="#2A2647"/><stop offset=".38" stop-color="#2A2647"/><stop offset="1" stop-color="#1C1C1C"/></radialGradient>
@@ -631,14 +646,13 @@ function plonger(a, b) {
     const trou = voile.querySelector("#trou"), iris = voile.querySelector("#iris"), reflet = voile.querySelector("#reflet"), eclat = voile.querySelector("#eclat");
     const rond = r => `M${W / 2 - r} ${H / 2}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0Z`;
     arriver(b);
-    const ATT = .2;   // un temps dans la pupille avant que l'escale en sorte
-    transition = tween(1250, t => {
-      const dr = t < ATT ? t / ATT : 1;
-      reflet.setAttribute("cx", (W * .3 + dr * 90).toFixed(1)); eclat.setAttribute("cx", (W * .33 + dr * 120).toFixed(1));
-      const u = expoOut(clamp((t - ATT) / (1 - ATT))), r = 1 + u * R * 1.05, r2 = r * 1.55 + 26;
-      trou.setAttribute("r", r.toFixed(1)); iris.setAttribute("d", r < 4 ? "" : rond(r2) + rond(r));
-      cam.zc = -6000 * (1 - u); rendre();
-    }, () => { voile.innerHTML = ""; transition = null; cam.zc = 0; rendre(); if (base) placer(base.x, base.y, base.t); });
+    // l'escale sort aussitôt, déjà presque à sa taille : la pupille s'ouvre comme un iris
+    transition = tween(900, t => {
+      reflet.setAttribute("cx", (W * .3 + t * 160).toFixed(1)); eclat.setAttribute("cx", (W * .33 + t * 220).toFixed(1));
+      const u = expoOut(t), r = 170 + u * (R * 1.08 - 170), r2 = r * 1.45 + 26;
+      trou.setAttribute("r", r.toFixed(1)); iris.setAttribute("d", rond(r2) + rond(r));
+      cam.zc = -330 * (1 - u); rendre();
+    }, () => { voile.innerHTML = ""; transition = null; cam.zc = 0; cam.mode = null; rendre(); if (base) placer(base.x, base.y, base.t); });
   });
 }
 

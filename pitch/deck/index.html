@@ -53,7 +53,7 @@ h2.titre { position: absolute; left: 96px; top: 84px; font-size: 92px; line-heig
 .mono { font-family: var(--mesure); font-variant-numeric: tabular-nums; }
 svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; pointer-events: none; }
 .pli { position: absolute; background: var(--papier); border: 3px solid var(--encre); border-radius: 14px; padding: 24px 30px 26px; color: var(--encre); }
-.pli .tete { display: flex; align-items: center; gap: 12px; font: 700 26px/1 var(--texte); }
+.pli .tete { display: flex; align-items: center; gap: 12px; font: 700 28px/1 var(--texte); }
 .pli .tete i { width: 26px; height: 26px; border: 3px solid var(--encre); flex: none; background: var(--soleil); }
 .pli .tete i.rouge { background: var(--miltos); }
 .pli b.gros { display: block; font: 400 84px/.95 var(--affiche); margin: 14px 0 8px -2px; letter-spacing: -.01em; }
@@ -98,7 +98,7 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
 .e-404 .feuille { width: 1080px; transform-origin: 50% 100%; }
 .e-404 .crop { width: 1080px; height: 408px; overflow: hidden; }
 .e-404 .crop img { display: block; width: 1536px; margin-top: -120px; }
-.e-404 .pli { left: 1350px; top: 676px; width: 430px; padding: 18px 26px 20px; }
+.e-404 .pli { left: 1350px; top: 636px; width: 430px; padding: 18px 26px 20px; }
 .e-404 .pli b.gros { font-size: 92px; margin: 8px 0 4px; }
 .e-404 .pli b.gros { color: var(--miltos); }
 
@@ -136,7 +136,7 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
 .e-demo .cadre { position: relative; width: 1210px; height: 815px; overflow: hidden; background: var(--encre); }
 .e-demo video { position: absolute; left: 0; top: 0; width: 1210px; height: 815px; transform-origin: 0 0; display: block; }
 .e-demo .legende { position: absolute; left: 0; right: 0; top: 894px; text-align: center; font: 700 54px/1.1 var(--texte); color: var(--engobe); }
-.e-demo .legende span.cle { position: relative; display: inline-block; }
+.e-demo .legende span.cle { position: relative; display: inline-block; margin: 0 .55em 0 .7em; }
 .e-demo .legende .mono { font-weight: 500; font-size: .86em; }
 .e-demo .legende svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
 
@@ -146,10 +146,10 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
 .e-archi .lien.prevu { stroke: var(--ocre); opacity: 1; }
 .e-archi .etoile { fill: var(--engobe); stroke: var(--encre); stroke-width: 3; }
 .e-archi .etoile.prevu { fill: none; stroke: var(--ocre); stroke-width: 4; stroke-dasharray: 2 7; stroke-linecap: round; }
-.e-archi .noeud { position: absolute; width: 330px; margin-left: -165px; text-align: center; font: 600 27px/1.2 var(--texte); }
-.e-archi .noeud small { display: block; font: 500 21px/1.3 var(--mesure); color: var(--aile-2); margin-top: 4px; }
+.e-archi .noeud { position: absolute; width: 360px; margin-left: -180px; text-align: center; font: 600 31px/1.15 var(--texte); }
+.e-archi .noeud small { display: block; font: 500 28px/1.2 var(--texte); color: var(--aile-2); margin-top: 2px; }
 .e-archi .noeud.prevu { color: var(--soleil-2); }
-.e-archi .legende-archi { position: absolute; left: 1180px; top: 120px; font-size: 25px; display: flex; gap: 40px; color: var(--aile-2); }
+.e-archi .legende-archi { position: absolute; left: 1180px; top: 120px; font-size: 28px; display: flex; gap: 40px; color: var(--aile-2); }
 
 /* 8. Business model : trois paliers */
 .e-prix .pilier { position: absolute; bottom: 300px; width: 300px; transform-origin: 50% 100%; }
@@ -159,7 +159,7 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
 .e-prix .prix small { font-size: .38em; letter-spacing: 0; }
 .e-prix .nom { position: absolute; left: -20px; right: -20px; top: 794px; text-align: center; }
 .e-prix .nom b { display: block; font: 400 46px/1 var(--affiche); }
-.e-prix .nom span { display: block; font-size: 26px; line-height: 1.3; margin-top: 10px; }
+.e-prix .nom span { display: block; font-size: 28px; line-height: 1.3; margin-top: 10px; }
 .e-prix .sol { position: absolute; left: 820px; right: 40px; top: 778px; height: 4px; background: var(--encre); }
 .e-prix .note-marge { position: absolute; font: 600 30px/1.15 var(--texte); }
 .e-prix .explique { position: absolute; left: 96px; top: 400px; width: 640px; font-size: 31px; line-height: 1.35; }
@@ -188,7 +188,7 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
 
 /* 11. Coût de run */
 .e-cout .chiffre { position: absolute; left: 140px; top: 236px; display: flex; align-items: center; font: 400 300px/1 var(--affiche); letter-spacing: -.02em; white-space: nowrap; }
-.e-cout .environ { width: .52em; height: .5em; margin-right: .12em; overflow: visible; }
+.e-cout .environ { width: .52em; height: .5em; margin-right: .36em; overflow: visible; }
 .e-cout .environ path { fill: none; stroke: var(--encre); stroke-width: 15; stroke-linecap: round; }
 .e-cout .nombre { display: inline-block; }
 .e-cout .dollar { margin-left: .14em; }
@@ -199,19 +199,19 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
 .e-cout .pli .bloc { margin-top: 22px; padding-top: 18px; border-top: 2px solid var(--filet); }
 .e-cout .pli .bloc:first-of-type { border-top: 0; padding-top: 0; }
 .e-cout .pli b.gros { font-size: 92px; margin: 4px 0 6px; }
-.e-cout .pli .bloc span { font-size: 27px; line-height: 1.3; display: block; }
+.e-cout .pli .bloc span { font-size: 28px; line-height: 1.3; display: block; }
 
 /* 12. Fin, à l'aube */
 .e-fin .teste { position: absolute; left: 96px; top: 150px; font: 400 168px/.95 var(--affiche); letter-spacing: -.018em; width: 1100px; }
 .e-fin .dit { position: absolute; left: 1430px; top: 250px; font: 400 64px/1 var(--affiche); }
-.e-fin .lien-ext { position: absolute; left: 100px; top: 560px; font: 600 50px/1.1 var(--mesure); }
+.e-fin .lien-ext { position: absolute; left: 100px; top: 510px; font: 600 50px/1.1 var(--mesure); }
 .e-fin .lien-ext small { display: block; font: 500 28px/1.3 var(--texte); color: var(--encre-2); margin-bottom: 12px; }
-.e-fin .depot { position: absolute; left: 100px; top: 760px; display: flex; gap: 34px; align-items: center; }
-.e-fin .qr { width: 210px; height: 210px; background: var(--papier); border: 4px solid var(--encre); border-radius: 18px; padding: 14px; }
+.e-fin .depot { position: absolute; left: 100px; top: 650px; display: flex; gap: 34px; align-items: center; }
+.e-fin .qr { width: 300px; height: 300px; background: #fff; border: 4px solid var(--encre); border-radius: 18px; padding: 0; overflow: hidden; }
 .e-fin .qr svg { width: 100%; height: 100%; display: block; }
 .e-fin .depot span { font-size: 30px; line-height: 1.35; }
 .e-fin .depot span b { font: 600 32px/1.3 var(--mesure); }
-.e-fin .equipe { position: absolute; left: 100px; top: 60px; font: 500 25px/1.3 var(--mesure); color: var(--encre-2); }
+.e-fin .equipe { position: absolute; left: 100px; top: 56px; font: 500 28px/1.3 var(--mesure); color: var(--encre-2); }
 
 /* l'envoyé : un seul, il vole d'escale en escale */
 #envoye { position: absolute; left: 0; top: 0; width: 160px; height: 160px; transform-origin: 80px 80px; pointer-events: none; }
@@ -270,7 +270,7 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
 
     <!-- 3. Problème : le 404 -->
     <section class="esc e-404" data-anim="quatrecentquatre" data-ciel="lever" data-sortie="plongee"
-      data-perche="1770,700,120" data-etat="trouve" data-regard="-1,-.6">
+      data-perche="1856,800,110" data-etat="trouve" data-regard="-1,-.6">
       <h2 class="titre">Une amélioration ici,<br>une régression là.</h2>
       <div class="recit">
         <p>Chez Troov, le bouton d'export PDF a été amélioré sur une page. <b>Il s'est dégradé sur les autres</b>, que personne n'a revérifiées.</p>
@@ -308,7 +308,7 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
     <!-- 6. Démo -->
     <section class="esc e-demo sombre" data-anim="demo" data-ciel="nuit" data-perche="aucune">
       <div class="scene3d"><div class="feuille">
-        <div class="barre"><i></i><span>PR #16 · eugenia-school-website, traduit en allemand · vrai passage du 19/11, monté en 30 s</span></div>
+        <div class="barre"><i></i><span>PR #16 · passage réel de 5 min 43, résumé en 30 s</span></div>
         <div class="cadre"><video muted playsinline preload="auto" poster="medias/poster.jpg" src="medias/demo-pr16-30s-v2.mp4"></video></div>
       </div></div>
       <p class="legende"></p>
@@ -325,16 +325,16 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
 
     <!-- 8. Business model -->
     <section class="esc e-prix" data-anim="prix" data-ciel="ciel"
-      data-perche="1830,250,120" data-etat="regarde" data-regard="-1,.6">
+      data-perche="1260,250,120" data-etat="regarde" data-regard="1,.6">
       <h2 class="titre">On paie au passage,<br>avec un forfait.</h2>
-      <p class="explique">Un <b>passage</b>, c'est l'agent H qui visite jusqu'à 8 pages et rend ses défauts prouvés.<br><br><span class="pastille"></span>La marge sur le run, si tous les passages inclus sont consommés, à 0,25 $ le passage.</p>
+      <p class="explique">Un <b>passage</b>, c'est l'agent H qui visite jusqu'à 8 pages et rend ses défauts prouvés.<br><br>Prix en euros. Dans chaque pilier, en blanc, <b>le coût de l'agent H, mesuré en dollars</b> (0,25 $ le passage, tous les passages inclus consommés) ; <span class="pastille"></span>en jaune, ce qui reste : la marge.</p>
       <div class="sol"></div>
       <div class="pilier" data-prix="0" style="left:880px"><div class="colonne"></div><p class="prix"><span class="n">0</span> <small>€</small></p></div>
-      <div class="pilier" data-prix="49" data-marge="49" style="left:1230px"><div class="colonne"><div class="marge"></div></div><p class="prix"><span class="n">49</span> <small>€</small></p></div>
-      <div class="pilier" data-prix="199" data-marge="75" style="left:1580px"><div class="colonne"><div class="marge"></div></div><p class="prix"><span class="n">199</span> <small>€</small></p></div>
+      <div class="pilier" data-prix="49" data-marge="49" data-cout="25" style="left:1230px"><div class="colonne"><div class="marge"></div></div><p class="prix"><span class="n">49</span> <small>€</small></p></div>
+      <div class="pilier" data-prix="199" data-marge="75" data-cout="50" style="left:1580px"><div class="colonne"><div class="marge"></div></div><p class="prix"><span class="n">199</span> <small>€</small></p></div>
       <div class="nom" style="left:860px;width:340px"><b>Gratuit</b><span>3 passages par mois,<br>par l'extension</span></div>
       <div class="nom" style="left:1210px;width:340px"><b>Solo</b><span>100 passages par mois<br>le marketeur</span></div>
-      <div class="nom" style="left:1560px;width:340px"><b>Équipe</b><span>200 passages, la PR GitHub<br>le CTO</span></div>
+      <div class="nom" style="left:1560px;width:340px"><b>Équipe</b><span>200 passages, PR GitHub<br>le CTO</span></div>
     </section>
 
     <!-- 9. Go-to-market -->
@@ -359,7 +359,7 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
         <h3>Prouvé</h3>
         <ul><li class="trait-plein">Le code prouve : lien mort, texte qui déborde, bloc non traduit.</li><li class="trait-plein">PR #16 : 8 pages sur 8, réponse publiée sur la PR.</li></ul>
         <h3>Pas encore</h3>
-        <ul><li class="pointille-ocre">Les doutes de l'IA sont souvent faux : 6 constats sur 8 sur eugeniaschool.com.</li><li class="pointille-ocre">Pas encore prouvé sur n'importe quel site.</li><li class="pointille-ocre">Prévu : Confluence et Notion en entrée, Jira et Linear en sortie, Devin qui corrige.</li></ul>
+        <ul><li class="pointille-ocre">Les doutes de l'IA sont souvent faux : le 18/11 sur eugeniaschool.com, 6 constats sur 8 relus à la main étaient faux, tous venus de Holo.</li><li class="pointille-ocre">Pas encore prouvé sur n'importe quel site.</li><li class="pointille-ocre">Prévu : Confluence et Notion en entrée, Jira et Linear en sortie, Devin qui corrige.</li></ul>
       </div>
     </section>
 
@@ -368,7 +368,7 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
       data-perche="1610,232,130" data-etat="regarde" data-regard="-1,.3">
       <h2 class="chiffre" aria-label="Environ 0,25 dollar par passage"><svg class="environ" viewBox="0 0 100 96" aria-hidden="true"><path d="M8 34c14-16 28-16 42-4s28 12 42-4M8 74c14-16 28-16 42-4s28 12 42-4"/></svg><span class="nombre">0,25</span><span class="dollar">$</span></h2>
       <p class="par">par passage.</p>
-      <p class="vendu">Un passage complet : 8 pages visitées en cliquant.<br>Le passage en plus est vendu <b>0,40 à 0,50 €</b>.</p>
+      <p class="vendu">Coût de l'agent H, mesuré en dollars, pour un passage complet de 8 pages.<br>Le passage en plus est vendu <b>0,40 à 0,50 €</b>.</p>
       <div class="pli">
         <div class="tete"><i></i>Mesuré le 19/11</div>
         <div class="bloc"><b class="gros mono">0,2174 $</b><span>en 343 s, PR #16 du clone d'Eugenia, 8 pages</span></div>
