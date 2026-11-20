@@ -199,10 +199,10 @@ let points = [];
 function tracer() { tracePath.setAttribute("d", points.length ? "M" + points.map(p => p[0].toFixed(1) + " " + p[1].toFixed(1)).join("L") : ""); }
 
 /* ---------- outils des escales ---------- */
-let courante = null, transition = null;
-const retenir = (e, a) => ((e._anims ||= []).push(a), a);
+let courante = null, transition = null, retard = 0; // retard : les animations d'entrée attendent la fin de la transition
+const retenir = (e, a) => { if (retard) a.currentTime = (a.currentTime || 0) - retard; (e._anims ||= []).push(a); return a; };
 const anime = (e, n, kf, o) => retenir(e, n.animate(kf, { easing: SORTIE, fill: "both", ...o }));
-const plus_tard = (e, ms, fn) => (e._tempo ||= []).push(setTimeout(() => { if (courante === e) fn(); }, ms));
+const plus_tard = (e, ms, fn) => (e._tempo ||= []).push(setTimeout(() => { if (courante === e) fn(); }, ms + retard));
 const jetable = (e, n) => ((e._jetables ||= []).push(n), n);
 function nettoyer(e) {
   (e._anims || []).forEach(a => a.cancel()); e._anims = [];
@@ -221,11 +221,11 @@ function pointille(svg, d, { duree = 1000, delai = 0, classe = "", couleur, inst
   Object.assign(r.style, { fill: "none", stroke: "#fff", strokeWidth: 40, strokeLinecap: "round", strokeDasharray: "1 1", strokeDashoffset: instant ? 0 : 1 });
   const p = el("path", classe, svg, true); p.setAttribute("d", d); p.setAttribute("mask", `url(#${id})`);
   if (couleur) Object.assign(p.style, { fill: "none", stroke: couleur, strokeWidth: epaisseur, strokeLinecap: "round", strokeDasharray: `0 ${epaisseur * 2.4}` });
-  const a = instant ? null : r.animate([{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { duration: duree, delay: delai, easing: "cubic-bezier(.45,.05,.25,1)", fill: "both" });
+  const a = instant ? null : r.animate([{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { duration: duree, delay: delai + retard, easing: "cubic-bezier(.45,.05,.25,1)", fill: "both" });
   return { p, a };
 }
 function compter(e, n, fin, { duree = 1000, delai = 0, format = v => String(Math.round(v)) } = {}) {
-  const t0 = performance.now() + delai;
+  const t0 = performance.now() + delai + retard;
   const pas = now => { const t = clamp((now - t0) / duree); n.textContent = format(fin * expoOut(t)); if (t < 1 && courante === e) requestAnimationFrame(pas); else n.textContent = format(fin); };
   requestAnimationFrame(pas);
 }
@@ -387,7 +387,7 @@ const ESCALES = {
         const prix = +p.dataset.prix, cout = +p.dataset.cout, h = prix ? prix * PX : MIN, col = p.querySelector(".colonne"), lab = p.querySelector(".prix");
         col.style.height = h + "px"; lab.style.top = (1080 - 304 - h - 122) + "px";
         const c = col.querySelector(".cout"), mg = col.querySelector(".marge"), et = p.querySelector(".etiq-cout");
-        if (prix) { c.style.height = cout * PX + "px"; mg.style.height = (h - cout * PX) + "px"; if (et) et.style.top = (1080 - 304 - cout * PX / 2 - 21) + "px"; }
+        if (prix) { c.style.height = cout * PX + "px"; mg.style.height = (h - cout * PX) + "px"; if (et) et.style.top = (1080 - 304 - 50) + "px"; }
         else c.style.height = h + "px";
         if (instant) return;
         anime(e, col, [{ transform: "scaleY(0)" }, { transform: "scaleY(1)" }], { duration: 1100, delay: 150 + i * 150 });
@@ -411,7 +411,7 @@ const ESCALES = {
       const { p } = pointille(masque, path.getAttribute("d"), { classe: "trace-c", duree: 1400, delai: 200 });
       path.style.visibility = "hidden"; plus_tard(e, 1700, () => { path.style.visibility = ""; p.remove(); });
       // l'envoyé suit le chemin qu'il trace
-      const t0 = performance.now() + 200, duree = 1400, ease = bezier(.45, .05, .25, 1), fin = perche(e);
+      const t0 = performance.now() + 200 + retard, duree = 1400, ease = bezier(.45, .05, .25, 1), fin = perche(e);
       const vol = now => {
         if (courante !== e) return;
         if (transition) { e._boucle = requestAnimationFrame(vol); return; }
@@ -490,7 +490,7 @@ const ESCALES = {
 /* ---------- navigation ---------- */
 const idx = e => escs.indexOf(e);
 const numero = e => idx(e) + 1;
-function arriver(e, instant, via) { courante = e; nettoyer(e); ESCALES[e.dataset.anim]?.arriver(e, instant, via); history.replaceState(null, "", "#" + numero(e)); }
+function arriver(e, instant, via, attente = 0) { courante = e; nettoyer(e); retard = instant ? 0 : attente; try { ESCALES[e.dataset.anim]?.arriver(e, instant, via); } finally { retard = 0; } history.replaceState(null, "", "#" + numero(e)); }
 function quitter(e) { if (!e) return; ESCALES[e.dataset.anim]?.quitter?.(e); nettoyer(e); }
 
 function tween(ms, step, done) {
@@ -542,7 +542,7 @@ function voler(a, b) {
     traceSvg.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 1200, delay: 500, easing: "ease-in-out", fill: "forwards" });
     if (courante === b) { if (perche(b)) { base = perche(b); placer(B.x, B.y, B.t, 0); M.etat(b.dataset.etat || "regarde"); M.regarder(...regard(b)); } else hote.style.visibility = "hidden"; }
   });
-  arriver(b);
+  arriver(b, false, undefined, 950);
 }
 
 /* la plongée : la caméra entre dans l'œil de l'envoyé (plans en profondeur), traverse la pupille, et l'escale suivante en sort */
@@ -586,7 +586,7 @@ function plonger(a, b) {
       <path id="iris" fill="#7F77DD" fill-rule="evenodd" stroke="#1C1C1C" stroke-width="7"/>`;
     const trou = voile.querySelector("#trou"), iris = voile.querySelector("#iris"), reflet = voile.querySelector("#reflet"), eclat = voile.querySelector("#eclat");
     const rond = r => `M${W / 2 - r} ${H / 2}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0Z`;
-    arriver(b);
+    arriver(b, false, undefined, 700);
     // l'escale sort aussitôt, déjà presque à sa taille : la pupille s'ouvre comme un iris
     transition = tween(900, t => {
       reflet.setAttribute("cx", (W * .3 + t * 160).toFixed(1)); eclat.setAttribute("cx", (W * .33 + t * 220).toFixed(1));
@@ -629,14 +629,14 @@ function figer(a) {
     B[i].style.transform = cs.transform; B[i].style.opacity = cs.opacity; B[i].style.clipPath = cs.clipPath; });
   return c;
 }
-function sauter(b) {
+function sauter(b, attente = 0) {
   cam.x = idx(b) * STEP; cam.zc = 0; cam.off = [0, 0]; cam.E = [W / 2, H / 2]; cam.mode = null;
-  poserCiel(b.dataset.ciel); rendre(); poser(b); points = []; tracer(); arriver(b);
+  poserCiel(b.dataset.ciel); rendre(); poser(b); points = []; tracer(); arriver(b, false, undefined, attente);
 }
 function reveler(a, b, duree, pas, { dessous = true, place } = {}) {
   const anc = figer(a);
   if (place) place(anc); else if (dessous) stage.insertBefore(anc, monde); else monde.after(anc);
-  quitter(a); sauter(b);
+  quitter(a); sauter(b, duree);
   const fin = () => { anc.remove(); Object.assign(monde.style, { clipPath: "", maskImage: "", webkitMaskImage: "", maskSize: "", webkitMaskSize: "", maskRepeat: "", webkitMaskRepeat: "", transform: "", transformOrigin: "" });
     voile.innerHTML = ""; dessus.textContent = ""; hote.style.opacity = ""; transition = null; };
   pas(0, anc);
@@ -660,7 +660,7 @@ const SORTIES = {
     reveler(a, b, 1150, (t, anc) => {
       const e = expoOut(t), d = bezier(.5, 0, .3, 1)(t);
       monde.style.transformOrigin = "50% 100%";
-      monde.style.transform = `perspective(1500px) translateY(${(H * .92 * (1 - e)).toFixed(1)}px) rotateX(${(38 * (1 - e)).toFixed(2)}deg)`;
+      monde.style.transform = `perspective(2600px) translateY(${(H * .9 * (1 - e)).toFixed(1)}px) rotateX(${(12 * (1 - e)).toFixed(2)}deg)`;
       anc.style.transformOrigin = "50% 0"; anc.style.transform = `perspective(1500px) translateY(${(-H * .22 * d).toFixed(1)}px) rotateX(${(-28 * d).toFixed(2)}deg) scale(${(1 - .12 * d).toFixed(4)})`;
       anc.style.filter = `brightness(${(1 - .3 * d).toFixed(3)})`;
     });
