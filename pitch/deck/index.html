@@ -9,6 +9,7 @@
 <style>
 /* Deck de pitch d'Horama : le deck est un vol de l'envoyé.
    Un seul ciel continu (charte « L'envoyé »), une escale par slide, le pointillé d'encre = le chemin parcouru.
+   Grandes parties : plongée dans l'œil de l'envoyé. Petits enchaînements : vol à travers un banc de nuages.
    Moteur repris de l'étalon deck Maison Dorel (scène 1920×1080 mise à l'échelle, flèches, F, #n, impression). */
 :root {
   --engobe: #FBF5E6; --engobe-2: #F3EAD2; --filet: #E2D6B8; --papier: #FFFDF6;
@@ -19,82 +20,198 @@
   --affiche: "Tilt Warp", "Arial Black", sans-serif;
   --texte: "Funnel Sans", system-ui, sans-serif;
   --mesure: "Spline Sans Mono", ui-monospace, monospace;
-  /* ciel courant, piloté par le vol */
-  --ciel: var(--engobe); --nuage: var(--papier); --nuage-trait: var(--encre); --nuage-op: 1; --trace: var(--encre); --nuit-k: 0;
+  --trace: var(--encre);
 }
 * { box-sizing: border-box; margin: 0; }
 html, body { height: 100%; background: var(--encre); overflow: hidden; }
 @page { size: 1920px 1080px; margin: 0; }
 
 #stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; overflow: hidden;
-  background: var(--ciel); font: 400 32px/1.3 var(--texte); color: var(--encre); cursor: default; }
+  background: var(--engobe); font: 400 32px/1.3 var(--texte); color: var(--encre); cursor: default; }
+.fond, .peau { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; pointer-events: none; }
+.peau { overflow: visible; }
 .couche { position: absolute; left: 0; top: 0; height: 1080px; transform-origin: 0 0; pointer-events: none; }
 #stage.vol .couche { will-change: transform; }
-.couche > svg, .mur > svg { position: absolute; overflow: visible; }
-.nuage path { fill: var(--nuage); stroke: var(--nuage-trait); stroke-opacity: var(--nuage-op); stroke-width: 3; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-.nuage.proche path { fill: var(--papier); stroke: var(--encre); stroke-opacity: 1; }
+.couche > svg, .mur > svg, #plongee > svg { position: absolute; overflow: visible; }
+.nuage path { fill: var(--papier); stroke: var(--encre); stroke-width: 3; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.banc path { fill: var(--papier); stroke: var(--encre); stroke-width: 3; stroke-linejoin: round; }
+.peau.nuit .nuage path, .peau.nuit .banc path, #plongee.nuit .nuage path, #pres.nuit .nuage path { fill: var(--nuit); stroke: var(--engobe); stroke-opacity: .5; }
+.peau:not(.nuit) .etoiles, .peau.nuit .astre { display: none; }
 .etoiles circle { fill: var(--engobe); }
-.etoiles { opacity: var(--nuit-k); }
-#banc path { fill: var(--nuage); stroke: var(--nuage-trait); stroke-opacity: var(--nuage-op); stroke-width: 3; stroke-linejoin: round; }
 .soleil .rayons { transform-origin: 0 0; animation: tourne 160s linear infinite; }
 .soleil .rayons line { stroke: var(--encre); stroke-width: 3.6; stroke-linecap: round; stroke-dasharray: 0 13; opacity: .55; }
 .soleil circle { fill: var(--soleil); stroke: var(--encre); stroke-width: 3; }
 @keyframes tourne { to { transform: rotate(360deg); } }
 #trace path { fill: none; stroke: var(--trace); stroke-width: 6; stroke-linecap: round; stroke-dasharray: 0 15; opacity: .62; }
+#plongee { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; pointer-events: none; }
 
 /* les escales : posées dans la couche principale, une tous les 2400 px de ciel */
 .esc { position: absolute; top: 0; width: 1920px; height: 1080px; }
-h1, h2 { font-family: var(--affiche); font-weight: 400; letter-spacing: -.012em; text-wrap: balance; }
+.esc.sombre { color: var(--engobe); }
+h1, h2, h3 { font-family: var(--affiche); font-weight: 400; letter-spacing: -.012em; text-wrap: balance; }
+h2.titre { position: absolute; left: 96px; top: 84px; font-size: 92px; line-height: .98; }
 .mono { font-family: var(--mesure); font-variant-numeric: tabular-nums; }
 svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; pointer-events: none; }
+.pli { position: absolute; background: var(--papier); border: 3px solid var(--encre); border-radius: 14px; padding: 24px 30px 26px; color: var(--encre); }
+.pli .tete { display: flex; align-items: center; gap: 12px; font: 700 26px/1 var(--texte); }
+.pli .tete i { width: 26px; height: 26px; border: 3px solid var(--encre); flex: none; background: var(--soleil); }
+.pli .tete i.rouge { background: var(--miltos); }
+.pli b.gros { display: block; font: 400 84px/.95 var(--affiche); margin: 14px 0 8px -2px; letter-spacing: -.01em; }
+.pli .mesure { font-family: var(--mesure); font-size: 22px; line-height: 1.45; }
+.feuille { background: var(--papier); border: 3px solid var(--encre); border-radius: 16px; overflow: hidden; }
+.feuille .barre { height: 44px; display: flex; align-items: center; gap: 12px; padding: 0 18px; border-bottom: 3px solid var(--encre); background: var(--engobe-2);
+  font: 500 17px/1 var(--mesure); color: var(--encre); white-space: nowrap; overflow: hidden; }
+.feuille .barre i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--encre); background: var(--soleil); flex: none; }
+.bouton { position: relative; isolation: isolate; display: inline-flex; align-items: center; justify-content: center; height: 76px; padding: 0 40px; border-radius: 999px;
+  background: var(--encre); color: var(--engobe); font: 600 28px/1 var(--texte); white-space: nowrap; }
+.bouton .aile { position: absolute; z-index: -1; top: 50%; width: 42px; height: 46px; margin-top: -31px; overflow: visible; fill: var(--aile); stroke: var(--encre); stroke-width: 2.6; stroke-linejoin: round; }
+.bouton .aile.g { left: -25px; transform-origin: 100% 75%; transform: rotate(6deg); }
+.bouton .aile.d { right: -25px; transform-origin: 0% 75%; transform: rotate(-6deg); }
+.bouton.vole .aile.g { animation: bat-g .42s ease-in-out infinite; } .bouton.vole .aile.d { animation: bat-d .42s ease-in-out infinite; }
+@keyframes bat-g { 0%, 100% { transform: rotate(6deg); } 50% { transform: rotate(-22deg); } }
+@keyframes bat-d { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(22deg); } }
+.pointille-ocre { background-image: radial-gradient(circle, var(--ocre) 3.4px, transparent 3.9px); background-size: 14px 10px; background-repeat: repeat-x; background-position: 0 100%; padding-bottom: 14px; }
+.trait-plein { border-bottom: 5px solid currentColor; padding-bottom: 6px; }
 
-/* Escale « titre » : le soleil se lève, le mot se forme, l'œil s'ouvre */
-.e-titre .mot { position: absolute; left: 86px; top: 196px; font: 400 318px/1 var(--affiche); letter-spacing: -.01em;
-  display: inline-flex; align-items: baseline; white-space: nowrap; color: var(--encre); }
+/* 1. Titre */
+.e-titre .mot { position: absolute; left: 90px; top: 96px; font: 400 250px/1 var(--affiche); letter-spacing: -.01em; display: inline-flex; align-items: baseline; white-space: nowrap; }
 .e-titre .mot .l { display: inline-block; }
 .e-titre .mot .o { width: .7em; height: .7em; margin: 0 .03em 0 .025em; align-self: flex-end; position: relative; top: -.035em; flex: none; overflow: visible; }
 .e-titre .mot .paupiere { transform-box: fill-box; transform-origin: 50% 50%; }
-.e-titre .chapeau { position: absolute; left: 96px; top: 612px; width: 1110px; font-size: 44px; line-height: 1.2; }
-.e-titre .chapeau b { font-weight: 700; display: block; }
-.e-titre .equipe { position: absolute; left: 96px; top: 882px; font-size: 25px; font-weight: 500; color: var(--encre-2); }
+.e-titre .slogan { position: absolute; left: 96px; top: 520px; font: 400 132px/.98 var(--affiche); letter-spacing: -.015em; width: 1500px; }
+.e-titre .equipe { position: absolute; left: 100px; top: 900px; font-size: 27px; font-weight: 500; color: var(--encre-2); }
 
-/* Escale « démo » : la nuit des déploiements, une feuille qui se redresse */
-.e-demo { color: var(--engobe); }
-.e-demo h2 { position: absolute; left: 96px; top: 124px; width: 590px; font-size: 78px; line-height: .98; }
-.e-demo .source { position: absolute; left: 98px; top: 430px; width: 540px; font-size: 19px; line-height: 1.5; color: var(--aile-2); opacity: .86; }
-.e-demo .legende { position: absolute; left: 96px; top: 690px; width: 560px; }
-.e-demo .points { display: flex; gap: 11px; margin-bottom: 26px; }
-.e-demo .points i { width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--engobe); opacity: .55; transition: background .3s, opacity .3s; }
-.e-demo .points i.passe { background: var(--engobe); opacity: .9; }
-.e-demo .phrase { font-size: 44px; line-height: 1.16; font-weight: 600; min-height: 3.5em; }
-.e-demo .phrase .mono { font-size: .82em; font-weight: 500; }
-.e-demo .scene3d { position: absolute; left: 700px; top: 132px; width: 1140px; height: 830px; perspective: 1700px; perspective-origin: 50% 100%; }
-.feuille { background: var(--papier); border: 3px solid var(--encre); border-radius: 16px; overflow: hidden; transform-origin: 50% 100%; }
-.feuille .barre { height: 50px; display: flex; align-items: center; gap: 12px; padding: 0 18px; border-bottom: 3px solid var(--encre); background: var(--engobe-2);
-  font: 500 17px/1 var(--mesure); color: var(--encre); white-space: nowrap; overflow: hidden; }
-.feuille .barre i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--encre); background: var(--soleil); flex: none; }
-.feuille video { display: block; width: 100%; aspect-ratio: 1280 / 862; background: var(--encre); }
-.e-demo .feuille { width: 1140px; }
+/* 2. Problème : deux cibles */
+.e-cibles .carte { position: absolute; top: 380px; width: 790px; height: 540px; background: var(--papier); border: 3px solid var(--encre); border-radius: 24px; padding: 40px 46px; transform-origin: 50% 100%; }
+.e-cibles .carte h3 { font-size: 54px; line-height: 1; margin-bottom: 26px; }
+.e-cibles .carte ul { list-style: none; padding: 0; font-size: 33px; line-height: 1.3; }
+.e-cibles .carte li { padding: 13px 0; border-top: 2px solid var(--filet); }
+.e-cibles .carte li b { font-weight: 700; }
+.e-cibles .carte .rythme { position: absolute; left: 46px; right: 46px; bottom: 34px; height: 30px; }
+.e-cibles .c1 { left: 96px; } .e-cibles .c2 { left: 1034px; }
 
-/* Escale « coût » : le chiffre mesuré, entouré, et son pli */
-.e-cout .chiffre { position: absolute; left: 140px; top: 262px; display: flex; align-items: center; font: 400 280px/1 var(--affiche); letter-spacing: -.02em; white-space: nowrap; }
-.e-cout .environ { width: .52em; height: .5em; margin-right: .1em; overflow: visible; }
+/* 3. Problème : le 404 */
+.e-404 .recit { position: absolute; left: 96px; top: 330px; width: 600px; font-size: 32px; line-height: 1.32; }
+.e-404 .recit p + p { margin-top: 30px; }
+.e-404 .recit b { font-weight: 700; }
+.e-404 .scene3d { position: absolute; left: 760px; top: 270px; width: 1080px; perspective: 1600px; perspective-origin: 30% 100%; }
+.e-404 .feuille { width: 1080px; transform-origin: 50% 100%; }
+.e-404 .crop { width: 1080px; height: 408px; overflow: hidden; }
+.e-404 .crop img { display: block; width: 1536px; margin-top: -120px; }
+.e-404 .pli { left: 1350px; top: 676px; width: 430px; padding: 18px 26px 20px; }
+.e-404 .pli b.gros { font-size: 92px; margin: 8px 0 4px; }
+.e-404 .pli b.gros { color: var(--miltos); }
+
+/* 4. Solution : trois temps */
+.e-temps .panneau { position: absolute; top: 330px; width: 556px; height: 640px; background: var(--papier); border: 3px solid var(--encre); border-radius: 26px; overflow: hidden; transform-origin: 50% 100%; }
+.e-temps .panneau .vue { position: relative; height: 340px; background: var(--aile-2); border-bottom: 3px solid var(--encre); overflow: hidden; }
+.e-temps .panneau h3 { font-size: 46px; line-height: 1; margin: 30px 34px 14px; }
+.e-temps .panneau p { font-size: 29px; line-height: 1.3; margin: 0 34px; color: var(--encre); }
+.e-temps .p1 { left: 96px; } .e-temps .p2 { left: 682px; } .e-temps .p3 { left: 1268px; }
+.e-temps .page { position: absolute; left: 48px; top: 40px; width: 460px; height: 200px; background: var(--papier); border: 3px solid var(--encre); border-radius: 12px; }
+.e-temps .page i { position: absolute; left: 26px; height: 16px; border-radius: 8px; background: var(--filet); }
+.e-temps .lien { position: absolute; left: 26px; top: 128px; font: 600 30px/1 var(--texte); text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: 6px; }
+.e-temps .mesure-p2 { position: absolute; left: 48px; top: 270px; font-size: 26px; }
+.e-temps .choix { position: absolute; left: 34px; right: 34px; top: 120px; display: flex; gap: 18px; }
+.e-temps .choix span { flex: 1; height: 82px; border-radius: 999px; border: 3px solid var(--encre); display: grid; place-items: center; font: 700 27px/1 var(--texte); background: var(--papier); }
+.e-temps .choix span.bug { background: var(--miltos); color: var(--papier); }
+.e-temps .curseur { position: absolute; left: 0; top: 0; width: 46px; height: 46px; overflow: visible; }
+
+/* 5. Solution : un produit, deux entrées */
+.e-produit .champ { position: absolute; left: 96px; top: 380px; display: flex; align-items: center; gap: 14px; background: var(--papier); border: 4px solid var(--encre); border-radius: 999px; padding: 8px 10px 8px 34px; }
+.e-produit .champ .frappe { font: 500 32px/1 var(--mesure); min-width: 420px; }
+.e-produit .pr { position: absolute; left: 96px; top: 690px; width: 700px; background: var(--papier); border: 4px solid var(--encre); border-radius: 22px; padding: 26px 32px; }
+.e-produit .pr b { display: block; font: 400 40px/1 var(--affiche); margin-bottom: 12px; }
+.e-produit .pr span { font-size: 28px; line-height: 1.3; }
+.e-produit .etiq { position: absolute; font-size: 28px; font-weight: 700; color: var(--encre-2); }
+.e-produit .sortie { position: absolute; left: 1360px; top: 430px; width: 470px; }
+.e-produit .sortie h3 { font-size: 58px; line-height: 1; margin-bottom: 22px; }
+.e-produit .sortie li { list-style: none; font-size: 31px; line-height: 1.25; padding: 12px 0; border-top: 2px solid var(--filet); }
+.e-produit .ajout { position: absolute; left: 96px; top: 922px; font-size: 30px; }
+.e-produit .ajout b { font-weight: 700; }
+
+/* 6. Démo : la vidéo en grand, une légende */
+.e-demo .scene3d { position: absolute; left: 352px; top: 14px; width: 1216px; perspective: 1900px; perspective-origin: 50% 100%; }
+.e-demo .feuille { width: 1216px; transform-origin: 50% 100%; }
+.e-demo .cadre { position: relative; width: 1210px; height: 815px; overflow: hidden; background: var(--encre); }
+.e-demo video { position: absolute; left: 0; top: 0; width: 1210px; height: 815px; transform-origin: 0 0; display: block; }
+.e-demo .legende { position: absolute; left: 0; right: 0; top: 894px; text-align: center; font: 700 54px/1.1 var(--texte); color: var(--engobe); }
+.e-demo .legende span.cle { position: relative; display: inline-block; }
+.e-demo .legende .mono { font-weight: 500; font-size: .86em; }
+.e-demo .legende svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+
+/* 7. Architecture : la constellation */
+.e-archi .ciel-archi { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; }
+.e-archi .lien { fill: none; stroke: var(--engobe); stroke-width: 5; stroke-linecap: round; stroke-dasharray: 0 14; opacity: .8; }
+.e-archi .lien.prevu { stroke: var(--ocre); opacity: 1; }
+.e-archi .etoile { fill: var(--engobe); stroke: var(--encre); stroke-width: 3; }
+.e-archi .etoile.prevu { fill: none; stroke: var(--ocre); stroke-width: 4; stroke-dasharray: 2 7; stroke-linecap: round; }
+.e-archi .noeud { position: absolute; width: 330px; margin-left: -165px; text-align: center; font: 600 27px/1.2 var(--texte); }
+.e-archi .noeud small { display: block; font: 500 21px/1.3 var(--mesure); color: var(--aile-2); margin-top: 4px; }
+.e-archi .noeud.prevu { color: var(--soleil-2); }
+.e-archi .legende-archi { position: absolute; left: 1180px; top: 120px; font-size: 25px; display: flex; gap: 40px; color: var(--aile-2); }
+
+/* 8. Business model : trois paliers */
+.e-prix .pilier { position: absolute; bottom: 300px; width: 300px; transform-origin: 50% 100%; }
+.e-prix .colonne { position: absolute; left: 0; right: 0; bottom: 0; border: 4px solid var(--encre); border-bottom: 0; border-radius: 18px 18px 0 0; background: var(--papier); overflow: hidden; }
+.e-prix .colonne .marge { position: absolute; left: 0; right: 0; top: 0; background: var(--soleil); border-bottom: 3px dashed var(--encre); }
+.e-prix .prix { position: absolute; left: 0; right: 0; text-align: center; font: 400 104px/1 var(--affiche); letter-spacing: -.02em; white-space: nowrap; }
+.e-prix .prix small { font-size: .38em; letter-spacing: 0; }
+.e-prix .nom { position: absolute; left: -20px; right: -20px; top: 794px; text-align: center; }
+.e-prix .nom b { display: block; font: 400 46px/1 var(--affiche); }
+.e-prix .nom span { display: block; font-size: 26px; line-height: 1.3; margin-top: 10px; }
+.e-prix .sol { position: absolute; left: 820px; right: 40px; top: 778px; height: 4px; background: var(--encre); }
+.e-prix .note-marge { position: absolute; font: 600 30px/1.15 var(--texte); }
+.e-prix .explique { position: absolute; left: 96px; top: 400px; width: 640px; font-size: 31px; line-height: 1.35; }
+.e-prix .explique b { font-weight: 700; }
+.e-prix .explique .pastille { display: inline-block; width: 26px; height: 26px; background: var(--soleil); border: 3px solid var(--encre); vertical-align: -3px; margin-right: 8px; }
+
+/* 9. Go-to-market : le chemin */
+.e-chemin .courbe { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; }
+.e-chemin .courbe path.trace-c { fill: none; stroke: var(--encre); stroke-width: 7; stroke-linecap: round; stroke-dasharray: 0 17; }
+.e-chemin .etape { position: absolute; width: 400px; }
+.e-chemin .etape .num { display: inline-grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; border: 4px solid var(--encre); background: var(--soleil); font: 400 36px/1 var(--affiche); margin-bottom: 14px; }
+.e-chemin .etape b { display: block; font: 400 44px/1 var(--affiche); margin-bottom: 10px; }
+.e-chemin .etape span { font-size: 28px; line-height: 1.3; display: block; }
+
+/* 10. Limites et roadmap */
+.e-feuille-route .page-m { position: absolute; width: 140px; height: 96px; border: 4px dotted var(--ocre); border-radius: 12px; }
+.e-feuille-route .page-m i { position: absolute; left: 16px; right: 16px; height: 9px; border-radius: 5px; background: rgba(251,245,230,.25); }
+.e-feuille-route .etiquette { position: absolute; font: 600 30px/1.2 var(--texte); }
+.e-feuille-route .etiquette b { font: 400 54px/1 var(--affiche); display: block; margin-bottom: 6px; }
+.e-feuille-route .listes { position: absolute; left: 1150px; top: 330px; width: 700px; }
+.e-feuille-route .listes h3 { font-size: 40px; margin: 0 0 16px; }
+.e-feuille-route .listes h3 + ul { margin-bottom: 34px; }
+.e-feuille-route .listes ul { list-style: none; padding: 0; }
+.e-feuille-route .listes li { font-size: 28px; line-height: 1.3; margin: 0 0 18px; display: table; }
+.e-feuille-route .clone { position: absolute; left: 0; top: 0; }
+
+/* 11. Coût de run */
+.e-cout .chiffre { position: absolute; left: 140px; top: 236px; display: flex; align-items: center; font: 400 300px/1 var(--affiche); letter-spacing: -.02em; white-space: nowrap; }
+.e-cout .environ { width: .52em; height: .5em; margin-right: .12em; overflow: visible; }
 .e-cout .environ path { fill: none; stroke: var(--encre); stroke-width: 15; stroke-linecap: round; }
-.e-cout .rouleau { display: inline-block; height: .8em; overflow: hidden; vertical-align: top; }
-.e-cout .rouleau span { display: block; }
-.e-cout .rouleau b { display: block; height: .8em; line-height: .8em; font-weight: 400; }
-.e-cout .virgule, .e-cout .dollar { display: inline-block; height: .8em; line-height: .8em; }
-.e-cout .dollar { margin-left: .12em; }
-.e-cout .par { position: absolute; left: 156px; top: 572px; font: 400 92px/1 var(--affiche); letter-spacing: -.012em; }
-.e-cout .complet { position: absolute; left: 160px; top: 690px; font-size: 40px; line-height: 1.25; width: 900px; }
-.e-cout .ouvert { position: absolute; left: 160px; top: 880px; font-size: 36px; font-weight: 600; }
-.pli { position: absolute; background: var(--papier); border: 3px solid var(--encre); border-radius: 14px; padding: 26px 32px 28px; }
-.pli .tete { display: flex; align-items: center; gap: 12px; font: 700 26px/1 var(--texte); }
-.pli .tete i { width: 26px; height: 26px; background: var(--soleil); border: 3px solid var(--encre); flex: none; }
-.pli .ligne { margin-top: 22px; font-size: 25px; line-height: 1.38; }
-.pli .ligne em { font-style: normal; color: var(--encre-2); display: block; font-family: var(--texte); font-size: 22px; }
-.pli .sources { margin-top: 24px; padding-top: 16px; border-top: 2px solid var(--filet); font-size: 16.5px; line-height: 1.55; color: var(--encre-2); }
-.e-cout .pli { left: 1318px; top: 336px; width: 540px; transform-origin: 0 50%; }
+.e-cout .nombre { display: inline-block; }
+.e-cout .dollar { margin-left: .14em; }
+.e-cout .par { position: absolute; left: 156px; top: 600px; font: 400 96px/1 var(--affiche); letter-spacing: -.012em; }
+.e-cout .vendu { position: absolute; left: 160px; top: 760px; font-size: 40px; line-height: 1.25; width: 860px; }
+.e-cout .vendu b { font-weight: 700; }
+.e-cout .pli { left: 1210px; top: 250px; width: 640px; }
+.e-cout .pli .bloc { margin-top: 22px; padding-top: 18px; border-top: 2px solid var(--filet); }
+.e-cout .pli .bloc:first-of-type { border-top: 0; padding-top: 0; }
+.e-cout .pli b.gros { font-size: 92px; margin: 4px 0 6px; }
+.e-cout .pli .bloc span { font-size: 27px; line-height: 1.3; display: block; }
+
+/* 12. Fin, à l'aube */
+.e-fin .teste { position: absolute; left: 96px; top: 150px; font: 400 168px/.95 var(--affiche); letter-spacing: -.018em; width: 1100px; }
+.e-fin .dit { position: absolute; left: 1430px; top: 250px; font: 400 64px/1 var(--affiche); }
+.e-fin .lien-ext { position: absolute; left: 100px; top: 560px; font: 600 50px/1.1 var(--mesure); }
+.e-fin .lien-ext small { display: block; font: 500 28px/1.3 var(--texte); color: var(--encre-2); margin-bottom: 12px; }
+.e-fin .depot { position: absolute; left: 100px; top: 760px; display: flex; gap: 34px; align-items: center; }
+.e-fin .qr { width: 210px; height: 210px; background: var(--papier); border: 4px solid var(--encre); border-radius: 18px; padding: 14px; }
+.e-fin .qr svg { width: 100%; height: 100%; display: block; }
+.e-fin .depot span { font-size: 30px; line-height: 1.35; }
+.e-fin .depot span b { font: 600 32px/1.3 var(--mesure); }
+.e-fin .equipe { position: absolute; left: 100px; top: 60px; font: 500 25px/1.3 var(--mesure); color: var(--encre-2); }
 
 /* l'envoyé : un seul, il vole d'escale en escale */
 #envoye { position: absolute; left: 0; top: 0; width: 160px; height: 160px; transform-origin: 80px 80px; pointer-events: none; }
@@ -106,443 +223,177 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
 @media print {
   html, body { height: auto; overflow: visible; background: none; }
   #stage { position: static; transform: none !important; height: auto; background: none; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .couche:not(#principal), #envoye, #voile, #trace { display: none !important; }
+  .fond, .peau, #pres, #envoye, #voile, #trace, #plongee { display: none !important; }
   #principal { position: static; transform: none !important; height: auto; width: auto !important; }
   .esc { position: relative; left: 0 !important; display: block !important; visibility: visible !important; break-after: page; overflow: hidden; }
-  .esc[data-ciel="lever"] { background: var(--engobe); } .esc[data-ciel="nuit"] { background: var(--nuit); } .esc[data-ciel="ciel"] { background: var(--aile-2); }
+  .esc[data-ciel="lever"] { background: var(--engobe); } .esc[data-ciel="nuit"] { background: var(--nuit); }
+  .esc[data-ciel="ciel"] { background: var(--aile-2); } .esc[data-ciel="aube"] { background: var(--soleil-2); }
   .imp-mascotte { display: block; position: absolute; }
 }
 </style>
 </head>
 <body>
 <div id="stage">
-  <div class="couche" id="loin"></div>
-  <div class="couche" id="milieu"></div>
-  <div class="couche" id="fond-banc"><svg id="banc"></svg></div>
+  <div class="fond" id="fond-a"></div>
+  <div class="fond" id="fond-b"></div>
+  <div class="peau" id="peau-jour">
+    <div class="couche" data-c="loin"></div>
+    <div class="couche" data-c="milieu"></div>
+    <div class="couche" data-c="banc"></div>
+  </div>
   <div class="couche" id="principal">
     <svg id="trace"><path d=""/></svg>
 
-    <!-- Escale 1 : titre -->
-    <section class="esc e-titre" data-n="1" data-anim="titre" data-ciel="lever" data-decor="soleil" data-sortie="plongee"
-      data-perche="1724,262,176" data-etat="regarde" data-regard="-1,.42">
+    <!-- 1. Titre -->
+    <section class="esc e-titre" data-anim="titre" data-ciel="lever" data-soleil="oeil" data-sortie="plongee"
+      data-perche="1560,250,170" data-etat="regarde" data-regard="-1,0">
       <h1 class="mot" aria-label="Horama"><span class="l">H</span><span class="l lo"><svg class="o" viewBox="26 26 44 44" aria-hidden="true"><g class="paupiere"><circle cx="48" cy="48" r="20" fill="#fff" stroke="#1C1C1C" stroke-width="3.6"/><circle cx="48" cy="48" r="10.5" fill="#7F77DD"/><circle cx="48" cy="48" r="4.6" fill="#1C1C1C"/><circle cx="51.6" cy="44.4" r="2.2" fill="#fff"/></g></svg></span><span class="l">r</span><span class="l">a</span><span class="l">m</span><span class="l">a</span></h1>
-      <p class="chapeau"><b>Votre documentation devient vos tests.</b>Sans documentation, Horama regarde quand même.</p>
+      <p class="slogan">Votre documentation devient vos tests.</p>
       <p class="equipe mono">Équipe 11 · hackathon Eugenia « Build The Future »</p>
     </section>
 
-    <!-- Escale 6 : démo -->
-    <section class="esc e-demo" data-n="6" data-anim="demo" data-ciel="nuit"
-      data-perche="586,616,128" data-etat="regarde" data-regard="1,.1">
-      <h2>Une PR s'ouvre, Horama part la vérifier.</h2>
-      <p class="source mono">Montage de 30 s du vrai passage du 19/11 : la PR #16 du clone d'Eugenia, traduit en allemand. Passage réel : 343 s.</p>
-      <div class="legende">
-        <div class="points"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-        <p class="phrase"></p>
+    <!-- 2. Problème : les deux cibles -->
+    <section class="esc e-cibles" data-anim="cibles" data-ciel="ciel"
+      data-perche="1730,250,140" data-etat="regarde" data-regard="-.6,.7">
+      <h2 class="titre">Ils livrent vite.<br>Personne ne vérifie derrière.</h2>
+      <div class="carte c1">
+        <h3>Le CTO d'un SaaS</h3>
+        <ul><li>Une dizaine de développeurs, <b>aucun testeur</b></li><li>Une mise en production <b>presque chaque semaine</b></li><li><b>Pas de tests de non-régression</b> de bout en bout</li></ul>
+        <svg class="rythme" viewBox="0 0 698 30" preserveAspectRatio="none"></svg>
       </div>
-      <div class="scene3d">
-        <div class="feuille">
-          <div class="barre"><i></i><span>PR #16 · eugenia-school-website · aperçu Vercel</span></div>
-          <video muted playsinline preload="auto" poster="medias/poster.jpg" src="medias/demo-pr16-30s.mp4"></video>
-        </div>
+      <div class="carte c2">
+        <h3>Le marketeur qui vibe-code</h3>
+        <ul><li>Il construit le site de son entreprise <b>avec l'IA</b></li><li>Il publie <b>dès qu'il a une idée</b></li><li>Un lien mort reste en ligne <b>jusqu'à ce qu'un visiteur tombe dessus</b></li></ul>
+        <svg class="rythme" viewBox="0 0 698 30" preserveAspectRatio="none"></svg>
       </div>
     </section>
 
-    <!-- Escale 11 : coût de run -->
-    <section class="esc e-cout" data-n="11" data-anim="cout" data-ciel="ciel"
-      data-perche="1668,312,150" data-etat="regarde" data-regard="-1,.15">
-      <h2 class="chiffre" aria-label="Environ 0,25 dollar par passage"><svg class="environ" viewBox="0 0 100 96" aria-hidden="true"><path d="M8 34c14-16 28-16 42-4s28 12 42-4M8 74c14-16 28-16 42-4s28 12 42-4"/></svg><span class="rouleau" data-v="0"></span><span class="virgule">,</span><span class="rouleau" data-v="2"></span><span class="rouleau" data-v="5"></span><span class="dollar">$</span></h2>
+    <!-- 3. Problème : le 404 -->
+    <section class="esc e-404" data-anim="quatrecentquatre" data-ciel="lever" data-sortie="plongee"
+      data-perche="1770,700,120" data-etat="trouve" data-regard="-1,-.6">
+      <h2 class="titre">Une amélioration ici,<br>une régression là.</h2>
+      <div class="recit">
+        <p>Chez Troov, le bouton d'export PDF a été amélioré sur une page. <b>Il s'est dégradé sur les autres</b>, que personne n'a revérifiées.</p>
+        <p>Sur eugeniaschool.com, l'article « Fin de Parcoursup » invite aux portes ouvertes. <b>Le lien mène à une page qui n'existe pas.</b></p>
+      </div>
+      <div class="scene3d"><div class="feuille"><div class="barre"><i></i><span>eugeniaschool.com · article « Fin de Parcoursup »</span></div><div class="crop"><img src="assets/eugenia-blog-404.jpg" alt="L'article Fin de Parcoursup du site d'Eugenia School, avec le lien vers les portes ouvertes"></div></div></div>
+      <div class="pli"><div class="tete"><i class="rouge"></i>Défaut prouvé</div><b class="gros">404</b><p class="mesure">mesuré : 404<br>attendu : la page des portes ouvertes<br>relevé le 18/11</p></div>
+    </section>
+
+    <!-- 4. Solution : trois temps -->
+    <section class="esc e-temps" data-anim="temps" data-ciel="ciel"
+      data-perche="1760,200,124" data-etat="regarde" data-regard="-1,.5">
+      <h2 class="titre">Un agent visite. Le code prouve.<br>Un humain tranche.</h2>
+      <div class="panneau p1"><div class="vue"><div class="page"><i style="top:30px;width:240px"></i><i style="top:62px;width:380px"></i><i style="top:94px;width:320px"></i><span class="lien">Studienprogramme</span></div><svg class="curseur" viewBox="0 0 46 46"><path d="M6 4l30 14-13 4-6 13Z" fill="#1C1C1C" stroke="#FFFDF6" stroke-width="3" stroke-linejoin="round"/></svg><svg class="marques"></svg></div>
+        <h3>L'agent H visite</h3><p>Il clique et défile dans un vrai Chrome, comme un visiteur.</p></div>
+      <div class="panneau p2"><div class="vue"><div class="page"><i style="top:30px;width:200px"></i><i style="top:62px;width:330px"></i><span class="lien deborde" style="text-decoration:none">Zertifikatskurs</span></div><p class="mesure-p2 mono">mesuré : 158×35 &gt; 120×35</p><svg class="marques"></svg></div>
+        <h3>Le code prouve</h3><p>Lien mort, texte qui déborde, bloc non traduit : seul ce qui est mesuré devient un défaut.</p></div>
+      <div class="panneau p3"><div class="vue"><p class="mono" style="position:absolute;left:34px;top:40px;font-size:25px;margin:0">C'est un bug, ou c'est voulu ?</p><div class="choix"><span class="bug">C'est un bug</span><span>C'est voulu</span></div></div>
+        <h3>Vous tranchez</h3><p>Bug ou voulu : Horama garde la décision pour le passage suivant.</p></div>
+    </section>
+
+    <!-- 5. Solution : un produit, deux entrées -->
+    <section class="esc e-produit" data-anim="produit" data-ciel="lever" data-sortie="plongee"
+      data-perche="1180,610,150" data-etat="regarde" data-regard="1,0">
+      <h2 class="titre">Un produit,<br>du site vibe-codé au SaaS.</h2>
+      <p class="etiq" style="left:100px;top:330px">Une adresse suffit</p>
+      <div class="champ"><span class="frappe">https://votre-site.fr</span><span class="bouton"><svg class="aile g" viewBox="0 22 32 35"><path d="M30 46C24 30 10 24 2 28c6 3 7 7 5 10 5 1 7 5 5 8 5 1 8 5 7 9 5-1 9-4 11-9Z"/></svg>Envoyer Horama<svg class="aile d" viewBox="64 22 32 35"><path d="M66 46C72 30 86 24 94 28c-6 3-7 7-5 10-5 1-7 5-5 8-5 1-8 5-7 9-5-1-9-4-11-9Z"/></svg></span></div>
+      <p class="etiq" style="left:100px;top:640px">Avec la documentation</p>
+      <div class="pr"><b>Chaque pull request</b><span>Les notes du vault deviennent des tests, rejoués à chaque PR. La réponse arrive sur la PR.</span></div>
+      <svg class="marques chemins"></svg>
+      <div class="sortie"><h3>Les mêmes preuves</h3><ul><li>Défauts prouvés par le code</li><li>Doutes à trancher</li><li>Décisions gardées</li></ul></div>
+      <p class="ajout"><b>Ce qu'on ajoute à la démo QA de H Company :</b> qui écrit les tests, la preuve, la mémoire.</p>
+    </section>
+
+    <!-- 6. Démo -->
+    <section class="esc e-demo sombre" data-anim="demo" data-ciel="nuit" data-perche="aucune">
+      <div class="scene3d"><div class="feuille">
+        <div class="barre"><i></i><span>PR #16 · eugenia-school-website, traduit en allemand · vrai passage du 19/11, monté en 30 s</span></div>
+        <div class="cadre"><video muted playsinline preload="auto" poster="medias/poster.jpg" src="medias/demo-pr16-30s-v2.mp4"></video></div>
+      </div></div>
+      <p class="legende"></p>
+    </section>
+
+    <!-- 7. Architecture -->
+    <section class="esc e-archi sombre" data-anim="archi" data-ciel="nuit" data-sortie="plongee"
+      data-perche="960,520,118" data-etat="regarde" data-regard="1,0">
+      <h2 class="titre" style="font-size:84px">Deux entrées, une boucle,<br>déjà en ligne.</h2>
+      <svg class="ciel-archi" viewBox="0 0 1920 1080"></svg>
+      <div class="noeuds"></div>
+      <div class="legende-archi"><span>● construit et en ligne</span><span style="color:var(--soleil-2)">◌ prévu</span></div>
+    </section>
+
+    <!-- 8. Business model -->
+    <section class="esc e-prix" data-anim="prix" data-ciel="ciel"
+      data-perche="1830,250,120" data-etat="regarde" data-regard="-1,.6">
+      <h2 class="titre">On paie au passage,<br>avec un forfait.</h2>
+      <p class="explique">Un <b>passage</b>, c'est l'agent H qui visite jusqu'à 8 pages et rend ses défauts prouvés.<br><br><span class="pastille"></span>La marge sur le run, si tous les passages inclus sont consommés, à 0,25 $ le passage.</p>
+      <div class="sol"></div>
+      <div class="pilier" data-prix="0" style="left:880px"><div class="colonne"></div><p class="prix"><span class="n">0</span> <small>€</small></p></div>
+      <div class="pilier" data-prix="49" data-marge="49" style="left:1230px"><div class="colonne"><div class="marge"></div></div><p class="prix"><span class="n">49</span> <small>€</small></p></div>
+      <div class="pilier" data-prix="199" data-marge="75" style="left:1580px"><div class="colonne"><div class="marge"></div></div><p class="prix"><span class="n">199</span> <small>€</small></p></div>
+      <div class="nom" style="left:860px;width:340px"><b>Gratuit</b><span>3 passages par mois,<br>par l'extension</span></div>
+      <div class="nom" style="left:1210px;width:340px"><b>Solo</b><span>100 passages par mois<br>le marketeur</span></div>
+      <div class="nom" style="left:1560px;width:340px"><b>Équipe</b><span>200 passages, la PR GitHub<br>le CTO</span></div>
+    </section>
+
+    <!-- 9. Go-to-market -->
+    <section class="esc e-chemin" data-anim="chemin" data-ciel="lever"
+      data-perche="170,690,130" data-etat="regarde" data-regard="1,-.3">
+      <h2 class="titre">L'extension gratuite fait entrer.<br>La régularité fait payer.</h2>
+      <svg class="courbe" viewBox="0 0 1920 1080"><path class="trace-c" d="M170 730C430 750 470 600 640 590S990 560 1060 470 1330 340 1520 250"/></svg>
+      <div class="etape" style="left:110px;top:640px"><span class="num">1</span><b>L'extension</b><span>Gratuite, sans compte :<br>3 passages par mois.</span></div>
+      <div class="etape" style="left:560px;top:420px"><span class="num">2</span><b>Le « waouh »</b><span>Un vrai défaut prouvé sur son site, comme le 404 d'Eugenia.</span></div>
+      <div class="etape" style="left:1060px;top:640px"><span class="num">3</span><b>Solo</b><span>Il veut un contrôle après chaque publication.</span></div>
+      <div class="etape" style="left:1450px;top:470px"><span class="num">4</span><b>Équipe</b><span>La réponse sur la PR, la doc comme source des tests.</span></div>
+    </section>
+
+    <!-- 10. Limites et roadmap -->
+    <section class="esc e-feuille-route sombre" data-anim="route" data-ciel="nuit"
+      data-perche="250,560,150" data-etat="regarde" data-regard="1,.2">
+      <h2 class="titre" style="font-size:84px">Ce qu'on sait,<br>ce qu'on ne sait pas encore.</h2>
+      <p class="etiquette" style="left:110px;top:690px"><b>Aujourd'hui</b>1 agent par passage</p>
+      <p class="etiquette demain" style="left:470px;top:690px"><b>Demain</b>un agent par page</p>
+      <div class="pages-m"></div>
+      <div class="listes">
+        <h3>Prouvé</h3>
+        <ul><li class="trait-plein">Le code prouve : lien mort, texte qui déborde, bloc non traduit.</li><li class="trait-plein">PR #16 : 8 pages sur 8, réponse publiée sur la PR.</li></ul>
+        <h3>Pas encore</h3>
+        <ul><li class="pointille-ocre">Les doutes de l'IA sont souvent faux : 6 constats sur 8 sur eugeniaschool.com.</li><li class="pointille-ocre">Pas encore prouvé sur n'importe quel site.</li><li class="pointille-ocre">Prévu : Confluence et Notion en entrée, Jira et Linear en sortie, Devin qui corrige.</li></ul>
+      </div>
+    </section>
+
+    <!-- 11. Coût de run -->
+    <section class="esc e-cout" data-anim="cout" data-ciel="ciel"
+      data-perche="1610,232,130" data-etat="regarde" data-regard="-1,.3">
+      <h2 class="chiffre" aria-label="Environ 0,25 dollar par passage"><svg class="environ" viewBox="0 0 100 96" aria-hidden="true"><path d="M8 34c14-16 28-16 42-4s28 12 42-4M8 74c14-16 28-16 42-4s28 12 42-4"/></svg><span class="nombre">0,25</span><span class="dollar">$</span></h2>
       <p class="par">par passage.</p>
-      <p class="complet">Un passage complet : l'agent visite 8 pages en cliquant, le code vérifie chaque page.</p>
-      <p class="ouvert">Railway et tout un site en production : à mesurer</p>
+      <p class="vendu">Un passage complet : 8 pages visitées en cliquant.<br>Le passage en plus est vendu <b>0,40 à 0,50 €</b>.</p>
       <div class="pli">
         <div class="tete"><i></i>Mesuré le 19/11</div>
-        <p class="ligne mono">mesuré : 0,2174 $ en 343 s<em>PR #16 du clone d'Eugenia, 8 pages</em></p>
-        <p class="ligne mono">mesuré : 0,2680 $ en 434,5 s<em>même visite, contrôle du texte non traduit</em></p>
-        <p class="sources mono">docs/tests/2026-11-19-langue-et-lecture.md<br>docs/tests/2026-11-19-texte-non-traduit.md<br>pitch/business-model.md</p>
+        <div class="bloc"><b class="gros mono">0,2174 $</b><span>en 343 s, PR #16 du clone d'Eugenia, 8 pages</span></div>
+        <div class="bloc"><b class="gros mono">0,2680 $</b><span>en 434,5 s, la même visite avec le contrôle du texte non traduit</span></div>
       </div>
+    </section>
+
+    <!-- 12. Fin, à l'aube -->
+    <section class="esc e-fin" data-anim="fin" data-ciel="aube" data-soleil="1520,1080,420"
+      data-perche="1520,560,380" data-etat="fini" data-regard="-1,.15">
+      <h2 class="teste">Testez votre site.</h2>
+      <p class="dit">J'ai fini.</p>
+      <p class="lien-ext"><small>L'extension Chrome et la page d'accueil</small>horama-gold.vercel.app</p>
+      <div class="depot"><div class="qr" aria-label="QR code du dépôt GitHub"></div><span>Le dépôt<br><b>github.com/Hisseiny/Horama-</b></span></div>
+      <p class="equipe">Équipe 11 · hackathon Eugenia « Build The Future »</p>
     </section>
   </div>
   <div class="couche" id="pres"></div>
+  <div id="plongee"></div>
   <div id="envoye"></div>
   <svg id="voile" viewBox="0 0 1920 1080"></svg>
 </div>
 
 <script src="assets/mascotte.js"></script>
 <script src="assets/trait.js"></script>
-<script>
-(() => {
-const W = 1920, H = 1080, STEP = 2400, SVGNS = "http://www.w3.org/2000/svg";
-const stage = document.getElementById("stage");
-const escs = [...document.querySelectorAll(".esc")];
-escs.forEach((e, k) => { e.style.left = k * STEP + "px"; });
-
-/* ---------- courbes de temps ---------- */
-function bezier(x1, y1, x2, y2) {
-  return t => { if (t <= 0) return 0; if (t >= 1) return 1;
-    let u = t; for (let i = 0; i < 8; i++) { const x = 3 * (1 - u) ** 2 * u * x1 + 3 * (1 - u) * u * u * x2 + u ** 3 - t;
-      const dx = 3 * (1 - u) ** 2 * x1 + 6 * (1 - u) * u * (x2 - x1) + 3 * u * u * (1 - x2); if (Math.abs(dx) < 1e-6) break; u -= x / dx; u = Math.min(1, Math.max(0, u)); }
-    return 3 * (1 - u) ** 2 * u * y1 + 3 * (1 - u) * u * u * y2 + u ** 3; };
-}
-const SORTIE = "cubic-bezier(0.16, 1, 0.3, 1)";          // expo.out de la charte
-const expoOut = bezier(.16, 1, .3, 1);
-const panEase = bezier(.42, 0, .12, 1);                      // départ doux, arrivée en expo
-const douce = bezier(.45, 0, .25, 1);
-const lerp = (a, b, t) => a + (b - a) * t;
-const hasard = (s => () => (s = (s * 16807) % 2147483647) / 2147483647)(11);
-
-/* ---------- repères : ce qui ne doit jamais passer derrière un nuage au repos ---------- */
-function boite(e, el) { // rectangle d'un élément dans le repère de son escale
-  const b = e.getBoundingClientRect(), r = el.getBoundingClientRect(), k = b.width / W;
-  return { x: (r.left - b.left) / k, y: (r.top - b.top) / k, w: r.width / k, h: r.height / k };
-}
-let zones = [];
-function relever() {
-  zones = escs.map(e => [...e.querySelectorAll("h1, h2, p, .legende")].map(el => boite(e, el))
-    .concat([(p => ({ x: p.x - p.t * .7, y: p.y - p.t * .6, w: p.t * 1.4, h: p.t * 1.2 }))(perche(e))]));
-}
-// un objet du plan f, posé en x local, est-il au repos sur du texte d'une escale ?
-function gene(f, x, y, w, h, marge = 26) {
-  return escs.some((e, k) => { const sx = x - k * STEP * f;
-    return zones[k].some(z => sx < z.x + z.w + marge && sx + w > z.x - marge && y < z.y + z.h + marge && y + h > z.y - marge); });
-}
-
-/* ---------- le ciel : couches en parallaxe ---------- */
-// f : vitesse du plan au défilement ; D : profondeur, pour la plongée (plus D est grand, plus le plan est loin)
-const COUCHES = {
-  loin: { el: document.getElementById("loin"), f: .22, D: 5200 },
-  milieu: { el: document.getElementById("milieu"), f: .5, D: 2600 },
-  banc: { el: document.getElementById("fond-banc"), f: .72, D: 1700 },
-  principal: { el: document.getElementById("principal"), f: 1, D: 1000 },
-  pres: { el: document.getElementById("pres"), f: 2.2, D: 520 },
-};
-const total = (escs.length - 1) * STEP;
-for (const c of Object.values(COUCHES)) c.el.style.width = (total * c.f + W + 1600) + "px";
-
-const NUAGE = "M22 58C8 58 2 50 3 42c1-8 8-13 16-12 0-12 10-20 22-18 5-9 18-12 28-7 8 4 12 11 12 18 9-5 22-2 27 6 12-2 22 5 22 16 1 8-6 13-14 13Z";
-function nuage(parent, x, y, w, flip, cls = "nuage") {
-  const s = document.createElementNS(SVGNS, "svg");
-  s.setAttribute("class", cls); s.setAttribute("viewBox", "0 0 150 62");
-  Object.assign(s.style, { left: x + "px", top: y + "px", width: w + "px", height: w * 62 / 150 + "px", transform: flip ? "scaleX(-1)" : "" });
-  s.innerHTML = `<path d="${NUAGE}"/>`; parent.appendChild(s);
-}
-function semer(c, essais, taille, yMin, yMax) {
-  const L = parseFloat(c.el.style.width);
-  for (let i = 0; i < essais; i++) {
-    const w = taille[0] + hasard() * (taille[1] - taille[0]), x = -200 + hasard() * L, y = yMin + hasard() * (yMax - yMin);
-    if (!gene(c.f, x, y, w, w * .42)) nuage(c.el, x, y, w, hasard() > .5);
-  }
-}
-function decor() {
-  for (const e of escs) { ESCALES[e.dataset.anim]?.arriver(e, true); nettoyer(e); } // état final, pour relever les zones de texte
-  relever();
-  // loin : petits nuages et étoiles (les étoiles ne se voient que la nuit)
-  const lo = COUCHES.loin, L = parseFloat(lo.el.style.width);
-  semer(lo, Math.round(L / 260), [64, 120], 30, 820);
-  const et = document.createElementNS(SVGNS, "svg"); et.setAttribute("class", "etoiles");
-  Object.assign(et.style, { left: 0, top: 0, width: L + "px", height: H + "px" });
-  let html = ""; for (let i = 0; i < L / 9; i++) { const x = hasard() * L, y = hasard() * 900, r = 1.1 + hasard() * 2;
-    if (!gene(lo.f, x - 4, y - 4, 8, 8, 14)) html += `<circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="${r.toFixed(1)}" opacity="${(.3 + hasard() * .6).toFixed(2)}"/>`; }
-  et.innerHTML = html; lo.el.appendChild(et);
-  // milieu : nuages moyens, et le décor propre à une escale (le soleil)
-  const mi = COUCHES.milieu;
-  semer(mi, Math.round(parseFloat(mi.el.style.width) / 300), [170, 300], 40, 900);
-  escs.forEach((e, k) => {
-    if (e.dataset.decor !== "soleil") return;
-    const g = document.createElement("div"), x0 = k * STEP * mi.f;
-    Object.assign(g.style, { position: "absolute", left: x0 + 1440 - 300 + "px", top: 520 - 300 + "px", width: "600px", height: "600px" });
-    g.innerHTML = `<svg class="soleil" viewBox="-300 -300 600 600" style="width:600px;height:600px;left:0;top:0;position:absolute;overflow:visible"><g class="leve"><g class="rayons"></g><circle r="210"/></g></svg>`;
-    const ray = g.querySelector(".rayons");
-    for (let i = 0; i < 32; i++) { const a = i / 32 * Math.PI * 2, r2 = i % 2 ? 262 : 292, l = document.createElementNS(SVGNS, "line");
-      l.setAttribute("x1", (Math.cos(a) * 228).toFixed(1)); l.setAttribute("y1", (Math.sin(a) * 228).toFixed(1));
-      l.setAttribute("x2", (Math.cos(a) * r2).toFixed(1)); l.setAttribute("y2", (Math.sin(a) * r2).toFixed(1)); ray.appendChild(l); }
-    mi.el.appendChild(g); e._soleil = g;
-  });
-  // banc de nuages en bas, continu sur tout le vol
-  const ba = COUCHES.banc, s = document.getElementById("banc"), LB = parseFloat(ba.el.style.width);
-  Object.assign(s.style, { left: 0, top: (H - 96) + "px", width: LB + "px", height: "120px" });
-  let d = "M0 120V52", x = 0;
-  while (x < LB) { const w = 46 + hasard() * 70, h = w * (.5 + hasard() * .25); d += `a${(w / 2).toFixed(1)} ${h.toFixed(1)} 0 0 1 ${w.toFixed(1)} 0`; x += w; }
-  s.innerHTML = `<path d="${d}V120Z"/>`;
-  // près : entre deux escales, un mur de nuages que la caméra traverse (jamais visible au repos)
-  const pr = COUCHES.pres;
-  for (let k = 0; k < escs.length - 1; k++) {
-    const xc = (k + .5) * STEP * pr.f + W / 2, demi = 1100, mur = document.createElement("div");
-    mur.className = "mur";
-    for (const cote of [-1, 1]) for (let y = -170; y < H + 60; y += 230) {
-      const w = 600 + hasard() * 160; nuage(mur, xc + cote * demi - w / 2 + cote * (hasard() * 90), y + hasard() * 40, w, cote > 0, "nuage proche");
-    }
-    const coeur = document.createElement("div");
-    Object.assign(coeur.style, { position: "absolute", left: xc - demi + "px", top: "-200px", width: 2 * demi + "px", height: H + 400 + "px", background: "var(--papier)" });
-    mur.appendChild(coeur);
-    for (let i = 0; i < 7; i++) nuage(mur, xc - demi + 160 + hasard() * (2 * demi - 700), -40 + hasard() * (H - 160), 300 + hasard() * 260, hasard() > .5, "nuage proche");
-    pr.el.appendChild(mur);
-  }
-}
-
-/* ---------- les ciels des escales : ils changent quand le mur de nuages couvre l'écran ---------- */
-const CIELS = {
-  lever: { ciel: "var(--engobe)", nuage: "var(--papier)", trait: "var(--encre)", op: 1, trace: "var(--encre)", nuit: 0 },
-  nuit: { ciel: "var(--nuit)", nuage: "var(--nuit)", trait: "var(--engobe)", op: .5, trace: "var(--engobe)", nuit: 1 },
-  ciel: { ciel: "var(--aile-2)", nuage: "var(--papier)", trait: "var(--encre)", op: 1, trace: "var(--encre)", nuit: 0 },
-};
-let cielCourant = null;
-function poserCiel(nom) {
-  if (nom === cielCourant) return; cielCourant = nom;
-  const A = CIELS[nom], st = stage.style;
-  st.setProperty("--ciel", A.ciel); st.setProperty("--nuage", A.nuage); st.setProperty("--nuage-trait", A.trait);
-  st.setProperty("--nuage-op", A.op); st.setProperty("--trace", A.trace); st.setProperty("--nuit-k", A.nuit);
-}
-
-/* ---------- caméra ---------- */
-const cam = { x: 0, zc: 0, E: [W / 2, H / 2], off: [0, 0] };
-function rendre() {
-  for (const c of Object.values(COUCHES)) {
-    let s = 1;
-    if (cam.zc) { const d = c.D - cam.zc; if (d < 30) { c.el.style.visibility = "hidden"; continue; } s = c.D / d; }
-    c.el.style.visibility = "";
-    const [ex, ey] = cam.E;
-    c.el.style.transform = `translate(${(cam.off[0] + ex).toFixed(2)}px,${(cam.off[1] + ey).toFixed(2)}px) scale(${s.toFixed(5)}) translate(${(-ex).toFixed(2)}px,${(-ey).toFixed(2)}px) translateX(${(-cam.x * c.f).toFixed(2)}px)`;
-  }
-  escs.forEach((e, k) => {
-    const loin = Math.abs(k * STEP - cam.x);
-    e.style.visibility = loin < 2100 ? "" : "hidden";
-    if (e._soleil) e._soleil.style.visibility = loin < STEP * .5 && cielCourant !== "nuit" ? "" : "hidden"; // le soleil reste à son escale
-  });
-}
-
-/* ---------- l'envoyé ---------- */
-const hote = document.getElementById("envoye");
-const M = creerMascotte(160); hote.appendChild(M.el);
-function placer(x, y, t, rot = 0) {
-  hote.style.transform = `translate(${(x - 80).toFixed(1)}px,${(y - 80).toFixed(1)}px) scale(${(t / 160).toFixed(4)}) rotate(${rot.toFixed(2)}deg)`;
-}
-function perche(e) { const [x, y, t] = e.dataset.perche.split(",").map(Number); return { x, y, t }; }
-const regard = e => (e.dataset.regard || "0,0").split(",").map(Number);
-function poser(e) { const p = perche(e); placer(p.x, p.y, p.t); M.etat(e.dataset.etat || "regarde"); M.regarder(...regard(e)); hote.style.visibility = ""; }
-
-/* ---------- le pointillé d'encre : le chemin parcouru ---------- */
-const traceSvg = document.getElementById("trace"), tracePath = traceSvg.querySelector("path");
-Object.assign(traceSvg.style, { left: 0, top: 0, width: (total + W) + "px", height: H + "px" });
-let points = [];
-function tracer() { tracePath.setAttribute("d", points.length ? "M" + points.map(p => p[0].toFixed(1) + " " + p[1].toFixed(1)).join("L") : ""); }
-
-/* ---------- animations d'escale (chaque escale se suffit à elle-même) ---------- */
-const retenir = (e, a) => ((e._anims ||= []).push(a), a);
-const plus_tard = (e, ms, fn) => (e._tempo ||= []).push(setTimeout(() => { if (courante === e) fn(); }, ms));
-function nettoyer(e) {
-  (e._anims || []).forEach(a => a.cancel()); e._anims = [];
-  (e._tempo || []).forEach(clearTimeout); e._tempo = [];
-  if (e._boucle) cancelAnimationFrame(e._boucle), e._boucle = 0;
-  e.querySelectorAll("svg.marques").forEach(s => s.remove());
-}
-function calque(e) { const s = document.createElementNS(SVGNS, "svg"); s.setAttribute("class", "marques"); s.setAttribute("viewBox", `0 0 ${W} ${H}`); e.appendChild(s); return s; }
-
-const ESCALES = {
-  titre: {
-    arriver(e, instant, via) {
-      if (instant) return;
-      [...e.querySelectorAll(".mot .l")].forEach((l, i) => {
-        const dx = (i - 2.5) * 70 + (hasard() - .5) * 160, dy = 150 + hasard() * 120, r = (hasard() - .5) * 34;
-        retenir(e, l.animate([
-          { opacity: 0, transform: `translate(${dx}px,${dy}px) rotate(${r}deg)`, fontVariationSettings: '"XROT" -45, "YROT" 40' },
-          { opacity: 1, offset: .3 },
-          { opacity: 1, transform: "none", fontVariationSettings: '"XROT" 0, "YROT" 0' }],
-          { duration: 1000, delay: i * 55, easing: SORTIE, fill: "backwards" }));
-      });
-      retenir(e, e.querySelector(".paupiere").animate(
-        [{ transform: "scaleY(.07)" }, { transform: "scaleY(.07)", offset: .55 }, { transform: "scaleY(1.08)", offset: .85 }, { transform: "scaleY(1)" }],
-        { duration: 1250, easing: "linear", fill: "backwards" }));
-      if (e._soleil) retenir(e, e._soleil.querySelector(".leve").animate(
-        [{ transform: "translateY(420px)" }, { transform: "none" }], { duration: 1200, easing: SORTIE }));
-      if (via === "saut") retenir(e, hote.animate([{ opacity: 0, transform: hote.style.transform + " translateY(60px)" }, { opacity: 1, transform: hote.style.transform }],
-        { duration: 1000, delay: 300, easing: SORTIE, fill: "backwards" }));
-    },
-  },
-  demo: {
-    // calées sur les instants de la vidéo (relevés image par image), pas sur des tranches égales
-    LEGENDES: [
-      [0, "regarde", [1, .1], "Horama attend la prochaine pull request."],
-      [4.6, "regarde", [1, .1], "Il visite le site, comme un visiteur."],
-      [7.3, "trouve", [1, -.2], "Un texte déborde de son cadre : trait rouge."],
-      [9.2, "regarde", [1, .1], "L'agent de H ouvre le menu et clique."],
-      [13.8, "regarde", [1, .1], "Il lit chaque page, traduite en allemand."],
-      [16.8, "trouve", [1, .1], "Un bloc est resté en français : trait rouge."],
-      [19.8, "fini", [1, 0], "« J'ai fini. » <span class=\"mono\">3 défauts, 2 doutes, 8 pages.</span>"],
-      [22.3, "doute", [1, .2], "Chaque problème revient. Vous tranchez : « C'est un bug »."],
-      [26.6, "fini", [1, 0], "« C'est rangé. »"],
-    ],
-    arriver(e, instant) {
-      const v = e.querySelector("video"), f = e.querySelector(".feuille"), ph = e.querySelector(".phrase"), pts = [...e.querySelectorAll(".points i")];
-      v.pause(); try { v.currentTime = 0; } catch {}
-      let cur = -1;
-      const montrer = (i, anim) => {
-        if (i === cur) return; cur = i; const L = this.LEGENDES[i];
-        ph.innerHTML = L[3]; pts.forEach((p, j) => p.classList.toggle("passe", j <= i));
-        if (courante === e && !instant && !transition) { M.etat(L[1]); M.regarder(...L[2]); }
-        if (anim) retenir(e, ph.animate([{ opacity: 0, transform: "translateY(16px)" }, { opacity: 1, transform: "none" }], { duration: 520, easing: SORTIE }));
-      };
-      montrer(0, false);
-      if (instant) return;
-      retenir(e, f.animate([
-        { opacity: 0, transform: "translate3d(120px,300px,-520px) rotateX(64deg) rotateZ(-9deg)" },
-        { opacity: 1, offset: .22 },
-        { opacity: 1, transform: "translate3d(0,0,0) rotateX(0deg) rotateZ(-1.2deg)" }],
-        { duration: 1150, easing: SORTIE, fill: "both" }));
-      plus_tard(e, 1050, () => { v.play().catch(() => {}); });
-      const suivre = () => {
-        const t = v.currentTime; let i = 0;
-        this.LEGENDES.forEach((L, j) => { if (t >= L[0]) i = j; });
-        montrer(i, true);
-        e._boucle = requestAnimationFrame(suivre);
-      };
-      e._boucle = requestAnimationFrame(suivre);
-    },
-    quitter(e) { e.querySelector("video").pause(); },
-  },
-  cout: {
-    arriver(e, instant) {
-      // odomètre : chaque chiffre roule jusqu'à sa place (le vrai nombre reste dans aria-label)
-      e.querySelectorAll(".rouleau").forEach((r, i) => {
-        const v = +r.dataset.v, tours = instant ? 0 : 10 * (i + 1) + v;
-        r.innerHTML = "<span>" + Array.from({ length: tours + 1 }, (_, k) => `<b>${(instant ? v : k) % 10}</b>`).join("") + "</span>";
-        if (!instant) retenir(e, r.firstChild.animate([{ transform: "translateY(0)" }, { transform: `translateY(${-tours * .8}em)` }],
-          { duration: 1050 + i * 90, easing: SORTIE, fill: "both" }));
-      });
-      const marques = calque(e), ch = e.querySelector(".chiffre");
-      const a = boite(e, ch.querySelector(".rouleau")), z = boite(e, ch.querySelector(".dollar"));
-      const rect = { x: a.x + 14, y: a.y - 26, w: z.x + z.w - a.x - 22, h: a.h + 40 };
-      const pli = e.querySelector(".pli"), ouvert = e.querySelector(".ouvert");
-      if (instant) {
-        tracerDefaut(marques, rect, { instant: true, epaisseur: 7 });
-        poserDoute(marques, boite(e, ouvert), { instant: true, pas: 16, rayon: 5.2 });
-        pli.style.transform = "rotate(2.5deg)";
-        return;
-      }
-      retenir(e, ch.animate([{ fontVariationSettings: '"XROT" 0, "YROT" 38' }, { fontVariationSettings: '"XROT" 0, "YROT" 0' }], { duration: 1100, easing: SORTIE }));
-      retenir(e, pli.animate([
-        { opacity: 0, transform: "perspective(1400px) translateX(160px) rotateY(-72deg) rotateZ(0deg)" },
-        { opacity: 1, offset: .25 },
-        { opacity: 1, transform: "perspective(1400px) translateX(0) rotateY(0deg) rotateZ(2.5deg)" }],
-        { duration: 1150, delay: 120, easing: SORTIE, fill: "both" }));
-      plus_tard(e, 620, () => { tracerDefaut(marques, rect, { duree: 820, epaisseur: 7 }); });
-      plus_tard(e, 1250, () => { M.etat("regarde"); M.regarder(-1, .15); });
-      plus_tard(e, 1700, () => { poserDoute(marques, boite(e, ouvert), { pas: 16, rayon: 5.2 }); M.etat("doute"); M.regarder(-.75, .66); });
-    },
-  },
-};
-
-/* ---------- navigation ---------- */
-let courante = null, transition = null;
-const idx = e => escs.indexOf(e);
-function arriver(e, instant, via) { courante = e; nettoyer(e); ESCALES[e.dataset.anim]?.arriver(e, instant, via); history.replaceState(null, "", "#" + e.dataset.n); }
-function quitter(e) { if (!e) return; ESCALES[e.dataset.anim]?.quitter?.(e); nettoyer(e); }
-
-function tween(ms, step, done) {
-  const t0 = performance.now(); let fini = false, id = 0;
-  const tick = now => { const t = Math.min(1, (now - t0) / ms); step(t); if (t < 1 && !fini) id = requestAnimationFrame(tick); else if (!fini) { fini = true; done && done(); } };
-  id = requestAnimationFrame(tick);
-  return { finir() { if (fini) return; cancelAnimationFrame(id); step(1); fini = true; done && done(); } };
-}
-
-function aller(cible, instant) {
-  while (transition) transition.finir();
-  const depart = courante;
-  if (!depart || instant) {
-    quitter(depart); cam.x = idx(cible) * STEP; cam.zc = 0; cam.off = [0, 0];
-    poserCiel(cible.dataset.ciel); rendre(); poser(cible); points = []; tracer(); arriver(cible, false, "saut"); return;
-  }
-  if (cible === depart) return;
-  const avant = idx(cible) > idx(depart);
-  if (avant && depart.dataset.sortie === "plongee") plonger(depart, cible); else voler(depart, cible);
-}
-
-/* le vol : la caméra traverse le ciel (et un mur de nuages), l'envoyé file devant et laisse son pointillé */
-function voler(a, b) {
-  quitter(a);
-  const dir = idx(b) > idx(a) ? 1 : -1, x0 = cam.x, x1 = idx(b) * STEP;
-  const A = perche(a), B = perche(b);
-  const P1 = [A.x + dir * 60, A.y - 360], P2 = [B.x - dir * 240, B.y - 560];
-  const bez = (u, i) => (1 - u) ** 3 * [A.x, A.y][i] + 3 * (1 - u) ** 2 * u * P1[i] + 3 * (1 - u) * u * u * P2[i] + u ** 3 * [B.x, B.y][i];
-  points = []; stage.classList.add("vol"); hote.classList.add("vole");
-  M.etat("regarde"); M.regarder(dir, -.25);
-  transition = tween(1150, t => {
-    const e = panEase(t), u = douce(t);
-    cam.x = lerp(x0, x1, e); poserCiel(e < .5 ? a.dataset.ciel : b.dataset.ciel); rendre();
-    const x = bez(u, 0), y = bez(u, 1), taille = lerp(A.t, B.t, u);
-    placer(x, y, taille, dir * 14 * Math.sin(Math.PI * Math.min(1, u * 1.15)));
-    points.push([x + cam.x, y + taille * .12]); tracer();
-  }, () => {
-    transition = null; stage.classList.remove("vol"); hote.classList.remove("vole");
-    placer(B.x, B.y, B.t, 0);
-    if (courante === b) { M.etat(b.dataset.etat || "regarde"); M.regarder(...regard(b)); }
-  });
-  arriver(b);
-}
-
-/* la plongée : la caméra entre dans l'œil de l'envoyé, l'iris s'ouvre sur l'escale suivante */
-const voile = document.getElementById("voile");
-function plonger(a, b) {
-  quitter(a);
-  const A = perche(a), centre = [W / 2 - A.x, H / 2 - A.y];
-  cam.E = [A.x, A.y];
-  voile.innerHTML = `<g><g fill="#AFA9EC" stroke="#1C1C1C" stroke-width="2.5" stroke-linejoin="round"><path d="M30 46C24 30 10 24 2 28c6 3 7 7 5 10 5 1 7 5 5 8 5 1 8 5 7 9 5-1 9-4 11-9Z"/><path d="M66 46C72 30 86 24 94 28c-6 3-7 7-5 10-5 1-7 5-5 8-5 1-8 5-7 9-5-1-9-4-11-9Z"/></g><circle cx="48" cy="48" r="20" fill="#fff" stroke="#1C1C1C" stroke-width="3"/><circle cx="48" cy="48" r="10.5" fill="#7F77DD"/><circle cx="48" cy="48" r="4.6" fill="#1C1C1C"/><circle cx="51.6" cy="44.4" r="2.2" fill="#fff"/></g>`;
-  const g = voile.firstChild;
-  hote.style.visibility = "hidden"; points = []; tracer();
-  const SMAX = 300, accel = bezier(.42, 0, .9, .5);
-  transition = tween(820, t => {
-    const s = Math.exp(Math.log(SMAX) * accel(t)), k = douce(t);           // zoom exponentiel : vitesse perçue régulière, qui accélère
-    cam.zc = 1000 * (1 - 1 / s); cam.off = [centre[0] * k, centre[1] * k]; rendre();
-    g.setAttribute("transform", `translate(${(A.x + cam.off[0]).toFixed(2)} ${(A.y + cam.off[1]).toFixed(2)}) scale(${(s * A.t / 96).toFixed(4)}) translate(-48 -48)`);
-  }, () => {
-    // noir de la pupille : on change d'escale
-    cam.zc = 0; cam.off = [0, 0]; cam.E = [W / 2, H / 2]; cam.x = idx(b) * STEP;
-    poserCiel(b.dataset.ciel); rendre(); poser(b);
-    const R = Math.hypot(W, H) / 2 + 40;
-    voile.innerHTML = `<path fill="#1C1C1C" fill-rule="evenodd"/><path fill="#7F77DD" fill-rule="evenodd" stroke="#1C1C1C" stroke-width="7"/>`;
-    const [noir, iris] = voile.querySelectorAll("path");
-    const rond = r => `M${W / 2 - r} ${H / 2}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0Z`;
-    transition = tween(900, t => {
-      const r = 2 + expoOut(t) * R * 1.05, r2 = r * 1.7 + 24;
-      noir.setAttribute("d", `M-20 -20H${W + 20}V${H + 20}H-20Z` + rond(r2));
-      iris.setAttribute("d", rond(r2) + rond(r));
-    }, () => { voile.innerHTML = ""; transition = null; });
-    arriver(b);
-  });
-}
-
-/* ---------- mise à l'échelle et commandes (moteur de l'étalon Dorel) ---------- */
-function ajuster() { const k = Math.min(innerWidth / W, innerHeight / H); stage.style.transform = `translate(${(innerWidth - W * k) / 2}px,${(innerHeight - H * k) / 2}px) scale(${k})`; }
-addEventListener("resize", ajuster); ajuster();
-const parNumero = n => escs.find(e => e.dataset.n === String(n));
-const suivante = d => escs[Math.min(escs.length - 1, Math.max(0, idx(courante) + d))];
-addEventListener("keydown", ev => {
-  if (["ArrowRight", "ArrowDown", "PageDown", " ", "Enter"].includes(ev.key)) { aller(suivante(1)); ev.preventDefault(); }
-  if (["ArrowLeft", "ArrowUp", "PageUp", "Backspace"].includes(ev.key)) { aller(suivante(-1)); ev.preventDefault(); }
-  if (ev.key === "f" || ev.key === "F") document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
-});
-addEventListener("click", ev => aller(suivante(ev.clientX < innerWidth / 4 ? -1 : 1)));
-addEventListener("hashchange", () => { const e = parNumero(location.hash.slice(1)); if (e && e !== courante) aller(e); });
-
-// impression : une escale par page, chaque escale dans son état final
-addEventListener("beforeprint", () => {
-  for (const e of escs) {
-    nettoyer(e); ESCALES[e.dataset.anim]?.arriver(e, true);
-    if (!e.querySelector(".imp-mascotte")) {
-      const p = perche(e), etat = { regarde: "observe" }[e.dataset.etat] || e.dataset.etat || "observe", t = p.t * 104 / 96;
-      const img = new Image(); img.className = "imp-mascotte"; img.src = `assets/${etat}.svg`; img.alt = "";
-      Object.assign(img.style, { left: p.x - t / 2 + "px", top: p.y - t / 2 + "px", width: t + "px", height: t + "px" });
-      e.appendChild(img);
-      if (e._soleil) { const c = e._soleil.cloneNode(true); c.className = "imp-mascotte"; Object.assign(c.style, { left: "1140px", top: "220px", transform: "", visibility: "visible" }); e.prepend(c); }
-    }
-  }
-});
-addEventListener("afterprint", () => { const e = courante; courante = null; aller(e, true); });
-
-(document.fonts?.ready ?? Promise.resolve()).then(() => {
-  cam.x = 0; rendre(); decor();
-  aller(parNumero(location.hash.slice(1)) || escs[0], true);
-});
-})();
-</script>
+<script src="assets/deck.js"></script>
 </body>
 </html>
