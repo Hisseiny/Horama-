@@ -347,7 +347,7 @@ const ESCALES = {
           if (cle.classList.contains("verdict")) retenir(e, f.animate([{ transform: "rotateZ(0deg) scale(1)" }, { transform: "rotateZ(.6deg) scale(1.025)", offset: .25 }, { transform: "rotateZ(0deg) scale(1)" }], { duration: 700, easing: SORTIE, composite: "add" })); }
       };
       // pour le PDF : une image fixe de la vidéo, avec son cadre et sa légende
-      e._figer = () => { if (e._boucle) cancelAnimationFrame(e._boucle), e._boucle = 0; const [t, x, y, z] = DEMO.imagePdf;
+      e._figer = (tt) => { if (e._boucle) cancelAnimationFrame(e._boucle), e._boucle = 0; const [t, x, y, z] = tt == null ? DEMO.imagePdf : [tt, ...this.camera(tt)];
         v.pause(); v.currentTime = t; cadrer(t, [x, y, z]); cur = -1; montrer(legende(t), true); };
       montrer(0, false); cadrer(0);
       if (instant) return;
@@ -741,5 +741,5 @@ addEventListener("afterprint", () => { const e = courante; courante = null; alle
   cam.x = 0; rendre(); decor();
   aller(parNumero(location.hash.slice(1)) || escs[0], true);
 });
-window.__deck = { aller: n => aller(parNumero(n)), figerDemo: () => escs.find(e => e._figer)?._figer(), instant: n => aller(parNumero(n), true) };
+window.__deck = { aller: n => aller(parNumero(n)), figerDemo: t => escs.find(e => e._figer)?._figer(t), instant: n => aller(parNumero(n), true) };
 })();

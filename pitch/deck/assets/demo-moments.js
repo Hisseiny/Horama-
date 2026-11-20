@@ -18,14 +18,14 @@ window.DEMO = {
   ],
   // caméra : [seconde, centre x, centre y (pixels de la vidéo), zoom] ; entre deux lignes, elle glisse.
   // Règles tenues : ne couper ni colonne ni bouton ; pas de zoom sur le bloc en français tant que la mascotte
-  // de la vidéo est sur « Testen » (24,0 à 25,2 s) sans exclure le titre ; à partir des cartes (32 s), zoom ≥ 1,19
+  // de la vidéo est sur « Testen » (24,0 à 25,2 s) ; ne pas montrer la bande blanche du bas (y > 780) ; à partir des cartes (32 s), zoom ≥ 1,19
   // et cadre décalé à gauche, pour cacher la bande blanche de droite.
   camera: [
-    [0, 640, 431, 1], [10.5, 640, 431, 1], [11.1, 395, 596, 1.62], [12.3, 395, 596, 1.62], [12.9, 640, 431, 1],
+    [0, 640, 431, 1], [10.5, 640, 431, 1], [11.1, 395, 500, 1.62], [12.3, 395, 500, 1.62], [12.9, 640, 431, 1],
     [16.5, 640, 431, 1], [17.2, 430, 289, 1.49], [17.95, 430, 289, 1.49], [18.6, 640, 431, 1],
-    [23.7, 640, 431, 1], [24.35, 366, 612, 1.75], [26.05, 366, 612, 1.75], [26.5, 640, 336, 1.28], [31.7, 640, 336, 1.28],
+    [25.2, 640, 431, 1], [25.6, 337, 430, 1.9], [26.05, 337, 430, 1.9], [26.5, 640, 336, 1.28], [31.7, 640, 336, 1.28],
     [32.1, 540, 431, 1.19], [32.9, 540, 600, 1.45], [36.3, 540, 600, 1.45], [36.8, 540, 300, 1.4], [37.6, 540, 300, 1.4], [38.4, 540, 450, 1.4], [45, 540, 450, 1.4],
   ],
   // l'image du PDF : le trait rouge autour du bloc en français, à cette seconde et avec ce cadre
-  imagePdf: [25.8, 366, 612, 1.75],
+  imagePdf: [25.8, 337, 430, 1.9],
 };
