@@ -389,19 +389,24 @@ const ESCALES = {
     },
   },
   prix: {
-    // un pilier par forfait, à l'échelle du prix d'UN passage ; la part blanche (coût de l'agent H, 0,25 $) est la même partout
+    // un pilier par abonnement, hauteur proportionnelle à son prix en dollars ; la part blanche est le coût de l'agent H
     arriver(e, instant) {
-      const PX = 460; // pixels pour 1 €
+      const PX = 2.55, MIN = 74; // pixels par dollar ; hauteur minimale de la barre Gratuit (agrandie, c'est dit sur la page)
       e.querySelectorAll(".pilier").forEach((p, i) => {
-        const prix = +p.dataset.prix, cout = +p.dataset.cout, h = Math.max(prix, cout) * PX, col = p.querySelector(".colonne"), lab = p.querySelector(".prix");
-        col.style.height = h + "px"; lab.style.top = (1080 - 302 - h - 112) + "px";
-        const c = col.querySelector(".cout"), mg = col.querySelector(".marge");
-        c.style.height = cout * PX + "px"; if (mg) mg.style.height = (h - cout * PX) + "px";
+        const prix = +p.dataset.prix, cout = +p.dataset.cout, h = prix ? prix * PX : MIN, col = p.querySelector(".colonne"), lab = p.querySelector(".prix");
+        col.style.height = h + "px"; lab.style.top = (1080 - 304 - h - 122) + "px";
+        const c = col.querySelector(".cout"), mg = col.querySelector(".marge"), et = p.querySelector(".etiq-cout");
+        if (prix) { c.style.height = cout * PX + "px"; mg.style.height = (h - cout * PX) + "px"; et.style.top = (1080 - 304 - cout * PX / 2 - 21) + "px"; }
+        else c.style.height = h + "px";
         if (instant) return;
         anime(e, col, [{ transform: "scaleY(0)" }, { transform: "scaleY(1)" }], { duration: 1100, delay: 150 + i * 150 });
         anime(e, lab, [{ transform: `translateY(${h}px)`, opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 1100, delay: 150 + i * 150 });
-        col.querySelectorAll("span").forEach(sp => anime(e, sp, [{ opacity: 0 }, { opacity: 1 }], { duration: 600, delay: 850 + i * 150 }));
+        [...col.querySelectorAll("span"), ...(et ? [et] : [])].forEach(sp => anime(e, sp, [{ opacity: 0 }, { opacity: 1 }], { duration: 600, delay: 850 + i * 150 }));
       });
+      // l'hypothèse d'usage n'est pas une mesure : points ocre dessous
+      const m = calque(e), hy = e.querySelector(".hypothese");
+      if (instant) poserDoute(m, boite(e, hy), { instant: true, pas: 14, rayon: 4.6 });
+      else plus_tard(e, 500, () => poserDoute(m, boite(e, hy), { pas: 14, rayon: 4.6 }));
       if (!instant) e.querySelectorAll(".nom").forEach((n, i) => anime(e, n, [{ opacity: 0, transform: "translateY(20px)" }, { opacity: 1, transform: "none" }], { duration: 900, delay: 250 + i * 150 }));
     },
   },
@@ -444,11 +449,38 @@ const ESCALES = {
     },
   },
   fin: {
+    // l'envoyé inspecte la salle : il balaie le public du regard, s'arrête, le fixe, cligne, bat des ailes et se repose
     arriver(e, instant) {
-      if (instant) return;
+      M.etat("fini"); M.regarder(0, 0);
+      if (instant) { const q = perche(e); if (courante === e && q) { placer(q.x, q.y, q.t); hote.classList.remove("vole"); } return; }
       if (e._soleil) anime(e, e._soleil.querySelector(".leve"), [{ transform: "translateY(380px)" }, { transform: "none" }], { duration: 1200, fill: "none" });
       anime(e, e.querySelector(".dit"), [{ opacity: 0, transform: "translateY(30px) rotate(-6deg)" }, { opacity: 1, transform: "rotate(-3deg)" }], { duration: 900, delay: 700 });
+      const p = perche(e), globe = M.el.querySelector(".globe"); globe.style.transformBox = "fill-box"; globe.style.transformOrigin = "50% 50%";
+      const cligner = () => retenir(e, globe.animate([{ transform: "scaleY(1)" }, { transform: "scaleY(.08)" }, { transform: "scaleY(1)" }], { duration: 220, easing: "ease-in-out" }));
+      const CYCLE = 8.2; let t0 = null, dernier = -1;
+      const boucle = now => {
+        if (courante !== e) return;
+        if (transition) { e._boucle = requestAnimationFrame(boucle); return; }
+        if (t0 === null) t0 = now;
+        const t = ((now - t0) / 1000) % CYCLE, tour = Math.floor((now - t0) / 1000 / CYCLE);
+        let dx = 0, dy = .05, haut = 0;
+        if (t < .8) { dx = lerp(0, -1, lisse(t / .8)); }                                   // regarde à gauche de la salle
+        else if (t < 1.4) dx = -1;
+        else if (t < 3.4) { dx = lerp(-1, 1, lisse((t - 1.4) / 2)); dy = .05 + .12 * Math.sin(Math.PI * (t - 1.4) / 2); } // balaie jusqu'à droite
+        else if (t < 4.0) dx = 1;
+        else if (t < 4.6) dx = lerp(1, 0, lisse((t - 4) / .6));                              // revient face au public
+        else if (t < 6.4) dx = 0;                                                            // et le fixe
+        else { const u = (t - 6.4) / 1.8; haut = 64 * Math.sin(Math.PI * u); dx = .3 * Math.sin(Math.PI * 2 * u); } // petit vol, puis se repose
+        M.regarder(dx, dy);
+        placer(p.x, p.y - haut, p.t, 6 * Math.sin(Math.PI * 2 * Math.min(1, Math.max(0, (t - 6.4) / 1.8))));
+        hote.classList.toggle("vole", t > 6.2 && t < 8.2);
+        const marque = tour * 10 + (t > 5.0 ? 1 : 0) + (t > 5.6 ? 1 : 0);
+        if (marque !== dernier) { if (dernier !== -1 && (t > 5.0 && t < 5.15 || t > 5.6 && t < 5.75)) cligner(); dernier = marque; }
+        e._boucle = requestAnimationFrame(boucle);
+      };
+      e._boucle = requestAnimationFrame(boucle);
     },
+    quitter() { hote.classList.remove("vole"); },
   },
 };
 
@@ -620,15 +652,14 @@ const SORTIES = {
       monde.style.clipPath = `inset(0 ${Math.max(0, W - X).toFixed(1)}px 0 0)`;
     });
   },
-  // le trait rouge entoure le milieu de l'écran, puis s'ouvre : l'escale suivante est dedans
-  trait(a, b) {
-    const rx = 300, ry = 160; let g = null;
-    reveler(a, b, 1150, t => {
-      if (!g && t > 0) { g = tracerDefaut(voile, { x: W / 2 - 260, y: H / 2 - 150, w: 520, h: 300 }, { duree: 460, epaisseur: 11 });
-        g.querySelectorAll("path").forEach(p => p.setAttribute("vector-effect", "non-scaling-stroke")); }
-      const u = expoOut(clamp((t - .42) / .58)), k = t < .42 ? 0 : 1 + u * 4.2;
-      monde.style.clipPath = `ellipse(${(rx * k).toFixed(1)}px ${(ry * k).toFixed(1)}px at ${W / 2}px ${H / 2}px)`;
-      if (g && t >= .42) g.setAttribute("transform", `translate(${W / 2} ${H / 2}) scale(${k.toFixed(4)}) translate(${-W / 2} ${-H / 2})`);
+  // la feuille suivante monte du bas en se redressant, l'ancienne bascule vers le fond
+  bascule(a, b) {
+    reveler(a, b, 1150, (t, anc) => {
+      const e = expoOut(t), d = bezier(.5, 0, .3, 1)(t);
+      monde.style.transformOrigin = "50% 100%";
+      monde.style.transform = `perspective(1500px) translateY(${(H * .92 * (1 - e)).toFixed(1)}px) rotateX(${(38 * (1 - e)).toFixed(2)}deg)`;
+      anc.style.transformOrigin = "50% 0"; anc.style.transform = `perspective(1500px) translateY(${(-H * .22 * d).toFixed(1)}px) rotateX(${(-28 * d).toFixed(2)}deg) scale(${(1 - .12 * d).toFixed(4)})`;
+      anc.style.filter = `brightness(${(1 - .3 * d).toFixed(3)})`;
     });
   },
   // le pli se lève, se déplie, et devient l'escale suivante

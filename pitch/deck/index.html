@@ -154,22 +154,25 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
 .e-archi .noeud.prevu { color: var(--soleil-2); }
 .e-archi .legende-archi { position: absolute; left: 1180px; top: 120px; font-size: 28px; display: flex; gap: 40px; color: var(--aile-2); }
 
-/* 9. Business model : trois paliers, ramenés au passage */
+/* 9. Business model : trois abonnements, hauteurs proportionnelles aux dollars */
 .e-prix .pilier { position: absolute; top: 0; width: 300px; height: 1080px; }
-.e-prix .colonne { position: absolute; left: 0; right: 0; bottom: 302px; border: 4px solid var(--encre); border-bottom: 0; border-radius: 18px 18px 0 0; overflow: hidden; transform-origin: 50% 100%; }
+.e-prix .colonne { position: absolute; left: 0; right: 0; bottom: 304px; border: 4px solid var(--encre); border-bottom: 0; border-radius: 14px 14px 0 0; overflow: hidden; transform-origin: 50% 100%; }
 .e-prix .colonne > div { position: absolute; left: 0; right: 0; display: grid; place-items: center; text-align: center; font: 600 30px/1.15 var(--texte); }
-.e-prix .colonne .marge { top: 0; background: var(--soleil); border-bottom: 3px dashed var(--encre); }
-.e-prix .colonne .cout { bottom: 0; background: var(--papier); font-weight: 500; font-size: 28px; }
-.e-prix .gratuit .colonne { border-style: dashed; border-width: 4px 4px 0; }
-.e-prix .gratuit .colonne .cout { background: transparent; }
-.e-prix .prix { position: absolute; left: -30px; right: -30px; text-align: center; font: 400 96px/1 var(--affiche); letter-spacing: -.02em; white-space: nowrap; }
-.e-prix .nom { position: absolute; top: 800px; text-align: center; }
+.e-prix .colonne .marge { top: 0; background: var(--soleil); border-bottom: 3px solid var(--encre); }
+.e-prix .colonne .cout { bottom: 0; background: var(--papier); }
+.e-prix .gratuit .colonne { border-style: dashed; }
+.e-prix .gratuit .colonne .cout { background: var(--papier); font-size: 26px; font-weight: 600; }
+.e-prix .etiq-cout { position: absolute; left: 50%; transform: translateX(-50%); padding: 6px 16px; background: var(--papier); border: 3px solid var(--encre); border-radius: 999px; white-space: nowrap; font: 600 26px/1 var(--texte); }
+.e-prix .prix { position: absolute; left: -40px; right: -40px; text-align: center; font: 400 104px/1 var(--affiche); letter-spacing: -.02em; white-space: nowrap; }
+.e-prix .nom { position: absolute; top: 836px; text-align: center; }
 .e-prix .nom b { display: block; font: 400 46px/1 var(--affiche); }
-.e-prix .nom span { display: block; font-size: 28px; line-height: 1.3; margin-top: 10px; }
-.e-prix .sol { position: absolute; left: 820px; right: 40px; top: 776px; height: 4px; background: var(--encre); }
-.e-prix .unite { position: absolute; left: 860px; top: 230px; font: 600 28px/1 var(--texte); color: var(--encre-2); }
-.e-prix .explique { position: absolute; left: 96px; top: 330px; width: 660px; font-size: 32px; line-height: 1.35; }
+.e-prix .nom span { display: block; font-size: 30px; line-height: 1.3; margin-top: 10px; }
+.e-prix .sol { position: absolute; left: 820px; right: 40px; top: 772px; height: 4px; background: var(--encre); }
+.e-prix .unite { position: absolute; left: 1230px; top: 440px; font: 600 28px/1 var(--texte); color: var(--encre-2); }
+.e-prix .explique { position: absolute; left: 96px; top: 340px; width: 680px; font-size: 32px; line-height: 1.4; }
 .e-prix .explique b { font-weight: 700; }
+.e-prix .explique .petit { font-size: 28px; color: var(--encre-2); line-height: 1.35; display: block; }
+.e-prix .hypothese { font-weight: 700; position: relative; }
 .e-prix .carre { display: inline-block; width: 28px; height: 28px; border: 3px solid var(--encre); vertical-align: -4px; margin-right: 12px; }
 .e-prix .carre.blanc { background: var(--papier); } .e-prix .carre.jaune { background: var(--soleil); }
 
@@ -198,8 +201,8 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
 .e-cout .pli .bloc span { font-size: 28px; line-height: 1.3; display: block; }
 
 /* 11. Fin, à l'aube */
-.e-fin .cloture { position: absolute; left: 96px; top: 300px; width: 1000px; font-size: 128px; line-height: .98; letter-spacing: -.016em; }
-.e-fin .dit { position: absolute; left: 1380px; top: 170px; font: 400 76px/1 var(--affiche); transform: rotate(-3deg); }
+.e-fin .cloture { position: absolute; left: 96px; top: 250px; width: 1080px; font-size: 156px; line-height: .96; letter-spacing: -.018em; }
+.e-fin .dit { position: absolute; left: 1400px; top: 150px; font: 400 76px/1 var(--affiche); transform: rotate(-3deg); }
 .e-fin .equipe { position: absolute; left: 100px; top: 96px; font: 500 30px/1.3 var(--mesure); color: var(--encre-2); }
 
 /* l'envoyé : un seul, il vole d'escale en escale */
@@ -244,7 +247,7 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
     </section>
 
     <!-- 2. Problème : les deux cibles -->
-    <section class="esc e-cibles" data-anim="cibles" data-ciel="ciel" data-sortie="trait"
+    <section class="esc e-cibles" data-anim="cibles" data-ciel="ciel" data-sortie="bascule"
       data-perche="1730,250,140" data-etat="regarde" data-regard="-.6,.7">
       <h2 class="titre">Ils livrent vite.<br>Personne ne vérifie derrière.</h2>
       <div class="carte c1">
@@ -299,7 +302,7 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
     <!-- 6. Démo -->
     <section class="esc e-demo sombre" data-anim="demo" data-ciel="nuit" data-sortie="trame" data-perche="aucune">
       <div class="scene3d"><div class="feuille">
-        <div class="barre"><i></i><span>PR #16 · passage réel de 5 min 43, résumé en 45 s</span></div>
+        <div class="barre"><i></i><span>PR #16 · passage réel de 5 min 43, résumé en 1 min</span></div>
         <div class="cadre"><video muted playsinline preload="auto" poster="medias/poster.jpg"></video></div>
       </div></div>
       <p class="legende"></p>
@@ -334,15 +337,15 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
     <section class="esc e-prix" data-anim="prix" data-ciel="ciel" data-sortie="vol"
       data-perche="1215,250,120" data-etat="regarde" data-regard="1,.6">
       <h2 class="titre">On paie au passage,<br>avec un forfait.</h2>
-      <p class="explique">Ramené au passage, chaque forfait se lit d'un coup d'œil.<br><br><span class="carre blanc"></span>Le coût de l'agent H : <b>0,25 $ le passage</b>, mesuré en dollars.<br><span class="carre jaune"></span>Ce qui reste : <b>la marge</b>.<br><br>Au-delà du forfait : <b>0,40 à 0,50 €</b> le passage en plus.</p>
+      <p class="explique">Hypothèse d'usage : <span class="hypothese">30 passages par mois</span> par abonné.<br>30 × 0,25 $ = <b>7,50 $</b> de coût de l'agent H par mois.<br><br><span class="carre blanc"></span>Le coût de l'agent H, mesuré en dollars<br><span class="carre jaune"></span>Ce qui reste : <b>la marge</b><br><br><span class="petit">Gratuit : 3 passages offerts, 3 × 0,25 $ = 0,75 $ de coût d'acquisition. Sa barre est agrandie pour rester lisible.</span></p>
       <div class="sol"></div>
-      <div class="pilier gratuit" data-prix="0" data-cout="0.25" style="left:880px"><div class="colonne"><div class="cout"><span>coût H<br>0,25 $</span></div></div><p class="prix">0 €</p></div>
-      <div class="pilier" data-prix="0.49" data-cout="0.25" data-marge="49" style="left:1230px"><div class="colonne"><div class="marge"><span>marge ≈ 49 %</span></div><div class="cout"><span>coût H 0,25 $</span></div></div><p class="prix">0,49 €</p></div>
-      <div class="pilier" data-prix="0.995" data-cout="0.25" data-marge="75" style="left:1580px"><div class="colonne"><div class="marge"><span>marge ≈ 75 %</span></div><div class="cout"><span>coût H 0,25 $</span></div></div><p class="prix">≈ 1 €</p></div>
-      <div class="nom" style="left:860px;width:340px"><b>Gratuit</b><span>3 passages offerts<br>par mois</span></div>
-      <div class="nom" style="left:1210px;width:340px"><b>Solo</b><span>49 € par mois<br>pour 100 passages</span></div>
-      <div class="nom" style="left:1560px;width:340px"><b>Équipe</b><span>199 € par mois<br>pour 200 passages</span></div>
-      <p class="unite">prix d'un passage</p>
+      <div class="pilier gratuit" data-prix="0" data-cout="0.75" style="left:880px"><div class="colonne"><div class="cout"><span>coût d'acquisition<br>0,75 $</span></div></div><p class="prix">0 $</p></div>
+      <div class="pilier" data-prix="49" data-cout="7.5" style="left:1230px"><div class="colonne"><div class="marge"><span>marge 41,50 $<br>≈ 85 %</span></div><div class="cout"></div></div><p class="etiq-cout">coût H 7,50 $</p><p class="prix">49 $</p></div>
+      <div class="pilier" data-prix="199" data-cout="7.5" style="left:1580px"><div class="colonne"><div class="marge"><span>marge 191,50 $<br>≈ 96 %</span></div><div class="cout"></div></div><p class="etiq-cout">coût H 7,50 $</p><p class="prix">199 $</p></div>
+      <div class="nom" style="left:860px;width:340px"><b>Gratuit</b><span>3 passages offerts</span></div>
+      <div class="nom" style="left:1210px;width:340px"><b>Solo</b><span>pour 30 passages</span></div>
+      <div class="nom" style="left:1560px;width:340px"><b>Équipe</b><span>pour 30 passages</span></div>
+      <p class="unite">par mois et par abonné</p>
     </section>
     <!-- 10. Go-to-market -->
     <section class="esc e-chemin" data-anim="chemin" data-ciel="lever" data-sortie="plongee"
@@ -356,10 +359,10 @@ svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px
     </section>
     <!-- 11. Fin, à l'aube -->
     <section class="esc e-fin" data-anim="fin" data-ciel="aube" data-soleil="1540,1080,420"
-      data-perche="1540,580,390" data-etat="fini" data-regard="-1,.15">
-      <p class="dit">J'ai fini.</p>
-      <h2 class="cloture">Seul ce qui est mesuré devient un défaut.</h2>
+      data-perche="1540,560,390" data-etat="fini" data-regard="0,0">
       <p class="equipe">Équipe 11 · hackathon Eugenia « Build The Future »</p>
+      <h2 class="cloture">Souriez, vous êtes inspectés.</h2>
+      <p class="dit">J'ai fini.</p>
     </section>
   </div>
   <div class="couche" id="pres"></div>
