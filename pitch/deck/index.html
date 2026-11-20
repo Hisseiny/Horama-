@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horama, le vol de l'envoyé</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+/* Deck de pitch d'Horama : le deck est un vol de l'envoyé.
+   Un seul ciel continu (charte « L'envoyé »), une escale par slide, le pointillé d'encre = le chemin parcouru.
+   Moteur repris de l'étalon deck Maison Dorel (scène 1920×1080 mise à l'échelle, flèches, F, #n, impression). */
+:root {
+  --engobe: #FBF5E6; --engobe-2: #F3EAD2; --filet: #E2D6B8; --papier: #FFFDF6;
+  --encre: #1C1C1C; --encre-2: #5C5546;
+  --soleil: #FFC93C; --soleil-2: #FFE39A;
+  --aile: #AFA9EC; --aile-2: #E3E0F9; --iris: #7F77DD; --nuit: #2A2647;
+  --miltos: #B8321F; --ocre: #C48A1E; --olivier: #2E7D55;
+  --affiche: "Tilt Warp", "Arial Black", sans-serif;
+  --texte: "Funnel Sans", system-ui, sans-serif;
+  --mesure: "Spline Sans Mono", ui-monospace, monospace;
+  /* ciel courant, piloté par le vol */
+  --ciel: var(--engobe); --nuage: var(--papier); --nuage-trait: var(--encre); --nuage-op: 1; --trace: var(--encre); --nuit-k: 0;
+}
+* { box-sizing: border-box; margin: 0; }
+html, body { height: 100%; background: var(--encre); overflow: hidden; }
+@page { size: 1920px 1080px; margin: 0; }
+
+#stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; overflow: hidden;
+  background: var(--ciel); font: 400 32px/1.3 var(--texte); color: var(--encre); cursor: default; }
+.couche { position: absolute; left: 0; top: 0; height: 1080px; transform-origin: 0 0; pointer-events: none; }
+#stage.vol .couche { will-change: transform; }
+.couche > svg, .mur > svg { position: absolute; overflow: visible; }
+.nuage path { fill: var(--nuage); stroke: var(--nuage-trait); stroke-opacity: var(--nuage-op); stroke-width: 3; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.nuage.proche path { fill: var(--papier); stroke: var(--encre); stroke-opacity: 1; }
+.etoiles circle { fill: var(--engobe); }
+.etoiles { opacity: var(--nuit-k); }
+#banc path { fill: var(--nuage); stroke: var(--nuage-trait); stroke-opacity: var(--nuage-op); stroke-width: 3; stroke-linejoin: round; }
+.soleil .rayons { transform-origin: 0 0; animation: tourne 160s linear infinite; }
+.soleil .rayons line { stroke: var(--encre); stroke-width: 3.6; stroke-linecap: round; stroke-dasharray: 0 13; opacity: .55; }
+.soleil circle { fill: var(--soleil); stroke: var(--encre); stroke-width: 3; }
+@keyframes tourne { to { transform: rotate(360deg); } }
+#trace path { fill: none; stroke: var(--trace); stroke-width: 6; stroke-linecap: round; stroke-dasharray: 0 15; opacity: .62; }
+
+/* les escales : posées dans la couche principale, une tous les 2400 px de ciel */
+.esc { position: absolute; top: 0; width: 1920px; height: 1080px; }
+h1, h2 { font-family: var(--affiche); font-weight: 400; letter-spacing: -.012em; text-wrap: balance; }
+.mono { font-family: var(--mesure); font-variant-numeric: tabular-nums; }
+svg.marques { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; pointer-events: none; }
+
+/* Escale « titre » : le soleil se lève, le mot se forme, l'œil s'ouvre */
+.e-titre .mot { position: absolute; left: 86px; top: 196px; font: 400 318px/1 var(--affiche); letter-spacing: -.01em;
+  display: inline-flex; align-items: baseline; white-space: nowrap; color: var(--encre); }
+.e-titre .mot .l { display: inline-block; }
+.e-titre .mot .o { width: .7em; height: .7em; margin: 0 .03em 0 .025em; align-self: flex-end; position: relative; top: -.035em; flex: none; overflow: visible; }
+.e-titre .mot .paupiere { transform-box: fill-box; transform-origin: 50% 50%; }
+.e-titre .chapeau { position: absolute; left: 96px; top: 612px; width: 1110px; font-size: 44px; line-height: 1.2; }
+.e-titre .chapeau b { font-weight: 700; display: block; }
+.e-titre .equipe { position: absolute; left: 96px; top: 882px; font-size: 25px; font-weight: 500; color: var(--encre-2); }
+
+/* Escale « démo » : la nuit des déploiements, une feuille qui se redresse */
+.e-demo { color: var(--engobe); }
+.e-demo h2 { position: absolute; left: 96px; top: 124px; width: 590px; font-size: 78px; line-height: .98; }
+.e-demo .source { position: absolute; left: 98px; top: 430px; width: 540px; font-size: 19px; line-height: 1.5; color: var(--aile-2); opacity: .86; }
+.e-demo .legende { position: absolute; left: 96px; top: 690px; width: 560px; }
+.e-demo .points { display: flex; gap: 11px; margin-bottom: 26px; }
+.e-demo .points i { width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--engobe); opacity: .55; transition: background .3s, opacity .3s; }
+.e-demo .points i.passe { background: var(--engobe); opacity: .9; }
+.e-demo .phrase { font-size: 44px; line-height: 1.16; font-weight: 600; min-height: 3.5em; }
+.e-demo .phrase .mono { font-size: .82em; font-weight: 500; }
+.e-demo .scene3d { position: absolute; left: 700px; top: 132px; width: 1140px; height: 830px; perspective: 1700px; perspective-origin: 50% 100%; }
+.feuille { background: var(--papier); border: 3px solid var(--encre); border-radius: 16px; overflow: hidden; transform-origin: 50% 100%; }
+.feuille .barre { height: 50px; display: flex; align-items: center; gap: 12px; padding: 0 18px; border-bottom: 3px solid var(--encre); background: var(--engobe-2);
+  font: 500 17px/1 var(--mesure); color: var(--encre); white-space: nowrap; overflow: hidden; }
+.feuille .barre i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--encre); background: var(--soleil); flex: none; }
+.feuille video { display: block; width: 100%; aspect-ratio: 1280 / 862; background: var(--encre); }
+.e-demo .feuille { width: 1140px; }
+
+/* Escale « coût » : le chiffre mesuré, entouré, et son pli */
+.e-cout .chiffre { position: absolute; left: 140px; top: 262px; display: flex; align-items: center; font: 400 280px/1 var(--affiche); letter-spacing: -.02em; white-space: nowrap; }
+.e-cout .environ { width: .52em; height: .5em; margin-right: .1em; overflow: visible; }
+.e-cout .environ path { fill: none; stroke: var(--encre); stroke-width: 15; stroke-linecap: round; }
+.e-cout .rouleau { display: inline-block; height: .8em; overflow: hidden; vertical-align: top; }
+.e-cout .rouleau span { display: block; }
+.e-cout .rouleau b { display: block; height: .8em; line-height: .8em; font-weight: 400; }
+.e-cout .virgule, .e-cout .dollar { display: inline-block; height: .8em; line-height: .8em; }
+.e-cout .dollar { margin-left: .12em; }
+.e-cout .par { position: absolute; left: 156px; top: 572px; font: 400 92px/1 var(--affiche); letter-spacing: -.012em; }
+.e-cout .complet { position: absolute; left: 160px; top: 690px; font-size: 40px; line-height: 1.25; width: 900px; }
+.e-cout .ouvert { position: absolute; left: 160px; top: 880px; font-size: 36px; font-weight: 600; }
+.pli { position: absolute; background: var(--papier); border: 3px solid var(--encre); border-radius: 14px; padding: 26px 32px 28px; }
+.pli .tete { display: flex; align-items: center; gap: 12px; font: 700 26px/1 var(--texte); }
+.pli .tete i { width: 26px; height: 26px; background: var(--soleil); border: 3px solid var(--encre); flex: none; }
+.pli .ligne { margin-top: 22px; font-size: 25px; line-height: 1.38; }
+.pli .ligne em { font-style: normal; color: var(--encre-2); display: block; font-family: var(--texte); font-size: 22px; }
+.pli .sources { margin-top: 24px; padding-top: 16px; border-top: 2px solid var(--filet); font-size: 16.5px; line-height: 1.55; color: var(--encre-2); }
+.e-cout .pli { left: 1318px; top: 336px; width: 540px; transform-origin: 0 50%; }
+
+/* l'envoyé : un seul, il vole d'escale en escale */
+#envoye { position: absolute; left: 0; top: 0; width: 160px; height: 160px; transform-origin: 80px 80px; pointer-events: none; }
+#envoye.vole .aile { animation-duration: .44s !important; }
+#voile { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; pointer-events: none; overflow: visible; }
+.imp-mascotte { display: none; }
+
+@media (prefers-reduced-motion: reduce) { .soleil .rayons { animation: none; } }
+@media print {
+  html, body { height: auto; overflow: visible; background: none; }
+  #stage { position: static; transform: none !important; height: auto; background: none; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .couche:not(#principal), #envoye, #voile, #trace { display: none !important; }
+  #principal { position: static; transform: none !important; height: auto; width: auto !important; }
+  .esc { position: relative; left: 0 !important; display: block !important; visibility: visible !important; break-after: page; overflow: hidden; }
+  .esc[data-ciel="lever"] { background: var(--engobe); } .esc[data-ciel="nuit"] { background: var(--nuit); } .esc[data-ciel="ciel"] { background: var(--aile-2); }
+  .imp-mascotte { display: block; position: absolute; }
+}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="couche" id="loin"></div>
+  <div class="couche" id="milieu"></div>
+  <div class="couche" id="fond-banc"><svg id="banc"></svg></div>
+  <div class="couche" id="principal">
+    <svg id="trace"><path d=""/></svg>
+
+    <!-- Escale 1 : titre -->
+    <section class="esc e-titre" data-n="1" data-anim="titre" data-ciel="lever" data-decor="soleil" data-sortie="plongee"
+      data-perche="1724,262,176" data-etat="regarde" data-regard="-1,.42">
+      <h1 class="mot" aria-label="Horama"><span class="l">H</span><span class="l lo"><svg class="o" viewBox="26 26 44 44" aria-hidden="true"><g class="paupiere"><circle cx="48" cy="48" r="20" fill="#fff" stroke="#1C1C1C" stroke-width="3.6"/><circle cx="48" cy="48" r="10.5" fill="#7F77DD"/><circle cx="48" cy="48" r="4.6" fill="#1C1C1C"/><circle cx="51.6" cy="44.4" r="2.2" fill="#fff"/></g></svg></span><span class="l">r</span><span class="l">a</span><span class="l">m</span><span class="l">a</span></h1>
+      <p class="chapeau"><b>Votre documentation devient vos tests.</b>Sans documentation, Horama regarde quand même.</p>
+      <p class="equipe mono">Équipe 11 · hackathon Eugenia « Build The Future »</p>
+    </section>
+
+    <!-- Escale 6 : démo -->
+    <section class="esc e-demo" data-n="6" data-anim="demo" data-ciel="nuit"
+      data-perche="586,616,128" data-etat="regarde" data-regard="1,.1">
+      <h2>Une PR s'ouvre, Horama part la vérifier.</h2>
+      <p class="source mono">Montage de 30 s du vrai passage du 19/11 : la PR #16 du clone d'Eugenia, traduit en allemand. Passage réel : 343 s.</p>
+      <div class="legende">
+        <div class="points"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <p class="phrase"></p>
+      </div>
+      <div class="scene3d">
+        <div class="feuille">
+          <div class="barre"><i></i><span>PR #16 · eugenia-school-website · aperçu Vercel</span></div>
+          <video muted playsinline preload="auto" poster="medias/poster.jpg" src="medias/demo-pr16-30s.mp4"></video>
+        </div>
+      </div>
+    </section>
+
+    <!-- Escale 11 : coût de run -->
+    <section class="esc e-cout" data-n="11" data-anim="cout" data-ciel="ciel"
+      data-perche="1668,312,150" data-etat="regarde" data-regard="-1,.15">
+      <h2 class="chiffre" aria-label="Environ 0,25 dollar par passage"><svg class="environ" viewBox="0 0 100 96" aria-hidden="true"><path d="M8 34c14-16 28-16 42-4s28 12 42-4M8 74c14-16 28-16 42-4s28 12 42-4"/></svg><span class="rouleau" data-v="0"></span><span class="virgule">,</span><span class="rouleau" data-v="2"></span><span class="rouleau" data-v="5"></span><span class="dollar">$</span></h2>
+      <p class="par">par passage.</p>
+      <p class="complet">Un passage complet : l'agent visite 8 pages en cliquant, le code vérifie chaque page.</p>
+      <p class="ouvert">Railway et tout un site en production : à mesurer</p>
+      <div class="pli">
+        <div class="tete"><i></i>Mesuré le 19/11</div>
+        <p class="ligne mono">mesuré : 0,2174 $ en 343 s<em>PR #16 du clone d'Eugenia, 8 pages</em></p>
+        <p class="ligne mono">mesuré : 0,2680 $ en 434,5 s<em>même visite, contrôle du texte non traduit</em></p>
+        <p class="sources mono">docs/tests/2026-11-19-langue-et-lecture.md<br>docs/tests/2026-11-19-texte-non-traduit.md<br>pitch/business-model.md</p>
+      </div>
+    </section>
+  </div>
+  <div class="couche" id="pres"></div>
+  <div id="envoye"></div>
+  <svg id="voile" viewBox="0 0 1920 1080"></svg>
+</div>
+
+<script src="assets/mascotte.js"></script>
+<script src="assets/trait.js"></script>
+<script>
+(() => {
+const W = 1920, H = 1080, STEP = 2400, SVGNS = "http://www.w3.org/2000/svg";
+const stage = document.getElementById("stage");
+const escs = [...document.querySelectorAll(".esc")];
+escs.forEach((e, k) => { e.style.left = k * STEP + "px"; });
+
+/* ---------- courbes de temps ---------- */
+function bezier(x1, y1, x2, y2) {
+  return t => { if (t <= 0) return 0; if (t >= 1) return 1;
+    let u = t; for (let i = 0; i < 8; i++) { const x = 3 * (1 - u) ** 2 * u * x1 + 3 * (1 - u) * u * u * x2 + u ** 3 - t;
+      const dx = 3 * (1 - u) ** 2 * x1 + 6 * (1 - u) * u * (x2 - x1) + 3 * u * u * (1 - x2); if (Math.abs(dx) < 1e-6) break; u -= x / dx; u = Math.min(1, Math.max(0, u)); }
+    return 3 * (1 - u) ** 2 * u * y1 + 3 * (1 - u) * u * u * y2 + u ** 3; };
+}
+const SORTIE = "cubic-bezier(0.16, 1, 0.3, 1)";          // expo.out de la charte
+const expoOut = bezier(.16, 1, .3, 1);
+const panEase = bezier(.42, 0, .12, 1);                      // départ doux, arrivée en expo
+const douce = bezier(.45, 0, .25, 1);
+const lerp = (a, b, t) => a + (b - a) * t;
+const hasard = (s => () => (s = (s * 16807) % 2147483647) / 2147483647)(11);
+
+/* ---------- repères : ce qui ne doit jamais passer derrière un nuage au repos ---------- */
+function boite(e, el) { // rectangle d'un élément dans le repère de son escale
+  const b = e.getBoundingClientRect(), r = el.getBoundingClientRect(), k = b.width / W;
+  return { x: (r.left - b.left) / k, y: (r.top - b.top) / k, w: r.width / k, h: r.height / k };
+}
+let zones = [];
+function relever() {
+  zones = escs.map(e => [...e.querySelectorAll("h1, h2, p, .legende")].map(el => boite(e, el))
+    .concat([(p => ({ x: p.x - p.t * .7, y: p.y - p.t * .6, w: p.t * 1.4, h: p.t * 1.2 }))(perche(e))]));
+}
+// un objet du plan f, posé en x local, est-il au repos sur du texte d'une escale ?
+function gene(f, x, y, w, h, marge = 26) {
+  return escs.some((e, k) => { const sx = x - k * STEP * f;
+    return zones[k].some(z => sx < z.x + z.w + marge && sx + w > z.x - marge && y < z.y + z.h + marge && y + h > z.y - marge); });
+}
+
+/* ---------- le ciel : couches en parallaxe ---------- */
+// f : vitesse du plan au défilement ; D : profondeur, pour la plongée (plus D est grand, plus le plan est loin)
+const COUCHES = {
+  loin: { el: document.getElementById("loin"), f: .22, D: 5200 },
+  milieu: { el: document.getElementById("milieu"), f: .5, D: 2600 },
+  banc: { el: document.getElementById("fond-banc"), f: .72, D: 1700 },
+  principal: { el: document.getElementById("principal"), f: 1, D: 1000 },
+  pres: { el: document.getElementById("pres"), f: 2.2, D: 520 },
+};
+const total = (escs.length - 1) * STEP;
+for (const c of Object.values(COUCHES)) c.el.style.width = (total * c.f + W + 1600) + "px";
+
+const NUAGE = "M22 58C8 58 2 50 3 42c1-8 8-13 16-12 0-12 10-20 22-18 5-9 18-12 28-7 8 4 12 11 12 18 9-5 22-2 27 6 12-2 22 5 22 16 1 8-6 13-14 13Z";
+function nuage(parent, x, y, w, flip, cls = "nuage") {
+  const s = document.createElementNS(SVGNS, "svg");
+  s.setAttribute("class", cls); s.setAttribute("viewBox", "0 0 150 62");
+  Object.assign(s.style, { left: x + "px", top: y + "px", width: w + "px", height: w * 62 / 150 + "px", transform: flip ? "scaleX(-1)" : "" });
+  s.innerHTML = `<path d="${NUAGE}"/>`; parent.appendChild(s);
+}
+function semer(c, essais, taille, yMin, yMax) {
+  const L = parseFloat(c.el.style.width);
+  for (let i = 0; i < essais; i++) {
+    const w = taille[0] + hasard() * (taille[1] - taille[0]), x = -200 + hasard() * L, y = yMin + hasard() * (yMax - yMin);
+    if (!gene(c.f, x, y, w, w * .42)) nuage(c.el, x, y, w, hasard() > .5);
+  }
+}
+function decor() {
+  for (const e of escs) { ESCALES[e.dataset.anim]?.arriver(e, true); nettoyer(e); } // état final, pour relever les zones de texte
+  relever();
+  // loin : petits nuages et étoiles (les étoiles ne se voient que la nuit)
+  const lo = COUCHES.loin, L = parseFloat(lo.el.style.width);
+  semer(lo, Math.round(L / 260), [64, 120], 30, 820);
+  const et = document.createElementNS(SVGNS, "svg"); et.setAttribute("class", "etoiles");
+  Object.assign(et.style, { left: 0, top: 0, width: L + "px", height: H + "px" });
+  let html = ""; for (let i = 0; i < L / 9; i++) { const x = hasard() * L, y = hasard() * 900, r = 1.1 + hasard() * 2;
+    if (!gene(lo.f, x - 4, y - 4, 8, 8, 14)) html += `<circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="${r.toFixed(1)}" opacity="${(.3 + hasard() * .6).toFixed(2)}"/>`; }
+  et.innerHTML = html; lo.el.appendChild(et);
+  // milieu : nuages moyens, et le décor propre à une escale (le soleil)
+  const mi = COUCHES.milieu;
+  semer(mi, Math.round(parseFloat(mi.el.style.width) / 300), [170, 300], 40, 900);
+  escs.forEach((e, k) => {
+    if (e.dataset.decor !== "soleil") return;
+    const g = document.createElement("div"), x0 = k * STEP * mi.f;
+    Object.assign(g.style, { position: "absolute", left: x0 + 1440 - 300 + "px", top: 520 - 300 + "px", width: "600px", height: "600px" });
+    g.innerHTML = `<svg class="soleil" viewBox="-300 -300 600 600" style="width:600px;height:600px;left:0;top:0;position:absolute;overflow:visible"><g class="leve"><g class="rayons"></g><circle r="210"/></g></svg>`;
+    const ray = g.querySelector(".rayons");
+    for (let i = 0; i < 32; i++) { const a = i / 32 * Math.PI * 2, r2 = i % 2 ? 262 : 292, l = document.createElementNS(SVGNS, "line");
+      l.setAttribute("x1", (Math.cos(a) * 228).toFixed(1)); l.setAttribute("y1", (Math.sin(a) * 228).toFixed(1));
+      l.setAttribute("x2", (Math.cos(a) * r2).toFixed(1)); l.setAttribute("y2", (Math.sin(a) * r2).toFixed(1)); ray.appendChild(l); }
+    mi.el.appendChild(g); e._soleil = g;
+  });
+  // banc de nuages en bas, continu sur tout le vol
+  const ba = COUCHES.banc, s = document.getElementById("banc"), LB = parseFloat(ba.el.style.width);
+  Object.assign(s.style, { left: 0, top: (H - 96) + "px", width: LB + "px", height: "120px" });
+  let d = "M0 120V52", x = 0;
+  while (x < LB) { const w = 46 + hasard() * 70, h = w * (.5 + hasard() * .25); d += `a${(w / 2).toFixed(1)} ${h.toFixed(1)} 0 0 1 ${w.toFixed(1)} 0`; x += w; }
+  s.innerHTML = `<path d="${d}V120Z"/>`;
+  // près : entre deux escales, un mur de nuages que la caméra traverse (jamais visible au repos)
+  const pr = COUCHES.pres;
+  for (let k = 0; k < escs.length - 1; k++) {
+    const xc = (k + .5) * STEP * pr.f + W / 2, demi = 1100, mur = document.createElement("div");
+    mur.className = "mur";
+    for (const cote of [-1, 1]) for (let y = -170; y < H + 60; y += 230) {
+      const w = 600 + hasard() * 160; nuage(mur, xc + cote * demi - w / 2 + cote * (hasard() * 90), y + hasard() * 40, w, cote > 0, "nuage proche");
+    }
+    const coeur = document.createElement("div");
+    Object.assign(coeur.style, { position: "absolute", left: xc - demi + "px", top: "-200px", width: 2 * demi + "px", height: H + 400 + "px", background: "var(--papier)" });
+    mur.appendChild(coeur);
+    for (let i = 0; i < 7; i++) nuage(mur, xc - demi + 160 + hasard() * (2 * demi - 700), -40 + hasard() * (H - 160), 300 + hasard() * 260, hasard() > .5, "nuage proche");
+    pr.el.appendChild(mur);
+  }
+}
+
+/* ---------- les ciels des escales : ils changent quand le mur de nuages couvre l'écran ---------- */
+const CIELS = {
+  lever: { ciel: "var(--engobe)", nuage: "var(--papier)", trait: "var(--encre)", op: 1, trace: "var(--encre)", nuit: 0 },
+  nuit: { ciel: "var(--nuit)", nuage: "var(--nuit)", trait: "var(--engobe)", op: .5, trace: "var(--engobe)", nuit: 1 },
+  ciel: { ciel: "var(--aile-2)", nuage: "var(--papier)", trait: "var(--encre)", op: 1, trace: "var(--encre)", nuit: 0 },
+};
+let cielCourant = null;
+function poserCiel(nom) {
+  if (nom === cielCourant) return; cielCourant = nom;
+  const A = CIELS[nom], st = stage.style;
+  st.setProperty("--ciel", A.ciel); st.setProperty("--nuage", A.nuage); st.setProperty("--nuage-trait", A.trait);
+  st.setProperty("--nuage-op", A.op); st.setProperty("--trace", A.trace); st.setProperty("--nuit-k", A.nuit);
+}
+
+/* ---------- caméra ---------- */
+const cam = { x: 0, zc: 0, E: [W / 2, H / 2], off: [0, 0] };
+function rendre() {
+  for (const c of Object.values(COUCHES)) {
+    let s = 1;
+    if (cam.zc) { const d = c.D - cam.zc; if (d < 30) { c.el.style.visibility = "hidden"; continue; } s = c.D / d; }
+    c.el.style.visibility = "";
+    const [ex, ey] = cam.E;
+    c.el.style.transform = `translate(${(cam.off[0] + ex).toFixed(2)}px,${(cam.off[1] + ey).toFixed(2)}px) scale(${s.toFixed(5)}) translate(${(-ex).toFixed(2)}px,${(-ey).toFixed(2)}px) translateX(${(-cam.x * c.f).toFixed(2)}px)`;
+  }
+  escs.forEach((e, k) => {
+    const loin = Math.abs(k * STEP - cam.x);
+    e.style.visibility = loin < 2100 ? "" : "hidden";
+    if (e._soleil) e._soleil.style.visibility = loin < STEP * .5 && cielCourant !== "nuit" ? "" : "hidden"; // le soleil reste à son escale
+  });
+}
+
+/* ---------- l'envoyé ---------- */
+const hote = document.getElementById("envoye");
+const M = creerMascotte(160); hote.appendChild(M.el);
+function placer(x, y, t, rot = 0) {
+  hote.style.transform = `translate(${(x - 80).toFixed(1)}px,${(y - 80).toFixed(1)}px) scale(${(t / 160).toFixed(4)}) rotate(${rot.toFixed(2)}deg)`;
+}
+function perche(e) { const [x, y, t] = e.dataset.perche.split(",").map(Number); return { x, y, t }; }
+const regard = e => (e.dataset.regard || "0,0").split(",").map(Number);
+function poser(e) { const p = perche(e); placer(p.x, p.y, p.t); M.etat(e.dataset.etat || "regarde"); M.regarder(...regard(e)); hote.style.visibility = ""; }
+
+/* ---------- le pointillé d'encre : le chemin parcouru ---------- */
+const traceSvg = document.getElementById("trace"), tracePath = traceSvg.querySelector("path");
+Object.assign(traceSvg.style, { left: 0, top: 0, width: (total + W) + "px", height: H + "px" });
+let points = [];
+function tracer() { tracePath.setAttribute("d", points.length ? "M" + points.map(p => p[0].toFixed(1) + " " + p[1].toFixed(1)).join("L") : ""); }
+
+/* ---------- animations d'escale (chaque escale se suffit à elle-même) ---------- */
+const retenir = (e, a) => ((e._anims ||= []).push(a), a);
+const plus_tard = (e, ms, fn) => (e._tempo ||= []).push(setTimeout(() => { if (courante === e) fn(); }, ms));
+function nettoyer(e) {
+  (e._anims || []).forEach(a => a.cancel()); e._anims = [];
+  (e._tempo || []).forEach(clearTimeout); e._tempo = [];
+  if (e._boucle) cancelAnimationFrame(e._boucle), e._boucle = 0;
+  e.querySelectorAll("svg.marques").forEach(s => s.remove());
+}
+function calque(e) { const s = document.createElementNS(SVGNS, "svg"); s.setAttribute("class", "marques"); s.setAttribute("viewBox", `0 0 ${W} ${H}`); e.appendChild(s); return s; }
+
+const ESCALES = {
+  titre: {
+    arriver(e, instant, via) {
+      if (instant) return;
+      [...e.querySelectorAll(".mot .l")].forEach((l, i) => {
+        const dx = (i - 2.5) * 70 + (hasard() - .5) * 160, dy = 150 + hasard() * 120, r = (hasard() - .5) * 34;
+        retenir(e, l.animate([
+          { opacity: 0, transform: `translate(${dx}px,${dy}px) rotate(${r}deg)`, fontVariationSettings: '"XROT" -45, "YROT" 40' },
+          { opacity: 1, offset: .3 },
+          { opacity: 1, transform: "none", fontVariationSettings: '"XROT" 0, "YROT" 0' }],
+          { duration: 1000, delay: i * 55, easing: SORTIE, fill: "backwards" }));
+      });
+      retenir(e, e.querySelector(".paupiere").animate(
+        [{ transform: "scaleY(.07)" }, { transform: "scaleY(.07)", offset: .55 }, { transform: "scaleY(1.08)", offset: .85 }, { transform: "scaleY(1)" }],
+        { duration: 1250, easing: "linear", fill: "backwards" }));
+      if (e._soleil) retenir(e, e._soleil.querySelector(".leve").animate(
+        [{ transform: "translateY(420px)" }, { transform: "none" }], { duration: 1200, easing: SORTIE }));
+      if (via === "saut") retenir(e, hote.animate([{ opacity: 0, transform: hote.style.transform + " translateY(60px)" }, { opacity: 1, transform: hote.style.transform }],
+        { duration: 1000, delay: 300, easing: SORTIE, fill: "backwards" }));
+    },
+  },
+  demo: {
+    // calées sur les instants de la vidéo (relevés image par image), pas sur des tranches égales
+    LEGENDES: [
+      [0, "regarde", [1, .1], "Horama attend la prochaine pull request."],
+      [4.6, "regarde", [1, .1], "Il visite le site, comme un visiteur."],
+      [7.3, "trouve", [1, -.2], "Un texte déborde de son cadre : trait rouge."],
+      [9.2, "regarde", [1, .1], "L'agent de H ouvre le menu et clique."],
+      [13.8, "regarde", [1, .1], "Il lit chaque page, traduite en allemand."],
+      [16.8, "trouve", [1, .1], "Un bloc est resté en français : trait rouge."],
+      [19.8, "fini", [1, 0], "« J'ai fini. » <span class=\"mono\">3 défauts, 2 doutes, 8 pages.</span>"],
+      [22.3, "doute", [1, .2], "Chaque problème revient. Vous tranchez : « C'est un bug »."],
+      [26.6, "fini", [1, 0], "« C'est rangé. »"],
+    ],
+    arriver(e, instant) {
+      const v = e.querySelector("video"), f = e.querySelector(".feuille"), ph = e.querySelector(".phrase"), pts = [...e.querySelectorAll(".points i")];
+      v.pause(); try { v.currentTime = 0; } catch {}
+      let cur = -1;
+      const montrer = (i, anim) => {
+        if (i === cur) return; cur = i; const L = this.LEGENDES[i];
+        ph.innerHTML = L[3]; pts.forEach((p, j) => p.classList.toggle("passe", j <= i));
+        if (courante === e && !instant && !transition) { M.etat(L[1]); M.regarder(...L[2]); }
+        if (anim) retenir(e, ph.animate([{ opacity: 0, transform: "translateY(16px)" }, { opacity: 1, transform: "none" }], { duration: 520, easing: SORTIE }));
+      };
+      montrer(0, false);
+      if (instant) return;
+      retenir(e, f.animate([
+        { opacity: 0, transform: "translate3d(120px,300px,-520px) rotateX(64deg) rotateZ(-9deg)" },
+        { opacity: 1, offset: .22 },
+        { opacity: 1, transform: "translate3d(0,0,0) rotateX(0deg) rotateZ(-1.2deg)" }],
+        { duration: 1150, easing: SORTIE, fill: "both" }));
+      plus_tard(e, 1050, () => { v.play().catch(() => {}); });
+      const suivre = () => {
+        const t = v.currentTime; let i = 0;
+        this.LEGENDES.forEach((L, j) => { if (t >= L[0]) i = j; });
+        montrer(i, true);
+        e._boucle = requestAnimationFrame(suivre);
+      };
+      e._boucle = requestAnimationFrame(suivre);
+    },
+    quitter(e) { e.querySelector("video").pause(); },
+  },
+  cout: {
+    arriver(e, instant) {
+      // odomètre : chaque chiffre roule jusqu'à sa place (le vrai nombre reste dans aria-label)
+      e.querySelectorAll(".rouleau").forEach((r, i) => {
+        const v = +r.dataset.v, tours = instant ? 0 : 10 * (i + 1) + v;
+        r.innerHTML = "<span>" + Array.from({ length: tours + 1 }, (_, k) => `<b>${(instant ? v : k) % 10}</b>`).join("") + "</span>";
+        if (!instant) retenir(e, r.firstChild.animate([{ transform: "translateY(0)" }, { transform: `translateY(${-tours * .8}em)` }],
+          { duration: 1050 + i * 90, easing: SORTIE, fill: "both" }));
+      });
+      const marques = calque(e), ch = e.querySelector(".chiffre");
+      const a = boite(e, ch.querySelector(".rouleau")), z = boite(e, ch.querySelector(".dollar"));
+      const rect = { x: a.x + 14, y: a.y - 26, w: z.x + z.w - a.x - 22, h: a.h + 40 };
+      const pli = e.querySelector(".pli"), ouvert = e.querySelector(".ouvert");
+      if (instant) {
+        tracerDefaut(marques, rect, { instant: true, epaisseur: 7 });
+        poserDoute(marques, boite(e, ouvert), { instant: true, pas: 16, rayon: 5.2 });
+        pli.style.transform = "rotate(2.5deg)";
+        return;
+      }
+      retenir(e, ch.animate([{ fontVariationSettings: '"XROT" 0, "YROT" 38' }, { fontVariationSettings: '"XROT" 0, "YROT" 0' }], { duration: 1100, easing: SORTIE }));
+      retenir(e, pli.animate([
+        { opacity: 0, transform: "perspective(1400px) translateX(160px) rotateY(-72deg) rotateZ(0deg)" },
+        { opacity: 1, offset: .25 },
+        { opacity: 1, transform: "perspective(1400px) translateX(0) rotateY(0deg) rotateZ(2.5deg)" }],
+        { duration: 1150, delay: 120, easing: SORTIE, fill: "both" }));
+      plus_tard(e, 620, () => { tracerDefaut(marques, rect, { duree: 820, epaisseur: 7 }); });
+      plus_tard(e, 1250, () => { M.etat("regarde"); M.regarder(-1, .15); });
+      plus_tard(e, 1700, () => { poserDoute(marques, boite(e, ouvert), { pas: 16, rayon: 5.2 }); M.etat("doute"); M.regarder(-.75, .66); });
+    },
+  },
+};
+
+/* ---------- navigation ---------- */
+let courante = null, transition = null;
+const idx = e => escs.indexOf(e);
+function arriver(e, instant, via) { courante = e; nettoyer(e); ESCALES[e.dataset.anim]?.arriver(e, instant, via); history.replaceState(null, "", "#" + e.dataset.n); }
+function quitter(e) { if (!e) return; ESCALES[e.dataset.anim]?.quitter?.(e); nettoyer(e); }
+
+function tween(ms, step, done) {
+  const t0 = performance.now(); let fini = false, id = 0;
+  const tick = now => { const t = Math.min(1, (now - t0) / ms); step(t); if (t < 1 && !fini) id = requestAnimationFrame(tick); else if (!fini) { fini = true; done && done(); } };
+  id = requestAnimationFrame(tick);
+  return { finir() { if (fini) return; cancelAnimationFrame(id); step(1); fini = true; done && done(); } };
+}
+
+function aller(cible, instant) {
+  while (transition) transition.finir();
+  const depart = courante;
+  if (!depart || instant) {
+    quitter(depart); cam.x = idx(cible) * STEP; cam.zc = 0; cam.off = [0, 0];
+    poserCiel(cible.dataset.ciel); rendre(); poser(cible); points = []; tracer(); arriver(cible, false, "saut"); return;
+  }
+  if (cible === depart) return;
+  const avant = idx(cible) > idx(depart);
+  if (avant && depart.dataset.sortie === "plongee") plonger(depart, cible); else voler(depart, cible);
+}
+
+/* le vol : la caméra traverse le ciel (et un mur de nuages), l'envoyé file devant et laisse son pointillé */
+function voler(a, b) {
+  quitter(a);
+  const dir = idx(b) > idx(a) ? 1 : -1, x0 = cam.x, x1 = idx(b) * STEP;
+  const A = perche(a), B = perche(b);
+  const P1 = [A.x + dir * 60, A.y - 360], P2 = [B.x - dir * 240, B.y - 560];
+  const bez = (u, i) => (1 - u) ** 3 * [A.x, A.y][i] + 3 * (1 - u) ** 2 * u * P1[i] + 3 * (1 - u) * u * u * P2[i] + u ** 3 * [B.x, B.y][i];
+  points = []; stage.classList.add("vol"); hote.classList.add("vole");
+  M.etat("regarde"); M.regarder(dir, -.25);
+  transition = tween(1150, t => {
+    const e = panEase(t), u = douce(t);
+    cam.x = lerp(x0, x1, e); poserCiel(e < .5 ? a.dataset.ciel : b.dataset.ciel); rendre();
+    const x = bez(u, 0), y = bez(u, 1), taille = lerp(A.t, B.t, u);
+    placer(x, y, taille, dir * 14 * Math.sin(Math.PI * Math.min(1, u * 1.15)));
+    points.push([x + cam.x, y + taille * .12]); tracer();
+  }, () => {
+    transition = null; stage.classList.remove("vol"); hote.classList.remove("vole");
+    placer(B.x, B.y, B.t, 0);
+    if (courante === b) { M.etat(b.dataset.etat || "regarde"); M.regarder(...regard(b)); }
+  });
+  arriver(b);
+}
+
+/* la plongée : la caméra entre dans l'œil de l'envoyé, l'iris s'ouvre sur l'escale suivante */
+const voile = document.getElementById("voile");
+function plonger(a, b) {
+  quitter(a);
+  const A = perche(a), centre = [W / 2 - A.x, H / 2 - A.y];
+  cam.E = [A.x, A.y];
+  voile.innerHTML = `<g><g fill="#AFA9EC" stroke="#1C1C1C" stroke-width="2.5" stroke-linejoin="round"><path d="M30 46C24 30 10 24 2 28c6 3 7 7 5 10 5 1 7 5 5 8 5 1 8 5 7 9 5-1 9-4 11-9Z"/><path d="M66 46C72 30 86 24 94 28c-6 3-7 7-5 10-5 1-7 5-5 8-5 1-8 5-7 9-5-1-9-4-11-9Z"/></g><circle cx="48" cy="48" r="20" fill="#fff" stroke="#1C1C1C" stroke-width="3"/><circle cx="48" cy="48" r="10.5" fill="#7F77DD"/><circle cx="48" cy="48" r="4.6" fill="#1C1C1C"/><circle cx="51.6" cy="44.4" r="2.2" fill="#fff"/></g>`;
+  const g = voile.firstChild;
+  hote.style.visibility = "hidden"; points = []; tracer();
+  const SMAX = 300, accel = bezier(.42, 0, .9, .5);
+  transition = tween(820, t => {
+    const s = Math.exp(Math.log(SMAX) * accel(t)), k = douce(t);           // zoom exponentiel : vitesse perçue régulière, qui accélère
+    cam.zc = 1000 * (1 - 1 / s); cam.off = [centre[0] * k, centre[1] * k]; rendre();
+    g.setAttribute("transform", `translate(${(A.x + cam.off[0]).toFixed(2)} ${(A.y + cam.off[1]).toFixed(2)}) scale(${(s * A.t / 96).toFixed(4)}) translate(-48 -48)`);
+  }, () => {
+    // noir de la pupille : on change d'escale
+    cam.zc = 0; cam.off = [0, 0]; cam.E = [W / 2, H / 2]; cam.x = idx(b) * STEP;
+    poserCiel(b.dataset.ciel); rendre(); poser(b);
+    const R = Math.hypot(W, H) / 2 + 40;
+    voile.innerHTML = `<path fill="#1C1C1C" fill-rule="evenodd"/><path fill="#7F77DD" fill-rule="evenodd" stroke="#1C1C1C" stroke-width="7"/>`;
+    const [noir, iris] = voile.querySelectorAll("path");
+    const rond = r => `M${W / 2 - r} ${H / 2}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0Z`;
+    transition = tween(900, t => {
+      const r = 2 + expoOut(t) * R * 1.05, r2 = r * 1.7 + 24;
+      noir.setAttribute("d", `M-20 -20H${W + 20}V${H + 20}H-20Z` + rond(r2));
+      iris.setAttribute("d", rond(r2) + rond(r));
+    }, () => { voile.innerHTML = ""; transition = null; });
+    arriver(b);
+  });
+}
+
+/* ---------- mise à l'échelle et commandes (moteur de l'étalon Dorel) ---------- */
+function ajuster() { const k = Math.min(innerWidth / W, innerHeight / H); stage.style.transform = `translate(${(innerWidth - W * k) / 2}px,${(innerHeight - H * k) / 2}px) scale(${k})`; }
+addEventListener("resize", ajuster); ajuster();
+const parNumero = n => escs.find(e => e.dataset.n === String(n));
+const suivante = d => escs[Math.min(escs.length - 1, Math.max(0, idx(courante) + d))];
+addEventListener("keydown", ev => {
+  if (["ArrowRight", "ArrowDown", "PageDown", " ", "Enter"].includes(ev.key)) { aller(suivante(1)); ev.preventDefault(); }
+  if (["ArrowLeft", "ArrowUp", "PageUp", "Backspace"].includes(ev.key)) { aller(suivante(-1)); ev.preventDefault(); }
+  if (ev.key === "f" || ev.key === "F") document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+});
+addEventListener("click", ev => aller(suivante(ev.clientX < innerWidth / 4 ? -1 : 1)));
+addEventListener("hashchange", () => { const e = parNumero(location.hash.slice(1)); if (e && e !== courante) aller(e); });
+
+// impression : une escale par page, chaque escale dans son état final
+addEventListener("beforeprint", () => {
+  for (const e of escs) {
+    nettoyer(e); ESCALES[e.dataset.anim]?.arriver(e, true);
+    if (!e.querySelector(".imp-mascotte")) {
+      const p = perche(e), etat = { regarde: "observe" }[e.dataset.etat] || e.dataset.etat || "observe", t = p.t * 104 / 96;
+      const img = new Image(); img.className = "imp-mascotte"; img.src = `assets/${etat}.svg`; img.alt = "";
+      Object.assign(img.style, { left: p.x - t / 2 + "px", top: p.y - t / 2 + "px", width: t + "px", height: t + "px" });
+      e.appendChild(img);
+      if (e._soleil) { const c = e._soleil.cloneNode(true); c.className = "imp-mascotte"; Object.assign(c.style, { left: "1140px", top: "220px", transform: "", visibility: "visible" }); e.prepend(c); }
+    }
+  }
+});
+addEventListener("afterprint", () => { const e = courante; courante = null; aller(e, true); });
+
+(document.fonts?.ready ?? Promise.resolve()).then(() => {
+  cam.x = 0; rendre(); decor();
+  aller(parNumero(location.hash.slice(1)) || escs[0], true);
+});
+})();
+</script>
+</body>
+</html>
