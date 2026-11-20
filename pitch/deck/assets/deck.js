@@ -200,14 +200,15 @@ function tracer() { tracePath.setAttribute("d", points.length ? "M" + points.map
 
 /* ---------- outils des escales ---------- */
 let courante = null, transition = null, retard = 0; // retard : les animations d'entrée attendent la fin de la transition
-const retenir = (e, a) => { if (retard) a.currentTime = (a.currentTime || 0) - retard; (e._anims ||= []).push(a); return a; };
-const anime = (e, n, kf, o) => retenir(e, n.animate(kf, { easing: SORTIE, fill: "both", ...o }));
+const retenir = (e, a) => ((e._anims ||= []).push(a), a);
+const anime = (e, n, kf, o = {}) => retenir(e, n.animate(kf, { easing: SORTIE, fill: "both", ...o, delay: (o.delay || 0) + retard }));
 const plus_tard = (e, ms, fn) => (e._tempo ||= []).push(setTimeout(() => { if (courante === e) fn(); }, ms + retard));
 const jetable = (e, n) => ((e._jetables ||= []).push(n), n);
 function nettoyer(e) {
   (e._anims || []).forEach(a => a.cancel()); e._anims = [];
   (e._tempo || []).forEach(clearTimeout); e._tempo = [];
   (e._jetables || []).forEach(n => n.remove()); e._jetables = [];
+  (e._finale || []).forEach(f => f()); e._finale = [];
   if (e._boucle) cancelAnimationFrame(e._boucle), e._boucle = 0;
   e.querySelectorAll("svg.marques:not(.chemins)").forEach(s => { if (s.parentElement === e) s.remove(); else s.textContent = ""; });
 }
@@ -373,7 +374,7 @@ const ESCALES = {
         Object.assign(lab.style, { left: x + "px", top: (id === "h" ? y + 74 : y + 26) + "px" });
         if (instant) return;
         const dl = 150 + Math.min(i * 80, 900);
-        retenir(e, c.animate([{ transform: "scale(0)" }, { transform: "scale(1.8)", offset: .4 }, { transform: "scale(1)" }], { duration: 900, delay: dl, easing: SORTIE, fill: "both" }));
+        retenir(e, c.animate([{ transform: "scale(0)" }, { transform: "scale(1.8)", offset: .4 }, { transform: "scale(1)" }], { duration: 900, delay: dl + retard, easing: SORTIE, fill: "both" }));
         c.style.transformOrigin = `${x}px ${y}px`; c.style.transformBox = "view-box";
         anime(e, lab, [{ opacity: 0, transform: "translateY(14px)" }, { opacity: 1, transform: "none" }], { duration: 900, delay: dl + 100 });
       });
@@ -406,10 +407,12 @@ const ESCALES = {
       const path = e.querySelector(".trace-c"), L = path.getTotalLength(), etapes = [...e.querySelectorAll(".etape")];
       [.0, .36, .66, 1].forEach((f, i) => { const q = path.getPointAtLength(L * f); Object.assign(etapes[i].style, { left: q.x - 32 + "px", top: q.y - 32 + "px" }); });
       const masque = e.querySelector("svg.courbe"); [...masque.querySelectorAll("mask")].forEach(m => m.remove());
-      path.removeAttribute("mask");
+      [...masque.querySelectorAll("path.trace-c")].slice(1).forEach(n => n.remove());   // copies laissées par une arrivée interrompue
+      path.removeAttribute("mask"); path.style.visibility = "";
       if (instant) return;
       const { p } = pointille(masque, path.getAttribute("d"), { classe: "trace-c", duree: 1400, delai: 200 });
-      path.style.visibility = "hidden"; plus_tard(e, 1700, () => { path.style.visibility = ""; p.remove(); });
+      jetable(e, p); path.style.visibility = "hidden"; plus_tard(e, 1700, () => { path.style.visibility = ""; p.remove(); });
+      (e._finale ||= []).push(() => { path.style.visibility = ""; p.remove(); });
       // l'envoyé suit le chemin qu'il trace
       const t0 = performance.now() + 200 + retard, duree = 1400, ease = bezier(.45, .05, .25, 1), fin = perche(e);
       const vol = now => {
@@ -418,7 +421,7 @@ const ESCALES = {
         const t = clamp((now - t0) / duree), q = path.getPointAtLength(L * ease(t)), q2 = path.getPointAtLength(Math.min(L, L * ease(t) + 4));
         M.regarder(q2.x - q.x, q2.y - q.y);
         placer(q.x, q.y - 40, lerp(fin.t, 150, t), (q2.y - q.y) * 4);
-        if (t < 1) e._boucle = requestAnimationFrame(vol); else { M.etat("fini"); M.regarder(-1, .3); placer(q.x + 70, q.y - 90, 150); }
+        if (t < 1) e._boucle = requestAnimationFrame(vol); else { M.etat("fini"); M.regarder(-1, .3); placer(q.x + 70, q.y - 90, 150); etapes.forEach(n => n.getAnimations().forEach(a => a.finish())); }
       };
       e._boucle = requestAnimationFrame(vol);
       etapes.forEach((s, i) => anime(e, s, [{ opacity: 0, transform: "translateY(30px) scale(.9)" }, { opacity: 1, transform: "none" }], { duration: 900, delay: 200 + [0, .36, .66, 1][i] * 1300 }));
@@ -490,7 +493,9 @@ const ESCALES = {
 /* ---------- navigation ---------- */
 const idx = e => escs.indexOf(e);
 const numero = e => idx(e) + 1;
-function arriver(e, instant, via, attente = 0) { courante = e; nettoyer(e); retard = instant ? 0 : attente; try { ESCALES[e.dataset.anim]?.arriver(e, instant, via); } finally { retard = 0; } history.replaceState(null, "", "#" + numero(e)); }
+function arriver(e, instant, via, attente = 0) { courante = e; nettoyer(e); retard = instant ? 0 : attente; try { ESCALES[e.dataset.anim]?.arriver(e, instant, via); } finally { retard = 0; }
+  // garde-fou : 4,5 s après la fin de la transition, toute animation d'entrée non terminée est menée à son état final
+  if (!instant) plus_tard(e, attente + 4500, () => (e._anims || []).forEach(a => { if (a.effect?.getTiming().iterations !== Infinity && a.playState !== "finished") a.finish(); })); history.replaceState(null, "", "#" + numero(e)); }
 function quitter(e) { if (!e) return; ESCALES[e.dataset.anim]?.quitter?.(e); nettoyer(e); }
 
 function tween(ms, step, done) {
